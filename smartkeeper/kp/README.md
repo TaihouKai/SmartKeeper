@@ -8,3 +8,11 @@
 - 裁定里提到实体一律写 `{{实体ID}}`，反馈撰写前按读者自己的代号替换，读者不认识的显示成“某人”。
 - 玩家文本在 prompt 里一律包进 `<player_text>` 标签，尖括号转义。
 - 单独测试：`uv run pytest tests/kp`（FakeLLM 加内存 engine）
+
+## 加固（M5）
+
+- 泄密检查（`KP.leak_check`）：先做确定性检查（反馈里出现实体 ID 或未替换的 `{{…}}` 记号一定算泄密），再让模型对照“允许的内容”和“不该让他知道的内容”（本轮别人的部分、剧本的 KP 专属部分）找句子。命中就自动重写一次；仍命中则草稿和命中的句子留在待审核里，回合不发布，并通知管理员 webhook。
+- 滚动摘要：每轮发布后更新一次，写成 `summary` 事件（kp_only）。在裁定上下文里标明“只提供氛围，不能作为事实依据”。
+- 回放出题（`evaluation.py`，`scripts/memory_eval.py`）：从事件日志生成正例和反例的往事引用，统计按实体检索的召回率，以及声明核对的召回率和特异度。
+- 钩子：`on_published(game_id, round_no)`、`on_review(game_id, round_no)`，由 web 接到 webhook 通知上。
+- 真模型泄密测试：`scripts/live_leak_test.py`（`uv run pytest -m live tests/e2e`）。

@@ -75,6 +75,15 @@ class CheckOut(_Out):
     reason: str = ""
 
 
+class LeakItem(_Out):
+    sentence: str
+    reason: str = ""
+
+
+class LeakOut(_Out):
+    leaks: list[LeakItem] = []
+
+
 class PlanOut(_Out):
     checks: list[CheckOut] = []
     queries: list[SpatialQuery] = []

@@ -119,6 +119,8 @@ def install_handlers(g: Game) -> None:
     llm.on("feedback", lambda c: "你的反馈。")
     llm.on("broadcast", lambda c: "公共消息。")
     llm.on("chat", lambda c: "KP 的回答。")
+    llm.on("leak_check", lambda c: '{"leaks": []}')
+    llm.on("summary", lambda c: "摘要。")
 
 
 def new_game(

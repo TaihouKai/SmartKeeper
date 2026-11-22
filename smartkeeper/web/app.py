@@ -34,6 +34,7 @@ from smartkeeper.kp import KP, KPConfig
 from smartkeeper.llm import AnthropicLLM, FakeLLM, OpenAICompatLLM, RecordingLLM, SqlLLMCallLog
 from smartkeeper.mapdata import FileMapStore
 from smartkeeper.memory import SqlMemoryStore
+from smartkeeper.notify import WebhookNotifier
 from smartkeeper.rounds import RoundStateMachine
 from smartkeeper.rules import RulesService, SqlRulePackStore
 from smartkeeper.spatial import ShapelySpatial
@@ -123,6 +124,7 @@ def build_services(
     *,
     judge: LLMClient | None = None,
     writer: LLMClient | None = None,
+    notifier: WebhookNotifier | None = None,
 ) -> Services:
     db = make_db(settings.db_path)
     migrate(db)
@@ -151,6 +153,28 @@ def build_services(
             install_scripted(client, engine)  # 离线演示与端到端测试用的脚本化 KP
     j = RecordingLLM(raw_judge, log)
     w = RecordingLLM(raw_writer, log)
+    notifier = notifier or WebhookNotifier()
+
+    def on_published(game_id: str, round_no: int) -> None:
+        g = engine.game(game_id)
+        lang = g.settings.kp_language
+        if g.status == "ended":
+            notifier.send(g.settings.player_webhook, "game.ended", lang, game=g.name)
+        else:
+            notifier.send(
+                g.settings.player_webhook, "round.started", lang, game=g.name, round=round_no + 1
+            )
+
+    def on_review(game_id: str, round_no: int) -> None:
+        g = engine.game(game_id)
+        notifier.send(
+            g.settings.admin_webhook,
+            "round.review",
+            g.settings.kp_language,
+            game=g.name,
+            round=round_no,
+        )
+
     kp = KP(
         engine,
         j,
@@ -161,6 +185,8 @@ def build_services(
             writer_concurrency=settings.writer_concurrency,
         ),
         call_log=log,
+        on_published=on_published,
+        on_review=on_review,
     )
     return Services(
         db=db,

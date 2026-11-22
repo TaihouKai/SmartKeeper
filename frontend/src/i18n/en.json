@@ -5,10 +5,12 @@
     "logout": "Log out",
     "panel": {
       "games": "Games",
+      "llm": "LLM calls",
       "log": "Log",
       "materials": "Materials",
       "review": "Review",
-      "rules": "Rules"
+      "rules": "Rules",
+      "state": "World state"
     },
     "password": "Admin password",
     "pick_game": "Pick a game under Games first.",
@@ -194,6 +196,13 @@
     "en": "English",
     "zh": "中文"
   },
+  "llm": {
+    "messages": "Messages",
+    "response": "Response",
+    "searches": "Web searches",
+    "system": "System prompt",
+    "totals": "{n} calls, {in} input tokens, {out} output tokens"
+  },
   "log": {
     "all": "All events (keeper view)",
     "as": "As {name}",
@@ -242,6 +251,7 @@
     "declarations": "This round's declarations",
     "dice": "Dice",
     "feedback": "Feedback drafts",
+    "leaks": "Leak check hits (still present after one automatic rewrite):",
     "not_in_review": "This round is not awaiting review; read only.",
     "publish": "Publish",
     "queries": "Spatial queries",
@@ -352,6 +362,14 @@
       "opening": "opening"
     },
     "statuses": "Statuses:"
+  },
+  "state": {
+    "apply": "Apply",
+    "current": "Current state",
+    "note": "Note",
+    "patch": "Manual edit (JSON Patch)",
+    "patch_hint": "Edits are validated like adjudications and logged as admin overrides.",
+    "snapshot": "Snapshot after round {round}"
   },
   "status": {
     "ended": "Ended",

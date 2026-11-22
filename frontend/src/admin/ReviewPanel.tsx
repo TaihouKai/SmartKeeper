@@ -10,7 +10,7 @@ export function ReviewPanel({ gameId }: { gameId: string }) {
   const rev = usePoll(() => call(api.GET("/api/admin/games/{game_id}/round/review", { params: { path: { game_id: gameId } } })), 15_000, [gameId]);
   const detail = usePoll(() => call(api.GET("/api/admin/games/{game_id}", { params: { path: { game_id: gameId } } })), 60_000, [gameId]);
   const act = useAction();
-  const draft = rev.data?.round.draft as { adjudication?: unknown; feedback?: Record<string, string>; broadcast?: string | null; error?: unknown } | null | undefined;
+  const draft = rev.data?.round.draft as { adjudication?: unknown; feedback?: Record<string, string>; broadcast?: string | null; error?: unknown; leaks?: Record<string, string[]> } | null | undefined;
   const [adjText, setAdjText] = useState("");
   const [feedback, setFeedback] = useState<Record<string, string>>({});
   const [broadcast, setBroadcast] = useState("");
@@ -42,6 +42,12 @@ export function ReviewPanel({ gameId }: { gameId: string }) {
       {Object.keys({ ...feedback, ...Object.fromEntries((detail.data?.players ?? []).filter((p) => p.active).map((p) => [p.id, ""])) }).map((pid) => (
         <div key={pid} className="sk-card">
           <strong>{names[pid] ?? pid}</strong>
+          {(draft?.leaks?.[pid] ?? []).length > 0 && (
+            <div className="sk-warn">
+              {t("review.leaks")}
+              <ul>{(draft?.leaks?.[pid] ?? []).map((l, i) => <li key={i}>{l}</li>)}</ul>
+            </div>
+          )}
           <textarea rows={4} value={feedback[pid] ?? ""} disabled={!inReview} onChange={(e) => setFeedback({ ...feedback, [pid]: e.target.value })} />
           <button disabled={!inReview} onClick={() => void act.run(async () => { await call(api.POST("/api/admin/games/{game_id}/round/rewrite", { params: { path: { game_id: gameId } }, body: { player_id: pid } })); void rev.refresh(); })}>
             {t("review.rewrite")}

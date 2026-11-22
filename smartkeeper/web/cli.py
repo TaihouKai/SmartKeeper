@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import sys
 from collections.abc import Sequence
@@ -133,7 +134,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
     settings = Settings.from_env()
-    settings = Settings(**{**settings.__dict__, "db_path": args.db})
+    settings = dataclasses.replace(settings, db_path=args.db)
     services = build_services(settings)
     run_demo(
         services,

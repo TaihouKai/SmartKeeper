@@ -2,7 +2,8 @@
 
 from smartkeeper.kp.config import KPConfig
 from smartkeeper.kp.context import Contexts, Prompt
-from smartkeeper.kp.pipeline import KP, LeakChecker, no_leak_check
+from smartkeeper.kp.evaluation import QuizItem, QuizReport, build_quiz, retrieval_recall, run_quiz
+from smartkeeper.kp.pipeline import KP, RoundHook
 from smartkeeper.kp.render import player_text, replace_entity_tokens
 from smartkeeper.kp.schemas import OutputError, extract_json
 
@@ -10,11 +11,15 @@ __all__ = [
     "KP",
     "Contexts",
     "KPConfig",
-    "LeakChecker",
     "OutputError",
     "Prompt",
+    "QuizItem",
+    "QuizReport",
+    "RoundHook",
+    "build_quiz",
     "extract_json",
-    "no_leak_check",
     "player_text",
     "replace_entity_tokens",
+    "retrieval_recall",
+    "run_quiz",
 ]

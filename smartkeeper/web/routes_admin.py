@@ -463,7 +463,11 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
 
     @guarded.post("/games/{game_id}/round/publish")
     def publish(game_id: str, bg: BackgroundTasks) -> Round:
+        draft = e.draft(game_id) or {}
+        raw = draft.get("adjudication")
+        adj = Adjudication.model_validate(raw) if raw is not None else None
         rnd = e.publish_round(game_id)
+        bg.add_task(background(kp.after_publish, game_id, rnd.no, adj))
         bg.add_task(background(kp.name_pending_handles, game_id))
         return rnd
 

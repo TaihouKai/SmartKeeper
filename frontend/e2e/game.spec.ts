@@ -79,17 +79,22 @@ test("three players create characters and play two rounds without the console", 
   }
   await shot(pages[0]!, "join-approved");
   await startGame(browser, gameId);
+  // 开场在后台进行（KP 写开场、起代号），等它完成
   for (const page of pages) {
-    await page.goto(`${SERVER}/play`);
-    await expect(page.locator(".sk-statusbar")).toContainText("Round 1");
+    await expect(async () => {
+      await page.goto(`${SERVER}/play`);
+      await expect(page.locator(".sk-statusbar")).toContainText("Round 1", { timeout: 2_000 });
+    }).toPass({ timeout: 60_000 });
   }
   for (const round of [1, 2]) {
     for (const [i, page] of pages.entries()) {
       await act(page, `Round ${round}: player ${i + 1} looks around the square.`);
     }
     for (const page of pages) {
-      await page.reload();
-      await expect(page.locator(".sk-statusbar")).toContainText(`Round ${round + 1}`, { timeout: 30_000 });
+      await expect(async () => {
+        await page.reload();
+        await expect(page.locator(".sk-statusbar")).toContainText(`Round ${round + 1}`, { timeout: 2_000 });
+      }).toPass({ timeout: 60_000 });
       await expect(page.locator(".sk-event.feedback")).toHaveCount(round);
     }
   }
@@ -118,4 +123,14 @@ test("admin console login and panels render", async ({ page }) => {
   await shot(page, "admin-rules");
   await page.getByRole("button", { name: "Materials" }).click();
   await expect(page.getByText("demo").first()).toBeVisible();
+  // 选中上一个测试建的局，看世界状态和 LLM 调用面板
+  await page.getByRole("button", { name: "Games" }).click();
+  await page.locator(".sk-chip", { hasText: "e2e" }).first().click();
+  await page.getByRole("button", { name: "World state" }).click();
+  await expect(page.locator("pre.sk-code").first()).toContainText("game_minutes");
+  await page.getByRole("button", { name: "LLM calls" }).click();
+  await expect(page.getByText("adjudicate").first()).toBeVisible();
+  await page.getByText("adjudicate").first().click();
+  await expect(page.getByText("System prompt")).toBeVisible();
+  await shot(page, "admin-llm");
 });

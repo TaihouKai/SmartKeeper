@@ -26,6 +26,7 @@ EventType = Literal[
     "character_rejected",
     "identity_assigned",
     "admin_override",
+    "summary",
 ]
 
 KP = "kp"

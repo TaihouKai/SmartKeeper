@@ -56,6 +56,8 @@ def test_cli_demo_with_fake_llm(tmp_path: Path) -> None:
     fake.on("plan", lambda c: '{"checks": [], "queries": []}')
     fake.on("adjudicate", adjudicate)
     fake.on("feedback", lambda c: "fb")
+    fake.on("leak_check", lambda c: '{"leaks": []}')
+    fake.on("summary", lambda c: "s")
     game_id = run_demo(
         s,
         rulepack_text=(ROOT / "tests/fixtures/rulepack_single.json").read_text(encoding="utf-8"),

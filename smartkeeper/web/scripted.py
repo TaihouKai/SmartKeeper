@@ -106,3 +106,5 @@ def install_scripted(llm: FakeLLM, engine: Engine) -> None:
     llm.on("adjudicate", adjudicate)
     llm.on("feedback", lambda c: "（脚本化 KP）本轮你的行动完成了，时间过去了十分钟。")
     llm.on("broadcast", lambda c: "（脚本化 KP）公共消息。")
+    llm.on("leak_check", lambda c: json.dumps({"leaks": []}))
+    llm.on("summary", lambda c: "（脚本化 KP）摘要。")

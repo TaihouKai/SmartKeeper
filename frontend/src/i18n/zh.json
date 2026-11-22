@@ -5,10 +5,12 @@
     "logout": "退出",
     "panel": {
       "games": "局管理",
+      "llm": "LLM 调用",
       "log": "日志",
       "materials": "资料",
       "review": "审核",
-      "rules": "规则"
+      "rules": "规则",
+      "state": "世界状态"
     },
     "password": "管理员密码",
     "pick_game": "先在“局管理”里选一局。",
@@ -194,6 +196,13 @@
     "en": "English",
     "zh": "中文"
   },
+  "llm": {
+    "messages": "消息",
+    "response": "响应",
+    "searches": "联网搜索",
+    "system": "系统提示",
+    "totals": "{n} 次调用，输入 {in} tokens，输出 {out} tokens"
+  },
   "log": {
     "all": "全部事件（KP 视角）",
     "as": "以 {name} 的视角",
@@ -242,6 +251,7 @@
     "declarations": "本轮行动声明",
     "dice": "骰子",
     "feedback": "反馈草稿",
+    "leaks": "泄密检查命中（已自动重写一次仍命中）：",
     "not_in_review": "这一轮不在待审核状态，只能查看。",
     "publish": "发布",
     "queries": "空间查询",
@@ -352,6 +362,14 @@
       "opening": "开场"
     },
     "statuses": "状态："
+  },
+  "state": {
+    "apply": "提交修改",
+    "current": "当前状态",
+    "note": "说明",
+    "patch": "手动修改（JSON Patch）",
+    "patch_hint": "修改会经过和裁定一样的校验，并作为管理员修改记入日志。",
+    "snapshot": "第 {round} 轮结束时的快照"
   },
   "status": {
     "ended": "已结束",

@@ -304,6 +304,7 @@ class Contexts:
             section("剧本（全部）", self._scenario(game_id, kp=True)),
             section("世界状态", dumps(state)),
             section("各实体的推导值", dumps(e.derived_all(game_id))),
+            section("滚动摘要（只提供氛围，不能作为事实依据）", e.latest_summary(game_id)),
             section(f"最近 {self.cfg.recent_rounds} 轮的事件原文", render_events(recent, names)),
             section("按实体检索到的往事（记事条目与原始裁定）", memory_text),
             section("玩家用引用按钮引用的原文", render_events(quoted, names)),
@@ -421,3 +422,38 @@ class Contexts:
 
     def scenario_body(self, game_id: str) -> str:
         return split_front_matter(self.e.game(game_id).scenario_public)[1]
+
+    # ---------------- 加固 ----------------
+
+    def leak(self, game_id: str, player_id: str, adj: Adjudication, text: str) -> Prompt:
+        """泄密检查：这份反馈、允许的内容、不该让他知道的内容（别人的部分和剧本的 KP 专属部分）。"""
+        allowed = self.feedback(game_id, player_id, adj).user
+        others = {
+            "outcomes": [
+                o.model_dump(mode="json") for o in adj.outcomes if o.player_id != player_id
+            ],
+            "encounters": [
+                {k: v for k, v in enc.observed_by.items() if k != player_id}
+                for enc in adj.encounters
+            ],
+        }
+        g = self.e.game(game_id)
+        user = "\n".join(
+            [
+                section("要检查的反馈", text),
+                section("允许的内容", allowed),
+                section("不该让他知道的内容：本轮裁定里别人的部分", dumps(others)),
+                section("不该让他知道的内容：剧本的 KP 专属部分", g.scenario_kp),
+            ]
+        )
+        return Prompt(templates.render("leak_check"), user)
+
+    def summary(self, game_id: str, adj: Adjudication) -> Prompt:
+        lang = templates.language_name(self.language(game_id))
+        user = "\n".join(
+            [
+                section("上一版摘要", self.e.latest_summary(game_id)),
+                section("本轮裁定", dumps(adj.model_dump(mode="json"))),
+            ]
+        )
+        return Prompt(templates.render("summary", language=lang), user)

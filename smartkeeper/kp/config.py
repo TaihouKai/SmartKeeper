@@ -15,3 +15,5 @@ class KPConfig:
     history_events: int = 300  # 玩家视图最多放多少条事件
     memory_budget_chars: int = 20000  # 记事条目展开成原文的长度预算
     claim_chunk_events: int = 400  # 声明核对时玩家视图每段的事件数
+    leak_check: bool = True  # 每份反馈过模型泄密检查（确定性的检查总是做）
+    rolling_summary: bool = True  # 每轮发布后更新滚动摘要

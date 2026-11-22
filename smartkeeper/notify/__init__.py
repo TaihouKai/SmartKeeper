@@ -1,3 +1,5 @@
 """webhook 通知。"""
 
-__all__: list[str] = []
+from smartkeeper.notify.webhook import MESSAGES, WebhookNotifier
+
+__all__ = ["MESSAGES", "WebhookNotifier"]

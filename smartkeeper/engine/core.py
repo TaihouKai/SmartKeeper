@@ -1115,6 +1115,18 @@ class Engine:
             d["feedback"] = fb
             self._repo.update_round(game_id, r.no, draft=d)
 
+    def set_feedback_leaks(self, game_id: str, player_id: str, leaks: Sequence[str]) -> None:
+        """记下泄密检查命中的句子，供审核面板显示。"""
+        with self._lock:
+            r, d = self._draft(game_id)
+            table = _obj(d.get("leaks"))
+            if leaks:
+                table[player_id] = list[JsonValue](leaks)
+            else:
+                table.pop(player_id, None)
+            d["leaks"] = table
+            self._repo.update_round(game_id, r.no, draft=d)
+
     def set_broadcast_draft(self, game_id: str, text: str | None) -> None:
         with self._lock:
             r, d = self._draft(game_id)
@@ -1751,6 +1763,20 @@ class Engine:
                 if f is not None and f.name:
                     out[fid] = {"id": fid, "name": f.name, "kind": f.kind}
         return sorted(out.values(), key=lambda x: str(x["name"]))
+
+    def record_summary(self, game_id: str, round_no: int, text: str) -> Event:
+        """滚动摘要（kp_only）。只是索引和氛围，不能作为事实依据。"""
+        ev = NewEvent(
+            type="summary",
+            actor=KP,
+            visibility=Visibility.kp_only(),
+            payload={"text": _text(text), "round": round_no},
+        )
+        return self._events.append(game_id, round_no, [ev])[0]
+
+    def latest_summary(self, game_id: str) -> str:
+        evs = self._events.view_for(game_id, KP, types=["summary"])
+        return str(evs[-1].payload.get("text", "")) if evs else ""
 
     def derived_all(self, game_id: str) -> dict[str, dict[str, float]]:
         """全部实体的推导值（仅供 KP 与控制台）。"""

@@ -6,6 +6,7 @@ LLM 不直接改状态：它的输出是 JSON，先在本地解析校验，再�
 from __future__ import annotations
 
 import contextlib
+import re
 import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -38,6 +39,7 @@ from smartkeeper.kp.schemas import (
     ClaimCheckOut,
     HandleOut,
     IntentOut,
+    LeakOut,
     OpeningOut,
     OutputError,
     PlanOut,
@@ -48,13 +50,10 @@ from smartkeeper.kp.schemas import (
 SEARCH_PURPOSES = {"review_character", "opening", "chat", "plan", "adjudicate"}
 RETRY_NOTE = "上一次的输出有错误，整份作废：\n{errors}\n请修正后重新输出完整的结果，格式要求不变。"
 
-type LeakChecker = Callable[[str, str, str], list[str]]
+type RoundHook = Callable[[str, int], None]
 
-
-def no_leak_check(game_id: str, player_id: str, text: str) -> list[str]:
-    """泄密检查的占位实现：直接通过。真正的检查在 M5。"""
-    del game_id, player_id, text
-    return []
+# 反馈里出现实体 ID 或未替换的实体记号，一定是泄密（玩家永远不该看到实体 ID）
+_RAW_ID = re.compile(r"\{\{[A-Za-z0-9_\-]+\}\}|\b(?:ent|npc)_[A-Za-z0-9_]+\b")
 
 
 def _problems_text(err: SmartKeeperError) -> str:
@@ -72,7 +71,8 @@ class KP:
         config: KPConfig,
         *,
         call_log: LLMCallLog | None = None,
-        leak_check: LeakChecker = no_leak_check,
+        on_published: RoundHook | None = None,
+        on_review: RoundHook | None = None,
     ) -> None:
         self.engine = engine
         self.judge = judge
@@ -80,7 +80,8 @@ class KP:
         self.cfg = config
         self.ctx = Contexts(engine, config)
         self._log = call_log
-        self._leak_check = leak_check
+        self._on_published = on_published
+        self._on_review = on_review
         self._locks: dict[str, threading.Lock] = {}
         self._locks_guard = threading.Lock()
 
@@ -316,38 +317,64 @@ class KP:
                 adj = self._adjudicate(game_id)
             except (LLMError, OutputError, SmartKeeperError) as e:
                 self._fail(game_id, e)
+                self._hook(self._on_review, game_id, self.engine.round(game_id).no)
                 return
             if adj is None:
+                self._hook(self._on_review, game_id, self.engine.round(game_id).no)
                 return
             ok = self._write_outputs(game_id, adj)
-            if ok and not self.engine.game(game_id).settings.review_mode:
+            round_no = self.engine.round(game_id).no
+            published = ok and not self.engine.game(game_id).settings.review_mode
+            if published:
                 self.engine.publish_round(game_id)
+        if published:
+            self.after_publish(game_id, round_no, adj)
+        else:
+            self._hook(self._on_review, game_id, round_no)
         self.name_pending_handles(game_id)
+
+    def after_publish(self, game_id: str, round_no: int, adj: Adjudication | None = None) -> None:
+        """发布之后：更新滚动摘要，通知（webhook）。失败都不影响游戏。"""
+        if adj is not None and self.cfg.rolling_summary:
+            with contextlib.suppress(LLMError, SmartKeeperError):
+                text = self._text("summary", game_id, self.ctx.summary(game_id, adj))
+                self.engine.record_summary(game_id, round_no, text)
+        self._hook(self._on_published, game_id, round_no)
+
+    @staticmethod
+    def _hook(hook: RoundHook | None, game_id: str, round_no: int) -> None:
+        if hook is not None:
+            with contextlib.suppress(Exception):
+                hook(game_id, round_no)
 
     def _fail(self, game_id: str, err: Exception) -> None:
         detail: dict[str, JsonValue] = {"type": type(err).__name__, "message": str(err)[:2000]}
         with contextlib.suppress(IllegalState):  # 已经在待审核了
             self.engine.fail_round(game_id, detail)
 
-    def _check_claims(self, game_id: str) -> None:
+    def check_claim(self, game_id: str, player_id: str, claim: str) -> ClaimCheckOut:
+        """核对一条对往事的引用。依据只有该玩家的完整视图（过长时分段，取最好的结果）。不写入。"""
         rank = {"fails": 0, "partial": 1, "holds": 2}
+        best = ClaimCheckOut(verdict="fails", evidence=[], note="")
+        for prompt in self.ctx.claim(game_id, player_id, claim):
+            try:
+                out = self._structured(
+                    "claim_check", game_id, prompt, ClaimCheckOut, lambda o: o, judge=False
+                )
+            except (OutputError, ValidationFailed):
+                continue
+            if rank[out.verdict] > rank[best.verdict]:
+                best = out
+        visible = {e.seq for e in self.engine.view_for(game_id, player_id)}
+        return best.model_copy(update={"evidence": [s for s in best.evidence if s in visible]})
+
+    def _check_claims(self, game_id: str) -> None:
         for pid, ev in self.engine.declarations(game_id).items():
             intent = Intent.model_validate(ev.payload["intent"])
             for claim in intent.claims:
-                best = ClaimCheckOut(verdict="fails", evidence=[], note="")
-                for prompt in self.ctx.claim(game_id, pid, claim.text):
-                    try:
-                        out = self._structured(
-                            "claim_check", game_id, prompt, ClaimCheckOut, lambda o: o, judge=False
-                        )
-                    except (OutputError, ValidationFailed):
-                        continue
-                    if rank[out.verdict] > rank[best.verdict]:
-                        best = out
-                visible = {e.seq for e in self.engine.view_for(game_id, pid)}
-                evidence = [s for s in best.evidence if s in visible]
+                out = self.check_claim(game_id, pid, claim.text)
                 self.engine.record_claim_check(
-                    game_id, pid, claim.text, best.verdict, evidence, best.note
+                    game_id, pid, claim.text, out.verdict, out.evidence, out.note
                 )
 
     def _run_plan(self, game_id: str) -> None:
@@ -400,17 +427,40 @@ class KP:
         return ok
 
     def _feedback_one(self, game_id: str, player_id: str, adj: Adjudication) -> bool:
+        """写一份反馈并过泄密检查。命中就自动重写一次；仍命中则把草稿和命中的句子留给审核，返回 False。"""
         try:
-            text = self._text("feedback", game_id, self.ctx.feedback(game_id, player_id, adj))
-            if self._leak_check(game_id, player_id, text):
-                # 泄密检查命中：自动重写一次，仍命中则该回合停在“待审核”
+            leaks: list[str] = []
+            text = ""
+            for _attempt in range(2):
                 text = self._text("feedback", game_id, self.ctx.feedback(game_id, player_id, adj))
-                if self._leak_check(game_id, player_id, text):
-                    return False
+                leaks = self.leak_check(game_id, player_id, adj, text)
+                if not leaks:
+                    break
             self.engine.set_feedback_draft(game_id, player_id, text)
-            return True
-        except LLMError:
+            self.engine.set_feedback_leaks(game_id, player_id, leaks)
+            return not leaks
+        except (LLMError, SmartKeeperError):
             return False
+
+    def leak_check(self, game_id: str, player_id: str, adj: Adjudication, text: str) -> list[str]:
+        """泄密检查：先做确定性的检查（实体 ID、未替换的记号），再让模型对照不该知道的内容找句子。"""
+        raw = _RAW_ID.findall(text)
+        if raw:
+            return [f"raw id: {x}" for x in raw]
+        if not self.cfg.leak_check:
+            return []
+        try:
+            out = self._structured(
+                "leak_check",
+                game_id,
+                self.ctx.leak(game_id, player_id, adj, text),
+                LeakOut,
+                lambda o: o,
+                judge=False,
+            )
+        except (OutputError, ValidationFailed):
+            return ["leak check failed to produce a verdict"]
+        return [f"{x.sentence} — {x.reason}" for x in out.leaks]
 
     def rewrite_feedback(self, game_id: str, player_id: str) -> None:
         draft = self.engine.draft(game_id)
