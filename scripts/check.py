@@ -42,8 +42,9 @@ def steps(fix: bool, frontend: bool) -> list[tuple[str, list[str], Path]]:
 
 
 def main() -> int:
-    if isinstance(sys.stdout, io.TextIOWrapper):
-        sys.stdout.reconfigure(encoding="utf-8")
+    out = sys.stdout
+    if isinstance(out, io.TextIOWrapper):
+        out.reconfigure(encoding="utf-8")  # pyright: ignore[reportUnknownMemberType]
     fix = "--fix" in sys.argv
     frontend = "--no-frontend" not in sys.argv
     failed: list[str] = []
