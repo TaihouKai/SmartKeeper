@@ -13,6 +13,7 @@ from typing import Any
 
 import sqlalchemy as sa
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import event
@@ -64,7 +65,7 @@ class Settings:
     writer_concurrency: int = 4
     openai_base_url: str | None = None
     openai_api_key: str | None = None
-    base_url: str = "http://localhost:8000"
+    base_url: str | None = None
     extra: dict[str, str] = field(default_factory=dict[str, str])
 
     @staticmethod
@@ -84,7 +85,7 @@ class Settings:
             writer_concurrency=int(env.get("SMARTKEEPER_WRITER_CONCURRENCY", "4")),
             openai_base_url=env.get("OPENAI_COMPAT_BASE_URL") or None,
             openai_api_key=env.get("OPENAI_COMPAT_API_KEY") or None,
-            base_url=env.get("SMARTKEEPER_BASE_URL", "http://localhost:8000"),
+            base_url=env.get("SMARTKEEPER_BASE_URL") or None,
         )
 
 
@@ -234,6 +235,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         yield
 
     app = FastAPI(title="SmartKeeper", version="0.1.0", lifespan=lifespan)
+    # 地图数据很大（几十 MB 的 GeoJSON），压缩后传输
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
     app.state.services = s
 
     @app.exception_handler(SmartKeeperError)

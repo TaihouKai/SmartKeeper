@@ -28,4 +28,4 @@ class Services:
     writer: LLMClient
     chat: SqlChatStore
     scenarios_dir: str = "scenarios"
-    base_url: str = "http://localhost:8000"
+    base_url: str | None = None  # 没配置时邀请链接用管理员打开控制台时的地址

@@ -402,9 +402,10 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
         return e.game(game_id)
 
     @guarded.post("/games/{game_id}/invites")
-    def invite(game_id: str, body: InviteIn) -> InviteOut:
+    def invite(game_id: str, body: InviteIn, request: Request) -> InviteOut:
         p, token = e.add_player(game_id, body.display_name)
-        return InviteOut(player_id=p.id, url=f"{s.base_url.rstrip('/')}/join/{token}")
+        base = s.base_url or str(request.base_url)
+        return InviteOut(player_id=p.id, url=f"{base.rstrip('/')}/join/{token}")
 
     @guarded.delete("/games/{game_id}/invites/{player_id}")
     def revoke(game_id: str, player_id: str) -> OkOut:

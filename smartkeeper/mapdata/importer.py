@@ -15,19 +15,18 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, cast
 
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry.base import BaseGeometry
+from shapely.prepared import prep
 from shapely.validation import make_valid
 
 from smartkeeper.contracts import FeatureKind, MapData, MapFeature, MapOrigin
+from smartkeeper.mapdata.areas import fetch_boundaries, fetch_tiled
 from smartkeeper.mapdata.fileformat import dump_map
 from smartkeeper.mapdata.heights import DEFAULT_HEIGHTS, building_height, building_min_height
+from smartkeeper.mapdata.overpass import OVERPASS_URLS, overpass_query
 from smartkeeper.mapdata.projection import to_meters
 
-OVERPASS_URLS = (
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-)
 ROAD_TYPES = {
     "motorway",
     "trunk",
@@ -52,23 +51,6 @@ PARK_TAGS = {
 }
 WATER_TAGS = {("natural", "water"), ("waterway", "riverbank"), ("landuse", "reservoir")}
 LANDMARK_KEYS = ("tourism", "historic", "amenity", "railway", "public_transport")
-
-
-def overpass_query(s: float, w: float, n: float, e: float) -> str:
-    bb = f"({s},{w},{n},{e})"
-    return f"""[out:json][timeout:300];
-(
-  way["building"]{bb};
-  way["highway"]{bb};
-  way["leisure"~"^(park|garden)$"]{bb};
-  way["landuse"~"^(grass|recreation_ground|reservoir)$"]{bb};
-  way["natural"="water"]{bb};
-  way["waterway"="riverbank"]{bb};
-  node["name"]["tourism"]{bb};
-  node["name"]["historic"]{bb};
-  node["name"]["railway"="station"]{bb};
-);
-out geom;"""
 
 
 def fetch_overpass(
@@ -114,6 +96,7 @@ def convert(
     name: str,
     bbox: tuple[float, float, float, float] | None = None,
     defaults: Mapping[str, float] = DEFAULT_HEIGHTS,
+    clip: BaseGeometry | None = None,
 ) -> MapData:
     """把 Overpass 的 `out geom` 结果转成地图。bbox = (south, west, north, east)。"""
     elements = cast(list[dict[str, Any]], data.get("elements", []))
@@ -142,10 +125,22 @@ def convert(
         max(c[1] for c in corners),
     )
     features: list[MapFeature] = []
+    region = prep(clip) if clip is not None else None
+
+    def inside(lonlats: list[tuple[float, float]]) -> bool:
+        if region is None:
+            return True
+        g = Point(lonlats[0]) if len(lonlats) == 1 else LineString(lonlats)
+        return bool(region.intersects(g))
+
     for el in elements:
         tags = cast(dict[str, str], el.get("tags") or {})
         if el.get("type") == "node":
-            if "name" in tags and any(k in tags for k in LANDMARK_KEYS):
+            if (
+                "name" in tags
+                and any(k in tags for k in LANDMARK_KEYS)
+                and inside([(el["lon"], el["lat"])])
+            ):
                 features.append(
                     MapFeature(
                         id=f"lm_{el['id']}",
@@ -160,6 +155,8 @@ def convert(
         kind = _kind(tags)
         geom = cast(list[dict[str, float]], el.get("geometry") or [])
         if kind is None or len(geom) < 2:
+            continue
+        if not inside([(p["lon"], p["lat"]) for p in geom]):
             continue
         pts = tuple(m(p["lon"], p["lat"]) for p in geom)
         fid = {"building": "bldg", "road": "road", "park": "park", "water": "water"}[
@@ -219,6 +216,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument(
         "--overpass-url", action="append", help="Overpass 服务地址，可重复；默认依次试几个公共镜像"
     )
+    ap.add_argument("--areas", help="按行政区导入：区名，逗号分隔（例如 港区,渋谷区,新宿区）")
+    ap.add_argument("--within", default="東京都", help="行政区所在的上级区域名")
+    ap.add_argument("--admin-level", type=int, default=7)
+    ap.add_argument("--tile", type=float, default=0.02, help="分块下载的块大小（度）")
     args = ap.parse_args(argv)
     bbox: tuple[float, float, float, float] | None = None
     if args.bbox:
@@ -229,15 +230,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     defaults: dict[str, float] = dict(DEFAULT_HEIGHTS)
     if args.defaults:
         defaults.update(json.loads(Path(args.defaults).read_text(encoding="utf-8")))
+    clip = None
+    urls = args.overpass_url or OVERPASS_URLS
+    if args.areas:
+        clip = fetch_boundaries(
+            [a.strip() for a in args.areas.split(",")], args.within, urls, args.admin_level
+        )
+        w0, s0, e0, n0 = clip.bounds
+        bbox = (s0, w0, n0, e0)
     if args.overpass_file:
         data = json.loads(Path(args.overpass_file).read_text(encoding="utf-8"))
+    elif args.areas and bbox is not None:
+        data = fetch_tiled(bbox, args.tile, urls)
+        if args.save_raw:
+            Path(args.save_raw).write_text(json.dumps(data), encoding="utf-8")
     elif bbox is not None:
         data = fetch_overpass(*bbox, urls=args.overpass_url or OVERPASS_URLS)
         if args.save_raw:
             Path(args.save_raw).write_text(json.dumps(data), encoding="utf-8")
     else:
         ap.error("need --bbox or --overpass-file")
-    result = convert(data, map_id=args.id, name=args.name, bbox=bbox, defaults=defaults)
+    result = convert(data, map_id=args.id, name=args.name, bbox=bbox, defaults=defaults, clip=clip)
     out = Path(args.out or f"maps/{args.id}.geojson")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(dump_map(result), encoding="utf-8")
