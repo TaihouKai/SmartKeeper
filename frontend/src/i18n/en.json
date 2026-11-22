@@ -274,6 +274,10 @@
       "player": "Player-defined",
       "runtime": "Runtime"
     },
+    "cls_help": {
+      "player": "Player-defined: entered by the player during character creation.",
+      "runtime": "Runtime: changes during play (e.g. current HP); players can't set it, only the keeper's rulings change it. Needs an initial value."
+    },
     "d": {
       "formula": "Formula",
       "label": "Label",
@@ -286,16 +290,18 @@
     "editing_new": "Editing a new rule pack.",
     "export": "Export",
     "f": {
-      "choices": "Choices (| separated)",
+      "choices": "Choices",
       "cls": "Class",
       "hidden": "Hidden",
       "initial": "Initial",
+      "initial_required": "Initial value (required)",
       "kind": "Kind",
       "label": "Label",
       "max": "Max",
+      "max_required": "Maximum (required)",
       "min": "Min",
       "name": "Name",
-      "required": "Required",
+      "required": "Player must fill in",
       "unit": "Unit"
     },
     "fields": "Fields",
@@ -309,6 +315,7 @@
     },
     "groups": "Repeatable groups (skills, abilities…)",
     "help": {
+      "appearance": "Appearance: the player describes how the character looks. When others first see the character, its handle (e.g. \"woman in a red scarf\") is generated from this. It can't be removed or retyped.",
       "concealment": "Multiplies how far others can notice this character: 1 is normal, 0.3 means others must be much closer. The default 1 is fine.",
       "move_speed": "Metres per minute. Required, e.g. 80 for an ordinary person, or 60 + agi * 2.",
       "perception_radius": "How far (in metres) this character notices others. Required, e.g. 50 + per, or a constant like 100."
@@ -319,10 +326,17 @@
       "resource": "Resource",
       "text": "Text"
     },
+    "kind_help": {
+      "number": "Number: attributes, skill levels, sizes.",
+      "resource": "Resource: a value with a ceiling that gets spent or restored (HP, mana, uses left). A maximum is required and may be a formula such as hp_max.",
+      "text": "Text: descriptions such as background; with choices, the player picks one of them."
+    },
     "levels_hint": "Checked in order; the first true condition wins. Variables: roll, target, difficulty, opp_roll, opp_target.",
     "new": "New rule pack",
     "packs": "Rule packs",
     "ph": {
+      "appearance_label": "e.g. Appearance",
+      "choices": "e.g. red, blue, green (comma-separated; leave empty for free text)",
       "derived_label": "e.g. Max HP",
       "derived_name": "e.g. hp_max",
       "field_label": "e.g. HP",
@@ -335,9 +349,12 @@
       "label_concealment": "e.g. Concealment",
       "label_move_speed": "e.g. Move speed",
       "label_perception_radius": "e.g. Perception radius",
+      "max": "e.g. 100",
       "max_resource": "e.g. hp_max",
+      "min": "e.g. 0",
       "template_label": "e.g. Hero",
       "template_name": "e.g. hero",
+      "unit": "e.g. m",
       "unit_concealment": "none",
       "unit_move_speed": "m/min",
       "unit_perception_radius": "m"

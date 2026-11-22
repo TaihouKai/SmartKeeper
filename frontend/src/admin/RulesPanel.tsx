@@ -55,62 +55,163 @@ function useListEdit<T>(list: T[], set: (l: T[]) => void) {
   };
 }
 
-function FieldsTable({ fields, onChange, validate, template, appearance }: { fields: Field[]; onChange: (f: Field[]) => void; validate: Validate; template: string; appearance?: string }) {
+function parseChoices(text: string): string[] {
+  return text
+    .split(/[|,，、]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+/** 一个字段一张小卡片：第一行是名字、显示名、类型、类别；下面只显示这种类型用得上的设置。 */
+function FieldCard({
+  f,
+  onChange,
+  onRemove,
+  validate,
+  isAppearance,
+  inGroup,
+}: {
+  f: Field;
+  onChange: (f: Field) => void;
+  onRemove: () => void;
+  validate: (formula: string) => ReturnType<Validate>;
+  isAppearance: boolean;
+  inGroup: boolean;
+}) {
+  const { t } = useI18n();
+  const cls = inGroup ? "player" : (f.cls ?? "player");
+  const numeric = f.kind !== "text";
+  const [choicesText, setChoicesText] = useState((f.choices ?? []).join("、"));
+  useEffect(() => {
+    // 换了一个规则包或版本时，用新的值覆盖输入框
+    if (parseChoices(choicesText).join("|") !== (f.choices ?? []).join("|")) setChoicesText((f.choices ?? []).join("、"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f.choices]);
+  return (
+    <div className="sk-field">
+      <div className="sk-field-main">
+        <label>
+          {t("rules.f.name")}
+          <input value={f.name} disabled={isAppearance} placeholder={t("rules.ph.field_name")} onChange={(e) => onChange({ ...f, name: e.target.value })} />
+        </label>
+        <label>
+          {t("rules.f.label")}
+          <input value={f.label ?? ""} placeholder={isAppearance ? t("rules.ph.appearance_label") : t("rules.ph.field_label")} onChange={(e) => onChange({ ...f, label: e.target.value })} />
+        </label>
+        <label>
+          {t("rules.f.kind")}
+          <select value={f.kind} disabled={isAppearance} onChange={(e) => onChange({ ...f, kind: e.target.value as Field["kind"] })}>
+            <option value="number">{t("rules.kind.number")}</option>
+            <option value="resource">{t("rules.kind.resource")}</option>
+            <option value="text">{t("rules.kind.text")}</option>
+          </select>
+        </label>
+        {!inGroup && (
+          <label>
+            {t("rules.f.cls")}
+            <select value={cls} disabled={isAppearance} onChange={(e) => onChange({ ...f, cls: e.target.value as Field["cls"] })}>
+              <option value="player">{t("rules.cls.player")}</option>
+              <option value="runtime">{t("rules.cls.runtime")}</option>
+            </select>
+          </label>
+        )}
+        <div className="sk-field-side">
+          {isAppearance ? (
+            <span className="sk-badge-req">{t("rules.appearance_badge")}</span>
+          ) : (
+            <button className="sk-link" onClick={onRemove}>
+              {t("common.remove")}
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="sk-hint sk-field-help">
+        {isAppearance ? t("rules.help.appearance") : `${t(`rules.kind_help.${f.kind}`)} ${inGroup ? "" : t(`rules.cls_help.${cls}`)}`}
+      </p>
+      {!isAppearance && (
+        <div className="sk-field-extra">
+          {numeric && (
+            <>
+              <label>
+                {t("rules.f.unit")}
+                <input value={f.unit ?? ""} placeholder={t("rules.ph.unit")} onChange={(e) => onChange({ ...f, unit: e.target.value || null })} />
+              </label>
+              <label>
+                {t("rules.f.min")}
+                <FormulaInput value={f.min ?? ""} validate={validate} placeholder={t("rules.ph.min")} onChange={(x) => onChange({ ...f, min: x || null })} />
+              </label>
+              <label>
+                {f.kind === "resource" ? t("rules.f.max_required") : t("rules.f.max")}
+                <FormulaInput value={f.max ?? ""} validate={validate} placeholder={f.kind === "resource" ? t("rules.ph.max_resource") : t("rules.ph.max")} onChange={(x) => onChange({ ...f, max: x || null })} />
+              </label>
+            </>
+          )}
+          {cls === "runtime" && numeric && (
+            <label>
+              {t("rules.f.initial_required")}
+              <FormulaInput value={f.initial ?? ""} validate={validate} placeholder={t("rules.ph.initial")} onChange={(x) => onChange({ ...f, initial: x || null })} />
+            </label>
+          )}
+          {f.kind === "text" && cls === "player" && (
+            <label className="sk-wide">
+              {t("rules.f.choices")}
+              <input
+                value={choicesText}
+                placeholder={t("rules.ph.choices")}
+                onChange={(e) => {
+                  setChoicesText(e.target.value);
+                  onChange({ ...f, choices: parseChoices(e.target.value) });
+                }}
+              />
+            </label>
+          )}
+          <div className="sk-field-flags">
+            {cls === "player" && (
+              <label className="sk-inline">
+                <input type="checkbox" checked={f.required ?? true} onChange={(e) => onChange({ ...f, required: e.target.checked })} /> {t("rules.f.required")}
+              </label>
+            )}
+            <label className="sk-inline">
+              <input type="checkbox" checked={f.hidden ?? false} onChange={(e) => onChange({ ...f, hidden: e.target.checked })} /> {t("rules.f.hidden")}
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FieldsTable({
+  fields,
+  onChange,
+  validate,
+  template,
+  appearance,
+  inGroup = false,
+}: {
+  fields: Field[];
+  onChange: (f: Field[]) => void;
+  validate: Validate;
+  template: string;
+  appearance?: string;
+  inGroup?: boolean;
+}) {
   const { t } = useI18n();
   const ed = useListEdit(fields, onChange);
   const v = useCallback((f: string) => validate(f, template), [validate, template]);
   return (
-    <div className="sk-scroll">
-      <table className="sk-table">
-        <thead>
-          <tr>
-            <th>{t("rules.f.name")}</th>
-            <th>{t("rules.f.label")}</th>
-            <th>{t("rules.f.kind")}</th>
-            <th>{t("rules.f.cls")}</th>
-            <th>{t("rules.f.unit")}</th>
-            <th>{t("rules.f.min")}</th>
-            <th>{t("rules.f.max")}</th>
-            <th>{t("rules.f.initial")}</th>
-            <th>{t("rules.f.choices")}</th>
-            <th>{t("rules.f.required")}</th>
-            <th>{t("rules.f.hidden")}</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {fields.map((f, i) => (
-            <tr key={i}>
-              <td>
-                <input value={f.name} placeholder={t("rules.ph.field_name")} onChange={(e) => ed.update(i, { ...f, name: e.target.value })} />
-                {appearance && f.name === appearance && <div className="sk-badge-req">{t("rules.appearance_badge")}</div>}
-              </td>
-              <td><input value={f.label ?? ""} placeholder={t("rules.ph.field_label")} onChange={(e) => ed.update(i, { ...f, label: e.target.value })} /></td>
-              <td>
-                <select value={f.kind} onChange={(e) => ed.update(i, { ...f, kind: e.target.value as Field["kind"] })}>
-                  <option value="number">{t("rules.kind.number")}</option>
-                  <option value="text">{t("rules.kind.text")}</option>
-                  <option value="resource">{t("rules.kind.resource")}</option>
-                </select>
-              </td>
-              <td>
-                <select value={f.cls ?? "player"} onChange={(e) => ed.update(i, { ...f, cls: e.target.value as Field["cls"] })}>
-                  <option value="player">{t("rules.cls.player")}</option>
-                  <option value="runtime">{t("rules.cls.runtime")}</option>
-                </select>
-              </td>
-              <td><input value={f.unit ?? ""} onChange={(e) => ed.update(i, { ...f, unit: e.target.value || null })} /></td>
-              <td><FormulaInput value={f.min ?? ""} validate={v} onChange={(x) => ed.update(i, { ...f, min: x || null })} /></td>
-              <td><FormulaInput value={f.max ?? ""} validate={v} placeholder={f.kind === "resource" ? t("rules.ph.max_resource") : ""} onChange={(x) => ed.update(i, { ...f, max: x || null })} /></td>
-              <td><FormulaInput value={f.initial ?? ""} validate={v} placeholder={f.cls === "runtime" ? t("rules.ph.initial") : ""} onChange={(x) => ed.update(i, { ...f, initial: x || null })} /></td>
-              <td><input value={(f.choices ?? []).join("|")} onChange={(e) => ed.update(i, { ...f, choices: e.target.value ? e.target.value.split("|") : [] })} /></td>
-              <td><input type="checkbox" checked={f.required ?? true} onChange={(e) => ed.update(i, { ...f, required: e.target.checked })} /></td>
-              <td><input type="checkbox" checked={f.hidden ?? false} onChange={(e) => ed.update(i, { ...f, hidden: e.target.checked })} /></td>
-              <td><button className="sk-link" onClick={() => ed.remove(i)}>{t("common.remove")}</button></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div>
+      {fields.map((f, i) => (
+        <FieldCard
+          key={i}
+          f={f}
+          validate={v}
+          inGroup={inGroup}
+          isAppearance={!inGroup && !!appearance && f.name === appearance}
+          onChange={(x) => ed.update(i, x)}
+          onRemove={() => ed.remove(i)}
+        />
+      ))}
       <button onClick={() => ed.add(blankField())}>{t("rules.add_field")}</button>
     </div>
   );
@@ -181,7 +282,7 @@ function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; 
             </label>
             <button className="sk-link" onClick={() => ged.remove(i)}>{t("common.remove")}</button>
           </div>
-          <FieldsTable fields={g.fields ?? []} onChange={(f) => ged.update(i, { ...g, fields: f })} validate={validate} template={tpl.name} />
+          <FieldsTable fields={g.fields ?? []} onChange={(f) => ged.update(i, { ...g, fields: f })} validate={validate} template={tpl.name} inGroup />
         </div>
       ))}
       <button onClick={() => ged.add({ name: "", label: "", fields: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false })}>{t("rules.add_group")}</button>

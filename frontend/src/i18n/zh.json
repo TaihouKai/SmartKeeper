@@ -274,6 +274,10 @@
       "player": "玩家填写",
       "runtime": "运行值"
     },
+    "cls_help": {
+      "player": "玩家填写：建角时由玩家自己填。",
+      "runtime": "运行值：游戏中会变化（例如当前 HP），玩家不能直接填，只能由 KP 的裁定修改；需要给一个初值。"
+    },
     "d": {
       "formula": "公式",
       "label": "显示名",
@@ -286,16 +290,18 @@
     "editing_new": "正在编辑一个新规则包。",
     "export": "导出",
     "f": {
-      "choices": "可选值（用 | 分隔）",
+      "choices": "可选值",
       "cls": "类别",
       "hidden": "对玩家隐藏",
       "initial": "初值",
+      "initial_required": "初值（必填）",
       "kind": "类型",
       "label": "显示名",
       "max": "上限",
+      "max_required": "上限（必填）",
       "min": "下限",
       "name": "名字",
-      "required": "必填",
+      "required": "玩家必须填写",
       "unit": "单位"
     },
     "fields": "字段",
@@ -309,6 +315,7 @@
     },
     "groups": "可重复分组（技能、能力等）",
     "help": {
+      "appearance": "外观描述：玩家建角时用文字描述自己角色的样子。别人第一次看到这个角色时，系统根据它起代号（例如“红围巾的女人”）。这个字段不能删除，名字和类型也不能改。",
       "concealment": "匿踪系数：别人察觉这个角色的距离要乘以它。1 表示普通；0.3 表示别人得靠得很近才能发现（例如气息遮断）。默认 1，可以直接保留。",
       "move_speed": "移动速度：每分钟能走多少米。必须填公式，例如普通人 80，或者 60 + agi * 2。",
       "perception_radius": "感知半径：这个角色能察觉到多远（米）以内的人。必须填公式，例如 50 + per，或者固定值 100。"
@@ -319,10 +326,17 @@
       "resource": "资源",
       "text": "文字"
     },
+    "kind_help": {
+      "number": "数值：属性、技能等级、尺寸这类数字。",
+      "resource": "资源：有上限、会被消耗或恢复的数，例如 HP、魔力、限次能力的剩余次数。上限必填，可以是公式（例如 hp_max）。",
+      "text": "文字：外观、背景、性格这类描述；填了可选值时，玩家只能从中选一个。"
+    },
     "levels_hint": "按顺序判断，第一个条件为真的等级就是结果。可用变量 roll、target、difficulty、opp_roll、opp_target。",
     "new": "新建规则包",
     "packs": "规则包",
     "ph": {
+      "appearance_label": "例如 外观",
+      "choices": "例如 红、蓝、绿（用顿号或逗号分隔；留空表示自由填写）",
       "derived_label": "例如 生命值上限",
       "derived_name": "例如 hp_max",
       "field_label": "例如 生命值",
@@ -335,9 +349,12 @@
       "label_concealment": "例如 匿踪系数",
       "label_move_speed": "例如 移动速度",
       "label_perception_radius": "例如 感知半径",
+      "max": "例如 100",
       "max_resource": "例如 hp_max",
+      "min": "例如 0",
       "template_label": "例如 主角",
       "template_name": "例如 hero",
+      "unit": "例如 米",
       "unit_concealment": "无单位",
       "unit_move_speed": "米/分钟",
       "unit_perception_radius": "米"

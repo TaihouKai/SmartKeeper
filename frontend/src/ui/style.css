@@ -102,3 +102,15 @@ tr.inactive { opacity: 0.5; }
 .sk-derived-row { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(80px, 1fr) minmax(160px, 2fr) 70px auto; gap: 6px; align-items: start; margin: 4px 0; }
 @media (max-width: 600px) { .sk-derived-row { grid-template-columns: 1fr 1fr; } }
 .sk-marker { font-size: 11px; max-width: 7em; padding: 2px 5px; }
+.sk-field { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; background: color-mix(in srgb, var(--card) 92%, var(--bg)); }
+.sk-field label { margin: 0; }
+.sk-field-main { display: grid; grid-template-columns: minmax(110px, 1.2fr) minmax(110px, 1.2fr) minmax(100px, 1fr) minmax(100px, 1fr) auto; gap: 8px; align-items: end; }
+.sk-field-side { align-self: center; padding-top: 16px; }
+.sk-field-help { margin: 6px 0 4px; font-size: 12px; }
+.sk-field-extra { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; align-items: end; }
+.sk-field-extra .sk-wide { grid-column: 1 / -1; }
+.sk-field-flags { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; grid-column: 1 / -1; }
+@media (max-width: 640px) {
+  .sk-field-main { grid-template-columns: 1fr 1fr; }
+  .sk-field-side { grid-column: 1 / -1; padding-top: 0; }
+}
