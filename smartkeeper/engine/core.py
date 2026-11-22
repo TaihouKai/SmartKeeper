@@ -38,6 +38,8 @@ from smartkeeper.contracts import (
     MapChange,
     MapData,
     MapStore,
+    MemoryEntry,
+    MemoryStore,
     NewEvent,
     NotFound,
     Opening,
@@ -111,11 +113,13 @@ class Engine:
         maps: MapStore,
         spatial: Spatial,
         handles: HandleStore,
+        memory: MemoryStore,
     ) -> None:
         self._repo = Repo(db)
         self._maps = maps
         self._spatial = spatial
         self._handles = handles
+        self._memory = memory
         self._events = events
         self._packs = packs
         self._rules = rules
@@ -1227,7 +1231,8 @@ class Engine:
                     Round(game_id=game_id, no=r.no + 1, status="collecting", started_minute=minutes)
                 )
                 self._repo.update_game(game_id, current_round=r.no + 1)
-            del written
+            adj_seq = written[0].seq
+            self._memory.add(self._memory_entries(game_id, r.no, adj, adj_seq))
             self.refresh_handles(game_id)
             return self._repo.get_round(game_id, r.no)
 
@@ -1394,6 +1399,13 @@ class Engine:
         labels: dict[str, str] = {}
         targets: list[TargetRef] = []
         for mt in find_mentions(text):
+            if mt.is_point:
+                pt = mt.point
+                if pt is None or not self._spatial.in_bounds(m, pt):
+                    raise ValidationFailed("mention.bad_point", ref=mt.ref)
+                labels[mt.ref] = mt.text
+                targets.append(TargetRef(kind="point", point=pt))
+                continue
             if mt.is_feature:
                 f = m.feature(mt.feature_id)
                 if f is None:
@@ -1650,6 +1662,132 @@ class Engine:
                 ],
             )
             return res
+
+    # ================= 长对局记忆与 KP 辅助读取 =================
+
+    @staticmethod
+    def _memory_entries(
+        game_id: str, round_no: int, adj: Adjudication, seq: int
+    ) -> list[MemoryEntry]:
+        return [
+            MemoryEntry(
+                game_id=game_id,
+                round_no=round_no,
+                entities=m.entities,
+                features=m.features,
+                text=m.text,
+                source_seq=seq,
+            )
+            for m in adj.memory_entries
+        ]
+
+    def rebuild_memory(self, game_id: str) -> int:
+        """记事条目只是索引：随时可以从事件日志里的裁定事件重建。"""
+        self._memory.clear(game_id)
+        n = 0
+        for e in self._events.view_for(game_id, KP, types=["adjudication"]):
+            adj = Adjudication.model_validate(e.payload["adjudication"])
+            entries = self._memory_entries(game_id, e.round_no, adj, e.seq)
+            self._memory.add(entries)
+            n += len(entries)
+        return n
+
+    def recall(
+        self,
+        game_id: str,
+        entity_ids: Sequence[str],
+        feature_ids: Sequence[str] = (),
+        actor_ids: Sequence[str] = (),
+    ) -> list[MemoryEntry]:
+        """按实体检索记事条目（kp_only）。"""
+        return self._memory.recall(game_id, list(entity_ids), list(actor_ids), list(feature_ids))
+
+    def record_claim_check(
+        self,
+        game_id: str,
+        player_id: str,
+        claim: str,
+        verdict: str,
+        evidence: Sequence[int],
+        note: str = "",
+    ) -> Event:
+        """一条声明核对的结果（kp_only）。依据事件必须在该玩家的视图内。"""
+        with self._lock:
+            r = self._require(game_id, "roll")
+            if verdict not in ("holds", "fails", "partial"):
+                raise ValidationFailed("claim.bad_verdict", verdict=verdict)
+            visible = {e.seq for e in self._events.view_for(game_id, player_id)}
+            bad = [s for s in evidence if s not in visible]
+            if bad:
+                raise ValidationFailed("claim.evidence_not_visible", seqs=list(bad))
+            ev = NewEvent(
+                type="claim_check",
+                actor=KP,
+                visibility=Visibility.kp_only(),
+                payload={
+                    "player": player_id,
+                    "claim": claim,
+                    "verdict": verdict,
+                    "evidence": list(evidence),
+                    "note": note,
+                },
+            )
+            return self._events.append(game_id, r.no, [ev])[0]
+
+    def nearby_features(
+        self, game_id: str, player_id: str, radius: float = 400.0
+    ) -> list[dict[str, JsonValue]]:
+        """玩家各实体附近有名字的地物，供意图解析把地点名对应到地物 id。"""
+        space = self._space(game_id)
+        m = space.map
+        out: dict[str, dict[str, JsonValue]] = {}
+        for e in space.controls.get(player_id, []):
+            b = space.bodies.get(e)
+            if b is None:
+                continue
+            hit = self._spatial.within(m, space.changes, [], b.pos, radius)
+            for fid in hit.features:
+                f = m.feature(fid)
+                if f is not None and f.name:
+                    out[fid] = {"id": fid, "name": f.name, "kind": f.kind}
+        return sorted(out.values(), key=lambda x: str(x["name"]))
+
+    def derived_all(self, game_id: str) -> dict[str, dict[str, float]]:
+        """全部实体的推导值（仅供 KP 与控制台）。"""
+        pack = self.rulepack(game_id)
+        out: dict[str, dict[str, float]] = {}
+        for eid, raw in _obj(self._state(game_id).get("entities")).items():
+            ent = _obj(raw)
+            try:
+                vals = self._rules.derive(pack, str(ent.get("template", "")), ent.get("sheet"))
+            except (ValidationFailed, NotFound):
+                continue
+            out[eid] = {d.name: round(d.value, 4) for d in vals}
+        return out
+
+    def feature_location(self, game_id: str, feature_id: str, z: float | None = None) -> Location:
+        """地物里的一个代表点：建筑取轮廓内的一点，z 默认地面（楼顶写建筑高度）。"""
+        m = self._map(game_id)
+        f = m.feature(feature_id)
+        if f is None:
+            raise NotFound("map.unknown_feature", id=feature_id)
+        if f.point is not None:
+            return Location(pos=Point(x=f.point[0], y=f.point[1], z=z or 0.0))
+        ring = f.polygon[0] if f.polygon else f.line
+        assert ring
+        cands = [
+            ((ring[0][0] + ring[i][0]) / 2, (ring[0][1] + ring[i][1]) / 2)
+            for i in range(1, len(ring))
+        ]
+        cands.insert(0, (sum(p[0] for p in ring) / len(ring), sum(p[1] for p in ring) / len(ring)))
+        for x, y in cands:
+            pt = Point(x=x, y=y, z=z or 0.0)
+            if f.kind != "building" or self._spatial.inside_feature(m, feature_id, pt):
+                inside = feature_id if f.kind == "building" else None
+                if inside and z is not None and not (f.min_height - 1e-6 <= z <= f.height + 1e-6):
+                    raise ValidationFailed("space.height_outside_building", id=feature_id)
+                return Location(pos=pt, inside=inside)
+        raise ValidationFailed("space.no_point_inside", id=feature_id)
 
     # ================= 内部 =================
 

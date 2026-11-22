@@ -1,3 +1,15 @@
-"""`LLMClient` 及其实现（Anthropic、OpenAI 兼容、`FakeLLM`），含联网搜索的封装。"""
+"""`LLMClient` 及其实现：Anthropic SDK、OpenAI 兼容接口、测试用的 FakeLLM；调用记录。"""
 
-__all__: list[str] = []
+from smartkeeper.llm.anthropic_client import AnthropicLLM
+from smartkeeper.llm.fake import FakeCall, FakeLLM
+from smartkeeper.llm.openai_compat import OpenAICompatLLM
+from smartkeeper.llm.recording import RecordingLLM, SqlLLMCallLog
+
+__all__ = [
+    "AnthropicLLM",
+    "FakeCall",
+    "FakeLLM",
+    "OpenAICompatLLM",
+    "RecordingLLM",
+    "SqlLLMCallLog",
+]

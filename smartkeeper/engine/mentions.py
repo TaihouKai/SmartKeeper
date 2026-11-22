@@ -1,7 +1,8 @@
 """行动声明里的 @ 指代。界面插入的格式是 `@[显示文字](ref)`：
 
 - ref 是该玩家的代号引用（handle 表里的 ref），指人和物；
-- `feature:<地物 id>` 指地图上的地物。
+- `feature:<地物 id>` 指地图上的地物；
+- `point:x,y,z` 是在地图上点选的坐标（米）。
 
 引擎在 KP 看到之前把它们换成实体 ID 或地物 id；KP 不负责猜指代。
 """
@@ -11,7 +12,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-MENTION = re.compile(r"@\[([^\]\n]{1,80})\]\(([A-Za-z0-9_:\-]{1,80})\)")
+from smartkeeper.contracts import Point
+
+MENTION = re.compile(r"@\[([^\]\n]{1,80})\]\(([A-Za-z0-9_:.,\-]{1,80})\)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +27,22 @@ class Mention:
     @property
     def is_feature(self) -> bool:
         return self.ref.startswith("feature:")
+
+    @property
+    def is_point(self) -> bool:
+        return self.ref.startswith("point:")
+
+    @property
+    def point(self) -> Point | None:
+        try:
+            parts = [float(x) for x in self.ref.removeprefix("point:").split(",")]
+        except ValueError:
+            return None
+        if len(parts) == 2:
+            parts.append(0.0)
+        if len(parts) != 3:
+            return None
+        return Point(x=parts[0], y=parts[1], z=parts[2])
 
     @property
     def feature_id(self) -> str:

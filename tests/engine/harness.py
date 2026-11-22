@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 
 import sqlalchemy as sa
 from pydantic import JsonValue
-from sqlalchemy.pool import StaticPool
 
 from smartkeeper.contracts import (
     ActionItem,
@@ -23,6 +22,7 @@ from smartkeeper.dice import DiceRoller, SeededRandomSource
 from smartkeeper.engine import Engine
 from smartkeeper.eventlog import SqlEventLog
 from smartkeeper.handles import SqlHandleStore
+from smartkeeper.memory import SqlMemoryStore
 from smartkeeper.rounds import RoundStateMachine
 from smartkeeper.rules import RulesService, SqlRulePackStore
 from smartkeeper.spatial import ShapelySpatial
@@ -66,9 +66,27 @@ class MemoryMapStore:
 
 
 def make_db() -> sa.Engine:
-    return sa.create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    """临时文件上的 SQLite（WAL）。不用共享单连接的内存库：多线程写反馈草稿时会互相回滚。"""
+    import tempfile
+
+    from sqlalchemy import event
+
+    fd, path = tempfile.mkstemp(suffix=".db", prefix="sk-test-")
+    import os
+
+    os.close(fd)
+    db = sa.create_engine(
+        f"sqlite:///{path}", connect_args={"check_same_thread": False, "timeout": 30}
     )
+
+    @event.listens_for(db, "connect")
+    def _pragmas(conn, _rec):  # type: ignore[no-untyped-def]
+        cur = conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA synchronous=NORMAL")
+        cur.close()
+
+    return db
 
 
 def make_engine(seed: int = 1, db: sa.Engine | None = None) -> tuple[Engine, SqlRulePackStore]:
@@ -87,6 +105,7 @@ def make_engine(seed: int = 1, db: sa.Engine | None = None) -> tuple[Engine, Sql
         maps=MemoryMapStore(),
         spatial=ShapelySpatial(),
         handles=SqlHandleStore(db),
+        memory=SqlMemoryStore(db),
     )
     return engine, packs
 
