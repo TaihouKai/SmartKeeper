@@ -294,3 +294,16 @@ def test_cannot_target_unknown_entity() -> None:
     )
     with pytest.raises(ValidationFailed):
         t.engine.declare_action(p0, "hi", bad)
+
+
+def test_place_names_resolve_to_locations() -> None:
+    from smartkeeper.contracts import Place
+
+    t = setup_table("single", 2)
+    loc = t.engine.resolve_place(t.game_id, Place(place="Tower", floor=3))
+    assert loc.inside == "bldg_tower" and loc.pos.z == 6
+    assert t.engine.resolve_place(t.game_id, Place(place="tower", roof=True)).pos.z == 30
+    clock = t.engine.resolve_place(t.game_id, Place(place="Clock"))
+    assert (clock.pos.x, clock.pos.y, clock.inside) == (25, 75, None)
+    with pytest.raises(ValidationFailed):
+        t.engine.resolve_place(t.game_id, Place(place="Nowhere"))

@@ -7,8 +7,9 @@ scenario_public.md 的 front matter：
       options: [{id, name, description}]
 
 scenario_kp.md 的 front matter：
-    npcs: [{id, template, sheet, location: {pos: {x, y, z}, inside}}]
-    initial_positions: {<身份 id 或玩家显示名>: {pos: {x, y, z}, inside}}
+    npcs: [{id, template, sheet, location: {place: "地名", floor: 3}}]     # location 可省略，由 KP 开场时决定
+    initial_positions: {<身份 id 或玩家显示名>: {place: "地名"}}             # 可省略，由 KP 开场时决定
+  位置可以写地名（place，可加 floor 楼层或 roof: true），也可以直接写坐标（pos: {x, y, z} 米，inside 建筑 id）。
 """
 
 from __future__ import annotations
@@ -18,14 +19,14 @@ from typing import Any, cast
 import yaml
 from pydantic import JsonValue, ValidationError
 
-from smartkeeper.contracts import Frozen, IdentityRules, Location, Problem, ValidationFailed
+from smartkeeper.contracts import Frozen, IdentityRules, Place, Problem, ValidationFailed
 
 
 class NpcSpec(Frozen):
     id: str
     template: str
     sheet: dict[str, JsonValue]
-    location: Location | None = None
+    location: Place | None = None
 
 
 class PublicMeta(Frozen):
@@ -35,7 +36,7 @@ class PublicMeta(Frozen):
 
 class KpMeta(Frozen):
     npcs: tuple[NpcSpec, ...] = ()
-    initial_positions: dict[str, Location] = {}
+    initial_positions: dict[str, Place] = {}
 
 
 def split_front_matter(text: str) -> tuple[dict[str, Any], str]:

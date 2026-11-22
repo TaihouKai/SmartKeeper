@@ -46,7 +46,7 @@ from smartkeeper.contracts.game import (
     Round,
     RoundStatus,
 )
-from smartkeeper.contracts.geometry import Location, Point
+from smartkeeper.contracts.geometry import Location, Place, Point
 from smartkeeper.contracts.interfaces import (
     Dice,
     EventLog,
@@ -192,6 +192,7 @@ __all__ = [
     "Outcome",
     "OwnEntity",
     "PatchOp",
+    "Place",
     "Player",
     "PlayerEntities",
     "Point",

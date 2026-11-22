@@ -17,7 +17,7 @@ from smartkeeper.contracts import (
     Intent,
     MemoryEntry,
 )
-from smartkeeper.engine import Engine, split_front_matter
+from smartkeeper.engine import Engine, kp_meta, split_front_matter
 from smartkeeper.kp import templates
 from smartkeeper.kp.config import KPConfig
 from smartkeeper.kp.render import dumps, player_text, render_events, replace_entity_tokens, section
@@ -105,8 +105,10 @@ class Contexts:
         state = self.e.world_state(game_id)
         entities = state.get("entities")
         ents = entities if isinstance(entities, dict) else {}
+        meta = kp_meta(self.e.game(game_id).scenario_kp)
         need = sorted(
-            eid for eid, ent in ents.items() if isinstance(ent, dict) and ent.get("pos") is None
+            [eid for eid, ent in ents.items() if isinstance(ent, dict) and ent.get("pos") is None]
+            + [n.id for n in meta.npcs if n.location is None]
         )
         players: list[dict[str, object]] = []
         for p in self.e.players(game_id):
@@ -136,11 +138,17 @@ class Contexts:
                         {
                             "id": m.id,
                             "bounds_m": m.bounds,
+                            # 地名供 KP 选位置：有名字的地标和最高的 150 栋有名字的楼
+                            "landmarks": sorted(
+                                {f.name for f in m.features if f.kind == "landmark" and f.name}
+                            )[:150],
                             "named_buildings": [
-                                {"id": f.id, "name": f.name, "height": f.height}
-                                for f in m.features
-                                if f.kind == "building" and f.name
-                            ][:200],
+                                {"name": f.name, "height": f.height}
+                                for f in sorted(
+                                    (x for x in m.features if x.kind == "building" and x.name),
+                                    key=lambda x: -x.height,
+                                )[:150]
+                            ],
                         }
                     ),
                 ),

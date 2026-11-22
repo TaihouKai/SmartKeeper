@@ -45,6 +45,7 @@ from smartkeeper.contracts import (
     Opening,
     OwnEntity,
     PatchOp,
+    Place,
     Player,
     Point,
     PresenceEntry,
@@ -467,7 +468,7 @@ class Engine:
                 if npc.id in _obj(state.get("entities")):
                     raise ValidationFailed("opening.npc_id_taken", id=npc.id)
                 sheet = self._rules.init_sheet(pack, npc.template, npc.sheet)
-                loc = npc.location
+                loc = self.resolve_place(game_id, npc.location) if npc.location else None
                 ops.append(
                     PatchOp(
                         op="add",
@@ -488,7 +489,11 @@ class Engine:
                 ops.append(PatchOp(op="replace", path=f"/entities/{eid}/inside", value=loc.inside))
             m = self._map(game_id)
             problems: list[Problem] = []
-            npc_locs = {n.id: n.location for n in meta.npcs if n.location is not None}
+            npc_locs = {
+                n.id: self.resolve_place(game_id, n.location)
+                for n in meta.npcs
+                if n.location is not None
+            }
             for eid, loc in sorted({**npc_locs, **positions}.items()):
                 problems += self._check_location(m, eid, loc, f"positions.{eid}")
             if problems:
@@ -542,14 +547,15 @@ class Engine:
         out: dict[str, Location] = {}
         for p in self._active_players(game_id):
             keys = [k for k in (self._identity_of(p.id, game_id), p.display_name) if k]
-            loc = next(
+            spec = next(
                 (meta.initial_positions[k] for k in keys if k in meta.initial_positions), None
             )
+            loc = self.resolve_place(game_id, spec) if spec is not None else None
             ents = controls.get(p.id)
             if loc is not None and isinstance(ents, list):
                 for e in ents:
                     out[str(e)] = loc
-        entities = _obj(state.get("entities"))
+        entities = set(_obj(state.get("entities"))) | {n.id for n in meta.npcs}
         for eid, loc in opening.positions.items():
             if eid not in entities:
                 raise ValidationFailed("opening.unknown_entity", id=eid)
@@ -1799,6 +1805,27 @@ class Engine:
                 continue
             out[eid] = {d.name: round(d.value, 4) for d in vals}
         return out
+
+    def resolve_place(self, game_id: str, place: Place) -> Location:
+        """把地名或坐标解析成位置。地名先找完全同名的地物，再找包含这个名字的；建筑优先。"""
+        if place.pos is not None:
+            return Location(pos=place.pos, inside=place.inside)
+        if not place.place:
+            raise ValidationFailed("place.empty")
+        m = self._map(game_id)
+        ids = [place.place] if m.feature(place.place) else self._spatial.locate(m, name=place.place)
+        if not ids:
+            raise ValidationFailed("place.not_found", place=place.place)
+        ids.sort(key=lambda i: (0 if (f := m.feature(i)) and f.kind == "building" else 1, i))
+        fid = ids[0]
+        f = m.feature(fid)
+        assert f is not None
+        z: float | None = None
+        if place.roof and f.kind == "building":
+            z = f.height
+        elif place.floor is not None:
+            z = (place.floor - 1) * 3.0 if place.floor >= 1 else place.floor * 3.0
+        return self.feature_location(game_id, fid, z)
 
     def feature_location(self, game_id: str, feature_id: str, z: float | None = None) -> Location:
         """地物里的一个代表点：建筑取轮廓内的一点，z 默认地面（楼顶写建筑高度）。"""

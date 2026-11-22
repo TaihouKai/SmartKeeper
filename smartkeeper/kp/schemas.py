@@ -8,7 +8,7 @@ from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from smartkeeper.contracts import AdHocCheck, Location, Point, SpatialQuery
+from smartkeeper.contracts import AdHocCheck, Place, Point, SpatialQuery
 
 
 class _Out(BaseModel):
@@ -23,7 +23,7 @@ class ReviewOut(_Out):
 class OpeningOut(_Out):
     broadcast: str
     messages: dict[str, str]
-    positions: dict[str, Location] = {}
+    positions: dict[str, Place] = {}
 
 
 class HandleOut(_Out):

@@ -187,7 +187,11 @@ class KP:
         prompt, need = self.ctx.opening(game_id)
 
         def apply(out: OpeningOut) -> Round:
-            positions = {k: v for k, v in out.positions.items() if k in need}
+            positions = {
+                k: self.engine.resolve_place(game_id, v)
+                for k, v in out.positions.items()
+                if k in need
+            }
             opening = Opening(broadcast=out.broadcast, messages=out.messages, positions=positions)
             return self.engine.start_game(game_id, opening)
 
