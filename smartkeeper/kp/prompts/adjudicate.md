@@ -23,4 +23,14 @@
 - game_over：剧本的结束条件达成时为 true。
 
 只输出一个 JSON 对象，不要输出其他文字：
-{"time_advance_minutes": 30, "outcomes": [{"player_id": "...", "resolves": ["..."], "result": "...", "observations": ["..."]}], "encounters": [], "movements": [], "area_effects": [], "public_events": [], "state_patch": [], "memory_entries": [], "kp_notes": null, "game_over": false}
+{"time_advance_minutes": 30,
+ "outcomes": [{"player_id": "...", "resolves": ["<行动条目 id>"], "result": "...", "observations": ["..."]}],
+ "encounters": [{"players": ["<玩家 id>", "<玩家 id>"], "observed_by": {"<玩家 id>": "他看到的对方的行为"}}],
+ "movements": [{"entity": "<实体 id>", "to": {"x": 0, "y": 0, "z": 0}, "inside": null, "because": "<行动条目 id 或 npc:实体id>", "ability": null}],
+ "area_effects": [{"query_id": "q1", "affected": ["<实体 id 或地物 id>"]}],
+ "public_events": [],
+ "state_patch": [{"op": "replace", "path": "/entities/<实体 id>/sheet/fields/<字段>", "value": 0}],
+ "memory_entries": [{"entities": ["<实体 id>"], "features": [], "text": "..."}],
+ "kp_notes": null,
+ "game_over": false}
+上面每个列表里的条目只是格式示例；没有的就给空列表。字段名必须和示例完全一致（例如移动的终点是 "to"，不是 "pos"）。

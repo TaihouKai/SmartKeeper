@@ -15,7 +15,7 @@ class OpenAICompatLLM:
     supports_search = False
     provider = "openai_compat"
 
-    def __init__(self, *, base_url: str, api_key: str, max_tokens: int = 16000) -> None:
+    def __init__(self, *, base_url: str, api_key: str, max_tokens: int = 32000) -> None:
         self._client = openai.OpenAI(base_url=base_url, api_key=api_key)
         self._max_tokens = max_tokens
 
@@ -47,6 +47,11 @@ class OpenAICompatLLM:
         except openai.APIStatusError as e:
             raise LLMError("llm.api_error", f"{e.status_code} {e.message}") from e
         choice = resp.choices[0]
+        if choice.finish_reason == "length" and not (choice.message.content or "").strip():
+            # 推理用完了输出上限，没有正文：当成调用失败，而不是“没有 JSON”
+            raise LLMError(
+                "llm.output_exhausted", f"no content within max_tokens={self._max_tokens}"
+            )
         usage = resp.usage
         return LLMResult(
             text=choice.message.content or "",

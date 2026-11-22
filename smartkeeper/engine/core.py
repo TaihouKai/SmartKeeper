@@ -1747,12 +1747,15 @@ class Engine:
             return self._events.append(game_id, r.no, [ev])[0]
 
     def nearby_features(
-        self, game_id: str, player_id: str, radius: float = 400.0
+        self, game_id: str, player_id: str, radius: float = 200.0, limit: int = 60
     ) -> list[dict[str, JsonValue]]:
-        """玩家各实体附近有名字的地物，供意图解析把地点名对应到地物 id。"""
+        """玩家各实体附近有名字的地物，供意图解析把地点名对应到地物 id。
+
+        同名同类的地物（一条路的很多段）只留最近的一个；按距离取最近的 limit 个，控制 prompt 长度。
+        """
         space = self._space(game_id)
         m = space.map
-        out: dict[str, dict[str, JsonValue]] = {}
+        best: dict[tuple[str, str], tuple[float, str]] = {}
         for e in space.controls.get(player_id, []):
             b = space.bodies.get(e)
             if b is None:
@@ -1760,9 +1763,15 @@ class Engine:
             hit = self._spatial.within(m, space.changes, [], b.pos, radius)
             for fid in hit.features:
                 f = m.feature(fid)
-                if f is not None and f.name:
-                    out[fid] = {"id": fid, "name": f.name, "kind": f.kind}
-        return sorted(out.values(), key=lambda x: str(x["name"]))
+                if f is None or not f.name:
+                    continue
+                loc = self.feature_location(game_id, fid) if f.kind != "road" else None
+                d = self._spatial.distance(b.pos, loc.pos) if loc else radius
+                key = (f.name, f.kind)
+                if key not in best or d < best[key][0]:
+                    best[key] = (d, fid)
+        ranked = sorted(best.items(), key=lambda kv: kv[1][0])[:limit]
+        return [{"id": fid, "name": name, "kind": kind} for (name, kind), (_d, fid) in ranked]
 
     def record_summary(self, game_id: str, round_no: int, text: str) -> Event:
         """滚动摘要（kp_only）。只是索引和氛围，不能作为事实依据。"""
