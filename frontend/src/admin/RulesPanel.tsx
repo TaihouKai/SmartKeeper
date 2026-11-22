@@ -231,12 +231,6 @@ function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; 
       <div className="sk-row">
         <label>{t("rules.t.name")}<input value={tpl.name} placeholder={t("rules.ph.template_name")} onChange={(e) => onChange({ ...tpl, name: e.target.value })} /></label>
         <label>{t("rules.t.label")}<input value={tpl.label ?? ""} placeholder={t("rules.ph.template_label")} onChange={(e) => onChange({ ...tpl, label: e.target.value })} /></label>
-        <label>
-          {t("rules.t.appearance")}
-          <select value={tpl.appearance_field ?? "appearance"} onChange={(e) => onChange({ ...tpl, appearance_field: e.target.value })}>
-            {(tpl.fields ?? []).filter((f) => f.kind === "text").map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
-          </select>
-        </label>
         <button className="sk-link" onClick={onRemove}>{t("rules.remove_template")}</button>
       </div>
       <h4>{t("rules.fields")}</h4>

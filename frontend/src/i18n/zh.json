@@ -339,7 +339,7 @@
       "choices": "例如 红、蓝、绿（用顿号或逗号分隔；留空表示自由填写）",
       "derived_label": "例如 生命值上限",
       "derived_name": "例如 hp_max",
-      "field_label": "例如 生命值",
+      "field_label": "中文名，例如 力量",
       "field_name": "例如 hp",
       "formula": "例如 str * 2 + 10",
       "formula_concealment": "例如 1",
@@ -354,7 +354,7 @@
       "min": "例如 0",
       "template_label": "例如 主角",
       "template_name": "例如 hero",
-      "unit": "例如 米",
+      "unit": "可不填，例如 米",
       "unit_concealment": "无单位",
       "unit_move_speed": "米/分钟",
       "unit_perception_radius": "米"

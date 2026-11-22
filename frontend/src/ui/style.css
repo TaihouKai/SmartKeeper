@@ -114,3 +114,4 @@ tr.inactive { opacity: 0.5; }
   .sk-field-main { grid-template-columns: 1fr 1fr; }
   .sk-field-side { grid-column: 1 / -1; padding-top: 0; }
 }
+@media (max-width: 600px) { .sk-derived-head { display: none; } }

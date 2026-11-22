@@ -339,7 +339,7 @@
       "choices": "e.g. red, blue, green (comma-separated; leave empty for free text)",
       "derived_label": "e.g. Max HP",
       "derived_name": "e.g. hp_max",
-      "field_label": "e.g. HP",
+      "field_label": "e.g. Strength",
       "field_name": "e.g. hp",
       "formula": "e.g. str * 2 + 10",
       "formula_concealment": "e.g. 1",
@@ -354,7 +354,7 @@
       "min": "e.g. 0",
       "template_label": "e.g. Hero",
       "template_name": "e.g. hero",
-      "unit": "e.g. m",
+      "unit": "optional, e.g. m",
       "unit_concealment": "none",
       "unit_move_speed": "m/min",
       "unit_perception_radius": "m"
