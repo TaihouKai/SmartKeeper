@@ -1,27 +1,368 @@
 {
+  "admin": {
+    "disabled": "服务器没有配置管理员密码，控制台不可用。",
+    "login": "登录",
+    "logout": "退出",
+    "panel": {
+      "games": "局管理",
+      "log": "日志",
+      "materials": "资料",
+      "review": "审核",
+      "rules": "规则"
+    },
+    "password": "管理员密码",
+    "pick_game": "先在“局管理”里选一局。",
+    "title": "管理控制台"
+  },
   "app": {
+    "landing": "由 LLM 担任 KP 的异步文字跑团。请用邀请链接进入游戏。",
     "title": "SmartKeeper",
-    "placeholder": "游戏界面尚未实现。"
+    "to_admin": "管理控制台",
+    "to_play": "进入游戏"
+  },
+  "broadcast": {
+    "anonymous": "匿名（只对其他玩家匿名）",
+    "hint": "广播所有人都能看到，是游戏内的公开发言。",
+    "send": "发送"
+  },
+  "character": {
+    "add_effect": "添加效果",
+    "add_entity": "再加一个",
+    "add_entry": "添加一条",
+    "appearance_hint": "（别人会根据外观描述给你起代号）",
+    "derived": "推导值（试算）",
+    "effect_conceptual": "（只有描述，由 KP 理解）",
+    "effect_description": "效果描述",
+    "effects": "效果",
+    "entry_description": "描述",
+    "entry_name": "名称",
+    "name": "角色名",
+    "remove_entry": "删除这一条",
+    "shape": "范围形状",
+    "shape_none": "无",
+    "submit": "提交角色卡"
+  },
+  "chat": {
+    "hint": "闲聊是玩家之间的场外聊天，KP 看不到，也不据此裁定。游戏内的事请走 KP 或广播。",
+    "pick_peer": "选择一名玩家……",
+    "send": "发送"
+  },
+  "codes": {
+    "action": {
+      "invalid": "行动声明不合法",
+      "unresolved_reference": "有对应不上的指代"
+    },
+    "auth": {
+      "admin_required": "需要管理员登录",
+      "bad_password": "密码不对",
+      "player_required": "需要用邀请链接进入"
+    },
+    "character": {
+      "invalid": "角色卡没有通过校验"
+    },
+    "game": {
+      "characters_pending": "还有玩家的角色卡没有通过审核"
+    },
+    "identity": {
+      "already_assigned": "你已经有身份了",
+      "exhausted": "身份已经抽完了"
+    },
+    "mention": {
+      "unknown": "@ 了一个不认识的对象"
+    },
+    "rate": {
+      "kp_chat": "发得太快了，请稍等一分钟",
+      "login": "尝试太多次，请稍后再试"
+    },
+    "round": {
+      "illegal_transition": "当前阶段不能这样做（{status}）",
+      "not_ready": "还有玩家没有提交行动"
+    },
+    "rulepack": {
+      "invalid": "规则包没有通过校验",
+      "version_in_use": "这个版本正在被某一局使用，不能删除"
+    },
+    "text": {
+      "empty": "内容不能为空",
+      "too_long": "内容太长（最多 {max} 字）"
+    }
+  },
+  "common": {
+    "add": "添加",
+    "cancel": "取消",
+    "hide": "收起",
+    "loading": "加载中……",
+    "remove": "删除",
+    "save": "保存",
+    "show": "展开",
+    "working": "处理中……"
+  },
+  "demo": {
+    "hint": "点击实体、建筑或地面。",
+    "picked_entity": "选中了实体 @{label}",
+    "picked_feature": "选中了地物 {name}（{top}）",
+    "picked_point": "选中了坐标 {lon}, {lat}",
+    "title": "地图组件演示（假数据）"
+  },
+  "event": {
+    "anonymous": "匿名",
+    "approved": "角色卡审核通过",
+    "feedback": "第 {round} 轮反馈",
+    "identity": "身份",
+    "kp": "KP",
+    "me": "我",
+    "my_action": "我的第 {round} 轮行动",
+    "opening": "开场",
+    "quote": "引用",
+    "rejected": "角色卡需要修改",
+    "round_closed": "—— 第 {round} 轮结束 ——",
+    "round_opened": "—— 第 {round} 轮开始 ——",
+    "submitted": "提交了角色卡"
+  },
+  "formula": {
+    "invalid": "公式不合法"
+  },
+  "games": {
+    "admin_webhook": "管理员 webhook URL",
+    "create": "创建",
+    "end": "结束这一局",
+    "force_close": "强制结算本轮",
+    "invite": "生成邀请链接",
+    "invite_once": "邀请链接只显示这一次，请现在发给玩家。",
+    "kp_language": "KP 使用的语言",
+    "lifecycle": "进行状态",
+    "map": "地图",
+    "name": "名称",
+    "new": "新建一局",
+    "no_search": "当前使用的模型不支持联网搜索，KP 只靠模型自身的知识。",
+    "player_name": "玩家显示名",
+    "player_webhook": "玩家 webhook URL",
+    "players": "玩家",
+    "rereview": "重新审核",
+    "rerun": "整轮重跑",
+    "review_mode": "审核模式（每一轮都停在待审核）",
+    "revoke": "作废",
+    "rulepack": "规则包版本",
+    "scenario": "剧本",
+    "settings": "设置",
+    "start": "开始这一局（KP 开场）",
+    "status": {
+      "characters": "建角中",
+      "ended": "已结束",
+      "running": "进行中",
+      "setup": "准备中"
+    },
+    "submitted": "已提交",
+    "waiting": "未提交",
+    "web_search": "允许 KP 联网查设定"
+  },
+  "join": {
+    "character": "角色卡",
+    "draw": "抽取身份",
+    "game_started": "游戏已经开始。",
+    "go_play": "进入游戏界面",
+    "hello": "你好，{name}",
+    "identity": "身份",
+    "invalid": "邀请链接无效或已作废，请向管理员要一个新的。",
+    "review": "KP 的审核意见",
+    "rules": "规则与剧本",
+    "status": {
+      "approved": "审核通过",
+      "none": "还没有提交角色卡",
+      "rejected": "需要修改",
+      "submitted": "已提交，待审核"
+    },
+    "waiting_review": "已提交，等待 KP 审核……"
+  },
+  "kp": {
+    "a_point": "地图上的点",
+    "action_box": "行动框",
+    "action_hint": "在这里声明本轮行动（“我要……”）。提交前会解析给你确认；结算开始前可以修改。只有这里确认过的行动会改变世界。",
+    "ask": "发送",
+    "chat_box": "聊天框",
+    "chat_hint": "向 KP 提问和澄清。KP 只回答你的角色此刻能知道的事；这里写的话不算行动。",
+    "confirm": "确认提交",
+    "edit": "修改",
+    "insert_mention": "插入 @……",
+    "parse": "解析",
+    "quote_chip": "引用 #{seq}",
+    "submitted_already": "本轮已提交：",
+    "understood_as": "你的行动被理解为：",
+    "unresolved": "这些指代对应不上，请改成 @ 后再提交："
   },
   "lang": {
-    "zh": "中文",
-    "en": "English"
+    "en": "English",
+    "zh": "中文"
+  },
+  "log": {
+    "all": "全部事件（KP 视角）",
+    "as": "以 {name} 的视角",
+    "public": "公开视角"
   },
   "map": {
     "aria": "地图",
     "height": {
-      "roof": "楼顶",
-      "floor": "{floor} 层",
       "above": "上空 {m} 米",
       "below": "地下 {m} 米",
-      "ground": "地面"
+      "floor": "{floor} 层",
+      "ground": "地面",
+      "roof": "楼顶"
     }
   },
-  "demo": {
-    "title": "地图组件演示（假数据）",
-    "hint": "点击实体、建筑或地面。",
-    "picked_entity": "选中了实体 @{label}",
-    "picked_feature": "选中了地物 {name}（{top}）",
-    "picked_point": "选中了坐标 {lon}, {lat}"
+  "materials": {
+    "kp": "KP 专属部分 scenario_kp.md",
+    "map_id": "地图 id",
+    "maps": "地图",
+    "new_name": "新剧本名（英文字母、数字）",
+    "new_scenario": "新建剧本",
+    "preview": "预览公开部分",
+    "public": "公开部分 scenario_public.md",
+    "scenarios": "剧本"
+  },
+  "play": {
+    "handle_label": "代号",
+    "handle_note": "私人备注",
+    "map_hint": "点人或地物就是 @ 它；点地面选一个坐标作为目的地。高度用文字写在行动里（例如“楼顶”“上空 100 米”）。",
+    "nobody": "（附近没有人）",
+    "presence": "此刻能感知到的：",
+    "rename": "改名 / 备注",
+    "seen": "见过的人",
+    "tab": {
+      "broadcast": "广播",
+      "chat": "闲聊",
+      "kp": "KP",
+      "map": "地图",
+      "sheet": "角色卡"
+    }
+  },
+  "review": {
+    "adjudication": "裁定 JSON",
+    "broadcast": "广播草稿",
+    "claims": "声明核对",
+    "declarations": "本轮行动声明",
+    "dice": "骰子",
+    "feedback": "反馈草稿",
+    "not_in_review": "这一轮不在待审核状态，只能查看。",
+    "publish": "发布",
+    "queries": "空间查询",
+    "rewrite": "重写这份反馈"
+  },
+  "rules": {
+    "add_derived": "添加推导值",
+    "add_field": "添加字段",
+    "add_group": "添加分组",
+    "add_level": "添加结果等级",
+    "add_template": "添加模板",
+    "c": {
+      "dice": "骰子",
+      "target": "目标值公式"
+    },
+    "checking": "正在校验……",
+    "checks": "检定",
+    "cls": {
+      "player": "玩家填写",
+      "runtime": "运行值"
+    },
+    "derived": "推导值",
+    "derived_hint": "perception_radius（感知半径，米）、concealment（匿踪系数）、move_speed（移动速度，米/分钟）是引擎必需的，不能删除。",
+    "editing": "正在编辑 {id} 的 v{version}；保存会生成新版本。",
+    "editing_new": "正在编辑一个新规则包。",
+    "export": "导出",
+    "f": {
+      "choices": "可选值（用 | 分隔）",
+      "cls": "类别",
+      "hidden": "对玩家隐藏",
+      "initial": "初值",
+      "kind": "类型",
+      "label": "显示名",
+      "max": "上限",
+      "min": "下限",
+      "name": "名字",
+      "required": "必填",
+      "unit": "单位"
+    },
+    "fields": "字段",
+    "formulas": "命名公式",
+    "g": {
+      "effects": "条目可带效果",
+      "max": "最多",
+      "min": "最少",
+      "shapes": "允许的范围形状（capsule|box|sphere|cone）"
+    },
+    "groups": "可重复分组（技能、能力等）",
+    "import": "导入文件",
+    "kind": {
+      "number": "数值",
+      "resource": "资源",
+      "text": "文字"
+    },
+    "levels_hint": "按顺序判断，第一个条件为真的等级就是结果。可用变量 roll、target、difficulty、opp_roll、opp_target。",
+    "new": "新建规则包",
+    "packs": "规则包",
+    "player_entities": "玩家建角时要创建的实体（模板、最少、最多）",
+    "problems": "还有 {n} 处问题，不能保存",
+    "remove_template": "删除模板",
+    "rules_text": "规则说明（自由文字，由 KP 阅读）",
+    "sample_expected": "期望的推导值（每行 名字=值）",
+    "sample_sheet": "样例角色卡（JSON）",
+    "samples": "例题",
+    "samples_hint": "保存时自动验算：每道例题的推导值必须等于期望值。",
+    "save_version": "保存为新版本",
+    "t": {
+      "appearance": "外观描述字段",
+      "label": "显示名",
+      "name": "名字"
+    },
+    "table": {
+      "exact": "精确",
+      "range": "区间"
+    },
+    "tables": "查表",
+    "tables_hint": "每行一条：键,值。range 表取不超过键的最大一行；exact 表要求键完全相等。",
+    "templates": "角色卡模板",
+    "try": "试算",
+    "try_run": "计算",
+    "valid": "校验通过",
+    "w": {
+      "canon": "以哪部作品或哪个版本为准",
+      "description": "描述",
+      "name": "名称",
+      "sites": "参考网站（每行一个）"
+    },
+    "world": "世界观"
+  },
+  "shape": {
+    "angle": "半角（度）",
+    "box": "长方体",
+    "capsule": "胶囊（光束）",
+    "cone": "锥",
+    "height": "高（米）",
+    "length": "长（米）",
+    "radius": "半径（米）",
+    "sphere": "球",
+    "width": "宽（米）"
+  },
+  "sheet": {
+    "change": "第 {round} 轮 {path}: {old} → {new}",
+    "history": "变更历史",
+    "source": {
+      "admin": "管理员修改",
+      "engine": "引擎",
+      "feedback": "见当轮反馈",
+      "opening": "开场"
+    },
+    "statuses": "状态："
+  },
+  "status": {
+    "ended": "已结束",
+    "not_started": "未开始",
+    "phase": {
+      "adjudicating": "裁定中",
+      "collecting": "行动期",
+      "published": "已发布",
+      "review": "待审核"
+    },
+    "round": "第 {round} 轮",
+    "submitted": "已提交 {done}/{total}"
   }
 }

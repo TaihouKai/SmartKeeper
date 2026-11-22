@@ -18,7 +18,8 @@ ROOT = Path(__file__).resolve().parent.parent
 I18N_DIR = ROOT / "frontend" / "src" / "i18n"
 SRC_DIRS = (ROOT / "frontend" / "src", ROOT / "frontend" / "demo")
 
-JSX_TEXT = re.compile(r">([^<>{}]*[A-Za-z一-鿿][^<>{}]*)<")
+# JSX 文本节点：标签之间的文字，后面跟着闭合标签（排除 TypeScript 泛型里的尖括号）
+JSX_TEXT = re.compile(r">([^<>{}]*[A-Za-z一-鿿][^<>{}]*)</")
 ATTR_LITERAL = re.compile(
     r"\b(placeholder|title|alt|aria-label|label)=\"([^\"]*[A-Za-z一-鿿][^\"]*)\""
 )

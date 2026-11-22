@@ -35,6 +35,7 @@ def steps(fix: bool, frontend: bool, e2e: bool) -> list[tuple[str, list[str], Pa
     ]
     if frontend:
         s += [
+            ("API 类型", [py, "scripts/export_openapi.py"], ROOT),
             ("前端类型", [npm(), "run", "--silent", "typecheck"], ROOT / "frontend"),
             ("前端测试", [npm(), "run", "--silent", "test"], ROOT / "frontend"),
         ]

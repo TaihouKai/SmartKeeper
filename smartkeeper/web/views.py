@@ -281,7 +281,7 @@ class SeenOut(BaseModel):
 
 class ChangeOut(BaseModel):
     feature: str
-    status: str
+    status: Literal["destroyed"]
     above_z: float | None
 
 

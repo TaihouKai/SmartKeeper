@@ -1,27 +1,368 @@
 {
+  "admin": {
+    "disabled": "No admin password is configured; the console is disabled.",
+    "login": "Log in",
+    "logout": "Log out",
+    "panel": {
+      "games": "Games",
+      "log": "Log",
+      "materials": "Materials",
+      "review": "Review",
+      "rules": "Rules"
+    },
+    "password": "Admin password",
+    "pick_game": "Pick a game under Games first.",
+    "title": "Admin console"
+  },
   "app": {
+    "landing": "An asynchronous text TRPG with an LLM keeper. Use your invite link to join.",
     "title": "SmartKeeper",
-    "placeholder": "The game interface is not implemented yet."
+    "to_admin": "Admin console",
+    "to_play": "Play"
+  },
+  "broadcast": {
+    "anonymous": "Anonymous (to other players only)",
+    "hint": "Everyone sees broadcasts; they are public in-game speech.",
+    "send": "Send"
+  },
+  "character": {
+    "add_effect": "Add effect",
+    "add_entity": "Add another",
+    "add_entry": "Add entry",
+    "appearance_hint": "(others will refer to you by this description)",
+    "derived": "Derived values (preview)",
+    "effect_conceptual": "(description only, interpreted by the keeper)",
+    "effect_description": "Effect description",
+    "effects": "Effects",
+    "entry_description": "Description",
+    "entry_name": "Name",
+    "name": "Name",
+    "remove_entry": "Remove entry",
+    "shape": "Area shape",
+    "shape_none": "None",
+    "submit": "Submit character"
+  },
+  "chat": {
+    "hint": "Chat is out-of-game talk between players. The keeper can't see it and won't act on it.",
+    "pick_peer": "Choose a player…",
+    "send": "Send"
+  },
+  "codes": {
+    "action": {
+      "invalid": "Invalid action",
+      "unresolved_reference": "Some references couldn't be matched"
+    },
+    "auth": {
+      "admin_required": "Admin login required",
+      "bad_password": "Wrong password",
+      "player_required": "Use your invite link to join"
+    },
+    "character": {
+      "invalid": "The character sheet is invalid"
+    },
+    "game": {
+      "characters_pending": "Some characters aren't approved yet"
+    },
+    "identity": {
+      "already_assigned": "You already have an identity",
+      "exhausted": "No identities left"
+    },
+    "mention": {
+      "unknown": "Unknown @ reference"
+    },
+    "rate": {
+      "kp_chat": "Too fast; wait a minute",
+      "login": "Too many attempts; try later"
+    },
+    "round": {
+      "illegal_transition": "Not allowed in this phase ({status})",
+      "not_ready": "Some players haven't submitted"
+    },
+    "rulepack": {
+      "invalid": "The rule pack is invalid",
+      "version_in_use": "This version is used by a game and can't be deleted"
+    },
+    "text": {
+      "empty": "Text can't be empty",
+      "too_long": "Text too long (max {max})"
+    }
+  },
+  "common": {
+    "add": "Add",
+    "cancel": "Cancel",
+    "hide": "Hide",
+    "loading": "Loading…",
+    "remove": "Remove",
+    "save": "Save",
+    "show": "Show",
+    "working": "Working…"
+  },
+  "demo": {
+    "hint": "Click an entity, a building or the ground.",
+    "picked_entity": "Picked entity @{label}",
+    "picked_feature": "Picked feature {name} ({top})",
+    "picked_point": "Picked point {lon}, {lat}",
+    "title": "Map component demo (fake data)"
+  },
+  "event": {
+    "anonymous": "Anonymous",
+    "approved": "Character approved",
+    "feedback": "Round {round} result",
+    "identity": "Identity",
+    "kp": "Keeper",
+    "me": "Me",
+    "my_action": "My round {round} action",
+    "opening": "Opening",
+    "quote": "Quote",
+    "rejected": "Character needs changes",
+    "round_closed": "— Round {round} ends —",
+    "round_opened": "— Round {round} begins —",
+    "submitted": "Character submitted"
+  },
+  "formula": {
+    "invalid": "Invalid formula"
+  },
+  "games": {
+    "admin_webhook": "Admin webhook URL",
+    "create": "Create",
+    "end": "End the game",
+    "force_close": "Force-resolve this round",
+    "invite": "Create invite link",
+    "invite_once": "Invite links are shown only once — send them now.",
+    "kp_language": "Keeper language",
+    "lifecycle": "Progress",
+    "map": "Map",
+    "name": "Name",
+    "new": "New game",
+    "no_search": "The configured model can't search the web; the keeper relies on its own knowledge.",
+    "player_name": "Player display name",
+    "player_webhook": "Player webhook URL",
+    "players": "Players",
+    "rereview": "Review again",
+    "rerun": "Re-run the round",
+    "review_mode": "Review mode (every round waits for review)",
+    "revoke": "Revoke",
+    "rulepack": "Rule pack version",
+    "scenario": "Scenario",
+    "settings": "Settings",
+    "start": "Start the game (keeper opening)",
+    "status": {
+      "characters": "Character creation",
+      "ended": "Ended",
+      "running": "Running",
+      "setup": "Setup"
+    },
+    "submitted": "Submitted",
+    "waiting": "Waiting",
+    "web_search": "Allow the keeper to search the web"
+  },
+  "join": {
+    "character": "Character",
+    "draw": "Draw an identity",
+    "game_started": "The game has started.",
+    "go_play": "Go to the game",
+    "hello": "Hello, {name}",
+    "identity": "Identity",
+    "invalid": "This invite link is invalid or revoked. Ask the admin for a new one.",
+    "review": "Keeper's review",
+    "rules": "Rules and scenario",
+    "status": {
+      "approved": "Approved",
+      "none": "No character submitted yet",
+      "rejected": "Changes requested",
+      "submitted": "Submitted, under review"
+    },
+    "waiting_review": "Submitted. Waiting for the keeper's review…"
+  },
+  "kp": {
+    "a_point": "a point on the map",
+    "action_box": "Action",
+    "action_hint": "Declare this round's action here (\"I …\"). It is parsed for you to confirm, and can be changed until the round resolves. Only confirmed actions change the world.",
+    "ask": "Send",
+    "chat_box": "Ask the keeper",
+    "chat_hint": "Ask questions and clarify. The keeper answers only what your character could know; nothing here counts as an action.",
+    "confirm": "Confirm",
+    "edit": "Edit",
+    "insert_mention": "Insert @…",
+    "parse": "Parse",
+    "quote_chip": "Quote #{seq}",
+    "submitted_already": "Submitted this round:",
+    "understood_as": "Your action was understood as:",
+    "unresolved": "These references could not be matched; use @ and parse again:"
   },
   "lang": {
-    "zh": "中文",
-    "en": "English"
+    "en": "English",
+    "zh": "中文"
+  },
+  "log": {
+    "all": "All events (keeper view)",
+    "as": "As {name}",
+    "public": "Public view"
   },
   "map": {
     "aria": "Map",
     "height": {
-      "roof": "Rooftop",
-      "floor": "Floor {floor}",
       "above": "{m} m above ground",
       "below": "{m} m below ground",
-      "ground": "Ground level"
+      "floor": "Floor {floor}",
+      "ground": "Ground level",
+      "roof": "Rooftop"
     }
   },
-  "demo": {
-    "title": "Map component demo (fake data)",
-    "hint": "Click an entity, a building or the ground.",
-    "picked_entity": "Picked entity @{label}",
-    "picked_feature": "Picked feature {name} ({top})",
-    "picked_point": "Picked point {lon}, {lat}"
+  "materials": {
+    "kp": "Keeper part scenario_kp.md",
+    "map_id": "Map id",
+    "maps": "Maps",
+    "new_name": "New scenario name (letters, digits)",
+    "new_scenario": "New scenario",
+    "preview": "Preview public part",
+    "public": "Public part scenario_public.md",
+    "scenarios": "Scenarios"
+  },
+  "play": {
+    "handle_label": "Label",
+    "handle_note": "Private note",
+    "map_hint": "Tap a person or place to @ it; tap the ground to pick a destination. Describe height in words (\"the rooftop\", \"100 m up\").",
+    "nobody": "(nobody nearby)",
+    "presence": "Currently perceived:",
+    "rename": "Rename / note",
+    "seen": "People you've seen",
+    "tab": {
+      "broadcast": "Broadcast",
+      "chat": "Chat",
+      "kp": "Keeper",
+      "map": "Map",
+      "sheet": "Sheet"
+    }
+  },
+  "review": {
+    "adjudication": "Adjudication JSON",
+    "broadcast": "Broadcast draft",
+    "claims": "Claim checks",
+    "declarations": "This round's declarations",
+    "dice": "Dice",
+    "feedback": "Feedback drafts",
+    "not_in_review": "This round is not awaiting review; read only.",
+    "publish": "Publish",
+    "queries": "Spatial queries",
+    "rewrite": "Rewrite this feedback"
+  },
+  "rules": {
+    "add_derived": "Add derived value",
+    "add_field": "Add field",
+    "add_group": "Add group",
+    "add_level": "Add result level",
+    "add_template": "Add template",
+    "c": {
+      "dice": "Dice",
+      "target": "Target formula"
+    },
+    "checking": "Checking…",
+    "checks": "Checks",
+    "cls": {
+      "player": "Player-defined",
+      "runtime": "Runtime"
+    },
+    "derived": "Derived values",
+    "derived_hint": "perception_radius (m), concealment and move_speed (m/min) are required by the engine and can't be removed.",
+    "editing": "Editing {id} v{version}; saving creates a new version.",
+    "editing_new": "Editing a new rule pack.",
+    "export": "Export",
+    "f": {
+      "choices": "Choices (| separated)",
+      "cls": "Class",
+      "hidden": "Hidden",
+      "initial": "Initial",
+      "kind": "Kind",
+      "label": "Label",
+      "max": "Max",
+      "min": "Min",
+      "name": "Name",
+      "required": "Required",
+      "unit": "Unit"
+    },
+    "fields": "Fields",
+    "formulas": "Named formulas",
+    "g": {
+      "effects": "Entries may have effects",
+      "max": "Max",
+      "min": "Min",
+      "shapes": "Allowed shapes (capsule|box|sphere|cone)"
+    },
+    "groups": "Repeatable groups (skills, abilities…)",
+    "import": "Import file",
+    "kind": {
+      "number": "Number",
+      "resource": "Resource",
+      "text": "Text"
+    },
+    "levels_hint": "Checked in order; the first true condition wins. Variables: roll, target, difficulty, opp_roll, opp_target.",
+    "new": "New rule pack",
+    "packs": "Rule packs",
+    "player_entities": "Entities each player creates (template, min, max)",
+    "problems": "{n} problems; can't save yet",
+    "remove_template": "Remove template",
+    "rules_text": "Rules text (free text for the keeper)",
+    "sample_expected": "Expected values (name=value per line)",
+    "sample_sheet": "Sample sheet (JSON)",
+    "samples": "Worked examples",
+    "samples_hint": "Checked on save: every example must produce the expected derived values.",
+    "save_version": "Save as new version",
+    "t": {
+      "appearance": "Appearance field",
+      "label": "Label",
+      "name": "Name"
+    },
+    "table": {
+      "exact": "Exact",
+      "range": "Range"
+    },
+    "tables": "Lookup tables",
+    "tables_hint": "One row per line: key,value. Range tables take the largest key not above the input; exact tables need an exact match.",
+    "templates": "Character templates",
+    "try": "Try it",
+    "try_run": "Calculate",
+    "valid": "Valid",
+    "w": {
+      "canon": "Canon / edition",
+      "description": "Description",
+      "name": "Name",
+      "sites": "Reference sites (one per line)"
+    },
+    "world": "World"
+  },
+  "shape": {
+    "angle": "Half-angle (°)",
+    "box": "Box",
+    "capsule": "Capsule (beam)",
+    "cone": "Cone",
+    "height": "Height (m)",
+    "length": "Length (m)",
+    "radius": "Radius (m)",
+    "sphere": "Sphere",
+    "width": "Width (m)"
+  },
+  "sheet": {
+    "change": "Round {round} {path}: {old} → {new}",
+    "history": "History",
+    "source": {
+      "admin": "admin edit",
+      "engine": "engine",
+      "feedback": "see that round's result",
+      "opening": "opening"
+    },
+    "statuses": "Statuses:"
+  },
+  "status": {
+    "ended": "Ended",
+    "not_started": "Not started",
+    "phase": {
+      "adjudicating": "Resolving",
+      "collecting": "Actions open",
+      "published": "Published",
+      "review": "Awaiting review"
+    },
+    "round": "Round {round}",
+    "submitted": "Submitted {done}/{total}"
   }
 }
