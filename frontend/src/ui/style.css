@@ -71,7 +71,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .sk-chip.active { border-color: var(--accent); color: var(--accent); }
 .sk-table { border-collapse: collapse; width: 100%; font-size: 13px; }
 .sk-table th, .sk-table td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }
-.sk-table input, .sk-table select { min-width: 70px; }
+.sk-table input { min-width: 70px; }
+.sk-table select { min-width: 96px; }
 .sk-scroll { overflow-x: auto; }
 .sk-code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; }
 textarea.sk-code { white-space: pre; }

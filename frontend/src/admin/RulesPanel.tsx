@@ -31,7 +31,13 @@ function blankTemplate(name: string): Template {
     appearance_field: "appearance",
     fields: [{ name: "appearance", label: "", kind: "text", cls: "player", required: true, hidden: false, choices: [] }],
     groups: [],
-    derived: REQUIRED_DERIVED.map((n) => ({ name: n, label: "", formula: n === "concealment" ? "1" : "", hidden: false })),
+    derived: REQUIRED_DERIVED.map((n) => ({
+      name: n,
+      label: "",
+      formula: n === "concealment" ? "1" : "",
+      unit: n === "perception_radius" ? "m" : n === "move_speed" ? "m/min" : null,
+      hidden: false,
+    })),
   };
 }
 
@@ -150,7 +156,7 @@ function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; 
           <div key={i}>
             <div className="sk-derived-row">
               <input value={d.name} disabled={required} placeholder={t("rules.ph.derived_name")} onChange={(e) => ded.update(i, { ...d, name: e.target.value })} />
-              <input value={d.label ?? ""} placeholder={t("rules.ph.derived_label")} onChange={(e) => ded.update(i, { ...d, label: e.target.value })} />
+              <input value={d.label ?? ""} placeholder={required ? t(`rules.ph.label_${d.name}`) : t("rules.ph.derived_label")} onChange={(e) => ded.update(i, { ...d, label: e.target.value })} />
               <FormulaInput value={d.formula} validate={v} placeholder={required ? t(`rules.ph.formula_${d.name}`) : t("rules.ph.formula")} onChange={(x) => ded.update(i, { ...d, formula: x })} />
               <input className="sk-small" value={d.unit ?? ""} placeholder={required ? t(`rules.ph.unit_${d.name}`) : ""} onChange={(e) => ded.update(i, { ...d, unit: e.target.value || null })} />
               {required ? <span className="sk-badge-req">{t("rules.required_badge")}</span> : <button className="sk-link" onClick={() => ded.remove(i)}>{t("common.remove")}</button>}
