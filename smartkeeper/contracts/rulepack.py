@@ -1,0 +1,162 @@
+"""规则包的数据结构。这就是“规则”面板表单的结构，也是导入导出文件的格式。
+
+这里不含任何具体规则体系的概念；具体的数值、模板、检定都是规则包里的数据。
+"""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import Field, JsonValue
+
+from smartkeeper.contracts.base import Frozen
+
+# 引擎必需的推导值。每个实体模板都必须为它们提供公式。
+REQUIRED_DERIVED: tuple[str, ...] = ("perception_radius", "concealment", "move_speed")
+
+FieldKind = Literal["number", "text", "resource"]
+FieldClass = Literal["player", "runtime"]
+
+
+class WorldInfo(Frozen):
+    name: str
+    description: str = ""
+    canon: str = ""  # 以哪部作品或哪个版本为准
+    reference_sites: tuple[str, ...] = ()
+
+
+class FieldDef(Frozen):
+    """角色卡上的一个字段。
+
+    - kind=number：数值（属性、技能、玩家自定义的尺寸等）；可带 unit、min、max。
+    - kind=text：文字；choices 非空时只能取其中之一。
+    - kind=resource：有上下限的数值。上下限可以是公式（例如引用某个推导值）。
+    - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定修改，初值由 initial 公式给出。
+    """
+
+    name: str
+    label: str = ""
+    kind: FieldKind
+    cls: FieldClass = "player"
+    unit: str | None = None
+    min: str | None = None  # 公式
+    max: str | None = None  # 公式
+    initial: str | None = None  # 公式；runtime 字段建角时的初值
+    choices: tuple[str, ...] = ()
+    required: bool = True
+    hidden: bool = False  # 对玩家隐藏
+
+
+class ShapeDef(Frozen):
+    """可重复分组的条目是否带范围形状参数（供空间查询使用）。"""
+
+    allowed: tuple[Literal["capsule", "box", "sphere", "cone"], ...] = ()
+
+
+class GroupDef(Frozen):
+    """可重复的分组，例如技能、特殊能力。每个条目有模板规定的字段和一个效果列表。"""
+
+    name: str
+    label: str = ""
+    fields: tuple[FieldDef, ...] = ()
+    min_count: int = 0
+    max_count: int | None = None
+    effects: bool = True  # 条目是否可以带效果
+    shapes: ShapeDef = ShapeDef()
+    hidden: bool = False
+
+
+class DerivedDef(Frozen):
+    name: str
+    label: str = ""
+    formula: str
+    unit: str | None = None
+    hidden: bool = False
+
+
+class EntityTemplate(Frozen):
+    name: str
+    label: str = ""
+    appearance_field: str = "appearance"  # 外观描述字段名，供生成代号使用
+    fields: tuple[FieldDef, ...] = ()
+    groups: tuple[GroupDef, ...] = ()
+    derived: tuple[DerivedDef, ...] = ()
+
+
+class PlayerEntities(Frozen):
+    """一个玩家建角时要创建哪些模板的实体、各几个。"""
+
+    template: str
+    min: int = 1
+    max: int = 1
+
+
+class Table(Frozen):
+    """查表。kind=range：取不超过键值的最大一行；kind=exact：键必须完全相等。"""
+
+    name: str
+    kind: Literal["range", "exact"] = "range"
+    rows: tuple[tuple[float | str, float], ...]
+
+
+class Formula(Frozen):
+    """命名公式，可在其他公式里按名字引用。"""
+
+    name: str
+    formula: str
+    label: str = ""
+
+
+class ResultLevel(Frozen):
+    """检定的一个结果等级。按顺序判断，第一个条件为真的等级就是结果。"""
+
+    name: str
+    condition: str  # 公式；可用变量 roll、target、difficulty、opp_roll、opp_target
+
+
+class CheckDef(Frozen):
+    name: str
+    label: str = ""
+    dice: str  # 骰子表达式，例如 1d100、3d6+2
+    target: str = "0"  # 公式，在执行检定的实体上求值
+    levels: tuple[ResultLevel, ...]
+    opposed_by: str | None = None  # 对抗检定时对手做的检定，默认同名检定
+
+
+class SampleSheet(Frozen):
+    """例题：一张样例角色卡和期望的推导值。"""
+
+    name: str
+    template: str
+    sheet: dict[str, JsonValue]
+    expected: dict[str, float]
+
+
+class RulePack(Frozen):
+    world: WorldInfo
+    templates: tuple[EntityTemplate, ...]
+    player_entities: tuple[PlayerEntities, ...]
+    formulas: tuple[Formula, ...] = ()
+    tables: tuple[Table, ...] = ()
+    checks: tuple[CheckDef, ...] = ()
+    rules_text: str = ""  # 规则说明：无法结构化的规则，由 KP 阅读
+    samples: tuple[SampleSheet, ...] = ()
+
+    def template(self, name: str) -> EntityTemplate | None:
+        return next((t for t in self.templates if t.name == name), None)
+
+    def check(self, name: str) -> CheckDef | None:
+        return next((c for c in self.checks if c.name == name), None)
+
+
+class RulePackVersion(Frozen):
+    pack_id: str
+    version: int
+    pack: RulePack
+    created_at: str = Field(default="")
+
+
+class RulePackInfo(Frozen):
+    pack_id: str
+    name: str
+    versions: tuple[int, ...]
