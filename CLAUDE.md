@@ -14,6 +14,12 @@
 | `uv run pytest -m live` | 需要真模型或联网的测试（默认不跑） |
 | `uv run uvicorn smartkeeper.web:create_app --factory --reload` | 本地起后端 |
 | `cd frontend && npm run dev` | 本地起前端（代理 `/api` 到 8000） |
+| `uv run python scripts/check.py --e2e` | 全部检查之外再跑浏览器端到端测试（构建前端，起一个用脚本化假 KP 的后端） |
+| `uv run python scripts/export_openapi.py` | 重新导出 OpenAPI 并生成前端 API 类型（检查命令里已包含） |
+| `uv run python scripts/i18n_source.py` | 从翻译源表生成 `frontend/src/i18n/{zh,en}.json`；改界面文字时改这个源表 |
+| `uv run python scripts/make_migration.py "说明" --rev 000N` | 表结构改动后生成 Alembic 迁移 |
+| `uv run python scripts/hash_password.py` | 生成管理员密码哈希（`SMARTKEEPER_ADMIN_PASSWORD_HASH`） |
+| `. .\scripts\use_deepseek.ps1` | 在当前 PowerShell 会话里切到 DeepSeek 测试模型（key 用 DPAPI 加密存在本机，不进仓库） |
 
 每次改动后都跑全部检查，不通过不算完成。类型错误、依赖方向违规、漏翻译、专有名词违规与测试失败同等对待。
 
@@ -51,5 +57,5 @@
 - `smartkeeper/<模块>/`：每个模块一个包，带 README（接口、依赖、怎么单独测）。
 - `tests/<模块>/`：对应模块的测试；`tests/fixtures/` 放两份自制夹具规则包和手写小地图。
 - `rulepacks/`、`scenarios/`：规则包数据和剧本，是唯一允许出现具体世界观专有名词的地方（另有 `docs/`）。专有名词表在 `scripts/proper_nouns.txt`。
-- `frontend/src/i18n/{zh,en}.json`：全部界面文字。源码里不写死文案，后端只返回消息代码和参数。
+- `frontend/src/i18n/{zh,en}.json`：全部界面文字，由 `scripts/i18n_source.py` 生成。源码里不写死文案，后端只返回消息代码和参数。
 - 文件保持小而职责单一。

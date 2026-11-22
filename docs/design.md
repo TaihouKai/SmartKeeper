@@ -969,3 +969,6 @@ tests/
 9. Anthropic 实现默认开启服务端拒答回退（`fallbacks="default"`），可以关闭。
 10. 产品代码用 pyright 严格模式，测试代码用标准模式。
 11. 容器构建暂时无法在开发 VM 上验证（没有可用的虚拟化），但 Dockerfile 照常维护，按支持 Docker 部署来设计。
+12. 装配：实例只在 `web/app.py` 的 `build_services` 里创建；`web/services.py` 只放装配结果的类型，供路由使用。
+13. provider 可以设为 `fake`：装上脚本化的假 KP（`web/scripted.py`），不调用任何模型。用于离线演示和浏览器端到端测试。
+14. 界面文字的源表是 `scripts/i18n_source.py`，两种语言写在一起，生成翻译文件。
