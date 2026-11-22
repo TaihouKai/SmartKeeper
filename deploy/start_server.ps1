@@ -31,4 +31,8 @@ if ($anthropic) { $env:ANTHROPIC_API_KEY = $anthropic }
 
 $log = Join-Path (Split-Path -Parent $cfg.db_path) "server.log"
 Set-Location $root
-& (Join-Path $root ".venv\Scripts\python.exe") -m uvicorn smartkeeper.web:create_app --factory --host 0.0.0.0 --port $cfg.port --log-level info *>> $log
+# uvicorn 把日志写到 stderr；Windows PowerShell 5.1 会把原生程序的 stderr 当成错误，所以经由 cmd 重定向
+$py = Join-Path $root ".venv\Scripts\python.exe"
+$ErrorActionPreference = "Continue"
+cmd /c "`"$py`" -m uvicorn smartkeeper.web:create_app --factory --host 0.0.0.0 --port $($cfg.port) --log-level info >> `"$log`" 2>&1"
+exit $LASTEXITCODE
