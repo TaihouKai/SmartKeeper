@@ -1,0 +1,316 @@
+# 由 docs/design.md「系统架构」一节的依赖表生成。改依赖方向先改设计文档。
+[importlinter]
+root_package = smartkeeper
+include_external_packages = True
+
+[importlinter:contract:contracts]
+name = contracts 只依赖 无
+type = forbidden
+source_modules = smartkeeper.contracts
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:eventlog]
+name = eventlog 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.eventlog
+forbidden_modules =
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:rules]
+name = rules 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.rules
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:world]
+name = world 只依赖 contracts, rules
+type = forbidden
+source_modules = smartkeeper.world
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:rounds]
+name = rounds 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.rounds
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:dice]
+name = dice 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.dice
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:mapdata]
+name = mapdata 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.mapdata
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:spatial]
+name = spatial 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.spatial
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:handles]
+name = handles 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.handles
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:memory]
+name = memory 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.memory
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:engine]
+name = engine 只依赖 contracts, eventlog, rules, world, rounds, dice, mapdata, spatial, handles, memory
+type = forbidden
+source_modules = smartkeeper.engine
+forbidden_modules =
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:chat]
+name = chat 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.chat
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:llm]
+name = llm 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.llm
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:kp]
+name = kp 只依赖 contracts, engine, llm
+type = forbidden
+source_modules = smartkeeper.kp
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.chat
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:notify]
+name = notify 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.notify
+forbidden_modules =
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.web
+
+[importlinter:contract:pure-core]
+name = 核心模块不依赖 HTTP 框架和 LLM SDK
+type = forbidden
+source_modules =
+    smartkeeper.contracts
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.kp
+forbidden_modules =
+    fastapi
+    starlette
+    uvicorn
+    anthropic
+    openai

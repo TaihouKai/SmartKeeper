@@ -1,0 +1,10 @@
+{
+  "app": {
+    "title": "SmartKeeper",
+    "placeholder": "游戏界面尚未实现。"
+  },
+  "lang": {
+    "zh": "中文",
+    "en": "English"
+  }
+}

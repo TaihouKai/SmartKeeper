@@ -1,0 +1,23 @@
+# 具体世界观的专有名词表。这些词只能出现在规则包数据（rulepacks/）、剧本（scenarios/）和设计文档（docs/）里。
+# 每行一个词；英文按整词、不区分大小写匹配；# 开头为注释。
+御主
+英灵
+从者
+宝具
+令咒
+职阶
+圣杯战争
+魔术回路
+Fate/
+Heroic Spirit
+Noble Phantasm
+Command Spell
+Holy Grail War
+Servant
+Saber
+Archer
+Lancer
+Berserker
+Caster
+Assassin
+Rider
