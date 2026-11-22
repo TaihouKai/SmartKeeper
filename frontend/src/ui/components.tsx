@@ -66,9 +66,11 @@ export function FormulaInput({
   value,
   onChange,
   validate,
+  placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
+  placeholder?: string;
   validate: (formula: string) => Promise<{ problems: { code: string; params?: Record<string, unknown> }[]; names: string[] }>;
 }) {
   const { t } = useI18n();
@@ -99,6 +101,7 @@ export function FormulaInput({
       <input
         className={problems.length ? "invalid" : ""}
         value={value}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocus(true)}
         onBlur={() => window.setTimeout(() => setFocus(false), 150)}

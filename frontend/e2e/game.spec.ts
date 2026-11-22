@@ -116,7 +116,7 @@ test("admin console login and panels render", async ({ page }) => {
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page.getByRole("button", { name: "Games" })).toBeVisible();
   await page.getByRole("button", { name: "Rules" }).click();
-  await expect(page.getByText("perception_radius").first()).toBeVisible();
+  await expect(page.getByText("How far (in metres) this character notices others").first()).toBeVisible();
   // 新的空白规则包：引擎必需的推导值公式还是空的，不能保存
   await expect(page.getByText("can't save yet")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: "Save as new version" })).toBeDisabled();

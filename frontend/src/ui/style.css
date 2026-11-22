@@ -88,6 +88,10 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; min
 .sk-problems { color: var(--warn); }
 .sk-sticky { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); padding: 8px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .sk-small { max-width: 80px; }
+.sk-derived-head { font-size: 12px; color: var(--muted); margin-bottom: 0; }
+.sk-derived-help { margin: -2px 0 8px 2px; font-size: 12px; }
+.sk-badge-req { font-size: 11px; color: var(--accent); white-space: nowrap; align-self: center; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.6; }
 .sk-md h2, .sk-md h3, .sk-md h4, .sk-md h5 { margin: 10px 0 4px; }
 .sk-md p { margin: 2px 0; }
 .sk-md .gap { height: 6px; }

@@ -49,7 +49,7 @@ function useListEdit<T>(list: T[], set: (l: T[]) => void) {
   };
 }
 
-function FieldsTable({ fields, onChange, validate, template }: { fields: Field[]; onChange: (f: Field[]) => void; validate: Validate; template: string }) {
+function FieldsTable({ fields, onChange, validate, template, appearance }: { fields: Field[]; onChange: (f: Field[]) => void; validate: Validate; template: string; appearance?: string }) {
   const { t } = useI18n();
   const ed = useListEdit(fields, onChange);
   const v = useCallback((f: string) => validate(f, template), [validate, template]);
@@ -75,8 +75,11 @@ function FieldsTable({ fields, onChange, validate, template }: { fields: Field[]
         <tbody>
           {fields.map((f, i) => (
             <tr key={i}>
-              <td><input value={f.name} onChange={(e) => ed.update(i, { ...f, name: e.target.value })} /></td>
-              <td><input value={f.label ?? ""} onChange={(e) => ed.update(i, { ...f, label: e.target.value })} /></td>
+              <td>
+                <input value={f.name} placeholder={t("rules.ph.field_name")} onChange={(e) => ed.update(i, { ...f, name: e.target.value })} />
+                {appearance && f.name === appearance && <div className="sk-badge-req">{t("rules.appearance_badge")}</div>}
+              </td>
+              <td><input value={f.label ?? ""} placeholder={t("rules.ph.field_label")} onChange={(e) => ed.update(i, { ...f, label: e.target.value })} /></td>
               <td>
                 <select value={f.kind} onChange={(e) => ed.update(i, { ...f, kind: e.target.value as Field["kind"] })}>
                   <option value="number">{t("rules.kind.number")}</option>
@@ -92,8 +95,8 @@ function FieldsTable({ fields, onChange, validate, template }: { fields: Field[]
               </td>
               <td><input value={f.unit ?? ""} onChange={(e) => ed.update(i, { ...f, unit: e.target.value || null })} /></td>
               <td><FormulaInput value={f.min ?? ""} validate={v} onChange={(x) => ed.update(i, { ...f, min: x || null })} /></td>
-              <td><FormulaInput value={f.max ?? ""} validate={v} onChange={(x) => ed.update(i, { ...f, max: x || null })} /></td>
-              <td><FormulaInput value={f.initial ?? ""} validate={v} onChange={(x) => ed.update(i, { ...f, initial: x || null })} /></td>
+              <td><FormulaInput value={f.max ?? ""} validate={v} placeholder={f.kind === "resource" ? t("rules.ph.max_resource") : ""} onChange={(x) => ed.update(i, { ...f, max: x || null })} /></td>
+              <td><FormulaInput value={f.initial ?? ""} validate={v} placeholder={f.cls === "runtime" ? t("rules.ph.initial") : ""} onChange={(x) => ed.update(i, { ...f, initial: x || null })} /></td>
               <td><input value={(f.choices ?? []).join("|")} onChange={(e) => ed.update(i, { ...f, choices: e.target.value ? e.target.value.split("|") : [] })} /></td>
               <td><input type="checkbox" checked={f.required ?? true} onChange={(e) => ed.update(i, { ...f, required: e.target.checked })} /></td>
               <td><input type="checkbox" checked={f.hidden ?? false} onChange={(e) => ed.update(i, { ...f, hidden: e.target.checked })} /></td>
@@ -117,9 +120,10 @@ function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; 
   return (
     <fieldset className="sk-card">
       <legend>{tpl.label || tpl.name}</legend>
+      <p className="sk-hint">{t("rules.template_hint")}</p>
       <div className="sk-row">
-        <label>{t("rules.t.name")}<input value={tpl.name} onChange={(e) => onChange({ ...tpl, name: e.target.value })} /></label>
-        <label>{t("rules.t.label")}<input value={tpl.label ?? ""} onChange={(e) => onChange({ ...tpl, label: e.target.value })} /></label>
+        <label>{t("rules.t.name")}<input value={tpl.name} placeholder={t("rules.ph.template_name")} onChange={(e) => onChange({ ...tpl, name: e.target.value })} /></label>
+        <label>{t("rules.t.label")}<input value={tpl.label ?? ""} placeholder={t("rules.ph.template_label")} onChange={(e) => onChange({ ...tpl, label: e.target.value })} /></label>
         <label>
           {t("rules.t.appearance")}
           <select value={tpl.appearance_field ?? "appearance"} onChange={(e) => onChange({ ...tpl, appearance_field: e.target.value })}>
@@ -129,18 +133,29 @@ function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; 
         <button className="sk-link" onClick={onRemove}>{t("rules.remove_template")}</button>
       </div>
       <h4>{t("rules.fields")}</h4>
-      <FieldsTable fields={tpl.fields ?? []} onChange={(f) => onChange({ ...tpl, fields: f })} validate={validate} template={tpl.name} />
+      <p className="sk-hint">{t("rules.fields_hint")}</p>
+      <FieldsTable fields={tpl.fields ?? []} onChange={(f) => onChange({ ...tpl, fields: f })} validate={validate} template={tpl.name} appearance={tpl.appearance_field ?? "appearance"} />
       <h4>{t("rules.derived")}</h4>
       <p className="sk-hint">{t("rules.derived_hint")}</p>
+      <div className="sk-derived-row sk-derived-head">
+        <span>{t("rules.d.name")}</span>
+        <span>{t("rules.d.label")}</span>
+        <span>{t("rules.d.formula")}</span>
+        <span>{t("rules.d.unit")}</span>
+        <span />
+      </div>
       {derived.map((d, i) => {
         const required = REQUIRED_DERIVED.includes(d.name);
         return (
-          <div key={i} className="sk-derived-row">
-            <input value={d.name} disabled={required} onChange={(e) => ded.update(i, { ...d, name: e.target.value })} />
-            <input value={d.label ?? ""} onChange={(e) => ded.update(i, { ...d, label: e.target.value })} />
-            <FormulaInput value={d.formula} validate={v} onChange={(x) => ded.update(i, { ...d, formula: x })} />
-            <input className="sk-small" value={d.unit ?? ""} onChange={(e) => ded.update(i, { ...d, unit: e.target.value || null })} />
-            {!required && <button className="sk-link" onClick={() => ded.remove(i)}>{t("common.remove")}</button>}
+          <div key={i}>
+            <div className="sk-derived-row">
+              <input value={d.name} disabled={required} placeholder={t("rules.ph.derived_name")} onChange={(e) => ded.update(i, { ...d, name: e.target.value })} />
+              <input value={d.label ?? ""} placeholder={t("rules.ph.derived_label")} onChange={(e) => ded.update(i, { ...d, label: e.target.value })} />
+              <FormulaInput value={d.formula} validate={v} placeholder={required ? t(`rules.ph.formula_${d.name}`) : t("rules.ph.formula")} onChange={(x) => ded.update(i, { ...d, formula: x })} />
+              <input className="sk-small" value={d.unit ?? ""} placeholder={required ? t(`rules.ph.unit_${d.name}`) : ""} onChange={(e) => ded.update(i, { ...d, unit: e.target.value || null })} />
+              {required ? <span className="sk-badge-req">{t("rules.required_badge")}</span> : <button className="sk-link" onClick={() => ded.remove(i)}>{t("common.remove")}</button>}
+            </div>
+            {required && <div className="sk-hint sk-derived-help">{t(`rules.help.${d.name}`)}</div>}
           </div>
         );
       })}

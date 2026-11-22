@@ -263,6 +263,7 @@
     "add_group": "Add group",
     "add_level": "Add result level",
     "add_template": "Add template",
+    "appearance_badge": "appearance (required)",
     "c": {
       "dice": "Dice",
       "target": "Target formula"
@@ -273,8 +274,14 @@
       "player": "Player-defined",
       "runtime": "Runtime"
     },
+    "d": {
+      "formula": "Formula",
+      "label": "Label",
+      "name": "Name (used in formulas)",
+      "unit": "Unit"
+    },
     "derived": "Derived values",
-    "derived_hint": "perception_radius (m), concealment and move_speed (m/min) are required by the engine and can't be removed.",
+    "derived_hint": "Numbers computed by formula from other fields; players can't enter them. The three below are required by the engine: keep their names, but write their formulas.",
     "editing": "Editing {id} v{version}; saving creates a new version.",
     "editing_new": "Editing a new rule pack.",
     "export": "Export",
@@ -292,6 +299,7 @@
       "unit": "Unit"
     },
     "fields": "Fields",
+    "fields_hint": "Values and text on the sheet. The appearance field is required: other players' handles for this character are generated from it.",
     "formulas": "Named formulas",
     "g": {
       "effects": "Entries may have effects",
@@ -300,6 +308,11 @@
       "shapes": "Allowed shapes (capsule|box|sphere|cone)"
     },
     "groups": "Repeatable groups (skills, abilities…)",
+    "help": {
+      "concealment": "Multiplies how far others can notice this character: 1 is normal, 0.3 means others must be much closer. The default 1 is fine.",
+      "move_speed": "Metres per minute. Required, e.g. 80 for an ordinary person, or 60 + agi * 2.",
+      "perception_radius": "How far (in metres) this character notices others. Required, e.g. 50 + per, or a constant like 100."
+    },
     "import": "Import file",
     "kind": {
       "number": "Number",
@@ -309,9 +322,27 @@
     "levels_hint": "Checked in order; the first true condition wins. Variables: roll, target, difficulty, opp_roll, opp_target.",
     "new": "New rule pack",
     "packs": "Rule packs",
+    "ph": {
+      "derived_label": "e.g. Max HP",
+      "derived_name": "e.g. hp_max",
+      "field_label": "e.g. HP",
+      "field_name": "e.g. hp",
+      "formula": "e.g. str * 2 + 10",
+      "formula_concealment": "e.g. 1",
+      "formula_move_speed": "e.g. 80",
+      "formula_perception_radius": "e.g. 50 + per",
+      "initial": "e.g. hp_max",
+      "max_resource": "e.g. hp_max",
+      "template_label": "e.g. Hero",
+      "template_name": "e.g. hero",
+      "unit_concealment": "none",
+      "unit_move_speed": "m/min",
+      "unit_perception_radius": "m"
+    },
     "player_entities": "Entities each player creates (template, min, max)",
     "problems": "{n} problems; can't save yet",
     "remove_template": "Remove template",
+    "required_badge": "required",
     "rules_text": "Rules text (free text for the keeper)",
     "sample_expected": "Expected values (name=value per line)",
     "sample_sheet": "Sample sheet (JSON)",
@@ -329,6 +360,7 @@
     },
     "tables": "Lookup tables",
     "tables_hint": "One row per line: key,value. Range tables take the largest key not above the input; exact tables need an exact match.",
+    "template_hint": "A starter template pre-filled for new packs. Rename it (an internal English name such as hero, and a display label); add one template per kind of entity.",
     "templates": "Character templates",
     "try": "Try it",
     "try_run": "Calculate",

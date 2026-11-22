@@ -263,6 +263,7 @@
     "add_group": "添加分组",
     "add_level": "添加结果等级",
     "add_template": "添加模板",
+    "appearance_badge": "外观描述（必需）",
     "c": {
       "dice": "骰子",
       "target": "目标值公式"
@@ -273,8 +274,14 @@
       "player": "玩家填写",
       "runtime": "运行值"
     },
+    "d": {
+      "formula": "公式",
+      "label": "显示名",
+      "name": "名字（公式里用的英文名）",
+      "unit": "单位"
+    },
     "derived": "推导值",
-    "derived_hint": "perception_radius（感知半径，米）、concealment（匿踪系数）、move_speed（移动速度，米/分钟）是引擎必需的，不能删除。",
+    "derived_hint": "由公式从别的字段算出来的数，玩家不能直接填。下面三项是引擎必需的：名字不能改、不能删，但公式要你来写。",
     "editing": "正在编辑 {id} 的 v{version}；保存会生成新版本。",
     "editing_new": "正在编辑一个新规则包。",
     "export": "导出",
@@ -292,6 +299,7 @@
       "unit": "单位"
     },
     "fields": "字段",
+    "fields_hint": "玩家在角色卡上填写或游戏中会变化的数值和文字。appearance（外观描述）是必需的：别人看到这个角色时，系统会根据它起代号。",
     "formulas": "命名公式",
     "g": {
       "effects": "条目可带效果",
@@ -300,6 +308,11 @@
       "shapes": "允许的范围形状（capsule|box|sphere|cone）"
     },
     "groups": "可重复分组（技能、能力等）",
+    "help": {
+      "concealment": "匿踪系数：别人察觉这个角色的距离要乘以它。1 表示普通；0.3 表示别人得靠得很近才能发现（例如气息遮断）。默认 1，可以直接保留。",
+      "move_speed": "移动速度：每分钟能走多少米。必须填公式，例如普通人 80，或者 60 + agi * 2。",
+      "perception_radius": "感知半径：这个角色能察觉到多远（米）以内的人。必须填公式，例如 50 + per，或者固定值 100。"
+    },
     "import": "导入文件",
     "kind": {
       "number": "数值",
@@ -309,9 +322,27 @@
     "levels_hint": "按顺序判断，第一个条件为真的等级就是结果。可用变量 roll、target、difficulty、opp_roll、opp_target。",
     "new": "新建规则包",
     "packs": "规则包",
+    "ph": {
+      "derived_label": "例如 生命值上限",
+      "derived_name": "例如 hp_max",
+      "field_label": "例如 生命值",
+      "field_name": "例如 hp",
+      "formula": "例如 str * 2 + 10",
+      "formula_concealment": "例如 1",
+      "formula_move_speed": "例如 80",
+      "formula_perception_radius": "例如 50 + per",
+      "initial": "例如 hp_max",
+      "max_resource": "例如 hp_max",
+      "template_label": "例如 主角",
+      "template_name": "例如 hero",
+      "unit_concealment": "无单位",
+      "unit_move_speed": "米/分钟",
+      "unit_perception_radius": "米"
+    },
     "player_entities": "玩家建角时要创建的实体（模板、最少、最多）",
     "problems": "还有 {n} 处问题，不能保存",
     "remove_template": "删除模板",
+    "required_badge": "引擎必需",
     "rules_text": "规则说明（自由文字，由 KP 阅读）",
     "sample_expected": "期望的推导值（每行 名字=值）",
     "sample_sheet": "样例角色卡（JSON）",
@@ -329,6 +360,7 @@
     },
     "tables": "查表",
     "tables_hint": "每行一条：键,值。range 表取不超过键的最大一行；exact 表要求键完全相等。",
+    "template_hint": "这是新建规则包时预先放好的一个起始模板。名字（引擎内部用的英文名，例如 hero）和显示名（例如 主角）都改成你自己的；需要几种实体就加几个模板。",
     "templates": "角色卡模板",
     "try": "试算",
     "try_run": "计算",
