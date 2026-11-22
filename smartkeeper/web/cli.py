@@ -89,6 +89,10 @@ def run_demo(
             text = ACTIONS[(n + i) % len(ACTIONS)]
             intent = kp.parse_intent(pid, text)
             _print(f"{pid} 的行动解析", intent.model_dump_json(indent=1))
+            if intent.unresolved:
+                # 网站上玩家必须把它们改成 @ 才能提交；命令行演示里视为玩家确认忽略
+                _print(f"{pid} 有对应不上的指代（演示中忽略）", ", ".join(intent.unresolved))
+                intent = intent.model_copy(update={"unresolved": ()})
             e.declare_action(pid, text, intent)
         kp.on_action(gid)
         r = e.round(gid, n + 1)
