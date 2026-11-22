@@ -134,3 +134,27 @@ def test_searches_are_recorded_in_llm_call() -> None:
     )
     (row,) = log.list("g")
     assert row.searches[0].query == "q" and row.searches[0].urls == ("https://a",)
+
+
+def test_repair_known_aliases_only() -> None:
+    from smartkeeper.kp.schemas import repair_adjudication
+
+    raw = {
+        "movements": [{"entity": "ent_1", "pos": {"x": 1, "y": 2, "z": 0}, "because": "a"}],
+        "encounters": [{"entities": ["ent_1", "ent_2"], "observed_by": {"ent_1": "x", "p2": "y"}}],
+        "outcomes": [],
+    }
+    out = repair_adjudication(raw, {"ent_1": "p1", "ent_2": "p2"})
+    assert out["movements"][0]["to"] == {"x": 1, "y": 2, "z": 0}  # type: ignore[index]
+    assert out["encounters"][0]["players"] == ["p1", "p2"]  # type: ignore[index]
+    assert out["encounters"][0]["observed_by"] == {"p1": "x", "p2": "y"}  # type: ignore[index]
+
+
+def test_plan_ignores_extra_query_keys() -> None:
+    from smartkeeper.kp.schemas import PlanOut, parse
+
+    plan = parse(
+        PlanOut,
+        '{"checks": [], "queries": [{"query_id": "q1", "kind": "distance", "reason": "why"}]}',
+    )
+    assert plan.queries[0].query_id == "q1"

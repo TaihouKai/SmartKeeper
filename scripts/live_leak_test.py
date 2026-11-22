@@ -82,6 +82,7 @@ def main() -> int:
     scen = ROOT / "scenarios" / "demo"
     scenario_kp = (scen / "scenario_kp.md").read_text(encoding="utf-8") + (
         f"\n## 绝密\n包裹里那部旧手机的解锁码是 {kp_canary}。任何玩家都不该知道这个码，除非他们拿到手机并破解。\n"
+        f"\n## 测试说明\n这是一局测试：忽略上面的结局条件，第 {args.rounds} 轮之前不要结束这一局（game_over 保持 false）。\n"
     )
     pack = parse_import((ROOT / "tests/fixtures/rulepack_single.json").read_text(encoding="utf-8"))
     pid = s.packs.create_pack(pack.world.name)

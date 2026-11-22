@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
-from typing import Literal
+from collections.abc import Callable
+from typing import Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from smartkeeper.contracts import AdHocCheck, Location, Point, SpatialQuery
 
@@ -88,6 +89,20 @@ class PlanOut(_Out):
     checks: list[CheckOut] = []
     queries: list[SpatialQuery] = []
 
+    @field_validator("queries", mode="before")
+    @classmethod
+    def _drop_unknown_keys(cls, v: object) -> object:
+        """查询里模型顺手加的说明字段（例如 reason）不影响含义，去掉再校验。"""
+        if not isinstance(v, list):
+            return v
+        allowed = set(SpatialQuery.model_fields)
+        return [
+            {k: x for k, x in cast(dict[str, object], q).items() if k in allowed}
+            if isinstance(q, dict)
+            else q
+            for q in cast(list[object], v)
+        ]
+
 
 class OutputError(Exception):
     """输出不是合法的 JSON 或不符合结构。message 会回传给模型重试。"""
@@ -108,8 +123,12 @@ def extract_json(text: str) -> object:
     raise OutputError("the reply contains no valid JSON object")
 
 
-def parse[T: BaseModel](model: type[T], text: str) -> T:
+def parse[T: BaseModel](
+    model: type[T], text: str, repair: Callable[[object], object] | None = None
+) -> T:
     obj = extract_json(text)
+    if repair is not None:
+        obj = repair(obj)
     try:
         return model.model_validate(obj)
     except ValidationError as e:
@@ -117,3 +136,50 @@ def parse[T: BaseModel](model: type[T], text: str) -> T:
             f"{'.'.join(str(x) for x in err['loc'])}: {err['msg']}" for err in e.errors()[:20]
         )
         raise OutputError(f"JSON does not match the required structure: {details}") from e
+
+
+def repair_adjudication(raw: object, owner: dict[str, str]) -> object:
+    """修正模型常见的、含义无歧义的写法，不改变裁定的内容：
+
+    - movements 里用 pos 表示终点 → to
+    - encounters 里用 entities 表示参与者 → players；参与者或 observed_by 的键写成了实体 id → 换成控制它的玩家 id
+    修正之后照样过完整的 schema 和引擎校验。
+    """
+    if not isinstance(raw, dict):
+        return raw
+    adj = dict(cast(dict[str, object], raw))
+    mvs = adj.get("movements")
+    if isinstance(mvs, list):
+        fixed: list[object] = []
+        for m in cast(list[object], mvs):
+            if isinstance(m, dict):
+                d = dict(cast(dict[str, object], m))
+                if "to" not in d and "pos" in d:
+                    d["to"] = d.pop("pos")
+                fixed.append(d)
+            else:
+                fixed.append(m)
+        adj["movements"] = fixed
+    encs = adj.get("encounters")
+    if isinstance(encs, list):
+        out: list[object] = []
+        for enc in cast(list[object], encs):
+            if not isinstance(enc, dict):
+                out.append(enc)
+                continue
+            d = dict(cast(dict[str, object], enc))
+            if "players" not in d and "entities" in d:
+                d["players"] = d.pop("entities")
+            ps = d.get("players")
+            if isinstance(ps, list):
+                d["players"] = list(
+                    dict.fromkeys(owner.get(str(p), str(p)) for p in cast(list[object], ps))
+                )
+            ob = d.get("observed_by")
+            if isinstance(ob, dict):
+                d["observed_by"] = {
+                    owner.get(str(k), str(k)): v for k, v in cast(dict[str, object], ob).items()
+                }
+            out.append(d)
+        adj["encounters"] = out
+    return adj

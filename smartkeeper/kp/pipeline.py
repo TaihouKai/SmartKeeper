@@ -45,6 +45,7 @@ from smartkeeper.kp.schemas import (
     PlanOut,
     ReviewOut,
     parse,
+    repair_adjudication,
 )
 
 SEARCH_PURPOSES = {"review_character", "opening", "chat", "plan", "adjudicate"}
@@ -136,6 +137,7 @@ class KP:
         model: type[T],
         apply: Callable[[T], R],
         judge: bool,
+        repair: Callable[[object], object] | None = None,
     ) -> R:
         """解析成 model 并交给 apply（通常是 engine 的写入）。解析或校验失败带着错误重试，最多 max_retries 次。"""
         messages: list[Message] = [{"role": "user", "content": prompt.user}]
@@ -143,7 +145,7 @@ class KP:
         for _ in range(self.cfg.max_retries + 1):
             res = self._call(purpose, game_id, prompt, messages, judge)
             try:
-                out = parse(model, res.text)
+                out = parse(model, res.text, repair)
                 result = apply(out)
             except OutputError as e:
                 errors = str(e)
@@ -401,8 +403,19 @@ class KP:
             return adj
 
         try:
+            owner = {
+                e: p.id
+                for p in self.engine.players(game_id)
+                for e in self.engine.controlled(game_id, p.id)
+            }
             return self._structured(
-                "adjudicate", game_id, self.ctx.adjudicate(game_id), Adjudication, apply, judge=True
+                "adjudicate",
+                game_id,
+                self.ctx.adjudicate(game_id),
+                Adjudication,
+                apply,
+                judge=True,
+                repair=lambda raw: repair_adjudication(raw, owner),
             )
         except (OutputError, ValidationFailed) as e:
             self._fail(game_id, e)  # 重试用尽：回合停在“待审核”，等管理员处理
