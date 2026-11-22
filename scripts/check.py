@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import io
 import os
 import shutil
 import subprocess
@@ -41,8 +42,8 @@ def steps(fix: bool, frontend: bool) -> list[tuple[str, list[str], Path]]:
 
 
 def main() -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")  # pyright: ignore[reportAttributeAccessIssue]
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding="utf-8")
     fix = "--fix" in sys.argv
     frontend = "--no-frontend" not in sys.argv
     failed: list[str] = []
