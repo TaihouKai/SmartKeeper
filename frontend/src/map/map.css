@@ -1,0 +1,39 @@
+.sk-map {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ebe7df;
+}
+.sk-map-canvas {
+  position: absolute;
+  inset: 0;
+}
+.sk-map-attribution {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #333;
+}
+.sk-marker {
+  font: 600 12px/1.2 system-ui, sans-serif;
+  padding: 3px 6px;
+  border-radius: 10px;
+  border: 1px solid #333;
+  background: #fff;
+  color: #111;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 10em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sk-marker-own {
+  background: #1f5fbf;
+  color: #fff;
+  border-color: #fff;
+}

@@ -29,32 +29,50 @@ from smartkeeper.contracts import (
     Game,
     GameConfig,
     GameSettings,
+    Handle,
+    HandleStore,
     IdentityRules,
     IllegalState,
     Intent,
     Location,
+    MapChange,
+    MapData,
+    MapStore,
     NewEvent,
     NotFound,
     Opening,
+    OwnEntity,
     PatchOp,
     Player,
+    Point,
+    PresenceEntry,
     Problem,
+    QueryResult,
     Round,
     RoundMachine,
     RulePack,
     RulePackStore,
     Rules,
+    Scene,
+    SeenEntry,
     SheetSubmission,
     SheetView,
+    Spatial,
+    SpatialQuery,
+    SpatialQueryResult,
     State,
+    SweepShape,
+    TargetRef,
     ValidationFailed,
     Visibility,
     World,
 )
 from smartkeeper.engine import adjudication as adjv
 from smartkeeper.engine import scenario
+from smartkeeper.engine.mentions import find_mentions, replace_mentions
 from smartkeeper.engine.repo import Repo
-from smartkeeper.engine.sheetview import build_sheet_views
+from smartkeeper.engine.sheetview import build_sheet_views, visible_sheet
+from smartkeeper.engine.space import EMPTY_MAP, Space, point_of
 
 MAX_TEXT = 4000
 
@@ -90,8 +108,14 @@ class Engine:
         world: World,
         rounds: RoundMachine,
         dice: Dice,
+        maps: MapStore,
+        spatial: Spatial,
+        handles: HandleStore,
     ) -> None:
         self._repo = Repo(db)
+        self._maps = maps
+        self._spatial = spatial
+        self._handles = handles
         self._events = events
         self._packs = packs
         self._rules = rules
@@ -458,6 +482,13 @@ class Engine:
                     PatchOp(op="replace", path=f"/entities/{eid}/pos", value=loc.pos.model_dump())
                 )
                 ops.append(PatchOp(op="replace", path=f"/entities/{eid}/inside", value=loc.inside))
+            m = self._map(game_id)
+            problems: list[Problem] = []
+            npc_locs = {n.id: n.location for n in meta.npcs if n.location is not None}
+            for eid, loc in sorted({**npc_locs, **positions}.items()):
+                problems += self._check_location(m, eid, loc, f"positions.{eid}")
+            if problems:
+                raise ValidationFailed("opening.invalid_positions", problems)
             self._validated(game_id, state, ops)
             evs: list[NewEvent] = (
                 [self._patch_event(ops, cause="opening", actor=ENGINE)] if ops else []
@@ -496,6 +527,7 @@ class Engine:
                 Round(game_id=game_id, no=1, status="collecting", started_minute=0)
             )
             self._repo.update_game(game_id, status="running", current_round=1)
+            self.refresh_handles(game_id)
             return self.round(game_id)
 
     def _initial_positions(
@@ -568,8 +600,22 @@ class Engine:
             if not intent.items:
                 raise ValidationFailed("action.empty")
             mine = set(self.controlled(g.id, player_id))
-            entities = set(_obj(self._state(g.id).get("entities")))
+            # 玩家只能指代自己的实体和他有代号的实体（感知过的），不能凭实体 ID 猜
+            entities = mine | {h.entity_id for h in self._handles.list(player_id)}
+            m = self._map(g.id)
             problems: list[Problem] = []
+            for i, item in enumerate(intent.items):
+                for t in item.targets:
+                    if t.kind == "feature" and (t.id is None or m.feature(t.id) is None):
+                        problems.append(
+                            Problem(
+                                code="action.unknown_feature",
+                                path=f"items[{i}]",
+                                params={"id": t.id},
+                            )
+                        )
+                if item.destination is not None:
+                    problems += self._check_location(m, item.actor, item.destination, f"items[{i}]")
             for i, item in enumerate(intent.items):
                 if item.actor not in mine:
                     problems.append(
@@ -634,11 +680,6 @@ class Engine:
             return False
         done, total = self.submitted_count(game_id)
         return total > 0 and done == total
-
-    def rename_handle(
-        self, player_id: str, entity_id: str, label: str | None = None, note: str | None = None
-    ) -> None:
-        raise NotImplementedError("handles arrive in M2")
 
     # ================= 结算 =================
 
@@ -800,9 +841,9 @@ class Engine:
         self, game_id: str, adj: Adjudication
     ) -> tuple[list[tuple[str, list[PatchOp]]], State]:
         """校验裁定并算出发布时要写入的各组 patch 和结果状态。不写入任何东西。"""
-        g = self.game(game_id)
         r = self.round(game_id)
         pack = self.rulepack(game_id)
+        m = self._map(game_id)
         state = self._state(game_id)
         entities = set(_obj(state.get("entities")))
         controls = {
@@ -829,15 +870,30 @@ class Engine:
                 problems += e.problems
         after_entities = set(_obj(cur.get("entities")))
         problems += adjv.check_memory_entities(adj, after_entities | entities)
+        for i, mem in enumerate(adj.memory_entries):
+            for fid in mem.features:
+                if m.feature(fid) is None:
+                    problems.append(
+                        Problem(
+                            code="adj.memory_unknown_feature",
+                            path=f"memory_entries[{i}]",
+                            params={"id": fid},
+                        )
+                    )
+        before = self._space_for(m, cur, pack)
         mv_ops: list[PatchOp] = []
         for i, mv in enumerate(adj.movements):
+            path = f"movements[{i}]"
             if mv.entity not in after_entities:
                 problems.append(
-                    Problem(
-                        code="adj.unknown_entity", path=f"movements[{i}]", params={"id": mv.entity}
-                    )
+                    Problem(code="adj.unknown_entity", path=path, params={"id": mv.entity})
                 )
                 continue
+            loc = Location(pos=mv.to, inside=mv.inside)
+            problems += self._check_location(m, mv.entity, loc, path)
+            problems += self._check_move_distance(
+                before, mv.entity, mv.to, mv.ability, adj.time_advance_minutes, path
+            )
             mv_ops.append(
                 PatchOp(op="replace", path=f"/entities/{mv.entity}/pos", value=mv.to.model_dump())
             )
@@ -849,6 +905,11 @@ class Engine:
         if mv_ops:
             cur = self._world.apply(cur, mv_ops)
             groups.append(("movement", mv_ops))
+        after = self._space_for(m, cur, pack)
+        problems += self._check_encounters(adj, after)
+        problems += self._check_area_effects(game_id, r.no, adj)
+        if problems:
+            raise ValidationFailed("adjudication.invalid", problems)
         if adj.kp_notes is not None:
             ops = [PatchOp(op="replace", path="/kp_notes", value=adj.kp_notes)]
             cur = self._world.apply(cur, ops)
@@ -861,11 +922,148 @@ class Engine:
         if expire:
             cur = self._world.apply(cur, expire)
             groups.append(("expiry", expire))
-        problems = self._world.validate(cur, pack)
+        problems = self._world.validate(cur, pack) + self._check_map_changes(m, cur)
         if problems:
             raise ValidationFailed("adjudication.invalid_state", problems)
-        del g
+        knowledge = self._map_knowledge_ops(self._space_for(m, cur, pack))
+        if knowledge:
+            cur = self._world.apply(cur, knowledge)
+            groups.append(("map_knowledge", knowledge))
         return groups, cur
+
+    # ---------------- 空间相关的校验 ----------------
+
+    def _check_location(self, m: MapData, eid: str, loc: Location, path: str) -> list[Problem]:
+        out: list[Problem] = []
+        if not self._spatial.in_bounds(m, loc.pos):
+            out.append(Problem(code="space.out_of_bounds", path=path, params={"entity": eid}))
+        if loc.inside is not None:
+            f = m.feature(loc.inside)
+            if f is None or f.kind != "building":
+                out.append(
+                    Problem(code="space.unknown_building", path=path, params={"id": loc.inside})
+                )
+            elif not self._spatial.inside_feature(m, loc.inside, loc.pos):
+                out.append(Problem(code="space.not_inside", path=path, params={"id": loc.inside}))
+        return out
+
+    def _check_move_distance(
+        self, space: Space, eid: str, to: Point, ability: str | None, minutes: int, path: str
+    ) -> list[Problem]:
+        if ability is not None:
+            # 依据能力的特殊移动：只校验这个能力确实在该实体的角色卡上
+            sheet = _obj(_obj(space.entities.get(eid)).get("sheet"))
+            names: set[str] = set()
+            for entries in _obj(sheet.get("groups")).values():
+                if isinstance(entries, list):
+                    names |= {str(_obj(e).get("name")) for e in entries}
+            if ability not in names:
+                return [
+                    Problem(code="space.unknown_ability", path=path, params={"ability": ability})
+                ]
+            return []
+        body = space.bodies.get(eid)
+        if body is None:
+            return []  # 还没有位置的实体（例如刚出现的）：第一次放置不算移动
+        speed = space.derived(eid, "move_speed")
+        dist = self._spatial.distance(body.pos, to)
+        if dist > speed * minutes + 1e-6:
+            return [
+                Problem(
+                    code="space.too_far",
+                    path=path,
+                    params={"distance": round(dist, 2), "max": round(speed * minutes, 2)},
+                )
+            ]
+        return []
+
+    def _check_encounters(self, adj: Adjudication, after: Space) -> list[Problem]:
+        out: list[Problem] = []
+        for i, enc in enumerate(adj.encounters):
+            path = f"encounters[{i}]"
+            for p in enc.observed_by:
+                if p not in enc.players:
+                    out.append(
+                        Problem(code="adj.encounter_player", path=path, params={"player": p})
+                    )
+                    continue
+                for q in enc.players:
+                    if q != p and not after.player_sees_player(p, q):
+                        out.append(
+                            Problem(
+                                code="adj.encounter_not_perceived",
+                                path=path,
+                                params={"observer": p, "target": q},
+                            )
+                        )
+        return out
+
+    def _check_area_effects(self, game_id: str, round_no: int, adj: Adjudication) -> list[Problem]:
+        results = self._query_results(game_id, round_no)
+        out: list[Problem] = []
+        for i, ae in enumerate(adj.area_effects):
+            path = f"area_effects[{i}]"
+            res = results.get(ae.query_id)
+            if res is None:
+                out.append(
+                    Problem(code="adj.unknown_query", path=path, params={"query": ae.query_id})
+                )
+                continue
+            allowed = set(res.entities) | set(res.features)
+            for a in ae.affected:
+                if a not in allowed:
+                    out.append(
+                        Problem(
+                            code="adj.not_in_query",
+                            path=path,
+                            params={"id": a, "query": ae.query_id},
+                        )
+                    )
+        return out
+
+    def _check_map_changes(self, m: MapData, state: State) -> list[Problem]:
+        raw = state.get("map_changes")
+        out: list[Problem] = []
+        for i, c in enumerate(raw if isinstance(raw, list) else []):
+            try:
+                mc = MapChange.model_validate(c)
+            except ValueError:
+                out.append(Problem(code="state.bad_map_change", path=f"/map_changes/{i}"))
+                continue
+            if m.feature(mc.feature) is None:
+                out.append(
+                    Problem(
+                        code="state.unknown_feature",
+                        path=f"/map_changes/{i}",
+                        params={"id": mc.feature},
+                    )
+                )
+        return out
+
+    def _map_knowledge_ops(self, space: Space) -> list[PatchOp]:
+        """地图变化只在玩家的实体感知到它，或者它被公开之后，才对该玩家显示。知道了就一直知道。"""
+        ops: list[PatchOp] = []
+        for i, c in enumerate(space.changes):
+            known = set(c.known_by)
+            for pid in sorted(space.controls):
+                if pid not in known and space.feature_known(pid, c.feature):
+                    known.add(pid)
+            if known != set(c.known_by):
+                ops.append(
+                    PatchOp(
+                        op="add",
+                        path=f"/map_changes/{i}/known_by",
+                        value=list[JsonValue](sorted(known)),
+                    )
+                )
+        return ops
+
+    def _query_results(self, game_id: str, round_no: int) -> dict[str, QueryResult]:
+        out: dict[str, QueryResult] = {}
+        for e in self._events.view_for(game_id, KP, types=["spatial_query"], round_no=round_no):
+            res = SpatialQueryResult.model_validate(e.payload["result"])
+            out[res.query_id] = res.result or QueryResult(features=res.features)
+        return out
 
     def apply_adjudication(self, game_id: str, adj: Adjudication) -> Round:
         """校验裁定，通过后存为本轮草稿，回合进入待审核。校验失败时什么都不写。
@@ -1030,6 +1228,7 @@ class Engine:
                 )
                 self._repo.update_game(game_id, current_round=r.no + 1)
             del written
+            self.refresh_handles(game_id)
             return self._repo.get_round(game_id, r.no)
 
     def end_game(self, game_id: str) -> Game:
@@ -1103,6 +1302,354 @@ class Engine:
             feedback_seq=feedback,
             player_id=player_id,
         )
+
+    # ================= 位置、感知与代号 =================
+
+    def map_data(self, game_id: str) -> MapData:
+        return self._map(game_id)
+
+    def _map(self, game_id: str) -> MapData:
+        g = self.game(game_id)
+        return self._maps.load(g.map_id) if g.map_id else EMPTY_MAP
+
+    def _space_for(self, m: MapData, state: State, pack: RulePack) -> Space:
+        return Space(spatial=self._spatial, m=m, state=state, pack=pack, rules=self._rules)
+
+    def _space(self, game_id: str) -> Space:
+        return self._space_for(self._map(game_id), self._state(game_id), self.rulepack(game_id))
+
+    def _appearance(self, state: State, pack: RulePack, entity_id: str) -> str:
+        ent = _obj(_obj(state.get("entities")).get(entity_id))
+        tpl = pack.template(str(ent.get("template", "")))
+        if tpl is None:
+            return ""
+        v = _obj(_obj(ent.get("sheet")).get("fields")).get(tpl.appearance_field)
+        return v if isinstance(v, str) else ""
+
+    def _entity_name(self, state: State, entity_id: str) -> str:
+        sheet = _obj(_obj(_obj(state.get("entities")).get(entity_id)).get("sheet"))
+        name = sheet.get("name")
+        return name if isinstance(name, str) else entity_id
+
+    def refresh_handles(self, game_id: str) -> list[tuple[str, str]]:
+        """为每个玩家此刻感知到的实体确保有代号，自己的实体用角色名。返回还没命名的 (玩家, 实体)。"""
+        with self._lock:
+            space = self._space(game_id)
+            state = space.state
+            for pid, ents in space.controls.items():
+                for e in ents:
+                    h = self._handles.get(pid, e)
+                    if h is None or h.auto:
+                        self._handles.ensure(pid, e)
+                        name = self._entity_name(state, e)
+                        try:
+                            self._handles.set_label(pid, e, name, by_player=True)
+                        except ValidationFailed:
+                            self._handles.set_label(pid, e, f"{name} ({e[-4:]})", by_player=True)
+                for other in sorted(space.player_perceived(pid)):
+                    self._handles.ensure(pid, other)
+            return self.unnamed_handles(game_id)
+
+    def unnamed_handles(self, game_id: str) -> list[tuple[str, str]]:
+        out: list[tuple[str, str]] = []
+        for p in self._active_players(game_id):
+            mine = set(self.controlled(game_id, p.id))
+            for h in self._handles.list(p.id):
+                if h.auto and not h.named and h.entity_id not in mine:
+                    out.append((p.id, h.entity_id))
+        return out
+
+    def handle_context(self, game_id: str, player_id: str, entity_id: str) -> tuple[str, list[str]]:
+        """“外观代号”调用的上下文：对方的外观描述、该玩家已有的代号。"""
+        state = self._state(game_id)
+        appearance = self._appearance(state, self.rulepack(game_id), entity_id)
+        labels = [h.label for h in self._handles.list(player_id) if h.entity_id != entity_id]
+        return appearance, labels
+
+    def set_handle_label(self, player_id: str, entity_id: str, label: str) -> Handle:
+        """由“外观代号”调用命名。不覆盖玩家自己改过的名字。"""
+        return self._handles.set_label(player_id, entity_id, label, by_player=False)
+
+    def rename_handle(
+        self, player_id: str, ref: str, label: str | None = None, note: str | None = None
+    ) -> Handle:
+        """玩家给代号改名或加私人备注，只影响自己的显示。"""
+        h = self._handles.by_ref(player_id, ref)
+        if h is None:
+            raise NotFound("handle.not_found")
+        if label is not None:
+            h = self._handles.set_label(player_id, h.entity_id, label, by_player=True)
+        if note is not None:
+            h = self._handles.set_note(player_id, h.entity_id, note)
+        return h
+
+    def resolve_mentions(
+        self, game_id: str, player_id: str, text: str
+    ) -> tuple[str, list[TargetRef]]:
+        """把行动文本里的 `@[文字](ref)` 换成该玩家的代号，并给出对应的实体 ID 或地物 id。
+
+        ref 不属于这个玩家时拒绝：玩家只能 @ 引擎给出的代号。
+        """
+        m = self._map(game_id)
+        labels: dict[str, str] = {}
+        targets: list[TargetRef] = []
+        for mt in find_mentions(text):
+            if mt.is_feature:
+                f = m.feature(mt.feature_id)
+                if f is None:
+                    raise ValidationFailed("mention.unknown", ref=mt.ref)
+                labels[mt.ref] = f.name or f.id
+                targets.append(TargetRef(kind="feature", id=f.id))
+                continue
+            h = self._handles.by_ref(player_id, mt.ref)
+            if h is None:
+                raise ValidationFailed("mention.unknown", ref=mt.ref)
+            labels[mt.ref] = h.label
+            targets.append(TargetRef(kind="entity", id=h.entity_id))
+        return replace_mentions(text, labels), targets
+
+    def entity_for_ref(self, player_id: str, ref: str) -> str:
+        h = self._handles.by_ref(player_id, ref)
+        if h is None:
+            raise NotFound("handle.not_found")
+        return h.entity_id
+
+    def ref_for_entity(self, player_id: str, entity_id: str) -> str | None:
+        h = self._handles.get(player_id, entity_id)
+        return h.ref if h is not None else None
+
+    def handles(self, player_id: str) -> list[Handle]:
+        return self._handles.list(player_id)
+
+    def scene(self, game_id: str, player_id: str) -> Scene:
+        """我的各实体此刻的位置、各自的在场列表，以及我已知的地图变化。感知不到的实体不出现。"""
+        space = self._space(game_id)
+        state = space.state
+        mine = space.controls.get(player_id, [])
+        handles = {h.entity_id: h for h in self._handles.list(player_id)}
+        own: list[OwnEntity] = []
+        for e in mine:
+            ent = _obj(space.entities.get(e))
+            presence: list[PresenceEntry] = []
+            for other in space.perceived_by(e):
+                if other in mine:
+                    continue
+                h = handles.get(other) or self._handles.ensure(player_id, other)
+                b = space.bodies[other]
+                presence.append(
+                    PresenceEntry(ref=h.ref, label=h.label, note=h.note, pos=b.pos, inside=b.inside)
+                )
+            presence.sort(key=lambda x: (x.label, x.ref))
+            h_own = handles.get(e) or self._handles.ensure(player_id, e)
+            inside = ent.get("inside")
+            own.append(
+                OwnEntity(
+                    ref=h_own.ref,
+                    name=self._entity_name(state, e),
+                    pos=point_of(ent.get("pos")),
+                    inside=inside if isinstance(inside, str) else None,
+                    presence=tuple(presence),
+                )
+            )
+        changes = tuple(
+            c.model_copy(update={"known_by": ()})
+            for c in space.changes
+            if c.public or player_id in c.known_by
+        )
+        seen = tuple(
+            SeenEntry(ref=h.ref, label=h.label, note=h.note)
+            for h in sorted(self._handles.list(player_id), key=lambda x: (x.label, x.ref))
+            if h.entity_id not in mine
+        )
+        return Scene(entities=tuple(own), map_changes=changes, seen=seen)
+
+    def state_slice(self, game_id: str, player_id: str) -> dict[str, JsonValue]:
+        """该玩家各实体感知范围内的状态，给澄清对话用。只含角色此刻能感知或已知的事。"""
+        space = self._space(game_id)
+        state = space.state
+        pack = space.pack
+        mine = space.controls.get(player_id, [])
+        own: list[JsonValue] = []
+        for e in mine:
+            ent = _obj(space.entities.get(e))
+            tpl = pack.template(str(ent.get("template", "")))
+            sheet = visible_sheet(tpl, ent.get("sheet")) if tpl else {}
+            perceived: list[JsonValue] = []
+            for other in space.perceived_by(e):
+                if other in mine:
+                    continue
+                h = self._handles.ensure(player_id, other)
+                b = space.bodies[other]
+                perceived.append(
+                    {
+                        "handle": h.label,
+                        "appearance": self._appearance(state, pack, other),
+                        "distance_m": round(self._spatial.distance(space.bodies[e].pos, b.pos), 1),
+                        "inside": b.inside,
+                    }
+                )
+            inside = ent.get("inside")
+            own.append(
+                {
+                    "name": self._entity_name(state, e),
+                    "template": str(ent.get("template", "")),
+                    "pos": ent.get("pos"),
+                    "inside": inside if isinstance(inside, str) else None,
+                    "sheet": sheet,
+                    "perceived": perceived,
+                }
+            )
+        changes: list[JsonValue] = [
+            {"feature": c.feature, "status": c.status, "above_z": c.above_z}
+            for c in space.changes
+            if c.public or player_id in c.known_by
+        ]
+        return {
+            "game_minutes": state.get("game_minutes"),
+            "entities": own,
+            "known_map_changes": changes,
+        }
+
+    def _resolve_point(self, space: Space, ref: TargetRef | None, what: str) -> Point:
+        if ref is None:
+            raise ValidationFailed("query.missing", param=what)
+        if ref.kind == "point" and ref.point is not None:
+            return ref.point
+        if ref.kind == "entity" and ref.id in space.bodies:
+            return space.bodies[ref.id].pos
+        if ref.kind == "feature" and ref.id is not None:
+            f = space.map.feature(ref.id)
+            if f is not None:
+                if f.point is not None:
+                    return Point(x=f.point[0], y=f.point[1], z=0)
+                ring = f.polygon[0] if f.polygon else f.line
+                if ring:
+                    xs = [p[0] for p in ring]
+                    ys = [p[1] for p in ring]
+                    return Point(x=sum(xs) / len(xs), y=sum(ys) / len(ys), z=0)
+        raise ValidationFailed("query.bad_target", param=what)
+
+    def _ability_shape(self, space: Space, q: SpatialQuery) -> SweepShape:
+        """范围效果的形状取自实体角色卡上那个能力的结构化参数，KP 只给起点（实体位置）和朝向。"""
+        if q.entity is None or q.entity not in space.bodies:
+            raise ValidationFailed("query.bad_entity")
+        origin = space.bodies[q.entity].pos
+        toward = self._resolve_point(space, q.toward, "toward")
+        shape_raw: JsonValue = None
+        if q.ability is not None:
+            sheet = _obj(_obj(space.entities.get(q.entity)).get("sheet"))
+            for entries in _obj(sheet.get("groups")).values():
+                for e in entries if isinstance(entries, list) else []:
+                    if _obj(e).get("name") == q.ability:
+                        shape_raw = _obj(e).get("shape")
+            if shape_raw is None and q.shape is None:
+                raise ValidationFailed("query.ability_without_shape", ability=q.ability)
+        if shape_raw is not None:
+            sp = _obj(shape_raw)
+            kind = str(sp.get("kind"))
+
+            def num(k: str) -> float | None:
+                v = sp.get(k)
+                return float(v) if isinstance(v, int | float) else None
+
+            length, width, height = num("length"), num("width"), num("height")
+            radius, angle = num("radius"), num("angle")
+        elif q.shape is not None:
+            # 能力只有文字描述：KP 依据描述给出尺寸，同样记入日志
+            kind = q.shape.kind
+            length, width, height = q.shape.length, q.shape.width, q.shape.height
+            radius, angle = q.shape.radius, q.shape.angle
+        else:
+            raise ValidationFailed("query.missing", param="shape")
+        if kind == "capsule":
+            dx, dy, dz = toward.x - origin.x, toward.y - origin.y, toward.z - origin.z
+            n = (dx * dx + dy * dy + dz * dz) ** 0.5
+            if n == 0 or length is None:
+                raise ValidationFailed("query.bad_shape")
+            b = Point(
+                x=origin.x + dx / n * length,
+                y=origin.y + dy / n * length,
+                z=origin.z + dz / n * length,
+            )
+            return SweepShape(
+                kind="capsule",
+                a=origin,
+                b=b,
+                radius=radius if radius is not None else (width or 1) / 2,
+            )
+        if kind == "sphere":
+            return SweepShape(kind="sphere", center=toward, radius=radius)
+        if kind == "box":
+            return SweepShape(
+                kind="box", origin=origin, toward=toward, length=length, width=width, height=height
+            )
+        return SweepShape(kind="cone", origin=origin, toward=toward, length=length, angle=angle)
+
+    def spatial_query(self, game_id: str, query: SpatialQuery) -> SpatialQueryResult:
+        """执行 KP 声明的空间查询，写一条 spatial_query 事件（kp_only）。"""
+        with self._lock:
+            r = self._require(game_id, "roll")
+            if query.query_id in self._query_results(game_id, r.no):
+                raise ValidationFailed("query.duplicate_id", query=query.query_id)
+            space = self._space(game_id)
+            bodies = list(space.bodies.values())
+            m, ch = space.map, space.changes
+            res: SpatialQueryResult
+            if query.kind == "within":
+                center = self._resolve_point(space, query.center, "center")
+                if query.radius is None or query.radius <= 0:
+                    raise ValidationFailed("query.missing", param="radius")
+                res = SpatialQueryResult(
+                    query_id=query.query_id,
+                    kind=query.kind,
+                    result=self._spatial.within(m, ch, bodies, center, query.radius),
+                )
+            elif query.kind == "sweep":
+                shape = self._ability_shape(space, query)
+                hit = self._spatial.sweep(m, ch, bodies, shape)
+                # 发动者自己不算命中
+                hit = hit.model_copy(
+                    update={"entities": tuple(e for e in hit.entities if e != query.entity)}
+                )
+                res = SpatialQueryResult(
+                    query_id=query.query_id, kind=query.kind, shape=shape, result=hit
+                )
+            elif query.kind == "line_of_sight":
+                a = self._resolve_point(space, query.a, "a")
+                b = self._resolve_point(space, query.b, "b")
+                res = SpatialQueryResult(
+                    query_id=query.query_id,
+                    kind=query.kind,
+                    los=self._spatial.line_of_sight(m, ch, a, b),
+                )
+            elif query.kind == "distance":
+                a = self._resolve_point(space, query.a, "a")
+                b = self._resolve_point(space, query.b, "b")
+                res = SpatialQueryResult(
+                    query_id=query.query_id, kind=query.kind, distance=self._spatial.distance(a, b)
+                )
+            else:
+                res = SpatialQueryResult(
+                    query_id=query.query_id,
+                    kind=query.kind,
+                    features=tuple(self._spatial.locate(m, query.name, query.point)),
+                )
+            self._events.append(
+                game_id,
+                r.no,
+                [
+                    NewEvent(
+                        type="spatial_query",
+                        actor=ENGINE,
+                        visibility=Visibility.kp_only(),
+                        payload={
+                            "query": query.model_dump(mode="json"),
+                            "result": res.model_dump(mode="json"),
+                        },
+                    )
+                ],
+            )
+            return res
 
     # ================= 内部 =================
 

@@ -1,4 +1,4 @@
-"""一条命令跑完全部检查：uv run python scripts/check.py [--fix] [--no-frontend]
+"""一条命令跑完全部检查：uv run python scripts/check.py [--fix] [--no-frontend] [--e2e]
 
 格式、lint、类型、依赖方向、私有导入、翻译完整性、专有名词、后端测试、前端类型与测试。
 任何一项失败，整体失败。
@@ -21,7 +21,7 @@ def npm() -> str:
     return shutil.which("npm.cmd") or shutil.which("npm") or "npm"
 
 
-def steps(fix: bool, frontend: bool) -> list[tuple[str, list[str], Path]]:
+def steps(fix: bool, frontend: bool, e2e: bool) -> list[tuple[str, list[str], Path]]:
     py = sys.executable
     s: list[tuple[str, list[str], Path]] = [
         ("格式", [py, "-m", "ruff", "format", *([] if fix else ["--check"]), "."], ROOT),
@@ -38,6 +38,8 @@ def steps(fix: bool, frontend: bool) -> list[tuple[str, list[str], Path]]:
             ("前端类型", [npm(), "run", "--silent", "typecheck"], ROOT / "frontend"),
             ("前端测试", [npm(), "run", "--silent", "test"], ROOT / "frontend"),
         ]
+    if frontend and e2e:
+        s.append(("端到端", [npm(), "run", "--silent", "e2e"], ROOT / "frontend"))
     return s
 
 
@@ -47,8 +49,9 @@ def main() -> int:
         out.reconfigure(encoding="utf-8")  # pyright: ignore[reportUnknownMemberType]
     fix = "--fix" in sys.argv
     frontend = "--no-frontend" not in sys.argv
+    e2e = "--e2e" in sys.argv
     failed: list[str] = []
-    for name, cmd, cwd in steps(fix, frontend):
+    for name, cmd, cwd in steps(fix, frontend, e2e):
         t0 = time.monotonic()
         print(f"\n=== {name} ===", flush=True)
         env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}

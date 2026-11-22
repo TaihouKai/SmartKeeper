@@ -16,7 +16,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 I18N_DIR = ROOT / "frontend" / "src" / "i18n"
-SRC_DIR = ROOT / "frontend" / "src"
+SRC_DIRS = (ROOT / "frontend" / "src", ROOT / "frontend" / "demo")
 
 JSX_TEXT = re.compile(r">([^<>{}]*[A-Za-z一-鿿][^<>{}]*)<")
 ATTR_LITERAL = re.compile(
@@ -53,7 +53,8 @@ def main() -> int:
             if not v.strip():
                 errors.append(f"{lang}.json 的 {k} 为空")
 
-    for path in list(SRC_DIR.rglob("*.tsx")) + list(SRC_DIR.rglob("*.ts")):
+    files = [p for d in SRC_DIRS for ext in ("*.tsx", "*.ts") for p in d.rglob(ext)]
+    for path in files:
         if (
             "node_modules" in path.parts
             or path.name.endswith(".test.tsx")

@@ -11,8 +11,18 @@ from smartkeeper.contracts.adjudication import AdHocCheck, CheckResult, DiceResu
 from smartkeeper.contracts.errors import Problem
 from smartkeeper.contracts.events import Audience, Event, EventType, NewEvent
 from smartkeeper.contracts.game import RoundStatus
+from smartkeeper.contracts.geometry import Point
 from smartkeeper.contracts.rulepack import RulePack, RulePackInfo, RulePackVersion
 from smartkeeper.contracts.sheet import DerivedValue
+from smartkeeper.contracts.spatial import (
+    Body,
+    Handle,
+    LosResult,
+    MapChange,
+    MapData,
+    QueryResult,
+    SweepShape,
+)
 
 type State = dict[str, JsonValue]
 
@@ -151,3 +161,83 @@ class Dice(Protocol):
     def roll(self, expr: str) -> DiceResult:
         """掷骰。随机数只在这里产生；调用方（engine）负责写 dice_roll 事件。"""
         ...
+
+
+class MapStore(Protocol):
+    """地图文件的读取与校验。运行时只读文件，不联网。"""
+
+    def load(self, map_id: str) -> MapData: ...
+
+    def list_ids(self) -> list[str]: ...
+
+    def save(self, map_id: str, text: str) -> MapData:
+        """校验后保存一份地图文件（GeoJSON 文本）。"""
+        ...
+
+
+class Spatial(Protocol):
+    """空间查询。纯函数：输入地图、地图变化和位置，输出命中清单。"""
+
+    def within(
+        self,
+        m: MapData,
+        changes: Sequence[MapChange],
+        bodies: Sequence[Body],
+        center: Point,
+        radius: float,
+    ) -> QueryResult: ...
+
+    def sweep(
+        self, m: MapData, changes: Sequence[MapChange], bodies: Sequence[Body], shape: SweepShape
+    ) -> QueryResult: ...
+
+    def line_of_sight(
+        self, m: MapData, changes: Sequence[MapChange], a: Point, b: Point
+    ) -> LosResult: ...
+
+    def perceivable(
+        self, m: MapData, changes: Sequence[MapChange], observer: Body, bodies: Sequence[Body]
+    ) -> list[str]:
+        """观察者能感知到的实体（不含自己）。"""
+        ...
+
+    def distance(self, a: Point, b: Point) -> float: ...
+
+    def locate(
+        self, m: MapData, name: str | None = None, point: Point | None = None
+    ) -> list[str]: ...
+
+    def in_bounds(self, m: MapData, p: Point) -> bool: ...
+
+    def inside_feature(self, m: MapData, feature_id: str, p: Point) -> bool: ...
+
+    def feature_within(
+        self,
+        m: MapData,
+        changes: Sequence[MapChange],
+        feature_id: str,
+        center: Point,
+        radius: float,
+    ) -> bool:
+        """某个地物是否在球内（用于判断玩家是否看见了地图变化）。"""
+        ...
+
+
+class HandleStore(Protocol):
+    """代号：按玩家存放，每个玩家一套。"""
+
+    def get(self, player_id: str, entity_id: str) -> Handle | None: ...
+
+    def by_ref(self, player_id: str, ref: str) -> Handle | None: ...
+
+    def list(self, player_id: str) -> list[Handle]: ...
+
+    def ensure(self, player_id: str, entity_id: str) -> Handle:
+        """没有代号时分配一个临时代号（#n），等“外观代号”调用命名。"""
+        ...
+
+    def set_label(
+        self, player_id: str, entity_id: str, label: str, *, by_player: bool
+    ) -> Handle: ...
+
+    def set_note(self, player_id: str, entity_id: str, note: str) -> Handle: ...

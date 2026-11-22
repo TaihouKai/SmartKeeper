@@ -6,5 +6,22 @@
   "lang": {
     "zh": "中文",
     "en": "English"
+  },
+  "map": {
+    "aria": "地图",
+    "height": {
+      "roof": "楼顶",
+      "floor": "{floor} 层",
+      "above": "上空 {m} 米",
+      "below": "地下 {m} 米",
+      "ground": "地面"
+    }
+  },
+  "demo": {
+    "title": "地图组件演示（假数据）",
+    "hint": "点击实体、建筑或地面。",
+    "picked_entity": "选中了实体 @{label}",
+    "picked_feature": "选中了地物 {name}（{top}）",
+    "picked_point": "选中了坐标 {lon}, {lat}"
   }
 }

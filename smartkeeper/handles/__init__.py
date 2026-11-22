@@ -1,3 +1,5 @@
 """代号的存储与解析。"""
 
-__all__: list[str] = []
+from smartkeeper.handles.store import SqlHandleStore
+
+__all__ = ["SqlHandleStore"]

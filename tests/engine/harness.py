@@ -22,10 +22,13 @@ from smartkeeper.contracts import (
 from smartkeeper.dice import DiceRoller, SeededRandomSource
 from smartkeeper.engine import Engine
 from smartkeeper.eventlog import SqlEventLog
+from smartkeeper.handles import SqlHandleStore
 from smartkeeper.rounds import RoundStateMachine
 from smartkeeper.rules import RulesService, SqlRulePackStore
+from smartkeeper.spatial import ShapelySpatial
 from smartkeeper.world import WorldService
 from tests.fixtures import load_pack
+from tests.fixtures.maps import small_map
 
 SCENARIO_PUBLIC = """---
 start_time: "2030-01-01T20:00"
@@ -38,10 +41,28 @@ npcs:
   - id: npc_1
     template: {npc_template}
     sheet: {npc_sheet}
-    location: {{pos: {{x: 10, y: 10, z: 0}}}}
+    location: {{pos: {{x: -50, y: 150, z: 0}}}}
 ---
 The baker did it.
 """
+
+
+class MemoryMapStore:
+    def __init__(self) -> None:
+        self.maps = {"small": small_map()}
+
+    def load(self, map_id: str):
+        from smartkeeper.contracts import NotFound
+
+        if map_id not in self.maps:
+            raise NotFound("map.not_found", id=map_id)
+        return self.maps[map_id]
+
+    def list_ids(self) -> list[str]:
+        return sorted(self.maps)
+
+    def save(self, map_id: str, text: str):
+        raise NotImplementedError
 
 
 def make_db() -> sa.Engine:
@@ -63,6 +84,9 @@ def make_engine(seed: int = 1, db: sa.Engine | None = None) -> tuple[Engine, Sql
         world=WorldService(rules),
         rounds=RoundStateMachine(),
         dice=dice,
+        maps=MemoryMapStore(),
+        spatial=ShapelySpatial(),
+        handles=SqlHandleStore(db),
     )
     return engine, packs
 
@@ -123,7 +147,9 @@ class Table:
         e.publish_round(self.game_id)
 
 
-def setup_table(pack_name: str, n_players: int, seed: int = 1) -> Table:
+def setup_table(
+    pack_name: str, n_players: int, seed: int = 1, map_id: str | None = "small"
+) -> Table:
     engine, packs = make_engine(seed)
     pack = load_pack(pack_name)
     pack_id = packs.create_pack(pack.world.name)
@@ -139,6 +165,7 @@ def setup_table(pack_name: str, n_players: int, seed: int = 1) -> Table:
             name="t",
             rulepack_id=pack_id,
             rulepack_version=1,
+            map_id=map_id,
             scenario_public=SCENARIO_PUBLIC,
             scenario_kp=scenario_kp,
         )
@@ -153,7 +180,7 @@ def setup_table(pack_name: str, n_players: int, seed: int = 1) -> Table:
         engine.approve_character(p.id)
     t = Table(engine, packs, pack, pack_id, game.id, players, tokens)
     positions = {
-        e: {"pos": {"x": float(i), "y": 0.0, "z": 0.0}}
+        e: {"pos": {"x": float(i * 2 - 50), "y": -40.0, "z": 0.0}}
         for i, pid in enumerate(players)
         for e in t.entities(pid)
     }
