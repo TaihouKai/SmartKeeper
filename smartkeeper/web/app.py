@@ -2,16 +2,30 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import threading
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import sqlalchemy as sa
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import event
 
-from smartkeeper.contracts import LLMClient
+from smartkeeper.chat import SqlChatStore
+from smartkeeper.contracts import (
+    Forbidden,
+    IllegalState,
+    LLMClient,
+    NotFound,
+    SmartKeeperError,
+    ValidationFailed,
+)
 from smartkeeper.dice import DiceRoller, SystemRandomSource
 from smartkeeper.engine import Engine
 from smartkeeper.eventlog import SqlEventLog
@@ -23,6 +37,12 @@ from smartkeeper.memory import SqlMemoryStore
 from smartkeeper.rounds import RoundStateMachine
 from smartkeeper.rules import RulesService, SqlRulePackStore
 from smartkeeper.spatial import ShapelySpatial
+from smartkeeper.web.auth import PLAYER_COOKIE, Auth
+from smartkeeper.web.routes_admin import build_admin_router
+from smartkeeper.web.routes_player import build_player_router
+from smartkeeper.web.schema import migrate
+from smartkeeper.web.scripted import install_scripted
+from smartkeeper.web.services import Services
 from smartkeeper.world import WorldService
 
 
@@ -32,6 +52,7 @@ class Settings:
 
     db_path: str = "data/smartkeeper.db"
     maps_dir: str = "maps"
+    scenarios_dir: str = "scenarios"
     static_dir: str = "frontend/dist"
     admin_password_hash: str | None = None
     session_secret: str = ""
@@ -51,6 +72,7 @@ class Settings:
         return Settings(
             db_path=env.get("SMARTKEEPER_DB_PATH", "data/smartkeeper.db"),
             maps_dir=env.get("SMARTKEEPER_MAPS_DIR", "maps"),
+            scenarios_dir=env.get("SMARTKEEPER_SCENARIOS_DIR", "scenarios"),
             static_dir=env.get("SMARTKEEPER_STATIC_DIR", "frontend/dist"),
             admin_password_hash=env.get("SMARTKEEPER_ADMIN_PASSWORD_HASH") or None,
             session_secret=env.get("SMARTKEEPER_SESSION_SECRET", ""),
@@ -96,19 +118,6 @@ def make_llm(provider: str, settings: Settings) -> LLMClient:
     raise RuntimeError(f"unknown provider {provider}")
 
 
-@dataclass
-class Services:
-    db: sa.Engine
-    engine: Engine
-    kp: KP
-    packs: SqlRulePackStore
-    rules: RulesService
-    maps: FileMapStore
-    llm_log: SqlLLMCallLog
-    judge: LLMClient
-    writer: LLMClient
-
-
 def build_services(
     settings: Settings,
     *,
@@ -116,6 +125,7 @@ def build_services(
     writer: LLMClient | None = None,
 ) -> Services:
     db = make_db(settings.db_path)
+    migrate(db)
     dice = DiceRoller(SystemRandomSource())
     rules = RulesService(dice)
     packs = SqlRulePackStore(db, rules)
@@ -134,8 +144,13 @@ def build_services(
         memory=SqlMemoryStore(db),
     )
     log = SqlLLMCallLog(db)
-    j = RecordingLLM(judge or make_llm(settings.judge_provider, settings), log)
-    w = RecordingLLM(writer or make_llm(settings.writer_provider, settings), log)
+    raw_judge = judge or make_llm(settings.judge_provider, settings)
+    raw_writer = writer or make_llm(settings.writer_provider, settings)
+    for client in {id(raw_judge): raw_judge, id(raw_writer): raw_writer}.values():
+        if isinstance(client, FakeLLM) and not client.handlers:
+            install_scripted(client, engine)  # 离线演示与端到端测试用的脚本化 KP
+    j = RecordingLLM(raw_judge, log)
+    w = RecordingLLM(raw_writer, log)
     kp = KP(
         engine,
         j,
@@ -147,17 +162,91 @@ def build_services(
         ),
         call_log=log,
     )
-    return Services(db, engine, kp, packs, rules, maps, log, j, w)
+    return Services(
+        db=db,
+        engine=engine,
+        kp=kp,
+        packs=packs,
+        rules=rules,
+        maps=maps,
+        llm_log=log,
+        judge=j,
+        writer=w,
+        chat=SqlChatStore(db),
+        scenarios_dir=settings.scenarios_dir,
+        base_url=settings.base_url,
+    )
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="SmartKeeper", version="0.1.0")
+def _error_body(err: SmartKeeperError) -> dict[str, Any]:
+    return {
+        "code": err.code,
+        "params": err.params,
+        "problems": [p.model_dump(mode="json") for p in err.problems],
+    }
+
+
+STATUS = {ValidationFailed: 422, NotFound: 404, IllegalState: 409, Forbidden: 403}
+
+
+def create_app(settings: Settings | None = None, services: Services | None = None) -> FastAPI:
+    settings = settings or Settings.from_env()
+    s = services or build_services(settings)
+    auth = Auth(s.engine, settings.admin_password_hash, settings.session_secret)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+        """启动时发现停在“裁定中”的回合，自动重跑一次（后台线程，不挡住启动）。"""
+
+        def run() -> None:
+            try:
+                s.kp.recover()
+            except Exception:
+                logging.getLogger("smartkeeper.web").exception("recover failed")
+
+        threading.Thread(target=run, daemon=True).start()
+        yield
+
+    app = FastAPI(title="SmartKeeper", version="0.1.0", lifespan=lifespan)
+    app.state.services = s
+
+    @app.exception_handler(SmartKeeperError)
+    def _sk_error(request: Request, err: SmartKeeperError) -> JSONResponse:  # pyright: ignore[reportUnusedFunction]
+        status = next((v for k, v in STATUS.items() if isinstance(err, k)), 400)
+        return JSONResponse(status_code=status, content={"detail": _error_body(err)})
 
     @app.get("/api/health")
     def health() -> dict[str, str]:  # pyright: ignore[reportUnusedFunction]
         return {"status": "ok"}
 
-    static_dir = Path(os.environ.get("SMARTKEEPER_STATIC_DIR", "frontend/dist"))
+    app.include_router(build_player_router(s, auth.require_player))
+    app.include_router(build_admin_router(s, auth))
+
+    @app.get("/join/{token}", include_in_schema=False)
+    def join(token: str) -> RedirectResponse:  # pyright: ignore[reportUnusedFunction]
+        """邀请链接：把 token 写进 HttpOnly cookie，重定向到不带 token 的地址。"""
+        if s.engine.player_by_token(token) is None:
+            return RedirectResponse("/join?invalid=1", status_code=303)
+        resp = RedirectResponse("/join", status_code=303)
+        resp.set_cookie(
+            PLAYER_COOKIE, token, httponly=True, samesite="lax", max_age=180 * 24 * 3600, path="/"
+        )
+        return resp
+
+    static_dir = Path(settings.static_dir)
     if static_dir.is_dir():
-        app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+        index = static_dir / "index.html"
+        assets = static_dir / "assets"
+        if assets.is_dir():
+            app.mount("/assets", StaticFiles(directory=assets), name="assets")
+
+        @app.get("/{path:path}", include_in_schema=False)
+        def spa(path: str) -> FileResponse:  # pyright: ignore[reportUnusedFunction]
+            if path.startswith("api/"):
+                raise HTTPException(status_code=404)
+            target = (static_dir / path).resolve()
+            if path and target.is_file() and static_dir.resolve() in target.parents:
+                return FileResponse(target)
+            return FileResponse(index)
+
     return app

@@ -10,6 +10,7 @@ from smartkeeper.rules.store import (
     export_pack,
     parse_import,
 )
+from smartkeeper.rules.store import metadata as rules_metadata
 
 __all__ = [
     "EXPORT_FORMAT",
@@ -21,4 +22,5 @@ __all__ = [
     "export_pack",
     "parse_import",
     "render",
+    "rules_metadata",
 ]

@@ -15,6 +15,7 @@ from smartkeeper.contracts.adjudication import (
     PatchOp,
 )
 from smartkeeper.contracts.base import Frozen, JsonDict, JsonValue
+from smartkeeper.contracts.chat import ChatMessage, ChatStore
 from smartkeeper.contracts.errors import (
     Forbidden,
     IllegalState,
@@ -133,6 +134,8 @@ __all__ = [
     "Audience",
     "Body",
     "BuildingHit",
+    "ChatMessage",
+    "ChatStore",
     "CheckDef",
     "CheckResult",
     "ClaimRef",
