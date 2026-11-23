@@ -49,6 +49,7 @@ class PlaceIn(Frozen):
     at: Point
     inside: str | None = None
     because: str  # 行动条目 id，或 npc:<实体 id>
+    params: dict[str, float] = {}  # 条目“使用时填写”的列这次填的数，例如 {"mp_spent": 5}
 
 
 class AreaEffect(Frozen):

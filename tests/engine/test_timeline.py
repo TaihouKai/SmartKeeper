@@ -544,3 +544,38 @@ def test_triggering_reveals_an_invisible_trap() -> None:
     assert e.world_state(gid)["placements"]["pl_1_1"]["known_by"] == [e1]  # type: ignore[index]
     seen = e.scene(gid, p1).entities[0].placements
     assert len(seen) == 1 and not seen[0].mine
+
+
+def test_placement_formulas_use_chosen_on_use_columns_and_spend() -> None:
+    from smartkeeper.contracts import PlaceIn
+
+    pack = trap_pack()
+    tpl = pack.templates[0]
+    g = tpl.groups[0]
+    preset = g.presets[0]
+    spec = preset.placement
+    assert spec is not None
+    ward = preset.model_copy(
+        update={"placement": spec.model_copy(update={"radius": "self.cost * 2"})}
+    )
+    cost = FieldDef(name="cost", kind="param", min="1", max="hp", spends="hp")
+    g = g.model_copy(update={"fields": (*g.fields, cost), "presets": (ward,)})
+    pack = pack.model_copy(update={"templates": (tpl.model_copy(update={"groups": (g,)}),)})
+    t = setup_table("single", 2, pack=pack)
+    e, gid = t.engine, t.game_id
+    p0 = t.players[0]
+    e0 = t.entities(p0)[0]
+    hp = e.world_state(gid)["entities"][e0]["sheet"]["fields"]["hp"]  # type: ignore[index]
+    wait(t, p0, 10)
+    wait(t, t.players[1], 10)
+    e.close_round(gid)
+    item = e.activities(gid)[e0].steps[0].item
+    no_cost = PlaceIn(owner=e0, entry="trap", at=Point(x=0, y=0), because=item)
+    with pytest.raises(ValidationFailed) as err:
+        e.apply_adjudication(gid, t.simple_adjudication(placements=[no_cost]))
+    assert "roll.param_missing" in {p.code for p in err.value.problems}
+    place = no_cost.model_copy(update={"params": {"cost": 3}})
+    publish(t, only=t.players, placements=[place])
+    state = e.world_state(gid)
+    assert state["placements"]["pl_1_1"]["radius"] == 6  # type: ignore[index]
+    assert state["entities"][e0]["sheet"]["fields"]["hp"] == hp - 3  # type: ignore[index]

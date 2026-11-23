@@ -1858,6 +1858,13 @@ export interface components {
             inside?: string | null;
             /** Owner */
             owner: string;
+            /**
+             * Params
+             * @default {}
+             */
+            params: {
+                [key: string]: number;
+            };
         };
         /** PlacementOut */
         PlacementOut: {

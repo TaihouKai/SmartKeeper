@@ -31,6 +31,7 @@ from smartkeeper.contracts import (
     Game,
     GameConfig,
     GameSettings,
+    GroupDef,
     Handle,
     HandleStore,
     IdentityRules,
@@ -1104,31 +1105,7 @@ class Engine:
                 gname, row = found[0]
                 fields = dict(_obj(row.get("fields")))
                 gdef = next((g for g in tpl.groups if g.name == gname), None) if tpl else None
-                for pf in gdef.fields if gdef else ():
-                    if pf.kind != "param":
-                        continue
-                    if pf.name not in params:
-                        raise ValidationFailed("roll.param_missing", entry=entry, name=pf.name)
-                    v = float(params[pf.name])
-                    for bound, op in ((pf.min, "min"), (pf.max, "max")):
-                        if bound is None:
-                            continue
-                        lim = self._rules.roll(
-                            pack, bound, self._dice.faces, template, sheet, fields
-                        ).total
-                        if (op == "min" and v < lim) or (op == "max" and v > lim):
-                            raise ValidationFailed(
-                                "roll.param_out_of_range", name=pf.name, value=v, **{op: lim}
-                            )
-                    if pf.spends:
-                        have = _obj(sheet.get("fields")).get(pf.spends)
-                        if not isinstance(have, int | float) or v > float(have):
-                            raise ValidationFailed(
-                                "roll.not_enough", name=pf.spends, need=v, have=have
-                            )
-                        prev = spends.get(pf.spends, 0)
-                        spends[pf.spends] = float(cast(float, prev)) + v
-                    fields[pf.name] = v
+                spends = self._use_params(pack, template, sheet, gdef, fields, params, entry)
                 expr = fields.get(field)
             if not isinstance(expr, str) or not expr.strip():
                 raise ValidationFailed("roll.not_a_formula", field=field)
@@ -1222,22 +1199,32 @@ class Engine:
                     continue
             template = str(ent.get("template", ""))
             sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet")))
-            row = next(
+            found = next(
                 (
-                    _obj(e)
-                    for entries in _obj(sheet.get("groups")).values()
+                    (str(gname), _obj(e))
+                    for gname, entries in _obj(sheet.get("groups")).items()
                     for e in (entries if isinstance(entries, list) else [])
                     if _obj(e).get("name") == pin.entry and _obj(e).get("placement")
                 ),
                 None,
             )
-            if row is None:
+            if found is None:
                 problems.append(
                     Problem(code="adj.not_a_placement", path=path, params={"entry": pin.entry})
                 )
                 continue
+            gname, row = found
             spec = PlacementSpec.model_validate(row["placement"])
-            fields = _obj(row.get("fields"))
+            fields = dict(_obj(row.get("fields")))
+            tpl = pack.template(template)
+            gdef = next((x for x in tpl.groups if x.name == gname), None) if tpl else None
+            try:
+                spent = self._use_params(
+                    pack, template, sheet, gdef, fields, dict(pin.params), pin.entry
+                )
+            except ValidationFailed as e:
+                problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
+                continue
 
             def val(
                 text: str,
@@ -1283,6 +1270,19 @@ class Engine:
                     value=placed.model_dump(mode="json"),
                 )
             )
+            own = _obj(_obj(ent.get("sheet")).get("fields"))
+            for res, amount in sorted(spent.items()):
+                have = own.get(res)
+                if isinstance(have, int | float) and isinstance(amount, int | float):
+                    left = float(have) - float(amount)
+                    value: JsonValue = int(left) if left.is_integer() else left
+                    ops.append(
+                        PatchOp(
+                            op="replace",
+                            path=f"/entities/{pin.owner}/sheet/fields/{res}",
+                            value=value,
+                        )
+                    )
         return ops, problems
 
     def placement_report(self, game_id: str) -> dict[str, JsonValue]:
@@ -1294,6 +1294,41 @@ class Engine:
             "placements": _obj(state.get("placements")),
             "triggered_this_round": cast(JsonValue, fired),
         }
+
+    def _use_params(
+        self,
+        pack: RulePack,
+        template: str,
+        sheet: dict[str, JsonValue],
+        gdef: GroupDef | None,
+        fields: dict[str, JsonValue],
+        params: dict[str, float],
+        entry: str,
+    ) -> dict[str, JsonValue]:
+        """条目的“使用时填写”的列：检查这次填的数在范围内、资源够，写进 fields（公式里 self.<列>）。
+        返回要扣的资源：资源字段名 -> 数量。"""
+        spends: dict[str, JsonValue] = {}
+        for pf in gdef.fields if gdef else ():
+            if pf.kind != "param":
+                continue
+            if pf.name not in params:
+                raise ValidationFailed("roll.param_missing", entry=entry, name=pf.name)
+            v = float(params[pf.name])
+            for bound, op in ((pf.min, "min"), (pf.max, "max")):
+                if bound is None:
+                    continue
+                lim = self._rules.roll(pack, bound, self._dice.faces, template, sheet, fields).total
+                if (op == "min" and v < lim) or (op == "max" and v > lim):
+                    raise ValidationFailed(
+                        "roll.param_out_of_range", name=pf.name, value=v, **{op: lim}
+                    )
+            if pf.spends:
+                have = _obj(sheet.get("fields")).get(pf.spends)
+                if not isinstance(have, int | float) or v > float(have):
+                    raise ValidationFailed("roll.not_enough", name=pf.spends, need=v, have=have)
+                spends[pf.spends] = float(cast(float, spends.get(pf.spends, 0))) + v
+            fields[pf.name] = v
+        return spends
 
     def _spend_ops(self, game_id: str, round_no: int, state: State) -> list[PatchOp]:
         """本轮（最近一次规划里）掷骰时用掉的资源：从角色卡上扣掉。"""
