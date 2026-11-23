@@ -407,6 +407,7 @@ class KP:
                 )
 
     def _run_plan(self, game_id: str) -> None:
+        self.engine.begin_plan(game_id)  # 重跑时，之前那次的掷骰和查询作废
         plan = self._structured(
             "plan", game_id, self.ctx.plan(game_id), PlanOut, lambda o: o, judge=True
         )
@@ -420,7 +421,9 @@ class KP:
                 continue  # 声明不合法的检定不执行；裁定时看不到它的结果
         for roll in plan.rolls:
             try:
-                self.engine.roll_formula(game_id, roll.entity, roll.field, roll.entry, roll.reason)
+                self.engine.roll_formula(
+                    game_id, roll.entity, roll.field, roll.entry, roll.reason, roll.params
+                )
             except (ValidationFailed, NotFound):
                 continue  # 不存在的条目或字段不掷；裁定时看不到它的结果
         for q in plan.queries:

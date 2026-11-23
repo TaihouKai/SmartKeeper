@@ -338,3 +338,31 @@ def test_formula_field_values_are_checked_and_may_roll(rules: RulesService) -> N
         rules.validate_formula(pack, "person", "self.level d 6", in_entry="skills", scope="dice")
         == []
     )
+
+
+def test_param_columns_only_in_groups_and_spend_a_number(rules: RulesService) -> None:
+    from smartkeeper.contracts import FieldDef
+
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    g = tpl.groups[0]
+    ok = g.model_copy(
+        update={
+            "fields": (
+                *g.fields,
+                FieldDef(name="cost", kind="param", min="1", max="self.level", spends="hp"),
+            )
+        }
+    )
+    good = pack.model_copy(update={"templates": (tpl.model_copy(update={"groups": (ok,)}),)})
+    assert rules.validate_pack(good) == []
+    bad_target = g.model_copy(
+        update={"fields": (*g.fields, FieldDef(name="cost", kind="param", spends="occupation"))}
+    )
+    pack2 = pack.model_copy(
+        update={"templates": (tpl.model_copy(update={"groups": (bad_target,)}),)}
+    )
+    assert "pack.unknown_spend_target" in {p.code for p in rules.validate_pack(pack2)}
+    top = tpl.model_copy(update={"fields": (*tpl.fields, FieldDef(name="cost", kind="param"))})
+    pack3 = pack.model_copy(update={"templates": (top,)})
+    assert "pack.param_only_in_group" in {p.code for p in rules.validate_pack(pack3)}

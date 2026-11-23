@@ -20,6 +20,8 @@ def _field(fd: FieldDef) -> str:
         bits.append(f"initial={fd.initial}")
     if fd.choices:
         bits.append("{" + " | ".join(fd.choices) + "}")
+    if fd.spends:
+        bits.append(f"spends={fd.spends}")
     if fd.description:
         bits.append(f"— {fd.description}")
     return "- " + " ".join(b for b in bits if b)

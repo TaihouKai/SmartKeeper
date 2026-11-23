@@ -134,7 +134,7 @@ function FieldsTable({
   );
 }
 
-function GroupCard({ g, onChange, onRemove, validate, template, derived, mover }: { g: Group; onChange: (g: Group) => void; onRemove: () => void; validate: Validate; template: string; derived: string[]; mover: ReactNode }) {
+function GroupCard({ g, onChange, onRemove, validate, template, derived, mover, spendTargets }: { g: Group; onChange: (g: Group) => void; onRemove: () => void; validate: Validate; template: string; derived: string[]; mover: ReactNode; spendTargets: string[] }) {
   const { t } = useI18n();
   const allowed = g.shapes?.allowed ?? [];
   return (
@@ -186,7 +186,7 @@ function GroupCard({ g, onChange, onRemove, validate, template, derived, mover }
           ))}
         </div>
         <Fold level={5} title={t("rules.gt.title")} hint={t("rules.gt.hint")}>
-          <GroupTable g={g} onChange={onChange} validate={validate} template={template} derived={derived} />
+          <GroupTable g={g} onChange={onChange} validate={validate} template={template} derived={derived} spendTargets={spendTargets} />
         </Fold>
       </Fold>
     </div>
@@ -243,7 +243,7 @@ function TemplateEditor({ tpl, onChange, onRemove, validate, mover }: { tpl: Tem
         </Fold>
         <Fold level={5} title={t("rules.groups")} hint={t("rules.groups_hint")}>
           {groups.map((g: Group, i) => (
-            <GroupCard key={i} g={g} template={tpl.name} derived={derived.map((d) => d.name)} validate={validate} onChange={(x) => ged.update(i, x)} onRemove={() => ged.remove(i)} mover={<Mover index={i} count={groups.length} onMove={ged.move} />} />
+            <GroupCard key={i} g={g} template={tpl.name} derived={derived.map((d) => d.name)} spendTargets={(tpl.fields ?? []).filter((f) => f.kind === "number" || f.kind === "resource").map((f) => f.name)} validate={validate} onChange={(x) => ged.update(i, x)} onRemove={() => ged.remove(i)} mover={<Mover index={i} count={groups.length} onMove={ged.move} />} />
           ))}
           <button onClick={() => ged.add({ name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false })}>{t("rules.add_group")}</button>
         </Fold>

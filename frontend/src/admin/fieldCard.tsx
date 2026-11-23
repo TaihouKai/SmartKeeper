@@ -38,6 +38,7 @@ export function FieldCard({
   isFly = false,
   inGroup,
   mover,
+  spendTargets = [],
 }: {
   f: Field;
   onChange: (f: Field) => void;
@@ -47,10 +48,12 @@ export function FieldCard({
   isFly?: boolean;
   inGroup: boolean;
   mover?: ReactNode;
+  /** 角色卡上的数值/资源字段：“使用时填写”的列可以从其中一个里扣 */
+  spendTargets?: string[];
 }) {
   const { t } = useI18n();
   const cls = inGroup ? "player" : (f.cls ?? "player");
-  const numeric = f.kind === "number" || f.kind === "resource";
+  const numeric = f.kind === "number" || f.kind === "resource" || f.kind === "param";
   // 引擎必需的字段：名字、类型、类别都不能改，也不能删
   const locked = isAppearance || isFly;
   const [choicesText, setChoicesText] = useState((f.choices ?? []).join("、"));
@@ -78,6 +81,7 @@ export function FieldCard({
             <option value="text">{t("rules.kind.text")}</option>
             <option value="boolean">{t("rules.kind.boolean")}</option>
             <option value="formula">{t("rules.kind.formula")}</option>
+            {inGroup && <option value="param">{t("rules.kind.param")}</option>}
           </select>
         </label>
         {!inGroup && (
@@ -125,7 +129,20 @@ export function FieldCard({
               </label>
             </>
           )}
-          {cls === "runtime" && f.kind !== "text" && f.kind !== "formula" && (
+          {f.kind === "param" && (
+            <label>
+              {t("rules.f.spends")}
+              <select value={f.spends ?? ""} onChange={(e) => onChange({ ...f, spends: e.target.value || null })}>
+                <option value="">{t("rules.f.spends_none")}</option>
+                {spendTargets.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {cls === "runtime" && f.kind !== "text" && f.kind !== "formula" && f.kind !== "param" && (
             <label>
               {t("rules.f.initial_required")}
               <FormulaInput value={f.initial ?? ""} validate={validate} placeholder={t("rules.ph.initial")} onChange={(x) => onChange({ ...f, initial: x || null })} />
@@ -145,7 +162,7 @@ export function FieldCard({
             </label>
           )}
           <div className="sk-field-flags">
-            {cls === "player" && f.kind !== "boolean" && (
+            {cls === "player" && f.kind !== "boolean" && f.kind !== "param" && (
               <label className="sk-inline">
                 <input type="checkbox" checked={f.required ?? true} onChange={(e) => onChange({ ...f, required: e.target.checked })} /> {t("rules.f.required")}
               </label>

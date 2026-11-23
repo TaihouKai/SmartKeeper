@@ -368,3 +368,54 @@ def test_roll_a_formula_field_of_a_fixed_entry() -> None:
         e.roll_formula(g, e0, "damage", "kick", "no such skill")
     with pytest.raises(ValidationFailed):
         e.roll_formula(g, e0, "level", "punch", "not a formula")
+
+
+def spend_pack() -> RulePack:
+    """skills 分组：使用时填写的 cost（1..hp，从 hp 里扣），伤害 = (1d4 + 1) * floor(12 / self.cost)。"""
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    g = tpl.groups[0]
+    g = g.model_copy(
+        update={
+            "fields": (
+                *g.fields,
+                FieldDef(name="damage", kind="formula", required=False),
+                FieldDef(name="cost", kind="param", min="1", max="hp", spends="hp"),
+            ),
+            "presets": (
+                GroupPreset.model_validate(
+                    {
+                        "name": "bolt",
+                        "fields": {"level": 1, "damage": "(1d4 + 1) * floor(12 / self.cost)"},
+                    }
+                ),
+            ),
+        }
+    )
+    tpl = tpl.model_copy(update={"groups": (g, *tpl.groups[1:])})
+    return pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+
+
+def test_param_spends_a_resource_once_per_attempt() -> None:
+    t = setup_table("single", 2, pack=spend_pack())
+    e, g = t.engine, t.game_id
+    p0 = t.players[0]
+    e0 = t.entities(p0)[0]
+    hp = e.world_state(g)["entities"][e0]["sheet"]["fields"]["hp"]  # type: ignore[index]
+    wait(t, p0, 5)
+    wait(t, t.players[1], 5)
+    e.close_round(g)
+    e.begin_plan(g)
+    with pytest.raises(ValidationFailed):
+        e.roll_formula(g, e0, "damage", "bolt", "x")  # 没给 cost
+    with pytest.raises(ValidationFailed):
+        e.roll_formula(g, e0, "damage", "bolt", "x", {"cost": 0})  # 小于下限
+    with pytest.raises(ValidationFailed):
+        e.roll_formula(g, e0, "damage", "bolt", "x", {"cost": 999})  # hp 不够
+    e.roll_formula(g, e0, "damage", "bolt", "first attempt", {"cost": 3})
+    # 重跑：之前那次的消耗作废，只算这一次
+    e.begin_plan(g)
+    res = e.roll_formula(g, e0, "damage", "bolt", "second attempt", {"cost": 4})
+    assert res.total == (sum(res.rolls) + 1) * 3
+    publish(t, only=t.players)
+    assert e.world_state(g)["entities"][e0]["sheet"]["fields"]["hp"] == hp - 4  # type: ignore[index]

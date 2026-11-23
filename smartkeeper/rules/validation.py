@@ -91,19 +91,37 @@ def _dupes(names: Iterable[str]) -> set[str]:
 
 
 def _check_field_def(
-    pack: RulePack, tpl: EntityTemplate | None, fd: FieldDef, path: str
+    pack: RulePack,
+    tpl: EntityTemplate | None,
+    fd: FieldDef,
+    path: str,
+    entry_fields: list[str] | None = None,
 ) -> list[Problem]:
     problems: list[Problem] = []
+    if fd.kind == "param" and entry_fields is None:
+        problems.append(Problem(code="pack.param_only_in_group", path=path))
     if fd.choices and fd.kind != "text":
         problems.append(Problem(code="pack.choices_need_text", path=path))
-    if fd.cls == "runtime" and fd.kind not in ("text", "boolean", "formula") and fd.initial is None:
+    if (
+        fd.cls == "runtime"
+        and fd.kind not in ("text", "boolean", "formula", "param")
+        and fd.initial is None
+    ):
         problems.append(Problem(code="pack.runtime_needs_initial", path=path))
     if fd.kind == "resource" and fd.max is None:
         problems.append(Problem(code="pack.resource_needs_max", path=path))
     for attr in ("min", "max", "initial"):
         text = getattr(fd, attr)
         if text is not None:
-            problems += check_formula(pack, tpl, text, f"{path}.{attr}")
+            problems += check_formula(pack, tpl, text, f"{path}.{attr}", entry_fields=entry_fields)
+    if fd.spends is not None and fd.kind != "param":
+        problems.append(Problem(code="pack.spends_needs_param", path=path))
+    if fd.spends is not None and tpl is not None:
+        target = next((x for x in tpl.fields if x.name == fd.spends), None)
+        if target is None or target.kind not in ("number", "resource"):
+            problems.append(
+                Problem(code="pack.unknown_spend_target", path=path, params={"name": fd.spends})
+            )
     return problems
 
 
@@ -116,7 +134,9 @@ def _check_group(pack: RulePack, tpl: EntityTemplate, g: GroupDef, path: str) ->
             problems.append(
                 Problem(code="pack.group_field_must_be_player", path=f"{path}.fields[{i}]")
             )
-        problems += _check_field_def(pack, tpl, fd, f"{path}.fields[{i}]")
+        problems += _check_field_def(
+            pack, tpl, fd, f"{path}.fields[{i}]", entry_fields=[x.name for x in g.fields]
+        )
     if g.max_count is not None and g.max_count < g.min_count:
         problems.append(Problem(code="pack.bad_count", path=path))
     derived = {d.name for d in tpl.derived}
@@ -510,7 +530,7 @@ def _check_entry(
     for name, fd in fdefs.items():
         if name in entry.fields:
             problems += _check_value(None, fd, entry.fields[name], f"{ep}.fields.{name}")
-        elif fd.required and required_fields:
+        elif fd.required and required_fields and fd.kind != "param":
             problems.append(Problem(code="sheet.missing_field", path=f"{ep}.fields.{name}"))
     problems += _check_formula_fields(pack, tpl, g.fields, entry.fields, ep, in_entry=True)
     if entry.effects and not g.effects:

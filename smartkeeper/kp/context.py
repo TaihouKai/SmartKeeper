@@ -361,8 +361,9 @@ class Contexts:
             section("聊天问答（背景，不是行动）", render_events(chat, names)),
         ]
         if include_results:
-            rolls = [x.payload for x in this_round if x.type == "dice_roll"]
-            queries = [x.payload for x in this_round if x.type == "spatial_query"]
+            attempt = e.current_attempt(game_id, r.no)
+            rolls = [x.payload for x in attempt if x.type == "dice_roll"]
+            queries = [x.payload for x in attempt if x.type == "spatial_query"]
             parts.append(section("检定结果（引擎掷骰）", dumps(rolls)))
             parts.append(section("空间查询结果", dumps(queries)))
         return "\n".join(parts)

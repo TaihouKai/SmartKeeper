@@ -24,7 +24,7 @@ function effectsOf(p: Preset): Effect[] {
  * “生效条件”“名称”“描述”是每行自带的列；其余的列是这个分组的字段，点列名在表格下面改这一列的设置。
  * 效果和范围形状放不进格子，点“更多”在这一行下面展开。
  */
-export function GroupTable({ g, onChange, validate, template, derived }: { g: Group; onChange: (g: Group) => void; validate: Validate; template: string; derived: string[] }) {
+export function GroupTable({ g, onChange, validate, template, derived, spendTargets }: { g: Group; onChange: (g: Group) => void; validate: Validate; template: string; derived: string[]; spendTargets: string[] }) {
   const { t } = useI18n();
   const fields = g.fields ?? [];
   const presets = g.presets ?? [];
@@ -32,7 +32,8 @@ export function GroupTable({ g, onChange, validate, template, derived }: { g: Gr
   const pre = useListEdit(presets, (x) => onChange({ ...g, presets: x }));
   const [col, setCol] = useState<number | null>(null);
   const [open, setOpen] = useState<number | null>(null);
-  const vCol = useCallback((f: string) => validate(f, template), [validate, template]);
+  // 列的上下限可以用 self.<列名>，所以按条目校验
+  const vCol = useCallback((f: string) => validate(f, template, g.name), [validate, template, g.name]);
   const vWhen = useCallback((f: string) => validate(f, template), [validate, template]);
   const vDice = useCallback((f: string) => validate(f, template, g.name, "dice"), [validate, template, g.name]);
   const vEff = useCallback((f: string) => validate(f, template, g.name), [validate, template, g.name]);
@@ -120,12 +121,16 @@ export function GroupTable({ g, onChange, validate, template, derived }: { g: Gr
                   </td>
                   {fields.map((f, i) => (
                     <td key={i}>
+                      {f.kind === "param" ? (
+                        <span className="sk-hint">{t("rules.gt.param_cell")}</span>
+                      ) : (
                       <FieldInput
                         def={f}
                         value={(p.fields ?? {})[f.name] as Cell}
                         validateFormula={vDice}
                         onChange={(v) => setRow(r, { fields: clean({ ...(p.fields ?? {}), [f.name]: v }) })}
                       />
+                      )}
                     </td>
                   ))}
                   <td className="sk-nowrap">
@@ -170,6 +175,7 @@ export function GroupTable({ g, onChange, validate, template, derived }: { g: Gr
             onChange={(x) => setColumn(col, x)}
             onRemove={() => removeColumn(col)}
             mover={<Mover index={col} count={fields.length} onMove={moveColumn} />}
+            spendTargets={spendTargets}
           />
           <button type="button" className="sk-link" onClick={() => setCol(null)}>
             {t("play.close")}

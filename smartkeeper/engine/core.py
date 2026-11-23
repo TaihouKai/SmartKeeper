@@ -1046,39 +1046,120 @@ class Engine:
             ev = self._events.append(game_id, r.no, [self._dice_event(res, reason)])[0]
             return res.model_copy(update={"seq": ev.seq})
 
+    def begin_plan(self, game_id: str) -> Event:
+        """KP 开始一次检定规划（含重跑）。之后的掷骰和查询才算这一次裁定的，之前的作废。"""
+        with self._lock:
+            r = self._require(game_id, "roll")
+            ev = NewEvent(
+                type="plan_started", actor=ENGINE, visibility=Visibility.kp_only(), payload={}
+            )
+            return self._events.append(game_id, r.no, [ev])[0]
+
+    def current_attempt(self, game_id: str, round_no: int) -> list[Event]:
+        """本轮最近一次规划开始以后的 KP 视图事件（重跑之前的掷骰和查询不算）。"""
+        evs = self._events.view_for(game_id, KP, round_no=round_no)
+        starts = [i for i, e in enumerate(evs) if e.type == "plan_started"]
+        return evs[starts[-1] :] if starts else evs
+
     def roll_formula(
-        self, game_id: str, entity: str, field: str, entry: str | None, reason: str
+        self,
+        game_id: str,
+        entity: str,
+        field: str,
+        entry: str | None,
+        reason: str,
+        params: dict[str, float] | None = None,
     ) -> DiceResult:
-        """掷某个实体角色卡上的掷骰公式字段（例如技能“普通攻击”的 damage）。
+        """掷某个实体角色卡上的掷骰公式字段（例如技能“攻击魔术”的 damage）。
 
         entry 是条目名（在分组里找，含生效的固定条目）；不给时是模板本身的字段。
+        params 是这个条目的“使用时填写”的列这次填的数（例如消耗多少魔力）：检查范围和资源够不够，
+        掷骰公式里用 self.<列名> 引用；要扣的资源在这一轮结算时扣掉。
         """
+        params = params or {}
         with self._lock:
             r = self._require(game_id, "roll")
             pack = self.rulepack(game_id)
             ent = self._entity(self._state(game_id), entity)
             template = str(ent.get("template", ""))
+            tpl = pack.template(template)
             sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet")))
             fields: dict[str, JsonValue] | None = None
+            spends: dict[str, JsonValue] = {}
             if entry is None:
                 expr = _obj(sheet.get("fields")).get(field)
             else:
                 found = [
-                    _obj(e)
-                    for entries in _obj(sheet.get("groups")).values()
+                    (str(gname), _obj(e))
+                    for gname, entries in _obj(sheet.get("groups")).items()
                     for e in (entries if isinstance(entries, list) else [])
                     if _obj(e).get("name") == entry
                 ]
                 if not found:
                     raise NotFound("roll.unknown_entry", entity=entity, entry=entry)
-                fields = _obj(found[0].get("fields"))
+                gname, row = found[0]
+                fields = dict(_obj(row.get("fields")))
+                gdef = next((g for g in tpl.groups if g.name == gname), None) if tpl else None
+                for pf in gdef.fields if gdef else ():
+                    if pf.kind != "param":
+                        continue
+                    if pf.name not in params:
+                        raise ValidationFailed("roll.param_missing", entry=entry, name=pf.name)
+                    v = float(params[pf.name])
+                    for bound, op in ((pf.min, "min"), (pf.max, "max")):
+                        if bound is None:
+                            continue
+                        lim = self._rules.roll(
+                            pack, bound, self._dice.faces, template, sheet, fields
+                        ).total
+                        if (op == "min" and v < lim) or (op == "max" and v > lim):
+                            raise ValidationFailed(
+                                "roll.param_out_of_range", name=pf.name, value=v, **{op: lim}
+                            )
+                    if pf.spends:
+                        have = _obj(sheet.get("fields")).get(pf.spends)
+                        if not isinstance(have, int | float) or v > float(have):
+                            raise ValidationFailed(
+                                "roll.not_enough", name=pf.spends, need=v, have=have
+                            )
+                        prev = spends.get(pf.spends, 0)
+                        spends[pf.spends] = float(cast(float, prev)) + v
+                    fields[pf.name] = v
                 expr = fields.get(field)
             if not isinstance(expr, str) or not expr.strip():
                 raise ValidationFailed("roll.not_a_formula", field=field)
             res = self._rules.roll(pack, expr, self._dice.faces, template, sheet, fields)
-            extra: dict[str, JsonValue] = {"entity": entity, "field": field, "entry": entry}
+            extra: dict[str, JsonValue] = {
+                "entity": entity,
+                "field": field,
+                "entry": entry,
+                "params": cast(JsonValue, dict(params)),
+                "spends": spends,
+            }
             ev = self._events.append(game_id, r.no, [self._dice_event(res, reason, extra)])[0]
             return res.model_copy(update={"seq": ev.seq})
+
+    def _spend_ops(self, game_id: str, round_no: int, state: State) -> list[PatchOp]:
+        """本轮（最近一次规划里）掷骰时用掉的资源：从角色卡上扣掉。"""
+        total: dict[tuple[str, str], float] = {}
+        for e in self.current_attempt(game_id, round_no):
+            if e.type != "dice_roll":
+                continue
+            ent = e.payload.get("entity")
+            for res, amount in _obj(e.payload.get("spends")).items():
+                if isinstance(ent, str) and isinstance(amount, int | float):
+                    total[(ent, res)] = total.get((ent, res), 0.0) + float(amount)
+        ops: list[PatchOp] = []
+        ents = _obj(state.get("entities"))
+        for (eid, res), amount in sorted(total.items()):
+            have = _obj(_obj(_obj(ents.get(eid)).get("sheet")).get("fields")).get(res)
+            if isinstance(have, int | float):
+                left = float(have) - amount
+                value: JsonValue = int(left) if float(left).is_integer() else left
+                ops.append(
+                    PatchOp(op="replace", path=f"/entities/{eid}/sheet/fields/{res}", value=value)
+                )
+        return ops
 
     def _entity(self, state: State, entity_id: str) -> dict[str, JsonValue]:
         ent = _obj(state.get("entities")).get(entity_id)
@@ -1245,6 +1326,14 @@ class Engine:
                 groups.append(("adjudication", list(adj.state_patch)))
             except ValidationFailed as e:
                 problems += e.problems
+        if not problems:
+            spend = self._spend_ops(game_id, r.no, cur)
+            if spend:
+                try:
+                    cur = self._world.apply(cur, spend)
+                    groups.append(("costs", spend))
+                except ValidationFailed as e:
+                    problems += e.problems
         after_entities = set(_obj(cur.get("entities")))
         problems += adjv.check_memory_entities(adj, after_entities | entities)
         for i, mem in enumerate(adj.memory_entries):
@@ -1329,7 +1418,9 @@ class Engine:
                 if e in after_entities
                 and set(start_space.perceived_by(e)) != set(after.perceived_by(e))
             ]
-            touched = adjv.touched_entities(adj.state_patch) & controls.get(pid, set())
+            touched = adjv.touched_entities(
+                [*adj.state_patch, *self._spend_ops(game_id, r.no, state)]
+            ) & controls.get(pid, set())
             overheard = set(heard) & controls.get(pid, set())
             if changed or touched or overheard:
                 problems.append(
@@ -1495,7 +1586,9 @@ class Engine:
 
     def _query_results(self, game_id: str, round_no: int) -> dict[str, QueryResult]:
         out: dict[str, QueryResult] = {}
-        for e in self._events.view_for(game_id, KP, types=["spatial_query"], round_no=round_no):
+        for e in self.current_attempt(game_id, round_no):
+            if e.type != "spatial_query":
+                continue
             res = SpatialQueryResult.model_validate(e.payload["result"])
             out[res.query_id] = res.result or QueryResult(features=res.features)
         return out

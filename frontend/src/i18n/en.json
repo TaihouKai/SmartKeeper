@@ -45,6 +45,7 @@
     "fixed_entries": "From what you've filled in, you automatically get: {names}",
     "formula_field": "Dice formula, e.g. 1d6 or 1d str; rolled by the engine when used",
     "name": "Name",
+    "param_field": "Say it in your action when used ({min} to {max})",
     "remove_entry": "Remove entry",
     "shape": "Area shape",
     "shape_none": "None",
@@ -456,6 +457,8 @@
       "min": "Min",
       "name": "Name",
       "required": "Player must fill in",
+      "spends": "Spend from",
+      "spends_none": "nothing",
       "unit": "Unit"
     },
     "fields": "Fields",
@@ -485,6 +488,7 @@
       "empty": "No entries yet. Use “+ Row” below.",
       "hint": "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Effects and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: effects on one value run top to bottom. Players fill the same columns for their own entries.",
       "more": "More (effects {n})",
+      "param_cell": "chosen on use",
       "title": "Entry table",
       "when": "Condition"
     },
@@ -504,6 +508,7 @@
       "boolean": "Yes/no",
       "formula": "Dice formula",
       "number": "Number",
+      "param": "Chosen on use",
       "resource": "Resource",
       "text": "Text"
     },
@@ -511,6 +516,7 @@
       "boolean": "Yes/no: a checkbox, e.g. can fly. It's 1 or 0 in formulas.",
       "formula": "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or self.level d lookup(table, self.level). Not computed until the keeper asks the engine to roll it during a ruling (the engine rolls and logs it); the keeper then applies the result per the rules text (e.g. lowers HP). In a group, each entry fills its own and may use self.<field>.",
       "number": "Number: attributes, skill levels, sizes.",
+      "param": "Chosen on use: a number the player picks each time the skill is used, e.g. how much mana to spend. Not filled at character creation; the player says it in the action and the keeper passes it to the engine when rolling. Min and max are formulas that may use the character's fields and self.<column>. With a resource to spend from, the engine checks there is enough and deducts it when the round resolves. Dice formulas refer to it as self.<column name>, e.g. (1d4 + int) * floor(30 / self.mp_spent).",
       "resource": "Resource: a value with a ceiling that gets spent or restored (HP, mana, uses left). A maximum is required and may be a formula such as hp_max.",
       "text": "Text: descriptions such as background; with choices, the player picks one of them."
     },

@@ -97,6 +97,7 @@ class RollOut(_Out):
     entity: str
     entry: str | None = None  # 条目名（技能名等）；模板本身的字段时为 null
     field: str
+    params: dict[str, float] = {}  # 这个条目“使用时填写”的列这次填的数，例如 {"mp_spent": 20}
     reason: str = ""
 
 

@@ -16,6 +16,10 @@ type Check = (f: string) => Promise<{ problems: { code: string }[]; names: strin
 
 export function FieldInput({ def, value, onChange, validateFormula }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check }) {
   const { t } = useI18n();
+  if (def.kind === "param") {
+    // 使用时填写（例如这次消耗多少魔力）：建角时不填，行动里说
+    return <span className="sk-hint">{t("character.param_field", { min: def.min ?? "-", max: def.max ?? "-" })}</span>;
+  }
   if (def.kind === "formula") {
     // 掷骰公式（例如伤害 1d str）：平时不算，KP 裁定时才掷
     return validateFormula ? (

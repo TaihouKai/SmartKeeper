@@ -409,6 +409,18 @@ T: dict[str, tuple[str, str]] = {
     "rules.kind.resource": ("资源", "Resource"),
     "rules.kind.boolean": ("是/否", "Yes/no"),
     "rules.kind.formula": ("掷骰公式", "Dice formula"),
+    "rules.kind.param": ("使用时填写", "Chosen on use"),
+    "rules.kind_help.param": (
+        "使用时填写：每次用这个技能时由玩家决定的数，例如这次消耗多少魔力。建角时不填；玩家在行动里说（例如“用 20 魔力放攻击魔术”），KP 掷骰时把这个数交给引擎。下限、上限是公式，可以用角色的字段和 self.<列名>（这个技能自己的列），例如下限 5、上限 max(30, mp_max)。选了“从哪个资源扣”时，引擎还会检查够不够，并在这一轮结算时自动扣掉。掷骰公式里用 self.<这一列的名字> 引用这次填的数，例如 (1d4 + int) * floor(30 / self.mp_spent)。",
+        "Chosen on use: a number the player picks each time the skill is used, e.g. how much mana to spend. Not filled at character creation; the player says it in the action and the keeper passes it to the engine when rolling. Min and max are formulas that may use the character's fields and self.<column>. With a resource to spend from, the engine checks there is enough and deducts it when the round resolves. Dice formulas refer to it as self.<column name>, e.g. (1d4 + int) * floor(30 / self.mp_spent).",
+    ),
+    "rules.f.spends": ("从哪个资源扣", "Spend from"),
+    "rules.f.spends_none": ("不扣", "nothing"),
+    "rules.gt.param_cell": ("使用时填写", "chosen on use"),
+    "character.param_field": (
+        "使用时在行动里说（{min} ～ {max}）",
+        "Say it in your action when used ({min} to {max})",
+    ),
     "rules.kind_help.formula": (
         "掷骰公式：一条可以带骰子的公式，例如技能的伤害 1d str，或 self.level d lookup(某表, self.level)。平时不算，KP 裁定时要求引擎掷一次才算（骰子由引擎掷，记进日志），KP 再按规则说明决定怎么用这个结果（例如扣 HP）。放在分组的字段里时，每个条目各填各的，可以用 self.<字段> 引用这个条目的字段。",
         "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or self.level d lookup(table, self.level). Not computed until the keeper asks the engine to roll it during a ruling (the engine rolls and logs it); the keeper then applies the result per the rules text (e.g. lowers HP). In a group, each entry fills its own and may use self.<field>.",
