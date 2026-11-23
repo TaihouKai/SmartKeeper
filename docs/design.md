@@ -843,10 +843,11 @@ tests/
 - `SMARTKEEPER_DB_PATH`：SQLite 文件路径
 - `SMARTKEEPER_ADMIN_PASSWORD_HASH`：管理员密码的 argon2 哈希；未设置时控制台不可用
 - `SMARTKEEPER_SESSION_SECRET`：签发控制台会话 cookie 用的密钥
-- `SMARTKEEPER_JUDGE_PROVIDER`、`SMARTKEEPER_JUDGE_MODEL`：开场、检定规划、回合裁定用哪个实现（`anthropic` 或 `openai_compat`）和哪个模型
+- `SMARTKEEPER_JUDGE_PROVIDER`、`SMARTKEEPER_JUDGE_MODEL`：开场、检定规划、回合裁定用哪个实现（`anthropic`、`openai` 或 `openai_compat`）和哪个模型
 - `SMARTKEEPER_WRITER_PROVIDER`、`SMARTKEEPER_WRITER_MODEL`：其余调用用哪个实现和哪个模型
 - `ANTHROPIC_API_KEY`：用到 Anthropic 实现时需要
-- `OPENAI_COMPAT_BASE_URL`、`OPENAI_COMPAT_API_KEY`：用到 OpenAI 兼容实现时需要
+- `OPENAI_API_KEY`：用到 OpenAI 官方实现（Responses API，默认联网）时需要
+- `OPENAI_COMPAT_BASE_URL`、`OPENAI_COMPAT_API_KEY`：用到 OpenAI 兼容实现时需要；`OPENAI_COMPAT_WEB_SEARCH=true` 表示这个兼容服务实现了 Responses API 的 web_search，默认不联网
 - `SMARTKEEPER_WRITER_CONCURRENCY`：反馈撰写的最大并行数
 - `SMARTKEEPER_BASE_URL`：生成邀请链接用
 

@@ -26,8 +26,11 @@ $env:SMARTKEEPER_WRITER_PROVIDER = $cfg.writer_provider
 $env:SMARTKEEPER_WRITER_MODEL = $cfg.writer_model
 if ($cfg.openai_base_url) { $env:OPENAI_COMPAT_BASE_URL = $cfg.openai_base_url }
 if ($cfg.openai_key_secret) { $env:OPENAI_COMPAT_API_KEY = (Read-Secret $cfg.openai_key_secret) }
+if ($cfg.openai_compat_web_search) { $env:OPENAI_COMPAT_WEB_SEARCH = "true" }
 $anthropic = Read-Secret "anthropic"
 if ($anthropic) { $env:ANTHROPIC_API_KEY = $anthropic }
+$openai = Read-Secret "openai"
+if ($openai) { $env:OPENAI_API_KEY = $openai }
 
 $log = Join-Path (Split-Path -Parent $cfg.db_path) "server.log"
 Set-Location $root

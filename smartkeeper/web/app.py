@@ -32,7 +32,14 @@ from smartkeeper.engine import Engine
 from smartkeeper.eventlog import SqlEventLog
 from smartkeeper.handles import SqlHandleStore
 from smartkeeper.kp import KP, KPConfig
-from smartkeeper.llm import AnthropicLLM, FakeLLM, OpenAICompatLLM, RecordingLLM, SqlLLMCallLog
+from smartkeeper.llm import (
+    AnthropicLLM,
+    FakeLLM,
+    OpenAICompatLLM,
+    OpenAIResponsesLLM,
+    RecordingLLM,
+    SqlLLMCallLog,
+)
 from smartkeeper.mapdata import FileMapStore
 from smartkeeper.memory import SqlMemoryStore
 from smartkeeper.notify import WebhookNotifier
@@ -65,6 +72,10 @@ class Settings:
     writer_concurrency: int = 4
     openai_base_url: str | None = None
     openai_api_key: str | None = None
+    openai_compat_search: bool = (
+        False  # 兼容服务是否实现了 Responses API 的 web_search，由用户自己配置
+    )
+    official_openai_key: str | None = None  # provider=openai 用；不填时 SDK 读 OPENAI_API_KEY
     base_url: str | None = None
     extra: dict[str, str] = field(default_factory=dict[str, str])
 
@@ -85,6 +96,9 @@ class Settings:
             writer_concurrency=int(env.get("SMARTKEEPER_WRITER_CONCURRENCY", "4")),
             openai_base_url=env.get("OPENAI_COMPAT_BASE_URL") or None,
             openai_api_key=env.get("OPENAI_COMPAT_API_KEY") or None,
+            openai_compat_search=env.get("OPENAI_COMPAT_WEB_SEARCH", "").lower()
+            in ("1", "true", "yes", "on"),
+            official_openai_key=env.get("OPENAI_API_KEY") or None,
             base_url=env.get("SMARTKEEPER_BASE_URL") or None,
         )
 
@@ -109,11 +123,22 @@ def make_db(path: str) -> sa.Engine:
 
 
 def make_llm(provider: str, settings: Settings) -> LLMClient:
+    """三类模型：anthropic（Claude，默认联网）、openai（ChatGPT，默认联网）、
+    openai_compat（DeepSeek 等兼容接口，联网由 OPENAI_COMPAT_WEB_SEARCH 配置，默认关）。"""
     if provider == "anthropic":
         return AnthropicLLM()
+    if provider == "openai":
+        return OpenAIResponsesLLM(api_key=settings.official_openai_key, search=True)
     if provider == "openai_compat":
         if not settings.openai_base_url or not settings.openai_api_key:
             raise RuntimeError("OPENAI_COMPAT_BASE_URL and OPENAI_COMPAT_API_KEY are required")
+        if settings.openai_compat_search:
+            return OpenAIResponsesLLM(
+                base_url=settings.openai_base_url,
+                api_key=settings.openai_api_key,
+                search=True,
+                provider="openai_compat",
+            )
         return OpenAICompatLLM(base_url=settings.openai_base_url, api_key=settings.openai_api_key)
     if provider == "fake":
         return FakeLLM()

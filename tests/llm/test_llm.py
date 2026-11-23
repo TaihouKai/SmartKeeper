@@ -114,3 +114,66 @@ def test_recording_writes_llm_call() -> None:
 def test_fake_never_searches() -> None:
     fake = FakeLLM()
     assert fake.supports_search is False
+
+
+class StubOpenAI:
+    """模仿 SDK 的 client.responses.create(...)。"""
+
+    def __init__(self, resp: Any) -> None:
+        self.sent: list[dict[str, Any]] = []
+        outer = self
+
+        class _Responses:
+            def create(self, **kw: Any) -> Any:
+                outer.sent.append(kw)
+                return resp
+
+        self.responses = _Responses()
+
+
+def oa_resp(
+    text: str, output: list[Any], status: str = "completed", reason: str | None = None
+) -> Any:
+    return SimpleNamespace(
+        output=output,
+        output_text=text,
+        status=status,
+        incomplete_details=SimpleNamespace(reason=reason) if reason else None,
+        model="gpt-x",
+        usage=SimpleNamespace(input_tokens=7, output_tokens=3),
+    )
+
+
+def test_openai_responses_search_records_and_tool_only_when_allowed() -> None:
+    from smartkeeper.llm import OpenAIResponsesLLM
+
+    call = SimpleNamespace(
+        type="web_search_call",
+        action=SimpleNamespace(
+            type="search", query="rule lookup", sources=[SimpleNamespace(url="https://a")]
+        ),
+    )
+    stub = StubOpenAI(oa_resp("hello", [call]))
+    llm = OpenAIResponsesLLM(client=stub, search=True)  # type: ignore[arg-type]
+    res = llm.complete(
+        purpose="chat",
+        model="gpt-x",
+        system="sys",
+        messages=[{"role": "user", "content": "hi"}],
+        allow_search=True,
+    )
+    assert res.text == "hello" and res.input_tokens == 7
+    assert [(s.query, s.urls) for s in res.searches] == [("rule lookup", ("https://a",))]
+    assert stub.sent[0]["tools"] == [{"type": "web_search"}]
+    assert stub.sent[0]["instructions"] == "sys"
+    llm.complete(purpose="feedback", model="gpt-x", system="s", messages=[], allow_search=False)
+    assert "tools" not in stub.sent[1]
+
+
+def test_openai_responses_incomplete_without_text_is_an_error() -> None:
+    from smartkeeper.llm import OpenAIResponsesLLM
+
+    stub = StubOpenAI(oa_resp("", [], status="incomplete", reason="max_output_tokens"))
+    llm = OpenAIResponsesLLM(client=stub)  # type: ignore[arg-type]
+    with pytest.raises(LLMError):
+        llm.complete(purpose="x", model="gpt-x", system="s", messages=[])
