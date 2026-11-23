@@ -277,3 +277,50 @@ def test_talk_needs_perception() -> None:
     e0 = t.entities(t.players[0])[0]
     with pytest.raises(ValidationFailed):
         e.start_talk(t.players[0], e0, "npc_1")  # NPC 在 190 米外，感知不到
+
+
+def test_bystanders_within_hearing_range_overhear() -> None:
+    t = setup_table("single", 2)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    # 夹具的 hear_distance = 30 × hear_multiplier(1)；NPC 在 (-50, 150)
+    e.admin_patch(
+        g,
+        [
+            PatchOp(op="replace", path=f"/entities/{e0}/pos", value={"x": -50, "y": 145, "z": 0}),
+            PatchOp(op="replace", path=f"/entities/{e1}/pos", value={"x": -50, "y": 120, "z": 0}),
+        ],
+    )
+    wait(t, p1, 600)  # p1 在 25 米外忙着自己的事
+    talk = e.start_talk(p0, e0, "npc_1")
+    e.say(g, talk.id, p0, "the bag is under the bench")
+    e.end_talk(g, talk.id, p0)
+    wait(t, p0, 10)
+    e.close_round(g)
+    assert e.overhearers(g) == {talk.id: [e1]}
+    with pytest.raises(ValidationFailed) as err:
+        e.apply_adjudication(g, t.simple_adjudication(only=[p0]))
+    assert "adj.affected_needs_outcome" in {p.code for p in err.value.problems}
+    publish(t, only=[p0, p1])
+
+
+def test_empty_or_far_talks_are_not_overheard() -> None:
+    t = setup_table("single", 2)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    e.admin_patch(
+        g,
+        [
+            PatchOp(op="replace", path=f"/entities/{e0}/pos", value={"x": -50, "y": 145, "z": 0}),
+            PatchOp(op="replace", path=f"/entities/{e1}/pos", value={"x": -50, "y": 100, "z": 0}),
+        ],
+    )
+    talk = e.start_talk(p0, e0, "npc_1")
+    e.end_talk(g, talk.id, p0)  # 一句话都没说
+    assert e.overhearers(g) == {}
+    talk = e.start_talk(p0, e0, "npc_1")
+    e.say(g, talk.id, p0, "psst")
+    e.end_talk(g, talk.id, p0)
+    assert e.overhearers(g) == {}  # 45 米，超出 30 米的听力范围

@@ -717,6 +717,32 @@ class Engine:
                 out.append(p.id)
         return out
 
+    def overhearers(self, game_id: str) -> dict[str, list[str]]:
+        """本轮说过话的对话，各被哪些旁人听到：离任一方的直线距离不超过旁人自己的 hear_distance。
+
+        不管墙，不分清楚和模糊：听到的就是全部内容，由 KP 在反馈里转述。对话发生在本轮开始的时刻。
+        """
+        r = self.round(game_id)
+        space = self._space(game_id)
+        out: dict[str, list[str]] = {}
+        for t in self.talks(game_id):
+            if t.round_no != r.no or not t.messages:
+                continue
+            speakers = [space.bodies[e].pos for e in (t.a_entity, t.b_entity) if e in space.bodies]
+            heard: list[str] = []
+            for eid, body in sorted(space.bodies.items()):
+                if eid in (t.a_entity, t.b_entity):
+                    continue
+                try:
+                    reach = space.derived(eid, "hear_distance")
+                except ValidationFailed:
+                    continue
+                if any(self._spatial.distance(body.pos, p) <= reach + 1e-6 for p in speakers):
+                    heard.append(eid)
+            if heard:
+                out[t.id] = heard
+        return out
+
     def positions_at_end(self, game_id: str) -> dict[str, Location]:
         """进行中的行动在本轮结束时刻把各实体带到的位置（KP 没有另行安排时）。"""
         _, end = self.round_window(game_id)
@@ -1260,7 +1286,8 @@ class Engine:
         after = self._space_for(m, cur, pack)
         problems += self._check_encounters(adj, after)
         problems += self._check_area_effects(game_id, r.no, adj)
-        # 感知范围里的人变了、或角色卡被改了的玩家，引擎认定受到了影响，必须有结果
+        # 感知范围里的人变了、角色卡被改了、或旁听到了对话的玩家，引擎认定受到了影响，必须有结果
+        heard = [e for ents in self.overhearers(game_id).values() for e in ents]
         for pid in sorted(set(players) - outcome_players):
             changed = [
                 e
@@ -1269,7 +1296,8 @@ class Engine:
                 and set(start_space.perceived_by(e)) != set(after.perceived_by(e))
             ]
             touched = adjv.touched_entities(adj.state_patch) & controls.get(pid, set())
-            if changed or touched:
+            overheard = set(heard) & controls.get(pid, set())
+            if changed or touched or overheard:
                 problems.append(
                     Problem(
                         code="adj.affected_needs_outcome", path="outcomes", params={"player": pid}

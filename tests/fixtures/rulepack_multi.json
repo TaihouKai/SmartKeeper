@@ -104,6 +104,15 @@
             "name": "fly_speed",
             "formula": "fly_multiplier * move_speed",
             "unit": "m/min"
+          },
+          {
+            "name": "hear_multiplier",
+            "formula": "1"
+          },
+          {
+            "name": "hear_distance",
+            "formula": "30 * hear_multiplier",
+            "unit": "m"
           }
         ]
       },
@@ -190,6 +199,15 @@
             "name": "fly_speed",
             "formula": "fly_multiplier * move_speed",
             "unit": "m/min"
+          },
+          {
+            "name": "hear_multiplier",
+            "formula": "1"
+          },
+          {
+            "name": "hear_distance",
+            "formula": "30 * hear_multiplier",
+            "unit": "m"
           }
         ]
       }

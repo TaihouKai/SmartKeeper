@@ -19,6 +19,8 @@ REQUIRED_DERIVED: tuple[str, ...] = (
     "move_speed",
     "fly_multiplier",
     "fly_speed",
+    "hear_multiplier",
+    "hear_distance",
 )
 # 引擎必需的字段：每个模板都必须有这个“是/否”字段，决定移动按飞行还是地面计算。
 FLY_FIELD = "can_fly"

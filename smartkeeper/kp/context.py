@@ -349,6 +349,10 @@ class Contexts:
             ),
             section("必须有结果的玩家（行动做完了或没有行动）", dumps(e.outcome_required(game_id))),
             section("本轮的对话（对话模式，双方原话）", render_events(talk, names)),
+            section(
+                "旁听到对话的实体（对话 id -> 实体 id；他们听到了全部内容，要在他们的结果里转述）",
+                dumps(e.overhearers(game_id)),
+            ),
             section("声明核对结果", dumps(claims)),
             section("聊天问答（背景，不是行动）", render_events(chat, names)),
         ]

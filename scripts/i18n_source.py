@@ -403,6 +403,20 @@ T: dict[str, tuple[str, str]] = {
         "飞行速度：每分钟能飞多少米，默认公式是 fly_multiplier * move_speed。只对能飞的角色有用。",
         "Metres per minute when flying; default fly_multiplier * move_speed. Only matters for characters who can fly.",
     ),
+    "rules.help.hear_multiplier": (
+        "听力系数：默认 1，可以直接保留。技能和状态的效果可以修改它（例如“顺风耳 ×2”），在听力范围的公式里用它。",
+        "Hearing multiplier, default 1. Skills and statuses can modify it (e.g. keen ears ×2); use it in the hearing range formula.",
+    ),
+    "rules.help.hear_distance": (
+        "听力范围：多远（米）以内的人说话能被这个角色听到。对话模式里，离任一方不超过这个距离的旁人会听到全部内容，由 KP 在他们的反馈里转述。必须填公式，例如 30 * hear_multiplier。不管墙。",
+        "How far (in metres) this character hears people talking. Bystanders within this range of either speaker hear the whole conversation, relayed by the keeper. Required, e.g. 30 * hear_multiplier. Walls are ignored.",
+    ),
+    "rules.ph.formula_hear_multiplier": ("例如 1", "e.g. 1"),
+    "rules.ph.formula_hear_distance": ("例如 30 * hear_multiplier", "e.g. 30 * hear_multiplier"),
+    "rules.ph.label_hear_multiplier": ("例如 听力系数", "e.g. Hearing multiplier"),
+    "rules.ph.label_hear_distance": ("例如 听力范围", "e.g. Hearing range"),
+    "rules.ph.unit_hear_multiplier": ("无单位", "none"),
+    "rules.ph.unit_hear_distance": ("米", "m"),
     "rules.ph.formula_fly_multiplier": ("例如 1", "e.g. 1"),
     "rules.ph.formula_fly_speed": (
         "例如 fly_multiplier * move_speed",
