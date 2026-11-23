@@ -1175,14 +1175,22 @@ class Engine:
                 ops.append(PatchOp(op="remove", path=f"/placements/{plid}"))
         for plid, ents in sorted(fired.items()):
             p = places.get(plid)
-            if p is None or plid in gone or p.charges is None:
+            if p is None or plid in gone:
                 continue
-            left = p.charges - len(ents)
-            if left <= 0:
+            if p.charges is not None and p.charges - len(ents) <= 0:
                 gone.add(plid)
                 ops.append(PatchOp(op="remove", path=f"/placements/{plid}"))
-            else:
-                ops.append(PatchOp(op="replace", path=f"/placements/{plid}/charges", value=left))
+                continue
+            if p.charges is not None:
+                ops.append(
+                    PatchOp(
+                        op="replace",
+                        path=f"/placements/{plid}/charges",
+                        value=p.charges - len(ents),
+                    )
+                )
+            known: list[JsonValue] = [*sorted({*p.known_by, *ents})]
+            ops.append(PatchOp(op="replace", path=f"/placements/{plid}/known_by", value=known))
         for plid, p in sorted(places.items()):
             if plid not in gone and p.expires_at is not None and p.expires_at <= end:
                 gone.add(plid)

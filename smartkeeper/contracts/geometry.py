@@ -25,6 +25,7 @@ class Placement(Frozen):
     expires_at: int | None = None  # 游戏内秒；None 表示一直存在
     notify_owner: bool = True
     created_at: int = 0
+    known_by: tuple[str, ...] = ()  # 触发过它的实体：从此知道它在那里，不管感知系数
 
 
 class Location(Frozen):

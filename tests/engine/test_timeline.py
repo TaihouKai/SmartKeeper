@@ -501,3 +501,46 @@ def test_placement_must_come_from_a_placement_entry() -> None:
         )
     codes = {p.code for p in err.value.problems}
     assert {"adj.not_a_placement", "adj.unknown_placement"} <= codes
+
+
+def test_triggering_reveals_an_invisible_trap() -> None:
+    from smartkeeper.contracts import PlaceIn
+
+    pack = trap_pack()
+    tpl = pack.templates[0]
+    g = tpl.groups[0]
+    preset = g.presets[0]
+    spec = preset.placement
+    assert spec is not None
+    invisible = preset.model_copy(
+        update={"placement": spec.model_copy(update={"perceive_multiplier": "0", "charges": ""})}
+    )
+    g = g.model_copy(update={"presets": (invisible,)})
+    pack = pack.model_copy(update={"templates": (tpl.model_copy(update={"groups": (g,)}),)})
+    t = setup_table("single", 2, pack=pack)
+    e, gid = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    e.admin_patch(
+        gid,
+        [
+            PatchOp(op="replace", path=f"/entities/{e0}/pos", value={"x": -90, "y": -90, "z": 0}),
+            PatchOp(op="replace", path=f"/entities/{e1}/pos", value={"x": 150, "y": 100, "z": 0}),
+        ],
+    )
+    wait(t, p0, 10)
+    walk(t, p1, Point(x=50, y=100))
+    e.close_round(gid)
+    item = e.activities(gid)[e0].steps[0].item
+    publish(
+        t,
+        only=[p0],
+        placements=[PlaceIn(owner=e0, entry="trap", at=Point(x=100, y=100), because=item)],
+    )
+    wait(t, p0, 300)
+    e.close_round(gid)
+    publish(t, only=[p0, p1])
+    # 无限次数：陷阱还在；感知系数 0，但 p1 触发过，所以知道它在那
+    assert e.world_state(gid)["placements"]["pl_1_1"]["known_by"] == [e1]  # type: ignore[index]
+    seen = e.scene(gid, p1).entities[0].placements
+    assert len(seen) == 1 and not seen[0].mine

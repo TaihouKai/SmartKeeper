@@ -34,7 +34,10 @@ def perceived_placements(space: Space, entity_id: str) -> list[str]:
     """这个实体此刻能察觉到的设置物。"""
     places = placements_of(space.state.get("placements"))
     obs = space.bodies.get(entity_id)
-    mine = sorted(pid for pid, p in places.items() if p.owner == entity_id)
+    # 设置者、以及触发过它的实体，总能看到它（感知系数为 0 的也一样）
+    mine = sorted(
+        pid for pid, p in places.items() if p.owner == entity_id or entity_id in p.known_by
+    )
     if obs is None:
         return mine
     others = [
@@ -46,7 +49,7 @@ def perceived_placements(space: Space, entity_id: str) -> list[str]:
             concealment=p.perceive_multiplier,
         )
         for pid, p in sorted(places.items())
-        if p.owner != entity_id and p.perceive_multiplier > 0
+        if p.owner != entity_id and entity_id not in p.known_by and p.perceive_multiplier > 0
     ]
     seen = space.spatial.perceivable(space.map, space.changes, obs, others) if others else []
     return sorted(set(mine) | set(seen))
