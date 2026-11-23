@@ -1216,7 +1216,11 @@ export interface components {
         };
         /**
          * Effect
-         * @description 一个效果。带 target/op/value 的由引擎执行；只有描述的是概念性效果，由 KP 理解。
+         * @description 一个效果。带 target 和 formula 的由引擎执行；只有描述的是概念性效果，由 KP 理解。
+         *
+         *     formula 算出 target 的新值，和规则包里的公式一样什么都能引用；写 target 自己的名字表示
+         *     “到这一步为止的值”（例如 move_speed * 1.2），也可以完全不管原值（例如 str + agi）。
+         *     同一个推导值上的多个效果接力计算：固定条目 → 玩家写的条目（按 priority 从小到大）→ 状态（按添加先后）。
          */
         Effect: {
             /**
@@ -1224,12 +1228,12 @@ export interface components {
              * @default
              */
             description: string;
-            /** Op */
-            op?: ("add" | "mul") | null;
+            /** Formula */
+            formula?: string | null;
+            /** Priority */
+            priority?: number | null;
             /** Target */
             target?: string | null;
-            /** Value */
-            value?: string | null;
         };
         /** Encounter */
         Encounter: {

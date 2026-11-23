@@ -346,6 +346,7 @@ def validate_sheet(pack: RulePack, tpl: EntityTemplate, raw: JsonValue) -> list[
             problems += _check_value(None, fd, sheet.fields[name], f"fields.{name}")
     for g in groups.values():
         problems += _check_group_entries(pack, tpl, g, sheet, derived)
+    problems += _check_priorities(sheet)
     for i, st in enumerate(sheet.statuses):
         if st.modifier is not None:
             problems += _check_effect(
@@ -379,6 +380,31 @@ def _check_group_entries(
         )
     for i, entry in enumerate(entries):
         problems += _check_entry(pack, tpl, g, entry, derived, f"{path}[{i}]")
+    return problems
+
+
+def _check_priorities(sheet: Sheet) -> list[Problem]:
+    """玩家写的带公式的效果必须有 priority，同一张卡上不能重复。"""
+    problems: list[Problem] = []
+    seen: dict[int, str] = {}
+    for gname, entries in sorted(sheet.groups.items()):
+        for i, entry in enumerate(entries):
+            for j, eff in enumerate(entry.effects):
+                if not eff.is_mechanical:
+                    continue
+                path = f"groups.{gname}[{i}].effects[{j}].priority"
+                if eff.priority is None:
+                    problems.append(Problem(code="sheet.effect_priority_missing", path=path))
+                elif eff.priority in seen:
+                    problems.append(
+                        Problem(
+                            code="sheet.effect_priority_duplicate",
+                            path=path,
+                            params={"priority": eff.priority, "other": seen[eff.priority]},
+                        )
+                    )
+                else:
+                    seen[eff.priority] = entry.name
     return problems
 
 
@@ -422,22 +448,20 @@ def _check_effect(
     derived: set[str],
     path: str,
 ) -> list[Problem]:
-    parts = (eff.target, eff.op, eff.value)
-    if all(p is None for p in parts):
+    if eff.target is None and eff.formula is None:
         if not eff.description.strip():
             return [Problem(code="sheet.effect_empty", path=path)]
         return []
-    if any(p is None for p in parts):
+    if eff.target is None or eff.formula is None:
         return [Problem(code="sheet.effect_incomplete", path=path)]
     problems: list[Problem] = []
     if eff.target not in derived:
         problems.append(Problem(code="sheet.effect_target", path=path, params={"name": eff.target}))
-    assert eff.value is not None
     problems += check_formula(
         pack,
         tpl,
-        eff.value,
-        f"{path}.value",
+        eff.formula,
+        f"{path}.formula",
         entry_fields=list(entry_fields) if entry_fields is not None else None,
     )
     return problems

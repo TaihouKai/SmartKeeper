@@ -94,22 +94,74 @@ def test_mechanical_and_conceptual_effects(rules: RulesService) -> None:
     assert rules.derived_value(pack, "person", mech, "perception_radius") == plain * 2
 
 
-def test_add_before_mul(rules: RulesService) -> None:
+def test_statuses_chain_in_the_order_added(rules: RulesService) -> None:
     pack = load_pack("single")
     sheet: dict[str, JsonValue] = {
         **BASE,
         "statuses": [
             {
                 "tag": "focused",
-                "modifier": {"target": "perception_radius", "op": "mul", "value": "2"},
+                "modifier": {"target": "perception_radius", "formula": "perception_radius * 2"},
             },
             {
                 "tag": "lantern",
-                "modifier": {"target": "perception_radius", "op": "add", "value": "10"},
+                "modifier": {"target": "perception_radius", "formula": "perception_radius + 10"},
             },
         ],
     }
-    assert rules.derived_value(pack, "person", sheet, "perception_radius") == (90 + 10) * 2
+    assert rules.derived_value(pack, "person", sheet, "perception_radius") == 90 * 2 + 10
+
+
+def test_legacy_add_mul_effects_still_load(rules: RulesService) -> None:
+    pack = load_pack("single")
+    sheet: dict[str, JsonValue] = {
+        **BASE,
+        "statuses": [
+            {"tag": "old", "modifier": {"target": "perception_radius", "op": "mul", "value": "2"}}
+        ],
+    }
+    assert rules.derived_value(pack, "person", sheet, "perception_radius") == 180
+
+
+def skill(name: str, formula: str, priority: int | None) -> dict[str, JsonValue]:
+    eff: dict[str, JsonValue] = {"target": "move_speed", "formula": formula}
+    if priority is not None:
+        eff["priority"] = priority
+    return {"name": name, "fields": {"level": 1}, "effects": [eff]}
+
+
+def test_player_effects_run_by_priority_and_may_use_anything(rules: RulesService) -> None:
+    pack = load_pack("single")
+    # move_speed = 60 + dex(60) = 120
+    sheet: dict[str, JsonValue] = {
+        **BASE,
+        "groups": {
+            "skills": [
+                skill("double", "move_speed * 2", 1),
+                skill("rewrite", "str + dex", 0),  # 先算：完全不管原值
+            ]
+        },
+        "statuses": [
+            {"tag": "hurt", "modifier": {"target": "move_speed", "formula": "move_speed - per"}}
+        ],
+    }
+    # 玩家技能按 priority：str + dex = 110，再 × 2 = 220；最后状态：220 - per(40) = 180
+    assert rules.derived_value(pack, "person", sheet, "move_speed") == 180
+    filled = rules.init_sheet(pack, "person", sheet)
+    assert rules.validate_sheet(pack, "person", filled) == []
+
+
+def test_player_effect_priority_required_and_unique(rules: RulesService) -> None:
+    pack = load_pack("single")
+
+    def codes(*skills: dict[str, JsonValue]) -> set[str]:
+        sheet = rules.init_sheet(pack, "person", {**BASE, "groups": {"skills": list(skills)}})
+        return {p.code for p in rules.validate_sheet(pack, "person", sheet)}
+
+    assert "sheet.effect_priority_missing" in codes(skill("a", "move_speed + 1", None))
+    assert "sheet.effect_priority_duplicate" in codes(
+        skill("a", "move_speed + 1", 3), skill("b", "move_speed * 2", 3)
+    )
 
 
 def test_sheet_validation(rules: RulesService) -> None:

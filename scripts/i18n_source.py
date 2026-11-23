@@ -77,6 +77,16 @@ T: dict[str, tuple[str, str]] = {
         "(description only, interpreted by the keeper)",
     ),
     "character.add_effect": ("添加效果", "Add effect"),
+    "character.effect_formula": ("新值的公式，例如 {name} * 1.2", "New value, e.g. {name} * 1.2"),
+    "character.effect_priority": ("顺序", "Order"),
+    "character.effect_hint": (
+        "公式算出这个值的新值，和规则里的公式一样什么都能引用；写它自己的名字表示原来的值（例如 move_speed * 1.2），也可以完全换掉（例如 str + agi）。同一个值上有好几个效果时接力计算：先算规则里的固定条目，再按“顺序”从小到大算你写的（0 最先），最后算状态。“顺序”必填，同一张卡上不能重复。",
+        "The formula gives the new value and can use anything a rule formula can; its own name means the value so far (e.g. move_speed * 1.2), or replace it outright (e.g. str + agi). Several effects on one value run in turn: fixed entries first, then yours by Order (smallest first, 0 = first), then statuses. Order is required and must be unique on the sheet.",
+    ),
+    "character.effect_hint_fixed": (
+        "公式算出这个值的新值，和规则里的公式一样什么都能引用；写它自己的名字表示原来的值（例如 move_speed * 1.2），也可以完全换掉（例如 str + agi）。固定条目的效果最先算，按定义顺序；之后是玩家写的效果（按他们填的顺序），最后是状态。",
+        "The formula gives the new value and can use anything a rule formula can; its own name means the value so far. Fixed entries run first, in the order defined; then players' effects (by their Order), then statuses.",
+    ),
     "character.shape": ("范围形状", "Area shape"),
     "character.shape_none": ("无", "None"),
     "character.add_entry": ("添加一条", "Add entry"),

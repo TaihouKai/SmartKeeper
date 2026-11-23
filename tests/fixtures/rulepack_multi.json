@@ -325,8 +325,8 @@
                 "effects": [
                   {
                     "target": "move_speed",
-                    "op": "add",
-                    "value": "100"
+                    "formula": "move_speed + 100",
+                    "priority": 0
                   }
                 ]
               }

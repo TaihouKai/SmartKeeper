@@ -81,7 +81,12 @@ def test_preset_entries_are_checked(rules: RulesService) -> None:
         {"name": "x", "effects": [{"target": "nope", "op": "add", "value": "1"}]},
     )
     codes = {p.code for p in rules.validate_pack(pack)}
-    assert codes == {"sheet.required", "sheet.unknown_field", "sheet.effect_target"}
+    assert codes == {
+        "sheet.required",
+        "sheet.unknown_field",
+        "sheet.effect_target",
+        "formula.unknown_name",
+    }
 
 
 def test_condition_error_means_inactive(rules: RulesService) -> None:

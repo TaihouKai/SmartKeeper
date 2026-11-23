@@ -6,7 +6,8 @@ import { FormulaInput } from "./components";
 type FieldDef = Schemas["FieldDef"];
 type GroupDef = Schemas["GroupDef"];
 
-export type Effect = { description: string; target: string | null; op: "add" | "mul" | null; value: string | null };
+// formula 算出 target 的新值；写 target 自己的名字表示到这一步为止的值。priority 只有玩家写的效果才有
+export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null };
 export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
 export type Entry = { name: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null };
 
@@ -50,6 +51,7 @@ export function EntryEditor({
   onChange,
   onRemove,
   validate,
+  withPriority = true,
 }: {
   group: GroupDef;
   derived: string[];
@@ -57,6 +59,8 @@ export function EntryEditor({
   onChange: (e: Entry) => void;
   onRemove?: () => void;
   validate: (f: string, inEntry: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
+  /** 玩家写的条目要给效果填计算顺序；规则包的固定条目按定义顺序，不用填 */
+  withPriority?: boolean;
 }) {
   const { t } = useI18n();
   const fields = group.fields ?? [];
@@ -85,7 +89,7 @@ export function EntryEditor({
           {entry.effects.map((ef, i) => (
             <div key={i} className="sk-effect">
               <input placeholder={t("character.effect_description")} value={ef.description} onChange={(e) => onChange({ ...entry, effects: entry.effects.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)) })} />
-              <select value={ef.target ?? ""} onChange={(e) => onChange({ ...entry, effects: entry.effects.map((x, j) => (j === i ? { ...x, target: e.target.value || null } : x)) })}>
+              <select value={ef.target ?? ""} onChange={(e) => onChange({ ...entry, effects: entry.effects.map((x, j) => (j === i ? { ...x, target: e.target.value || null, formula: e.target.value ? (x.formula ?? e.target.value) : null } : x)) })}>
                 <option value="">{t("character.effect_conceptual")}</option>
                 {derived.map((d) => (
                   <option key={d} value={d}>
@@ -95,11 +99,14 @@ export function EntryEditor({
               </select>
               {ef.target && (
                 <>
-                  <select value={ef.op ?? "add"} onChange={(e) => onChange({ ...entry, effects: entry.effects.map((x, j) => (j === i ? { ...x, op: e.target.value as "add" | "mul" } : x)) })}>
-                    <option value="add">+</option>
-                    <option value="mul">×</option>
-                  </select>
-                  <FormulaInput value={ef.value ?? ""} validate={v} onChange={(val) => onChange({ ...entry, effects: entry.effects.map((x, j) => (j === i ? { ...x, value: val } : x)) })} />
+                  <span className="sk-hint sk-eq">=</span>
+                  <FormulaInput value={ef.formula ?? ""} validate={v} placeholder={t("character.effect_formula", { name: ef.target })} onChange={(val) => onChange({ ...entry, effects: entry.effects.map((x, j) => (j === i ? { ...x, formula: val } : x)) })} />
+                  {withPriority && (
+                    <label className="sk-inline sk-priority">
+                      {t("character.effect_priority")}
+                      <input type="number" min={0} className="sk-small" value={ef.priority ?? ""} onChange={(e) => onChange({ ...entry, effects: entry.effects.map((x, j) => (j === i ? { ...x, priority: e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value))) } : x)) })} />
+                    </label>
+                  )}
                 </>
               )}
               <button type="button" className="sk-link" onClick={() => onChange({ ...entry, effects: entry.effects.filter((_, j) => j !== i) })}>
@@ -107,9 +114,10 @@ export function EntryEditor({
               </button>
             </div>
           ))}
-          <button type="button" onClick={() => onChange({ ...entry, effects: [...entry.effects, { description: "", target: null, op: null, value: null }] })}>
+          <button type="button" onClick={() => onChange({ ...entry, effects: [...entry.effects, { description: "", target: null, formula: null, priority: null }] })}>
             {t("character.add_effect")}
           </button>
+          {entry.effects.some((x) => x.target) && <p className="sk-hint">{t(withPriority ? "character.effect_hint" : "character.effect_hint_fixed")}</p>}
         </div>
       )}
       {shapes.length > 0 && (

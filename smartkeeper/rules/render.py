@@ -51,7 +51,7 @@ def _template(t: EntityTemplate, include_hidden: bool) -> list[str]:
                 line += f": {p.description}"
             out.append(line)
             for eff in p.effects:
-                mech = f" `{eff.target} {eff.op} {eff.value}`" if eff.is_mechanical else ""
+                mech = f" `{eff.target} = {eff.formula}`" if eff.is_mechanical else ""
                 out.append(f"    - {eff.description}{mech}")
     out.append("")
     return out

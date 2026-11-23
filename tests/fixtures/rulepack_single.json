@@ -253,14 +253,14 @@
                   {
                     "description": "sharper senses",
                     "target": "perception_radius",
-                    "op": "mul",
-                    "value": "1.5"
+                    "formula": "perception_radius * 1.5",
+                    "priority": 1
                   },
                   {
                     "description": "a little extra",
                     "target": "perception_radius",
-                    "op": "add",
-                    "value": "self.level / 5"
+                    "formula": "perception_radius + self.level / 5",
+                    "priority": 0
                   },
                   {
                     "description": "notices liars"

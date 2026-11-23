@@ -2,24 +2,41 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
-from pydantic import JsonValue
+from pydantic import Field, JsonValue, model_validator
 
 from smartkeeper.contracts.base import Frozen
 
 
 class Effect(Frozen):
-    """一个效果。带 target/op/value 的由引擎执行；只有描述的是概念性效果，由 KP 理解。"""
+    """一个效果。带 target 和 formula 的由引擎执行；只有描述的是概念性效果，由 KP 理解。
+
+    formula 算出 target 的新值，和规则包里的公式一样什么都能引用；写 target 自己的名字表示
+    “到这一步为止的值”（例如 move_speed * 1.2），也可以完全不管原值（例如 str + agi）。
+    同一个推导值上的多个效果接力计算：固定条目 → 玩家写的条目（按 priority 从小到大）→ 状态（按添加先后）。
+    """
 
     description: str = ""
     target: str | None = None  # 作用于哪个推导值
-    op: Literal["add", "mul"] | None = None
-    value: str | None = None  # 公式；可用 self.<字段> 引用所在条目的字段
+    formula: str | None = None
+    priority: int | None = Field(default=None, ge=0)  # 玩家写的效果必填，同一张卡上不能重复
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_op(cls, data: object) -> object:
+        """旧格式 {op: add|mul, value} 换成一个公式。"""
+        if isinstance(data, dict) and "op" in data:
+            d = dict(cast(dict[str, object], data))
+            op, value, target = d.pop("op", None), d.pop("value", None), d.get("target")
+            if op in ("add", "mul") and isinstance(value, str) and isinstance(target, str):
+                d["formula"] = f"{target} {'+' if op == 'add' else '*'} ({value})"
+            return d
+        return cast(object, data)
 
     @property
     def is_mechanical(self) -> bool:
-        return self.target is not None and self.op is not None and self.value is not None
+        return self.target is not None and self.formula is not None
 
 
 class Shape(Frozen):

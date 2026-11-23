@@ -86,6 +86,9 @@ textarea.sk-code { white-space: pre; }
 .sk-entry, .sk-effect { border-left: 3px solid var(--line); padding-left: 8px; margin: 6px 0; }
 .sk-effect { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .sk-effect > * { flex: 1 1 120px; }
+.sk-effect > .sk-eq, .sk-effect > .sk-priority, .sk-effect > button { flex: 0 0 auto; }
+.sk-effect > .sk-formula { flex: 3 1 200px; }
+.sk-priority input { width: 70px; }
 fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; min-width: 0; }
 .sk-preview { font-size: 13px; }
 .sk-problems { color: var(--warn); }

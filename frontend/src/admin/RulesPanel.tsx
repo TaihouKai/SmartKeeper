@@ -264,7 +264,7 @@ function toEntry(p: Preset): Entry {
     name: p.name,
     description: p.description ?? "",
     fields: (p.fields ?? {}) as Entry["fields"],
-    effects: (p.effects ?? []).map((e) => ({ description: e.description ?? "", target: e.target ?? null, op: e.op ?? null, value: e.value ?? null })) as Effect[],
+    effects: (p.effects ?? []).map((e) => ({ description: e.description ?? "", target: e.target ?? null, formula: e.formula ?? null })) as Effect[],
     shape: (p.shape ?? null) as Shape | null,
   };
 }
@@ -286,7 +286,7 @@ function PresetCard({ p, group, derived, onChange, onRemove, validate }: { p: Pr
         {t("rules.p.when")}
         <FormulaInput value={p.when ?? ""} validate={vWhen} placeholder={t("rules.ph.when")} onChange={(x) => onChange({ ...p, when: x })} />
       </label>
-      <EntryEditor group={group} derived={derived} entry={toEntry(p)} validate={vEntry} onChange={(e) => onChange(fromEntry(e, p.when ?? ""))} onRemove={onRemove} />
+      <EntryEditor group={group} derived={derived} entry={toEntry(p)} validate={vEntry} withPriority={false} onChange={(e) => onChange(fromEntry(e, p.when ?? ""))} onRemove={onRemove} />
     </div>
   );
 }

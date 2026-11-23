@@ -88,7 +88,6 @@ class EntityContext:
     def groups(self) -> dict[str, tuple[GroupEntry, ...]]:
         if self._groups is None:
             merged = dict(self.sheet.groups)
-            # 条件公式绕回推导值再绕回条目时，_guarded 报循环，那个条目就当不生效
             for name, presets in self._guarded("presets", self.active_presets).items():
                 merged[name] = presets + merged.get(name, ())
             self._groups = merged
@@ -100,8 +99,14 @@ class EntityContext:
 
     # ---- 名字解析 ----
 
-    def resolver(self, entry: Mapping[str, JsonValue] | None = None) -> f.Resolver:
+    def resolver(
+        self,
+        entry: Mapping[str, JsonValue] | None = None,
+        overrides: Mapping[str, f.Value] | None = None,
+    ) -> f.Resolver:
         def resolve(name: str) -> f.Value:
+            if overrides is not None and name in overrides:
+                return overrides[name]
             if name.startswith("self."):
                 if entry is None:
                     raise f.FormulaError("formula.self_outside_entry", name=name)
@@ -135,11 +140,17 @@ class EntityContext:
         text: str,
         entry: Mapping[str, JsonValue] | None = None,
         faces: f.Faces | None = None,
+        overrides: Mapping[str, f.Value] | None = None,
     ) -> f.Value:
-        return f.evaluate(f.parse(text), self.resolver(entry), self._lookup, faces)
+        return f.evaluate(f.parse(text), self.resolver(entry, overrides), self._lookup, faces)
 
-    def eval_num(self, text: str, entry: Mapping[str, JsonValue] | None = None) -> float:
-        v = self.eval(text, entry)
+    def eval_num(
+        self,
+        text: str,
+        entry: Mapping[str, JsonValue] | None = None,
+        overrides: Mapping[str, f.Value] | None = None,
+    ) -> float:
+        v = self.eval(text, entry, overrides=overrides)
         if isinstance(v, str):
             raise f.FormulaError("formula.text_result", value=v)
         return v
@@ -156,13 +167,25 @@ class EntityContext:
     # ---- 推导值 ----
 
     def modifiers_for(self, name: str) -> list[tuple[Effect, Mapping[str, JsonValue] | None, str]]:
-        """作用于某个推导值的全部带公式的效果：(效果, 所在条目的字段, 来源说明)。"""
+        """作用于某个推导值的全部带公式的效果，按计算顺序：(效果, 所在条目的字段, 来源说明)。
+
+        固定条目（按分组和条目的定义顺序）→ 玩家写的条目（按 priority 从小到大）→ 状态（按添加先后）。
+        """
         out: list[tuple[Effect, Mapping[str, JsonValue] | None, str]] = []
-        for group, entries in sorted(self.groups().items()):
+        presets = self._guarded("presets", self.active_presets)
+        for g in self.template.groups:
+            for entry in presets.get(g.name, ()):
+                for eff in entry.effects:
+                    if eff.is_mechanical and eff.target == name:
+                        out.append((eff, entry.fields, f"{g.name}:{entry.name}"))
+        own: list[tuple[int, int, Effect, Mapping[str, JsonValue], str]] = []
+        for group, entries in sorted(self.sheet.groups.items()):
             for entry in entries:
                 for eff in entry.effects:
                     if eff.is_mechanical and eff.target == name:
-                        out.append((eff, entry.fields, f"{group}:{entry.name}"))
+                        prio = eff.priority if eff.priority is not None else 1 << 30
+                        own.append((prio, len(own), eff, entry.fields, f"{group}:{entry.name}"))
+        out += [(eff, fields, src) for _, _, eff, fields, src in sorted(own, key=lambda x: x[:2])]
         for st in self.sheet.statuses:
             eff = st.modifier
             if eff is not None and eff.is_mechanical and eff.target == name:
@@ -179,24 +202,14 @@ class EntityContext:
 
         def compute() -> DerivedValue:
             base = self.eval_num(d.formula)
-            adds = 0.0
-            muls = 1.0
+            value = base
             sources: list[str] = []
-            mods = self.modifiers_for(name)
-            # 叠加顺序固定：先全部加法，再全部乘法
-            for eff, entry, src in mods:
-                if eff.op == "add":
-                    assert eff.value is not None
-                    adds += self.eval_num(eff.value, entry)
-                    sources.append(src)
-            for eff, entry, src in mods:
-                if eff.op == "mul":
-                    assert eff.value is not None
-                    muls *= self.eval_num(eff.value, entry)
-                    sources.append(src)
-            return DerivedValue(
-                name=name, base=base, value=(base + adds) * muls, modifiers=tuple(sources)
-            )
+            # 接力：每个效果的公式里，这个推导值自己的名字是到上一步为止的值
+            for eff, entry, src in self.modifiers_for(name):
+                assert eff.formula is not None
+                value = self.eval_num(eff.formula, entry, overrides={name: value})
+                sources.append(src)
+            return DerivedValue(name=name, base=base, value=value, modifiers=tuple(sources))
 
         result = self._guarded(name, compute)
         self._cache[name] = result
