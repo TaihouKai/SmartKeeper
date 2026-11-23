@@ -133,23 +133,59 @@ export function FormulaInput({
     }, 300);
     return () => window.clearTimeout(timer.current);
   }, [value, validate]);
-  const word = /[\p{L}_][\p{L}\p{N}_.]*$/u.exec(value)?.[0] ?? "";
-  const suggestions = focus && word ? names.filter((n) => n.startsWith(word) && n !== word).slice(0, 6) : [];
+  // 补全光标前的那个词：Tab 或回车填入选中的一项，上下键切换，Esc 收起
+  const input = useRef<HTMLInputElement>(null);
+  const [caret, setCaret] = useState<number | null>(null);
+  const [active, setActive] = useState(0);
+  const [closed, setClosed] = useState(false);
+  const end = caret ?? value.length;
+  const word = /[\p{L}_][\p{L}\p{N}_.]*$/u.exec(value.slice(0, end))?.[0] ?? "";
+  const suggestions = focus && word && !closed ? names.filter((n) => n.startsWith(word) && n !== word).slice(0, 8) : [];
+  const pick = (s: string) => {
+    const next = value.slice(0, end - word.length) + s + value.slice(end);
+    const at = end - word.length + s.length;
+    onChange(next);
+    setCaret(at);
+    window.setTimeout(() => input.current?.setSelectionRange(at, at), 0);
+  };
+  const sel = suggestions.length ? Math.min(active, suggestions.length - 1) : 0;
   return (
     <span className="sk-formula">
       <input
+        ref={input}
         className={problems.length ? "invalid" : ""}
         value={value}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setCaret(e.target.selectionStart);
+          setActive(0);
+          setClosed(false);
+        }}
+        onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
+        onKeyDown={(e) => {
+          if (!suggestions.length) return;
+          if (e.key === "Tab" || e.key === "Enter") {
+            e.preventDefault();
+            pick(suggestions[sel] ?? word);
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActive((sel + 1) % suggestions.length);
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive((sel - 1 + suggestions.length) % suggestions.length);
+          } else if (e.key === "Escape") {
+            setClosed(true);
+          }
+        }}
         onFocus={() => setFocus(true)}
         onBlur={() => window.setTimeout(() => setFocus(false), 150)}
         spellCheck={false}
       />
       {suggestions.length > 0 && (
         <span className="sk-suggest">
-          {suggestions.map((s) => (
-            <button key={s} type="button" onMouseDown={() => onChange(value.slice(0, value.length - word.length) + s)}>
+          {suggestions.map((s, i) => (
+            <button key={s} type="button" className={i === sel ? "active" : ""} onMouseDown={(e) => { e.preventDefault(); pick(s); }} onMouseEnter={() => setActive(i)}>
               {s}
             </button>
           ))}
