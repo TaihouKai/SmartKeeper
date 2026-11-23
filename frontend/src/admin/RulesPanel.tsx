@@ -21,10 +21,12 @@ const FLY_FIELD = "can_fly";
 const DEFAULT_FORMULA: Record<string, string> = { concealment: "1", fly_multiplier: "1", fly_speed: "fly_multiplier * move_speed", hear_multiplier: "1" };
 const DEFAULT_UNIT: Record<string, string> = { perception_radius: "m", move_speed: "m/min", fly_speed: "m/min", hear_distance: "m" };
 
-export function blankPack(): Pack {
+type T = (k: string) => string;
+
+export function blankPack(t: T): Pack {
   return {
     world: { name: "", description: "", canon: "", reference_sites: [] },
-    templates: [blankTemplate("character")],
+    templates: [blankTemplate("character", t)],
     player_entities: [{ template: "character", min: 1, max: 1 }],
     formulas: [],
     tables: [],
@@ -34,37 +36,46 @@ export function blankPack(): Pack {
   };
 }
 
-/** 以前存的规则包可能缺少后来新增的引擎必需项（能否飞行字段、飞行速度推导值）：打开时补上默认的。 */
-function withEngineDefaults(p: Pack): Pack {
-  const blank = blankTemplate("x");
+/** 引擎必需项的默认显示名（按界面语言），也是它们显示名框里的提示。 */
+const REQUIRED_FIELDS = ["appearance", FLY_FIELD];
+function defaultLabel(t: T, name: string): string {
+  return t(`rules.default_label.${name}`);
+}
+
+/** 以前存的规则包可能缺少后来新增的引擎必需项（能否飞行字段、飞行速度等推导值）：打开时补上默认的；必需项的显示名空着就填默认的。 */
+function withEngineDefaults(p: Pack, t: T): Pack {
+  const blank = blankTemplate("x", t);
+  const named = <X extends { name: string; label?: string }>(x: X): X => (x.label ? x : { ...x, label: defaultLabel(t, x.name) });
   return {
     ...p,
     templates: p.templates.map((tpl) => {
       const fields = tpl.fields ?? [];
       const derived = tpl.derived ?? [];
       const fly = blank.fields?.find((f) => f.name === FLY_FIELD);
+      const allFields = fly && !fields.some((f) => f.name === FLY_FIELD) ? [...fields, fly] : fields;
+      const allDerived = [...derived, ...(blank.derived ?? []).filter((d) => !derived.some((x) => x.name === d.name))];
       return {
         ...tpl,
-        fields: fly && !fields.some((f) => f.name === FLY_FIELD) ? [...fields, fly] : fields,
-        derived: [...derived, ...(blank.derived ?? []).filter((d) => !derived.some((x) => x.name === d.name))],
+        fields: allFields.map((f) => (REQUIRED_FIELDS.includes(f.name) ? named(f) : f)),
+        derived: allDerived.map((d) => (REQUIRED_DERIVED.includes(d.name) ? named(d) : d)),
       };
     }),
   };
 }
 
-function blankTemplate(name: string): Template {
+function blankTemplate(name: string, t: T): Template {
   return {
     name,
     label: "",
     appearance_field: "appearance",
     fields: [
-      { name: "appearance", label: "", description: "", kind: "text", cls: "player", required: true, hidden: false, choices: [] },
-      { name: FLY_FIELD, label: "", description: "", kind: "boolean", cls: "player", required: true, hidden: false, choices: [] },
+      { name: "appearance", label: defaultLabel(t, "appearance"), description: "", kind: "text", cls: "player", required: true, hidden: false, choices: [] },
+      { name: FLY_FIELD, label: defaultLabel(t, FLY_FIELD), description: "", kind: "boolean", cls: "player", required: true, hidden: false, choices: [] },
     ],
     groups: [],
     derived: REQUIRED_DERIVED.map((n) => ({
       name: n,
-      label: "",
+      label: defaultLabel(t, n),
       formula: DEFAULT_FORMULA[n] ?? "",
       unit: DEFAULT_UNIT[n] ?? null,
       hidden: false,
@@ -132,7 +143,7 @@ function FieldCard({
         </label>
         <label>
           {t("rules.f.label")}
-          <input value={f.label ?? ""} placeholder={isAppearance ? t("rules.ph.appearance_label") : t("rules.ph.field_label")} onChange={(e) => onChange({ ...f, label: e.target.value })} />
+          <input value={f.label ?? ""} placeholder={isAppearance ? t("rules.ph.appearance_label") : isFly ? t("rules.ph.label_can_fly") : t("rules.ph.field_label")} onChange={(e) => onChange({ ...f, label: e.target.value })} />
         </label>
         <label>
           {t("rules.f.kind")}
@@ -438,7 +449,7 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
       {pack.templates.map((tp, i) => (
         <TemplateEditor key={i} tpl={tp} validate={validate} onChange={(x) => ted.update(i, x)} onRemove={() => ted.remove(i)} />
       ))}
-      <button onClick={() => ted.add(blankTemplate(`template_${pack.templates.length + 1}`))}>{t("rules.add_template")}</button>
+      <button onClick={() => ted.add(blankTemplate(`template_${pack.templates.length + 1}`, t))}>{t("rules.add_template")}</button>
       </Fold>
 
       <Fold title={t("rules.player_entities")}>
@@ -646,7 +657,7 @@ export function RulesPanel() {
   const { t, lang } = useI18n();
   const packs = usePoll(() => call(api.GET("/api/admin/rulepacks")), 600_000);
   const [current, setCurrent] = useState<{ id: string | null; version: number | null }>({ id: null, version: null });
-  const [pack, setPack] = useState<Pack>(blankPack);
+  const [pack, setPack] = useState<Pack>(() => blankPack(t));
   const [problems, setProblems] = useState<Schemas["Problem"][] | null>(null);
   const [checkError, setCheckError] = useState<unknown>(null);
   const [draftAt, setDraftAt] = useState<string | null>(null);
@@ -664,7 +675,7 @@ export function RulesPanel() {
   const load = (p: Pack, id: string | null, version: number | null, draft: string | null) => {
     // 基准是原样的内容：补了引擎新增的必需项就算有修改，几秒后自动存成草稿
     baseline.current = JSON.stringify(p);
-    setPack(withEngineDefaults(p));
+    setPack(withEngineDefaults(p, t));
     setCurrent({ id, version });
     setDraftAt(draft);
     setChoice(id ? `${id}|${version ?? "draft"}` : "");
@@ -731,7 +742,7 @@ export function RulesPanel() {
   const discardDraft = (id: string) =>
     void act.run(async () => {
       await call(api.DELETE("/api/admin/rulepacks/{pack_id}/draft", { params: { path: { pack_id: id } } }));
-      if (current.id === id) load(blankPack(), null, null, null);
+      if (current.id === id) load(blankPack(t), null, null, null);
       setChoice("");
       void packs.refresh();
     });
@@ -797,7 +808,7 @@ export function RulesPanel() {
           )}
         </div>
         <div className="sk-row">
-          <button onClick={() => load(blankPack(), null, null, null)}>{t("rules.new")}</button>
+          <button onClick={() => load(blankPack(t), null, null, null)}>{t("rules.new")}</button>
           <label className="sk-button sk-file">
             {t("rules.import")}
             <input type="file" accept=".json,application/json" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />

@@ -418,6 +418,17 @@
       "name": "名字（公式里用的英文名）",
       "unit": "单位"
     },
+    "default_label": {
+      "appearance": "外观",
+      "can_fly": "飞行能力",
+      "concealment": "匿踪系数",
+      "fly_multiplier": "飞行速度系数",
+      "fly_speed": "飞行速度",
+      "hear_distance": "听力范围",
+      "hear_multiplier": "听力系数",
+      "move_speed": "移动速度",
+      "perception_radius": "感知半径"
+    },
     "derived": "推导值",
     "derived_hint": "由公式从别的字段算出来的数，玩家不能直接填。下面三项是引擎必需的：名字不能改、不能删，但公式要你来写。公式怎么写见页面底部的“公式速查”。",
     "draft_chip": "草稿（{time}）",
@@ -532,6 +543,7 @@
       "group_max": "不限",
       "group_name": "例如 class_skills",
       "initial": "例如 hp_max",
+      "label_can_fly": "例如 飞行能力",
       "label_concealment": "例如 匿踪系数",
       "label_fly_multiplier": "例如 飞行速度系数",
       "label_fly_speed": "例如 飞行速度",

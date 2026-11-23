@@ -418,6 +418,17 @@
       "name": "Name (used in formulas)",
       "unit": "Unit"
     },
+    "default_label": {
+      "appearance": "Appearance",
+      "can_fly": "Can fly",
+      "concealment": "Concealment",
+      "fly_multiplier": "Fly multiplier",
+      "fly_speed": "Fly speed",
+      "hear_distance": "Hearing range",
+      "hear_multiplier": "Hearing multiplier",
+      "move_speed": "Move speed",
+      "perception_radius": "Perception radius"
+    },
     "derived": "Derived values",
     "derived_hint": "Numbers computed by formula from other fields; players can't enter them. The three below are required by the engine: keep their names, but write their formulas.",
     "draft_chip": "Draft ({time})",
@@ -532,6 +543,7 @@
       "group_max": "no limit",
       "group_name": "e.g. class_skills",
       "initial": "e.g. hp_max",
+      "label_can_fly": "e.g. Can fly",
       "label_concealment": "e.g. Concealment",
       "label_fly_multiplier": "e.g. Fly multiplier",
       "label_fly_speed": "e.g. Fly speed",

@@ -7,6 +7,7 @@ const DYNAMIC: Record<string, string[]> = {
   "join.status": ["none", "submitted", "approved", "rejected"],
   "status.phase": ["collecting", "adjudicating", "review", "published"],
   "status.me": ["act", "submitted", "busy", "idle"],
+  "rules.default_label": ["appearance", "can_fly", "perception_radius", "concealment", "move_speed", "fly_multiplier", "fly_speed", "hear_multiplier", "hear_distance"],
   "games.status": ["setup", "characters", "running", "ended"],
   shape: ["capsule", "box", "sphere", "cone", "length", "width", "height", "radius", "angle"],
   "sheet.source": ["feedback", "admin", "engine", "opening"],
