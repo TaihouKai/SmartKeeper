@@ -652,6 +652,7 @@ export function RulesPanel() {
   const [draftAt, setDraftAt] = useState<string | null>(null);
   const [draftError, setDraftError] = useState<unknown>(null);
   const [help, setHelp] = useState(false);
+  const [choice, setChoice] = useState("");
   const act = useAction();
   // 上次打开或保存时的内容；和它不同就是“有未保存的修改”
   const baseline = useRef(JSON.stringify(pack));
@@ -666,6 +667,7 @@ export function RulesPanel() {
     setPack(withEngineDefaults(p));
     setCurrent({ id, version });
     setDraftAt(draft);
+    setChoice(id ? `${id}|${version ?? "draft"}` : "");
   };
 
   const validate: Validate = useCallback(
@@ -703,6 +705,7 @@ export function RulesPanel() {
     setCurrent((c) => ({ id, version: c.id === id ? c.version : null }));
     setDraftAt(d.updated_at);
     setDraftError(null);
+    setChoice(`${id}|draft`);
     void packs.refresh();
   };
 
@@ -729,6 +732,7 @@ export function RulesPanel() {
     void act.run(async () => {
       await call(api.DELETE("/api/admin/rulepacks/{pack_id}/draft", { params: { path: { pack_id: id } } }));
       if (current.id === id) load(blankPack(), null, null, null);
+      setChoice("");
       void packs.refresh();
     });
   const save = () =>
@@ -747,8 +751,13 @@ export function RulesPanel() {
   const remove = (id: string, version: number) =>
     void act.run(async () => {
       await call(api.DELETE("/api/admin/rulepacks/{pack_id}/versions/{version}", { params: { path: { pack_id: id, version } } }));
+      setChoice("");
       void packs.refresh();
     });
+
+  // 下拉菜单里选中的一项：规则包 id 加版本号（草稿是 null）
+  const [pid = "", ver = ""] = choice.split("|");
+  const picked = choice ? { id: pid, version: ver === "draft" ? null : Number(ver) } : null;
 
   let editing = t("rules.editing_new");
   if (current.id && current.version !== null) editing = t("rules.editing", { id: current.id, version: String(current.version) });
@@ -759,29 +768,37 @@ export function RulesPanel() {
       <Section title={t("admin.panel.rules")}>
       <div className="sk-card">
         <h3>{t("rules.packs")}</h3>
-        <ul>
-          {(packs.data ?? []).map((p) => (
-            <li key={p.pack_id}>
-              <strong>{p.name || p.pack_id}</strong>{" "}
-              {p.versions.map((v) => (
-                <span key={v} className="sk-chip">
-                  <button className="sk-link" onClick={() => open(p.pack_id, v)}>v{v}</button>
-                  <a href={`/api/admin/rulepacks/${p.pack_id}/versions/${v}/export`}>{t("rules.export")}</a>
-                  <button className="sk-link" onClick={() => remove(p.pack_id, v)}>{t("common.remove")}</button>
-                </span>
-              ))}
-              {p.draft_updated_at && (
-                <span className="sk-chip sk-chip-draft">
-                  <button className="sk-link" onClick={() => openDraft(p.pack_id)}>{t("rules.draft_chip", { time: when(p.draft_updated_at) })}</button>
-                  <button className="sk-link" onClick={() => discardDraft(p.pack_id)}>{t("rules.draft_discard")}</button>
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="sk-row sk-pack-picker">
+          <select value={choice} onChange={(e) => setChoice(e.target.value)}>
+            <option value="">{t("rules.pick")}</option>
+            {(packs.data ?? []).map((p) => (
+              <optgroup key={p.pack_id} label={p.name || p.pack_id}>
+                {p.draft_updated_at && <option value={`${p.pack_id}|draft`}>{t("rules.draft_chip", { time: when(p.draft_updated_at) })}</option>}
+                {[...p.versions].reverse().map((v) => (
+                  <option key={v} value={`${p.pack_id}|${v}`}>
+                    {t("rules.version", { v: String(v) })}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <button className="sk-primary" disabled={!picked} onClick={() => picked && (picked.version === null ? openDraft(picked.id) : open(picked.id, picked.version))}>
+            {t("rules.open")}
+          </button>
+          {picked && picked.version !== null && (
+            <a className="sk-button" href={`/api/admin/rulepacks/${picked.id}/versions/${picked.version}/export`}>
+              {t("rules.export")}
+            </a>
+          )}
+          {picked && (
+            <button onClick={() => (picked.version === null ? discardDraft(picked.id) : remove(picked.id, picked.version))}>
+              {picked.version === null ? t("rules.draft_discard") : t("common.remove")}
+            </button>
+          )}
+        </div>
         <div className="sk-row">
           <button onClick={() => load(blankPack(), null, null, null)}>{t("rules.new")}</button>
-          <label className="sk-inline">
+          <label className="sk-button sk-file">
             {t("rules.import")}
             <input type="file" accept=".json,application/json" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
           </label>

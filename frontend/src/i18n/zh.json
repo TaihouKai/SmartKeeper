@@ -489,6 +489,7 @@
     "levels_hint": "按顺序判断，第一个条件为真的等级就是结果。可用变量 roll、target、difficulty、opp_roll、opp_target。",
     "locked": "引擎必需，不能修改",
     "new": "新建规则包",
+    "open": "打开",
     "p": {
       "when": "生效条件（留空表示总是生效）"
     },
@@ -553,6 +554,7 @@
       "unit_perception_radius": "米",
       "when": "例如 class = \"warrior\""
     },
+    "pick": "选择规则包和版本……",
     "player_entities": "玩家建角时要创建的实体（模板、最少、最多）",
     "problem_where": "{where}：",
     "problems": "还有 {n} 处问题，还不能保存为正式版本（草稿可以随时保存）",
@@ -582,6 +584,7 @@
     "try_run": "计算",
     "unsaved": "有修改，几秒后自动存为草稿",
     "valid": "校验通过",
+    "version": "第 {v} 版",
     "w": {
       "canon": "以哪部作品或哪个版本为准",
       "description": "描述",

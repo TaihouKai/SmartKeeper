@@ -333,6 +333,9 @@ T: dict[str, tuple[str, str]] = {
     "rules.packs": ("规则包", "Rule packs"),
     "rules.new": ("新建规则包", "New rule pack"),
     "rules.import": ("导入文件", "Import file"),
+    "rules.pick": ("选择规则包和版本……", "Choose a rule pack and version…"),
+    "rules.open": ("打开", "Open"),
+    "rules.version": ("第 {v} 版", "Version {v}"),
     "rules.export": ("导出", "Export"),
     "rules.editing": (
         "正在编辑 {id} 的 v{version}；保存会生成新版本。",

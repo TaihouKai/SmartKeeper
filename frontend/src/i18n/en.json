@@ -489,6 +489,7 @@
     "levels_hint": "Checked in order; the first true condition wins. Variables: roll, target, difficulty, opp_roll, opp_target.",
     "locked": "Required by the engine; can't be changed",
     "new": "New rule pack",
+    "open": "Open",
     "p": {
       "when": "Condition (empty means always)"
     },
@@ -553,6 +554,7 @@
       "unit_perception_radius": "m",
       "when": "e.g. class = \"warrior\""
     },
+    "pick": "Choose a rule pack and version…",
     "player_entities": "Entities each player creates (template, min, max)",
     "problem_where": "{where}: ",
     "problems": "{n} problems; can't save a version yet (drafts are always fine)",
@@ -582,6 +584,7 @@
     "try_run": "Calculate",
     "unsaved": "Unsaved changes; a draft is saved automatically",
     "valid": "Valid",
+    "version": "Version {v}",
     "w": {
       "canon": "Canon / edition",
       "description": "Description",

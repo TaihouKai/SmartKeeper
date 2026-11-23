@@ -164,7 +164,7 @@ test("admin console login and panels render", async ({ page }) => {
   await page.getByLabel("Name", { exact: true }).first().fill("Unfinished e2e pack");
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByText(/Draft saved/)).toBeVisible();
-  await expect(page.locator(".sk-chip-draft").first()).toBeVisible();
+  await expect(page.locator(".sk-pack-picker option", { hasText: "Draft" }).first()).toBeAttached();
   // 检定的骰子可以引用字段；公式速查能打开
   await page.getByRole("button", { name: "Formula reference" }).click();
   await expect(page.getByText("Roll 4d6 and keep the highest 3")).toBeVisible();
