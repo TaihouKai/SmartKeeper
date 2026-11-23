@@ -600,6 +600,10 @@ T: dict[str, tuple[str, str]] = {
         "Dice (may use fields, e.g. 1d100, 1d str)",
     ),
     "rules.c.target": ("目标值公式", "Target formula"),
+    "rules.missing_template": (
+        "{name}（没有这个模板，请重新选）",
+        "{name} (no such template; choose again)",
+    ),
     "common.move_up": ("上移", "Move up"),
     "common.move_down": ("下移", "Move down"),
     "rules.order_matters_presets": (

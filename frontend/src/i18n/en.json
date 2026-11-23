@@ -501,6 +501,7 @@
     },
     "levels_hint": "Checked in order; the first true condition wins. Variables: roll, target, difficulty, opp_roll, opp_target.",
     "locked": "Required by the engine; can't be changed",
+    "missing_template": "{name} (no such template; choose again)",
     "new": "New rule pack",
     "open": "Open",
     "order_matters_presets": "Note: the order of fixed entries matters; effects on the same value run top to bottom.",

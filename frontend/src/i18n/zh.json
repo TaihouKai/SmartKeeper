@@ -501,6 +501,7 @@
     },
     "levels_hint": "按顺序判断，第一个条件为真的等级就是结果。可用变量 roll、target、difficulty、opp_roll、opp_target。",
     "locked": "引擎必需，不能修改",
+    "missing_template": "{name}（没有这个模板，请重新选）",
     "new": "新建规则包",
     "open": "打开",
     "order_matters_presets": "注意：固定条目的顺序会影响计算，同一个值上的效果按这里从上到下接力。",

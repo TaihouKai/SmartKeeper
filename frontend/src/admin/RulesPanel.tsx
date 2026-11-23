@@ -63,6 +63,19 @@ function withEngineDefaults(p: Pack, t: T): Pack {
   };
 }
 
+/** 改了模板 ID：建角实体和例题里引用它的地方跟着改。 */
+function renameTemplate(pack: Pack, i: number, next: Template): Pack {
+  const prev = pack.templates[i]?.name;
+  const templates = pack.templates.map((x, j) => (j === i ? next : x));
+  if (!prev || prev === next.name) return { ...pack, templates };
+  return {
+    ...pack,
+    templates,
+    player_entities: pack.player_entities.map((pe) => (pe.template === prev ? { ...pe, template: next.name } : pe)),
+    samples: (pack.samples ?? []).map((sm) => (sm.template === prev ? { ...sm, template: next.name } : sm)),
+  };
+}
+
 function blankTemplate(name: string, t: T): Template {
   return {
     name,
@@ -458,7 +471,7 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
 
       <Fold title={t("rules.templates")}>
       {pack.templates.map((tp, i) => (
-        <TemplateEditor key={i} tpl={tp} validate={validate} onChange={(x) => ted.update(i, x)} onRemove={() => ted.remove(i)} mover={<Mover index={i} count={pack.templates.length} onMove={ted.move} />} />
+        <TemplateEditor key={i} tpl={tp} validate={validate} onChange={(x) => onChange(renameTemplate(pack, i, x))} onRemove={() => ted.remove(i)} mover={<Mover index={i} count={pack.templates.length} onMove={ted.move} />} />
       ))}
       <button onClick={() => ted.add(blankTemplate(`template_${pack.templates.length + 1}`, t))}>{t("rules.add_template")}</button>
       </Fold>
@@ -467,7 +480,8 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
       {pack.player_entities.map((pe, i) => (
         <div key={i} className="sk-row">
           <select value={pe.template} onChange={(e) => ped.update(i, { ...pe, template: e.target.value })}>
-            {pack.templates.map((tp) => <option key={tp.name} value={tp.name}>{tp.name}</option>)}
+            {!pack.templates.some((tp) => tp.name === pe.template) && <option value={pe.template}>{t("rules.missing_template", { name: pe.template })}</option>}
+            {pack.templates.map((tp) => <option key={tp.name} value={tp.name}>{tp.label ? `${tp.label}（${tp.name}）` : tp.name}</option>)}
           </select>
           <input type="number" value={pe.min ?? 1} onChange={(e) => ped.update(i, { ...pe, min: Number(e.target.value) })} />
           <input type="number" value={pe.max ?? 1} onChange={(e) => ped.update(i, { ...pe, max: Number(e.target.value) })} />
