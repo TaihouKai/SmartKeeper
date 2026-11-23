@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Protocol
+from collections.abc import Callable, Sequence
+from typing import Literal, Protocol
 
 from pydantic import JsonValue
 
@@ -12,7 +12,7 @@ from smartkeeper.contracts.errors import Problem
 from smartkeeper.contracts.events import Audience, Event, EventType, NewEvent
 from smartkeeper.contracts.game import RoundStatus
 from smartkeeper.contracts.geometry import Point
-from smartkeeper.contracts.rulepack import RulePack, RulePackInfo, RulePackVersion
+from smartkeeper.contracts.rulepack import RulePack, RulePackDraft, RulePackInfo, RulePackVersion
 from smartkeeper.contracts.sheet import DerivedValue
 from smartkeeper.contracts.spatial import (
     Body,
@@ -54,7 +54,17 @@ class RulePackStore(Protocol):
     def create_pack(self, name: str) -> str: ...
 
     def save_version(self, pack_id: str, pack: RulePack) -> RulePackVersion:
-        """校验通过才保存，否则抛 ValidationFailed。"""
+        """校验通过才保存，否则抛 ValidationFailed。保存成功后这个规则包的草稿被删除。"""
+        ...
+
+    def save_draft(self, pack_id: str, pack: RulePack) -> RulePackDraft:
+        """保存（覆盖）草稿，不做内容校验。"""
+        ...
+
+    def get_draft(self, pack_id: str) -> RulePackDraft: ...
+
+    def delete_draft(self, pack_id: str) -> None:
+        """删除草稿；规则包没有任何版本时连规则包一起删除。"""
         ...
 
     def get_version(self, pack_id: str, version: int) -> RulePackVersion: ...
@@ -72,9 +82,18 @@ class Rules(Protocol):
     def validate_pack(self, pack: RulePack) -> list[Problem]: ...
 
     def validate_formula(
-        self, pack: RulePack, template: str | None, formula: str, in_entry: str | None = None
+        self,
+        pack: RulePack,
+        template: str | None,
+        formula: str,
+        in_entry: str | None = None,
+        scope: FormulaScope | None = None,
     ) -> list[Problem]:
-        """校验一条公式：语法、函数白名单、引用的名字是否存在。in_entry 为分组名时允许 self.<字段>。"""
+        """校验一条公式：语法、函数白名单、引用的名字是否存在。in_entry 为分组名时允许 self.<字段>。
+
+        scope 不给时：有 template 按模板校验，没有按检定结果条件校验（可用 roll、target 等）。
+        any_entity：任何模板的名字都可以（检定目标值、命名公式）；dice：同上并允许掷骰。
+        """
         ...
 
     def complete_names(self, pack: RulePack, template: str | None) -> list[str]:
@@ -96,7 +115,21 @@ class Rules(Protocol):
     ) -> float: ...
 
     def check_dice(self, pack: RulePack, check: str) -> str:
-        """命名检定用的骰子表达式。"""
+        """命名检定用的骰子公式。"""
+        ...
+
+    def roll(
+        self,
+        pack: RulePack,
+        expr: str,
+        faces: Faces,
+        template: str | None = None,
+        sheet: JsonValue = None,
+    ) -> DiceResult:
+        """求值一条可以掷骰的公式（例如 1d100、1d str、highest(4, 6, 3)）。
+
+        给了 template 和 sheet 时公式可以引用这张卡上的名字。faces 由 engine 提供，是唯一的随机来源。
+        """
         ...
 
     def resolve_check(
@@ -115,7 +148,7 @@ class Rules(Protocol):
         ...
 
     def resolve_adhoc(self, entity: str, spec: AdHocCheck, roll: DiceResult) -> CheckResult:
-        """临时检定：骰子表达式加目标值，结果只有 success / failure。"""
+        """临时检定：骰子公式加目标值，结果只有 success / failure。"""
         ...
 
     def render(self, pack: RulePack) -> str:
@@ -155,11 +188,15 @@ class RandomSource(Protocol):
     def randint(self, a: int, b: int) -> int: ...
 
 
-class Dice(Protocol):
-    def validate(self, expr: str) -> list[Problem]: ...
+type Faces = Callable[[int, int], tuple[int, ...]]
+"""(个数, 面数) -> 每颗骰子的点数。"""
 
-    def roll(self, expr: str) -> DiceResult:
-        """掷骰。随机数只在这里产生；调用方（engine）负责写 dice_roll 事件。"""
+type FormulaScope = Literal["any_entity", "dice"]
+
+
+class Dice(Protocol):
+    def faces(self, count: int, sides: int) -> tuple[int, ...]:
+        """掷 count 颗 sides 面骰。随机数只在这里产生；调用方（engine）负责写 dice_roll 事件。"""
         ...
 
 

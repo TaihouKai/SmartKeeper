@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import random
 
-from smartkeeper.contracts import DiceResult, Problem, RandomSource
-from smartkeeper.dice import expr as _expr
+from smartkeeper.contracts import RandomSource, ValidationFailed
+
+MAX_DICE = 1000
+MAX_SIDES = 100000
 
 
 class SystemRandomSource:
@@ -30,17 +32,7 @@ class DiceRoller:
     def __init__(self, rng: RandomSource) -> None:
         self._rng = rng
 
-    def validate(self, expr: str) -> list[Problem]:
-        return _expr.validate(expr)
-
-    def roll(self, expr: str) -> DiceResult:
-        rolls: list[int] = []
-        total = 0
-        for t in _expr.parse(expr):
-            if t.count:
-                faces = [self._rng.randint(1, t.sides) for _ in range(t.count)]
-                rolls.extend(faces)
-                total += t.sign * sum(faces)
-            else:
-                total += t.sign * t.constant
-        return DiceResult(expr=expr.replace(" ", ""), rolls=tuple(rolls), total=total)
+    def faces(self, count: int, sides: int) -> tuple[int, ...]:
+        if not (0 <= count <= MAX_DICE) or not (1 <= sides <= MAX_SIDES):
+            raise ValidationFailed("formula.dice_range", count=count, sides=sides)
+        return tuple(self._rng.randint(1, sides) for _ in range(count))

@@ -1,0 +1,79 @@
+import { useI18n } from "../i18n";
+
+// 例子是公式代码，不翻译；说明文字走翻译表。函数表要和后端 smartkeeper/rules/formula.py 的 FUNCTIONS 一致（有测试检查）。
+const BASICS: [string, string][] = [
+  ["str * 2 + (dex - 10) / 2", "fh.b.arith"],
+  ["str >= 50", "fh.b.compare"],
+  ['occupation == "doctor"', "fh.b.text"],
+  ["hp_max", "fh.b.names"],
+  ["self.level", "fh.b.self"],
+];
+
+const DICE: [string, string][] = [
+  ["3d6", "fh.d.basic"],
+  ["d20    d%", "fh.d.one"],
+  ["1dstr    2d(str + 1)", "fh.d.field"],
+  ["level d luck", "fh.d.names"],
+  ["2d6 * 5", "fh.d.order"],
+  ["highest(4, 6, 3)", "fh.d.keep"],
+];
+
+export const FUNCTION_SIGNATURES: [string, string][] = [
+  ["abs", "abs(x)"],
+  ["floor", "floor(x)"],
+  ["ceil", "ceil(x)"],
+  ["round", "round(x)"],
+  ["trunc", "trunc(x)"],
+  ["sign", "sign(x)"],
+  ["sqrt", "sqrt(x)"],
+  ["pow", "pow(x, y)"],
+  ["mod", "mod(x, y)"],
+  ["min", "min(a, b, …)"],
+  ["max", "max(a, b, …)"],
+  ["clamp", "clamp(x, lo, hi)"],
+  ["if", "if(cond, a, b)"],
+  ["and", "and(a, b, …)"],
+  ["or", "or(a, b, …)"],
+  ["not", "not(a)"],
+  ["lookup", "lookup(table, key)"],
+  ["highest", "highest(n, s, k)"],
+  ["lowest", "lowest(n, s, k)"],
+];
+
+function Rows({ rows }: { rows: [string, string][] }) {
+  const { t } = useI18n();
+  return (
+    <dl className="sk-fh-rows">
+      {rows.map(([code, key]) => (
+        <div key={key}>
+          <dt>
+            <code>{code}</code>
+          </dt>
+          <dd>{t(key)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** 公式写法速查：侧边抽屉，编辑时可以一直开着。 */
+export function FormulaHelp({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  return (
+    <aside className="sk-drawer" aria-label={t("fh.open")}>
+      <div className="sk-drawer-head">
+        <h3>{t("fh.open")}</h3>
+        <button className="sk-link" onClick={onClose}>
+          {t("fh.close")}
+        </button>
+      </div>
+      <h4>{t("fh.basic")}</h4>
+      <Rows rows={BASICS} />
+      <h4>{t("fh.dice")}</h4>
+      <Rows rows={DICE} />
+      <p className="sk-hint">{t("fh.where")}</p>
+      <h4>{t("fh.functions")}</h4>
+      <Rows rows={FUNCTION_SIGNATURES.map(([name, sig]) => [sig, `fh.fn.${name}`])} />
+    </aside>
+  );
+}

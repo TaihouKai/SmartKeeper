@@ -62,6 +62,31 @@
     "character": {
       "invalid": "角色卡没有通过校验"
     },
+    "formula": {
+      "arity": "{name} 的参数个数不对（给了 {count} 个）",
+      "bad_token": "第 {pos} 个字符看不懂",
+      "bad_value": "{name} 的值不能用于计算",
+      "chained_comparison": "不能连着比较（例如 1 < x < 3），请用 and(1 < x, x < 3)",
+      "cycle": "公式互相引用成了环：{name}",
+      "dice_needs_space": "{name} 被当成了一个名字；如果是掷骰，请写成 {fixed}",
+      "dice_not_allowed": "这里不能掷骰：这个值每次查看都要重新计算。掷骰请写在检定的“骰子”里",
+      "dice_range": "骰子个数要在 0 到 1000 之间、面数在 1 到 100000 之间（现在是 {count} 颗 {sides} 面）",
+      "division_by_zero": "除以零",
+      "empty": "公式是空的",
+      "expected": "这里缺一个 {token}",
+      "lookup_miss": "表 {table} 里找不到 {key}",
+      "lookup_table_name": "lookup 的第一个参数要写表名",
+      "math_domain": "{name} 算不出结果（例如负数开平方）",
+      "self_outside_entry": "{name} 只能在条目的效果里用",
+      "text_in_arithmetic": "文字“{value}”不能参与计算",
+      "text_result": "结果是文字“{value}”，这里需要数字",
+      "trailing": "第 {pos} 个字符起多出来一段，可能少了运算符",
+      "unexpected": "“{token}”不该出现在这里",
+      "unexpected_end": "公式没写完",
+      "unknown_function": "没有 {name} 这个函数（见“公式速查”）",
+      "unknown_name": "不认识的名字 {name}",
+      "unknown_table": "没有叫 {name} 的表"
+    },
     "game": {
       "characters_pending": "还有玩家的角色卡没有通过审核"
     },
@@ -71,6 +96,24 @@
     },
     "mention": {
       "unknown": "@ 了一个不认识的对象"
+    },
+    "pack": {
+      "bad_count": "最少、最多的数量不对（最多不能小于最少）",
+      "check_needs_levels": "检定至少要有一个结果等级",
+      "choices_need_text": "只有文字字段能设可选值",
+      "duplicate_name": "名字 {name} 重复了",
+      "group_field_must_be_player": "分组里的字段只能是玩家填写的",
+      "malformed": "格式不对：{msg}",
+      "missing_appearance": "缺少外观描述字段 {name}（必须是文字）",
+      "missing_required_derived": "缺少引擎必需的推导值 {name}",
+      "no_player_entities": "还没设置玩家建角时要创建的实体",
+      "no_templates": "至少要有一个模板",
+      "reserved_name": "{name} 是保留名字（函数名、检定变量或 d6 这样的骰子写法），请换一个",
+      "resource_needs_max": "资源必须填上限",
+      "runtime_needs_initial": "运行值必须填初值",
+      "sample_mismatch": "例题算出来是 {got}，期望是 {expected}",
+      "unknown_check": "没有叫 {name} 的检定",
+      "unknown_template": "没有叫 {name} 的模板"
     },
     "rate": {
       "kp_chat": "发得太快了，请稍等一分钟",
@@ -83,6 +126,16 @@
     "rulepack": {
       "invalid": "规则包没有通过校验",
       "version_in_use": "这个版本正在被某一局使用，不能删除"
+    },
+    "sheet": {
+      "above_max": "{value} 超过上限 {max}",
+      "below_min": "{value} 低于下限 {min}",
+      "choice": "“{value}”不在可选值里",
+      "derived_not_writable": "推导值不能直接填",
+      "missing_field": "缺少字段",
+      "required": "必须填写",
+      "type": "类型不对",
+      "unknown_field": "没有这个字段"
     },
     "text": {
       "empty": "内容不能为空",
@@ -120,6 +173,50 @@
     "round_closed": "—— 第 {round} 轮结束 ——",
     "round_opened": "—— 第 {round} 轮开始 ——",
     "submitted": "提交了角色卡"
+  },
+  "fh": {
+    "b": {
+      "arith": "加减乘除，括号改变先后",
+      "compare": "比较：< <= > >= == !=，成立得 1，不成立得 0",
+      "names": "用名字（英文代号）引用字段、推导值、命名公式",
+      "self": "在条目的效果里引用这个条目自己的字段",
+      "text": "文字用英文双引号"
+    },
+    "basic": "基础",
+    "close": "关闭",
+    "d": {
+      "basic": "掷 3 颗 6 面骰，求和",
+      "field": "数字后面紧跟 d；面数可以是字段，也可以是括号里的式子",
+      "keep": "掷 4 颗 6 面骰，取最高的 3 颗之和；lowest 取最低的",
+      "names": "两个名字之间掷骰，d 两边要加空格（level 颗、每颗 luck 面）",
+      "one": "省略个数就是 1 颗；d% 就是 d100",
+      "order": "先掷骰再乘除：等于 (2d6) × 5"
+    },
+    "dice": "掷骰",
+    "fn": {
+      "abs": "绝对值",
+      "and": "全部成立得 1",
+      "ceil": "向上取整",
+      "clamp": "把 x 限制在 lo 到 hi 之间",
+      "floor": "向下取整",
+      "highest": "掷 n 颗 s 面骰，取最高的 k 颗之和",
+      "if": "条件成立取 a，否则取 b",
+      "lookup": "在规则包的表里查值",
+      "lowest": "掷 n 颗 s 面骰，取最低的 k 颗之和",
+      "max": "最大的一个",
+      "min": "最小的一个",
+      "mod": "x 除以 y 的余数（和 y 同号）",
+      "not": "成立得 0，不成立得 1",
+      "or": "任何一个成立得 1",
+      "pow": "x 的 y 次方",
+      "round": "四舍五入（.5 远离零）",
+      "sign": "正数得 1，负数得 -1，零得 0",
+      "sqrt": "平方根",
+      "trunc": "去掉小数部分（向零取整）"
+    },
+    "functions": "函数",
+    "open": "公式速查",
+    "where": "能掷骰的地方：检定的“骰子”、KP 的临时检定和自由掷骰。推导值、上下限、初值、目标值和结果条件每次查看都要重新计算，所以不能掷骰。"
   },
   "formula": {
     "invalid": "公式不合法"
@@ -265,7 +362,8 @@
     "add_template": "添加模板",
     "appearance_badge": "外观描述（必需）",
     "c": {
-      "dice": "骰子",
+      "dice": "骰子（可以用字段，例如 1d100、1d str）",
+      "name": "检定名（英文代号，KP 用它调用）",
       "target": "目标值公式"
     },
     "checking": "正在校验……",
@@ -285,8 +383,12 @@
       "unit": "单位"
     },
     "derived": "推导值",
-    "derived_hint": "由公式从别的字段算出来的数，玩家不能直接填。下面三项是引擎必需的：名字不能改、不能删，但公式要你来写。",
+    "derived_hint": "由公式从别的字段算出来的数，玩家不能直接填。下面三项是引擎必需的：名字不能改、不能删，但公式要你来写。公式怎么写见页面底部的“公式速查”。",
+    "draft_chip": "草稿（{time}）",
+    "draft_discard": "丢弃草稿",
+    "draft_saved": "草稿已保存 {time}",
     "editing": "正在编辑 {id} 的 v{version}；保存会生成新版本。",
+    "editing_draft": "正在编辑 {id} 的草稿。",
     "editing_new": "正在编辑一个新规则包。",
     "export": "导出",
     "f": {
@@ -334,11 +436,26 @@
     "levels_hint": "按顺序判断，第一个条件为真的等级就是结果。可用变量 roll、target、difficulty、opp_roll、opp_target。",
     "new": "新建规则包",
     "packs": "规则包",
+    "path": {
+      "checks": "检定",
+      "derived": "推导值",
+      "dice": "骰子",
+      "fields": "字段",
+      "formulas": "命名公式",
+      "groups": "分组",
+      "levels": "结果等级",
+      "player_entities": "建角实体",
+      "samples": "例题",
+      "tables": "查表",
+      "target": "目标值",
+      "templates": "模板"
+    },
     "ph": {
       "appearance_label": "例如 外观",
       "choices": "例如 红、蓝、绿（用顿号或逗号分隔；留空表示自由填写）",
       "derived_label": "例如 生命值上限",
       "derived_name": "例如 hp_max",
+      "dice": "例如 1d100",
       "field_label": "中文名，例如 力量",
       "field_name": "例如 hp",
       "formula": "例如 str * 2 + 10",
@@ -360,7 +477,8 @@
       "unit_perception_radius": "米"
     },
     "player_entities": "玩家建角时要创建的实体（模板、最少、最多）",
-    "problems": "还有 {n} 处问题，不能保存",
+    "problem_where": "{where}：",
+    "problems": "还有 {n} 处问题，还不能保存为正式版本（草稿可以随时保存）",
     "remove_template": "删除模板",
     "required_badge": "引擎必需",
     "rules_text": "规则说明（自由文字，由 KP 阅读）",
@@ -368,11 +486,12 @@
     "sample_sheet": "样例角色卡（JSON）",
     "samples": "例题",
     "samples_hint": "保存时自动验算：每道例题的推导值必须等于期望值。",
+    "save_draft": "保存草稿",
     "save_version": "保存为新版本",
     "t": {
       "appearance": "外观描述字段",
-      "label": "显示名",
-      "name": "名字"
+      "label": "这种卡叫什么（给玩家看）",
+      "name": "模板 ID（英文代号）"
     },
     "table": {
       "exact": "精确",
@@ -380,10 +499,11 @@
     },
     "tables": "查表",
     "tables_hint": "每行一条：键,值。range 表取不超过键的最大一行；exact 表要求键完全相等。",
-    "template_hint": "这是新建规则包时预先放好的一个起始模板。名字（引擎内部用的英文名，例如 hero）和显示名（例如 主角）都改成你自己的；需要几种实体就加几个模板。",
+    "template_hint": "模板是一种角色卡的格式，不是某个具体角色：玩家建角时照着它填卡。所有玩家用同一种卡就只要一个模板；如果每个玩家要同时有两种卡（例如一个人加一个同伴），就建两个模板。模板 ID 是系统内部用的英文代号，只用小写字母、数字和下划线，例如 hero；显示名是玩家在界面上看到的名称，例如 主角。默认的 character 可以直接用，不改也行。",
     "templates": "角色卡模板",
     "try": "试算",
     "try_run": "计算",
+    "unsaved": "有修改，几秒后自动存为草稿",
     "valid": "校验通过",
     "w": {
       "canon": "以哪部作品或哪个版本为准",

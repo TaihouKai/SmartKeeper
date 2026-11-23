@@ -469,6 +469,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/rulepacks/{pack_id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Draft */
+        get: operations["get_draft_api_admin_rulepacks__pack_id__draft_get"];
+        /** Save Draft */
+        put: operations["save_draft_api_admin_rulepacks__pack_id__draft_put"];
+        post?: never;
+        /** Delete Draft */
+        delete: operations["delete_draft_api_admin_rulepacks__pack_id__draft_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/rulepacks/{pack_id}/versions": {
         parameters: {
             query?: never;
@@ -1241,6 +1260,8 @@ export interface components {
             /** Problems */
             problems: components["schemas"]["Problem"][];
         };
+        /** @enum {string} */
+        FormulaScope: "any_entity" | "dice";
         /** Game */
         Game: {
             /** Current Round */
@@ -1924,8 +1945,21 @@ export interface components {
             templates: components["schemas"]["EntityTemplate"][];
             world: components["schemas"]["WorldInfo"];
         };
+        /**
+         * RulePackDraft
+         * @description 没写完的规则包：只检查结构能不能读，不做内容校验，不能用来开局。每个规则包最多一份。
+         */
+        RulePackDraft: {
+            pack: components["schemas"]["RulePack"];
+            /** Pack Id */
+            pack_id: string;
+            /** Updated At */
+            updated_at: string;
+        };
         /** RulePackInfo */
         RulePackInfo: {
+            /** Draft Updated At */
+            draft_updated_at?: string | null;
             /** Name */
             name: string;
             /** Pack Id */
@@ -2263,6 +2297,7 @@ export interface components {
             /** In Entry */
             in_entry?: string | null;
             pack: components["schemas"]["RulePack"];
+            scope?: components["schemas"]["FormulaScope"] | null;
             /** Template */
             template?: string | null;
         };
@@ -3301,6 +3336,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ValidateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_draft_api_admin_rulepacks__pack_id__draft_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulePackDraft"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_draft_api_admin_rulepacks__pack_id__draft_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PackIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulePackDraft"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_draft_api_admin_rulepacks__pack_id__draft_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pack_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
                 };
             };
             /** @description Validation Error */

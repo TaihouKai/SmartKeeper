@@ -282,8 +282,9 @@ class Engine:
             else:
                 if choice is not None:
                     raise ValidationFailed("identity.draw_only")
-                roll = self._dice.roll(f"1d{len(free)}")
-                picked = free[roll.total - 1]
+                face = self._dice.faces(1, len(free))
+                roll = DiceResult(expr=f"1d{len(free)}", rolls=face, total=face[0])
+                picked = free[face[0] - 1]
                 new.append(
                     self._dice_event(roll, reason="identity_draw", extra={"player": player_id})
                 )
@@ -727,10 +728,7 @@ class Engine:
     def roll(self, game_id: str, expr: str, reason: str) -> DiceResult:
         with self._lock:
             r = self._require(game_id, "roll")
-            probs = self._dice.validate(expr)
-            if probs:
-                raise ValidationFailed("dice.invalid", probs)
-            res = self._dice.roll(expr)
+            res = self._rules.roll(self.rulepack(game_id), expr, self._dice.faces)
             ev = self._events.append(game_id, r.no, [self._dice_event(res, reason)])[0]
             return res.model_copy(update={"seq": ev.seq})
 
@@ -754,14 +752,20 @@ class Engine:
             pack = self.rulepack(game_id)
             state = self._state(game_id)
             ent = self._entity(state, entity_id)
-            roll = self._dice.roll(self._rules.check_dice(pack, check))
+            faces = self._dice.faces
+            roll = self._rules.roll(
+                pack, self._rules.check_dice(pack, check), faces, str(ent["template"]), ent["sheet"]
+            )
             opponent = None
             opp_roll = None
             if isinstance(against, str):
                 opp = self._entity(state, against)
                 cdef = pack.check(check)
                 assert cdef is not None
-                opp_roll = self._dice.roll(self._rules.check_dice(pack, cdef.opposed_by or check))
+                opp_expr = self._rules.check_dice(pack, cdef.opposed_by or check)
+                opp_roll = self._rules.roll(
+                    pack, opp_expr, faces, str(opp["template"]), opp["sheet"]
+                )
                 opponent = (against, str(opp["template"]), opp["sheet"], opp_roll)
             res = self._rules.resolve_check(
                 pack,
@@ -806,11 +810,14 @@ class Engine:
     ) -> CheckResult:
         with self._lock:
             r = self._require(game_id, "roll")
-            self._entity(self._state(game_id), entity_id)
-            probs = self._dice.validate(spec.dice)
-            if probs:
-                raise ValidationFailed("dice.invalid", probs)
-            roll = self._dice.roll(spec.dice)
+            ent = self._entity(self._state(game_id), entity_id)
+            roll = self._rules.roll(
+                self.rulepack(game_id),
+                spec.dice,
+                self._dice.faces,
+                str(ent["template"]),
+                ent["sheet"],
+            )
             res = self._rules.resolve_adhoc(entity_id, spec, roll)
             payload: dict[str, JsonValue] = {
                 "expr": roll.expr,

@@ -117,7 +117,7 @@ class ResultLevel(Frozen):
 class CheckDef(Frozen):
     name: str
     label: str = ""
-    dice: str  # 骰子表达式，例如 1d100、3d6+2
+    dice: str  # 骰子公式，在执行检定的实体上求值，例如 1d100、3d6+2、1d str
     target: str = "0"  # 公式，在执行检定的实体上求值
     levels: tuple[ResultLevel, ...]
     opposed_by: str | None = None  # 对抗检定时对手做的检定，默认同名检定
@@ -160,3 +160,12 @@ class RulePackInfo(Frozen):
     pack_id: str
     name: str
     versions: tuple[int, ...]
+    draft_updated_at: str | None = None  # 有没写完的草稿时是它的保存时间
+
+
+class RulePackDraft(Frozen):
+    """没写完的规则包：只检查结构能不能读，不做内容校验，不能用来开局。每个规则包最多一份。"""
+
+    pack_id: str
+    pack: RulePack
+    updated_at: str

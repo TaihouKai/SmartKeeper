@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 
 from pydantic import JsonValue
 from pydantic import ValidationError as PydanticError
@@ -23,8 +23,6 @@ from smartkeeper.rules.sheets import init_sheet
 
 CHECK_VARS = ("roll", "target", "difficulty", "opp_roll", "opp_target")
 
-type DiceValidator = Callable[[str], list[Problem]]
-
 
 def known_names(pack: RulePack, template: EntityTemplate | None) -> set[str]:
     out = {x.name for x in pack.formulas}
@@ -42,12 +40,15 @@ def check_formula(
     *,
     entry_fields: Iterable[str] | None = None,
     extra: Iterable[str] = (),
+    dice: bool = False,
 ) -> list[Problem]:
     try:
         node = f.parse(text)
     except f.FormulaError as e:
         return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
     problems: list[Problem] = []
+    if not dice and f.has_dice(node):
+        problems.append(Problem(code="formula.dice_not_allowed", path=path))
     allowed = known_names(pack, template) | set(extra)
     entry = set(entry_fields) if entry_fields is not None else None
     for name in sorted(f.names(node)):
@@ -57,12 +58,26 @@ def check_formula(
                     Problem(code="formula.unknown_name", path=path, params={"name": name})
                 )
         elif name not in allowed:
-            problems.append(Problem(code="formula.unknown_name", path=path, params={"name": name}))
+            problems.append(_unknown_name(name, allowed, path))
     table_names = {t.name for t in pack.tables}
     for t in sorted(f.tables(node)):
         if t not in table_names:
             problems.append(Problem(code="formula.unknown_table", path=path, params={"name": t}))
     return problems
+
+
+def _unknown_name(name: str, allowed: set[str], path: str) -> Problem:
+    """未知名字；如果它其实是“名字d名字”连写的掷骰，提示在 d 两边加空格。"""
+    for i, ch in enumerate(name):
+        if ch in "dD" and 0 < i < len(name) - 1:
+            a, b = name[:i], name[i + 1 :]
+            if (a in allowed or a.isdigit()) and (b in allowed or b.isdigit()):
+                return Problem(
+                    code="formula.dice_needs_space",
+                    path=path,
+                    params={"name": name, "fixed": f"{a} d {b}"},
+                )
+    return Problem(code="formula.unknown_name", path=path, params={"name": name})
 
 
 def _dupes(names: Iterable[str]) -> set[str]:
@@ -118,7 +133,7 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
     reserved = set(CHECK_VARS)
     for name in all_names:
-        if name in reserved or name in f.FUNCTIONS or "." in name:
+        if name in reserved or name in f.FUNCTIONS or "." in name or f.is_die_name(name):
             problems.append(Problem(code="pack.reserved_name", path=path, params={"name": name}))
     derived = {d.name for d in tpl.derived}
     for req in REQUIRED_DERIVED:
@@ -142,7 +157,7 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
     return problems
 
 
-def validate_pack(pack: RulePack, dice: DiceValidator) -> list[Problem]:
+def validate_pack(pack: RulePack) -> list[Problem]:
     problems: list[Problem] = []
     if not pack.templates:
         problems.append(Problem(code="pack.no_templates", path="templates"))
@@ -156,7 +171,7 @@ def validate_pack(pack: RulePack, dice: DiceValidator) -> list[Problem]:
         problems.append(Problem(code="pack.duplicate_name", path="checks", params={"name": name}))
     for i, x in enumerate(pack.formulas):
         problems += check_formula(
-            pack, None, x.formula, f"formulas[{i}]", extra=_all_field_names(pack)
+            pack, None, x.formula, f"formulas[{i}]", extra=all_field_names(pack)
         )
     for i, tpl in enumerate(pack.templates):
         problems += _check_template(pack, tpl, f"templates[{i}]")
@@ -172,9 +187,11 @@ def validate_pack(pack: RulePack, dice: DiceValidator) -> list[Problem]:
             problems.append(Problem(code="pack.bad_count", path=p))
     for i, c in enumerate(pack.checks):
         p = f"checks[{i}]"
-        problems += [x.model_copy(update={"path": p}) for x in dice(c.dice)]
+        problems += check_formula(
+            pack, None, c.dice, f"{p}.dice", extra=all_field_names(pack), dice=True
+        )
         # 检定的 target 在执行检定的实体上求值，所以允许任意模板的名字
-        problems += check_formula(pack, None, c.target, f"{p}.target", extra=_all_field_names(pack))
+        problems += check_formula(pack, None, c.target, f"{p}.target", extra=all_field_names(pack))
         if not c.levels:
             problems.append(Problem(code="pack.check_needs_levels", path=p))
         for j, lv in enumerate(c.levels):
@@ -193,7 +210,7 @@ def validate_pack(pack: RulePack, dice: DiceValidator) -> list[Problem]:
     return problems
 
 
-def _all_field_names(pack: RulePack) -> set[str]:
+def all_field_names(pack: RulePack) -> set[str]:
     out: set[str] = set()
     for t in pack.templates:
         out |= {x.name for x in t.fields} | {x.name for x in t.derived}

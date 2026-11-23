@@ -97,8 +97,13 @@ class EntityContext:
             return self._guarded(name, lambda: self.eval(self._formulas[name].formula))
         raise f.FormulaError("formula.unknown_name", name=name)
 
-    def eval(self, text: str, entry: Mapping[str, JsonValue] | None = None) -> f.Value:
-        return f.evaluate(f.parse(text), self.resolver(entry), self._lookup)
+    def eval(
+        self,
+        text: str,
+        entry: Mapping[str, JsonValue] | None = None,
+        faces: f.Faces | None = None,
+    ) -> f.Value:
+        return f.evaluate(f.parse(text), self.resolver(entry), self._lookup, faces)
 
     def eval_num(self, text: str, entry: Mapping[str, JsonValue] | None = None) -> float:
         v = self.eval(text, entry)

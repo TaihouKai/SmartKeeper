@@ -651,7 +651,7 @@ class Engine:
     def rulebook(self, game_id) -> str: ...  # 所用规则包版本渲染出的全文
 ```
 
-回合状态：`collecting`（行动期）→ `adjudicating`（裁定中）→ `review`（待审核）→ `published`（已发布）。重跑是从 `review` 回到 `adjudicating`，旧裁定事件保留并标记为作废。骰子表达式支持 `NdM+K` 和 `d100`。
+回合状态：`collecting`（行动期）→ `adjudicating`（裁定中）→ `review`（待审核）→ `published`（已发布）。重跑是从 `review` 回到 `adjudicating`，旧裁定事件保留并标记为作废。骰子写在规则包的公式语言里（见第 18 节修订 21）。
 
 **kp**
 
@@ -978,3 +978,5 @@ tests/
 18. 裁定 JSON 在 schema 校验前做一步确定性修正，只修含义无歧义的别名：移动里的 `pos` → `to`，相遇里的 `entities` → `players`，相遇参与者和 `observed_by` 的键写成实体 ID 时换成控制它的玩家 ID。修正后照样过完整的 schema 和引擎校验。检定规划里空间查询多出的字段（如 `reason`）忽略。
 19. 真模型泄密测试脚本会在测试剧本末尾加一句“第 N 轮之前不要结束”，保证跑满轮数。
 20. M6 部署在本人家里的局域网，不上公网。规则包由本人部署后在网站“规则”面板里填写；剧本由本人亲自撰写（AI 起草是可选项，这次不用）。
+21. 掷骰并入公式语言：`3d6`、`d20`、`d%`、`1dstr`、`level d luck`（名字之间要空格）、`highest(n, s, k)` / `lowest(n, s, k)`；掷骰先于乘除。另加函数 `abs trunc sign sqrt pow mod clamp if and or not`。`dice` 模块只剩随机源（`faces(个数, 面数)`），公式由 `rules` 解析求值，engine 把 `faces` 传进去并记录 `dice_roll` 事件，所以随机数仍只由 engine 产生并入日志。只有一次性掷的地方能掷骰：命名检定的骰子（在执行检定的实体上求值，可引用字段）、KP 的临时检定和自由掷骰；推导值、上下限、初值、目标值、结果条件每次都要重算，写了掷骰会报错。`DiceResult.total` 改为数（可以是小数）。
+22. 规则包可以存草稿：每个规则包最多一份，只检查结构、不做内容校验，不能用来开局；编辑时停手 3 秒自动保存，也可以手动保存；保存为正式版本后草稿删除。管理控制台的校验问题按消息代码翻译，路径显示成“模板 hero › 字段 hp”。

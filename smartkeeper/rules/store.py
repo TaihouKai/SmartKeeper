@@ -14,6 +14,7 @@ from smartkeeper.contracts import (
     NotFound,
     Problem,
     RulePack,
+    RulePackDraft,
     RulePackInfo,
     RulePackVersion,
     Rules,
@@ -37,6 +38,14 @@ rule_pack_version = sa.Table(
     sa.Column("version", sa.Integer, primary_key=True),
     sa.Column("body", sa.Text, nullable=False),
     sa.Column("created_at", sa.String, nullable=False),
+)
+
+rule_pack_draft = sa.Table(
+    "rule_pack_draft",
+    metadata,
+    sa.Column("pack_id", sa.String, sa.ForeignKey("rule_pack.id"), primary_key=True),
+    sa.Column("body", sa.Text, nullable=False),
+    sa.Column("updated_at", sa.String, nullable=False),
 )
 
 EXPORT_FORMAT = "smartkeeper.rulepack"
@@ -84,7 +93,50 @@ class SqlRulePackStore:
             c.execute(
                 rule_pack.update().where(rule_pack.c.id == pack_id).values(name=pack.world.name)
             )
+            c.execute(rule_pack_draft.delete().where(rule_pack_draft.c.pack_id == pack_id))
         return RulePackVersion(pack_id=pack_id, version=version, pack=pack, created_at=now)
+
+    def save_draft(self, pack_id: str, pack: RulePack) -> RulePackDraft:
+        now = _now()
+        with self._db.begin() as c:
+            if (
+                c.execute(sa.select(rule_pack.c.id).where(rule_pack.c.id == pack_id)).first()
+                is None
+            ):
+                raise NotFound("rulepack.not_found", pack_id=pack_id)
+            c.execute(rule_pack_draft.delete().where(rule_pack_draft.c.pack_id == pack_id))
+            c.execute(
+                rule_pack_draft.insert().values(
+                    pack_id=pack_id, body=pack.model_dump_json(), updated_at=now
+                )
+            )
+            if pack.world.name:
+                c.execute(
+                    rule_pack.update().where(rule_pack.c.id == pack_id).values(name=pack.world.name)
+                )
+        return RulePackDraft(pack_id=pack_id, pack=pack, updated_at=now)
+
+    def get_draft(self, pack_id: str) -> RulePackDraft:
+        with self._db.connect() as c:
+            row = c.execute(
+                sa.select(rule_pack_draft).where(rule_pack_draft.c.pack_id == pack_id)
+            ).first()
+        if row is None:
+            raise NotFound("rulepack.draft_not_found", pack_id=pack_id)
+        return RulePackDraft(
+            pack_id=pack_id, pack=RulePack.model_validate_json(row.body), updated_at=row.updated_at
+        )
+
+    def delete_draft(self, pack_id: str) -> None:
+        with self._db.begin() as c:
+            c.execute(rule_pack_draft.delete().where(rule_pack_draft.c.pack_id == pack_id))
+            has_version = c.execute(
+                sa.select(rule_pack_version.c.version)
+                .where(rule_pack_version.c.pack_id == pack_id)
+                .limit(1)
+            ).first()
+            if has_version is None:
+                c.execute(rule_pack.delete().where(rule_pack.c.id == pack_id))
 
     def get_version(self, pack_id: str, version: int) -> RulePackVersion:
         with self._db.connect() as c:
@@ -108,12 +160,21 @@ class SqlRulePackStore:
             versions = c.execute(
                 sa.select(rule_pack_version.c.pack_id, rule_pack_version.c.version)
             ).all()
+            drafts = dict(
+                c.execute(sa.select(rule_pack_draft.c.pack_id, rule_pack_draft.c.updated_at)).all()
+            )
         by_pack: dict[str, list[int]] = {}
         for pid, v in versions:
             by_pack.setdefault(pid, []).append(v)
         return [
-            RulePackInfo(pack_id=p.id, name=p.name, versions=tuple(sorted(by_pack.get(p.id, []))))
+            RulePackInfo(
+                pack_id=p.id,
+                name=p.name,
+                versions=tuple(sorted(by_pack.get(p.id, []))),
+                draft_updated_at=drafts.get(p.id),
+            )
             for p in packs
+            if p.id in by_pack or p.id in drafts
         ]
 
     def delete_version(self, pack_id: str, version: int) -> None:

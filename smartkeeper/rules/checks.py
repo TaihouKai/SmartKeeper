@@ -13,7 +13,7 @@ from smartkeeper.contracts import (
     ValidationFailed,
 )
 from smartkeeper.rules import formula as f
-from smartkeeper.rules.evaluator import EntityContext
+from smartkeeper.rules.evaluator import EntityContext, table_lookup
 
 
 def _ctx(pack: RulePack, template: str, sheet: JsonValue) -> EntityContext:
@@ -87,6 +87,31 @@ def _vars(variables: dict[str, f.Value]) -> f.Resolver:
 
 def _no_tables(name: str, key: f.Value) -> float:
     raise f.FormulaError("formula.unknown_table", name=name)
+
+
+def roll(
+    pack: RulePack,
+    expr: str,
+    faces: f.Faces,
+    template: str | None = None,
+    sheet: JsonValue = None,
+) -> DiceResult:
+    rolls: list[int] = []
+
+    def record(count: int, sides: int) -> tuple[int, ...]:
+        got = faces(count, sides)
+        rolls.extend(got)
+        return got
+
+    try:
+        node = f.parse(expr)
+        resolve = _ctx(pack, template, sheet).resolver() if template is not None else _vars({})
+        v = f.evaluate(node, resolve, table_lookup(pack), record)
+        if isinstance(v, str):
+            raise f.FormulaError("formula.text_result", value=v)
+    except f.FormulaError as e:
+        raise ValidationFailed(e.code, formula=expr, **e.params) from e
+    return DiceResult(expr=expr.strip(), rolls=tuple(rolls), total=v)
 
 
 def check_dice(pack: RulePack, check: str) -> str:

@@ -16,6 +16,7 @@ from smartkeeper.contracts import (
     Adjudication,
     DerivedValue,
     Event,
+    FormulaScope,
     Game,
     GameConfig,
     GameSettings,
@@ -26,6 +27,7 @@ from smartkeeper.contracts import (
     Problem,
     Round,
     RulePack,
+    RulePackDraft,
     RulePackInfo,
     RulePackVersion,
     ValidationFailed,
@@ -96,6 +98,7 @@ class FormulaIn(BaseModel):
     formula: str
     template: str | None = None
     in_entry: str | None = None
+    scope: FormulaScope | None = None
 
 
 class FormulaOut(BaseModel):
@@ -297,6 +300,19 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
     def save_version(pack_id: str, body: PackIn) -> RulePackVersion:
         return s.packs.save_version(pack_id, body.pack)
 
+    @guarded.get("/rulepacks/{pack_id}/draft")
+    def get_draft(pack_id: str) -> RulePackDraft:
+        return s.packs.get_draft(pack_id)
+
+    @guarded.put("/rulepacks/{pack_id}/draft")
+    def save_draft(pack_id: str, body: PackIn) -> RulePackDraft:
+        return s.packs.save_draft(pack_id, body.pack)
+
+    @guarded.delete("/rulepacks/{pack_id}/draft")
+    def delete_draft(pack_id: str) -> OkOut:
+        s.packs.delete_draft(pack_id)
+        return OkOut()
+
     @guarded.delete("/rulepacks/{pack_id}/versions/{version}")
     def delete_version(pack_id: str, version: int) -> OkOut:
         e.delete_rulepack_version(pack_id, version)
@@ -320,7 +336,7 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
     def formula(body: FormulaIn) -> FormulaOut:
         return FormulaOut(
             problems=s.rules.validate_formula(
-                body.pack, body.template, body.formula, body.in_entry
+                body.pack, body.template, body.formula, body.in_entry, body.scope
             ),
             names=s.rules.complete_names(body.pack, body.template),
         )

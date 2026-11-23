@@ -41,7 +41,6 @@ def test_evaluate(text: str, expected: float) -> None:
     [
         "__import__('os')",
         "exec(1)",
-        "abs(-1)",
         "x ** 2",
         "x % 2",
         "x[0]",

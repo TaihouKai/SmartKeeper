@@ -4,7 +4,7 @@ import pytest
 import sqlalchemy as sa
 from pydantic import JsonValue
 
-from smartkeeper.contracts import DerivedDef, RulePack, ValidationFailed
+from smartkeeper.contracts import DerivedDef, NotFound, RulePack, ValidationFailed
 from smartkeeper.rules import RulesService, SqlRulePackStore, export_pack, parse_import
 from tests.fixtures import PACKS, load_pack, pack_text
 
@@ -168,7 +168,30 @@ def test_invalid_pack_not_saved(store: SqlRulePackStore) -> None:
     tpl = pack.templates[0].model_copy(update={"derived": ()})
     with pytest.raises(ValidationFailed):
         store.save_version(pid, pack.model_copy(update={"templates": (tpl,)}))
-    assert store.list_packs()[0].versions == ()
+    assert store.list_packs() == []  # 没有版本也没有草稿的规则包不列出
+
+
+def test_drafts_skip_validation_and_clear_on_save(store: SqlRulePackStore) -> None:
+    pid = store.create_pack("x")
+    pack = load_pack("single")
+    unfinished = pack.model_copy(update={"templates": (), "checks": ()})
+    d = store.save_draft(pid, unfinished)
+    assert store.get_draft(pid).pack == unfinished
+    info = store.list_packs()[0]
+    assert info.versions == () and info.draft_updated_at == d.updated_at
+    store.save_draft(pid, pack)  # 覆盖
+    assert store.get_draft(pid).pack == pack
+    store.save_version(pid, pack)
+    assert store.list_packs()[0].draft_updated_at is None
+    with pytest.raises(NotFound):
+        store.get_draft(pid)
+
+
+def test_deleting_a_draft_of_an_unsaved_pack_removes_the_pack(store: SqlRulePackStore) -> None:
+    pid = store.create_pack("x")
+    store.save_draft(pid, load_pack("single"))
+    store.delete_draft(pid)
+    assert store.list_packs() == []
 
 
 @pytest.mark.parametrize("name", PACKS)

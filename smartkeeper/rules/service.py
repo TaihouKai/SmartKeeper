@@ -8,9 +8,10 @@ from smartkeeper.contracts import (
     AdHocCheck,
     CheckResult,
     DerivedValue,
-    Dice,
     DiceResult,
     EntityTemplate,
+    Faces,
+    FormulaScope,
     NotFound,
     Problem,
     RulePack,
@@ -24,15 +25,22 @@ from smartkeeper.rules.render import render as render_markdown
 
 
 class RulesService:
-    def __init__(self, dice: Dice) -> None:
-        self._dice = dice
-
     def validate_pack(self, pack: RulePack) -> list[Problem]:
-        return validation.validate_pack(pack, self._dice.validate)
+        return validation.validate_pack(pack)
 
     def validate_formula(
-        self, pack: RulePack, template: str | None, formula: str, in_entry: str | None = None
+        self,
+        pack: RulePack,
+        template: str | None,
+        formula: str,
+        in_entry: str | None = None,
+        scope: FormulaScope | None = None,
     ) -> list[Problem]:
+        if scope is not None:
+            extra = validation.all_field_names(pack)
+            return validation.check_formula(
+                pack, None, formula, "formula", extra=extra, dice=scope == "dice"
+            )
         tpl = pack.template(template) if template else None
         entry_fields: list[str] | None = None
         if tpl is not None and in_entry is not None:
@@ -42,6 +50,16 @@ class RulesService:
         return validation.check_formula(
             pack, tpl, formula, "formula", entry_fields=entry_fields, extra=extra
         )
+
+    def roll(
+        self,
+        pack: RulePack,
+        expr: str,
+        faces: Faces,
+        template: str | None = None,
+        sheet: JsonValue = None,
+    ) -> DiceResult:
+        return checks.roll(pack, expr, faces, template, sheet)
 
     def complete_names(self, pack: RulePack, template: str | None) -> list[str]:
         tpl = pack.template(template) if template else None

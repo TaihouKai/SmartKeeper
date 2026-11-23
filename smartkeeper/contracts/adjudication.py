@@ -67,8 +67,8 @@ class Adjudication(Frozen):
 
 class DiceResult(Frozen):
     expr: str
-    rolls: tuple[int, ...]
-    total: int
+    rolls: tuple[int, ...]  # 每颗骰子的点数（含 highest/lowest 舍弃的）
+    total: float
     seq: int | None = None  # 对应的 dice_roll 事件
 
 
@@ -88,7 +88,7 @@ class CheckResult(Frozen):
 class AdHocCheck(Frozen):
     """规则包没有覆盖时 KP 声明的临时检定。"""
 
-    dice: str
+    dice: str  # 骰子公式，可以引用执行检定的实体的字段
     target: float
     success_when: Literal["roll<=target", "roll>=target"] = "roll<=target"
 

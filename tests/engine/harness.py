@@ -92,7 +92,7 @@ def make_db() -> sa.Engine:
 def make_engine(seed: int = 1, db: sa.Engine | None = None) -> tuple[Engine, SqlRulePackStore]:
     db = db or make_db()
     dice = DiceRoller(SeededRandomSource(seed))
-    rules = RulesService(dice)
+    rules = RulesService()
     packs = SqlRulePackStore(db, rules)
     engine = Engine(
         db=db,

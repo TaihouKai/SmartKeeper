@@ -130,7 +130,7 @@ def build_services(
     db = make_db(settings.db_path)
     migrate(db)
     dice = DiceRoller(SystemRandomSource())
-    rules = RulesService(dice)
+    rules = RulesService()
     packs = SqlRulePackStore(db, rules)
     maps = FileMapStore(Path(settings.maps_dir))
     engine = Engine(

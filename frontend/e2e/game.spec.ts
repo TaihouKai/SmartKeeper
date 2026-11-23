@@ -118,8 +118,16 @@ test("admin console login and panels render", async ({ page }) => {
   await page.getByRole("button", { name: "Rules" }).click();
   await expect(page.getByText("How far (in metres) this character notices others").first()).toBeVisible();
   // 新的空白规则包：引擎必需的推导值公式还是空的，不能保存
-  await expect(page.getByText("can't save yet")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("can't save a version yet")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: "Save as new version" })).toBeDisabled();
+  // 没写完也能存草稿；草稿出现在规则包列表里
+  await page.getByLabel("Name", { exact: true }).first().fill("Unfinished e2e pack");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByText(/Draft saved/)).toBeVisible();
+  await expect(page.locator(".sk-chip-draft").first()).toBeVisible();
+  // 检定的骰子可以引用字段；公式速查能打开
+  await page.getByRole("button", { name: "Formula reference" }).click();
+  await expect(page.getByText("Roll 4d6 and keep the highest 3")).toBeVisible();
   await shot(page, "admin-rules");
   await page.getByRole("button", { name: "Materials" }).click();
   await expect(page.getByText("demo").first()).toBeVisible();

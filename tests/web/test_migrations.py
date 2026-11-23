@@ -18,6 +18,9 @@ def test_migrations_match_code(tmp_path: Path) -> None:
 
 def test_legacy_db_is_stamped(tmp_path: Path) -> None:
     db = sa.create_engine(f"sqlite:///{tmp_path / 'm.db'}")
-    combined().create_all(db)
+    legacy = combined()
+    legacy.remove(legacy.tables["rule_pack_draft"])  # 0002 才加的表，旧库里没有
+    legacy.create_all(db)
     migrate(db)
+    assert "rule_pack_draft" in sa.inspect(db).get_table_names()
     assert "alembic_version" in sa.inspect(db).get_table_names()

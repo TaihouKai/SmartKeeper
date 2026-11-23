@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
-from smartkeeper.contracts import DiceResult, Problem, RulePack
+from smartkeeper.contracts import RulePack
 
 HERE = Path(__file__).parent
 PACKS = ("single", "multi")
@@ -21,18 +20,12 @@ def load_pack(name: str) -> RulePack:
 
 
 class FakeDice:
-    """只做格式校验、按预置序列返回点数的假骰子，供不加载 dice 模块的测试使用。"""
+    """按预置序列返回点数的假骰子，供不加载 dice 模块的测试使用；序列用完后每颗都是 1。"""
 
-    _RE = re.compile(r"^(\d*d\d+|\d+)([+-](\d*d\d+|\d+))*$")
+    def __init__(self, faces: list[int] | None = None) -> None:
+        self.queue = list(faces or [])
+        self.calls: list[tuple[int, int]] = []
 
-    def __init__(self, totals: list[int] | None = None) -> None:
-        self.totals = list(totals or [])
-
-    def validate(self, expr: str) -> list[Problem]:
-        if self._RE.match(expr.replace(" ", "")):
-            return []
-        return [Problem(code="dice.invalid", params={"expr": expr})]
-
-    def roll(self, expr: str) -> DiceResult:
-        total = self.totals.pop(0) if self.totals else 1
-        return DiceResult(expr=expr, rolls=(total,), total=total)
+    def faces(self, count: int, sides: int) -> tuple[int, ...]:
+        self.calls.append((count, sides))
+        return tuple(self.queue.pop(0) if self.queue else 1 for _ in range(count))

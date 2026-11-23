@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "../i18n";
-import { describeError } from "./errors";
+import { describeError, translateCode } from "./errors";
 
 export function ErrorBox({ error }: { error: unknown }) {
   const { lang } = useI18n();
@@ -73,7 +73,7 @@ export function FormulaInput({
   placeholder?: string;
   validate: (formula: string) => Promise<{ problems: { code: string; params?: Record<string, unknown> }[]; names: string[] }>;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [problems, setProblems] = useState<string[]>([]);
   const [names, setNames] = useState<string[]>([]);
   const [focus, setFocus] = useState(false);
@@ -87,7 +87,7 @@ export function FormulaInput({
     timer.current = window.setTimeout(() => {
       validate(value)
         .then((r) => {
-          setProblems(r.problems.map((p) => `${p.code}${p.params ? " " + JSON.stringify(p.params) : ""}`));
+          setProblems(r.problems.map((p) => translateCode(lang, p.code, p.params)));
           setNames(r.names);
         })
         .catch(() => setProblems([]));

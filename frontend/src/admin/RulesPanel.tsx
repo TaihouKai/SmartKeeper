@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, FormulaInput, Section } from "../ui/components";
+import { translateCode } from "../ui/errors";
+import { FormulaHelp } from "../ui/FormulaHelp";
 import { useAction, usePoll } from "../ui/hooks";
 
 type Pack = Schemas["RulePack"];
@@ -45,7 +47,8 @@ function blankField(): Field {
   return { name: "", label: "", kind: "number", cls: "player", required: true, hidden: false, choices: [] };
 }
 
-type Validate = (formula: string, template: string | null, inEntry?: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
+type Scope = "any_entity" | "dice";
+type Validate = (formula: string, template: string | null, inEntry?: string, scope?: Scope) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
 function useListEdit<T>(list: T[], set: (l: T[]) => void) {
   return {
@@ -293,6 +296,8 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
   const ced = useListEdit(pack.checks ?? [], (x) => onChange({ ...pack, checks: x }));
   const sed = useListEdit(pack.samples ?? [], (x) => onChange({ ...pack, samples: x }));
   const vNone = useCallback((f: string) => validate(f, null), [validate]);
+  const vEntity = useCallback((f: string) => validate(f, null, undefined, "any_entity"), [validate]);
+  const vDice = useCallback((f: string) => validate(f, null, undefined, "dice"), [validate]);
   const w = pack.world;
   return (
     <div>
@@ -325,7 +330,7 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
       {(pack.formulas ?? []).map((f, i) => (
         <div key={i} className="sk-row">
           <input value={f.name} onChange={(e) => fed.update(i, { ...f, name: e.target.value })} />
-          <FormulaInput value={f.formula} validate={vNone} onChange={(x) => fed.update(i, { ...f, formula: x })} />
+          <FormulaInput value={f.formula} validate={vEntity} onChange={(x) => fed.update(i, { ...f, formula: x })} />
           <button className="sk-link" onClick={() => fed.remove(i)}>{t("common.remove")}</button>
         </div>
       ))}
@@ -365,9 +370,9 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
       {(pack.checks ?? []).map((c, i) => (
         <div key={i} className="sk-card">
           <div className="sk-row">
-            <label>{t("rules.t.name")}<input value={c.name} onChange={(e) => ced.update(i, { ...c, name: e.target.value })} /></label>
-            <label>{t("rules.c.dice")}<input value={c.dice} onChange={(e) => ced.update(i, { ...c, dice: e.target.value })} /></label>
-            <label>{t("rules.c.target")}<FormulaInput value={c.target ?? "0"} validate={vNone} onChange={(x) => ced.update(i, { ...c, target: x })} /></label>
+            <label>{t("rules.c.name")}<input value={c.name} onChange={(e) => ced.update(i, { ...c, name: e.target.value })} /></label>
+            <label>{t("rules.c.dice")}<FormulaInput value={c.dice} validate={vDice} placeholder={t("rules.ph.dice")} onChange={(x) => ced.update(i, { ...c, dice: x })} /></label>
+            <label>{t("rules.c.target")}<FormulaInput value={c.target ?? "0"} validate={vEntity} onChange={(x) => ced.update(i, { ...c, target: x })} /></label>
             <button className="sk-link" onClick={() => ced.remove(i)}>{t("common.remove")}</button>
           </div>
           {c.levels.map((lv, j) => (
@@ -475,17 +480,63 @@ function TryPanel({ pack }: { pack: Pack }) {
   );
 }
 
-/** “规则”面板：新建和编辑规则包、试算、版本管理、导入导出。 */
+/** 把问题路径（templates[0].fields[2]）换成看得懂的名字（模板 hero › 字段 hp）。 */
+function describePath(t: (k: string) => string, pack: Pack, path: string): string {
+  if (!path || path === ".") return "";
+  let obj: unknown = pack;
+  const out: string[] = [];
+  for (const seg of path.split(".")) {
+    const m = /^(\w+)\[(\d+)\]$/.exec(seg);
+    const key = m?.[1] ?? seg;
+    const label = t(`rules.path.${key}`);
+    const known = label !== `rules.path.${key}`;
+    obj = obj && typeof obj === "object" ? (obj as Record<string, unknown>)[key] : undefined;
+    if (m) {
+      const idx = Number(m[2]);
+      obj = Array.isArray(obj) ? obj[idx] : undefined;
+      const rec = obj && typeof obj === "object" ? (obj as Record<string, unknown>) : {};
+      const name = typeof rec.label === "string" && rec.label ? rec.label : typeof rec.name === "string" && rec.name ? rec.name : `#${idx + 1}`;
+      out.push(known ? `${label} ${name}` : `${key} ${name}`);
+    } else {
+      out.push(known ? label : seg);
+    }
+  }
+  return out.join(" › ");
+}
+
+function when(iso: string | null | undefined): string {
+  return iso ? new Date(iso).toLocaleString() : "";
+}
+
+/** “规则”面板：新建和编辑规则包、草稿、试算、版本管理、导入导出。 */
 export function RulesPanel() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const packs = usePoll(() => call(api.GET("/api/admin/rulepacks")), 600_000);
   const [current, setCurrent] = useState<{ id: string | null; version: number | null }>({ id: null, version: null });
   const [pack, setPack] = useState<Pack>(blankPack);
   const [problems, setProblems] = useState<Schemas["Problem"][] | null>(null);
   const [checkError, setCheckError] = useState<unknown>(null);
+  const [draftAt, setDraftAt] = useState<string | null>(null);
+  const [draftError, setDraftError] = useState<unknown>(null);
+  const [help, setHelp] = useState(false);
   const act = useAction();
+  // 上次打开或保存时的内容；和它不同就是“有未保存的修改”
+  const baseline = useRef(JSON.stringify(pack));
+  const idRef = useRef<string | null>(null);
+  const creating = useRef<Promise<string> | null>(null);
+  idRef.current = current.id;
+  const dirty = JSON.stringify(pack) !== baseline.current;
+
+  const load = (p: Pack, id: string | null, version: number | null, draft: string | null) => {
+    baseline.current = JSON.stringify(p);
+    setPack(p);
+    setCurrent({ id, version });
+    setDraftAt(draft);
+  };
+
   const validate: Validate = useCallback(
-    (formula, template, inEntry) => call(api.POST("/api/admin/rulepacks/formula", { body: { pack, formula, template, in_entry: inEntry ?? null } })),
+    (formula, template, inEntry, scope) =>
+      call(api.POST("/api/admin/rulepacks/formula", { body: { pack, formula, template, in_entry: inEntry ?? null, scope: scope ?? null } })),
     [pack],
   );
   useEffect(() => {
@@ -501,25 +552,62 @@ export function RulesPanel() {
     return () => window.clearTimeout(id);
   }, [pack]);
 
+  /** 当前规则包的 id；新规则包第一次保存时才创建（并发的自动保存只创建一次）。 */
+  const ensureId = async (): Promise<string> => {
+    if (idRef.current) return idRef.current;
+    creating.current ??= call(api.POST("/api/admin/rulepacks", { body: { name: pack.world.name || "rulepack" } })).then((r) => r.pack_id);
+    const id = await creating.current;
+    creating.current = null;
+    idRef.current = id;
+    return id;
+  };
+
+  const saveDraft = async (p: Pack) => {
+    const id = await ensureId();
+    const d = await call(api.PUT("/api/admin/rulepacks/{pack_id}/draft", { params: { path: { pack_id: id } }, body: { pack: p } }));
+    baseline.current = JSON.stringify(p);
+    setCurrent((c) => ({ id, version: c.id === id ? c.version : null }));
+    setDraftAt(d.updated_at);
+    setDraftError(null);
+    void packs.refresh();
+  };
+
+  // 有修改就在停手 3 秒后自动存草稿
+  useEffect(() => {
+    if (!dirty) return;
+    const id = window.setTimeout(() => {
+      saveDraft(pack).catch((e: unknown) => setDraftError(e));
+    }, 3000);
+    return () => window.clearTimeout(id);
+  }, [pack, dirty]);
+
   const open = (id: string, version: number) =>
     void act.run(async () => {
       const v = await call(api.GET("/api/admin/rulepacks/{pack_id}/versions/{version}", { params: { path: { pack_id: id, version } } }));
-      setPack(v.pack);
-      setCurrent({ id, version });
+      load(v.pack, id, version, null);
+    });
+  const openDraft = (id: string) =>
+    void act.run(async () => {
+      const d = await call(api.GET("/api/admin/rulepacks/{pack_id}/draft", { params: { path: { pack_id: id } } }));
+      load(d.pack, id, null, d.updated_at);
+    });
+  const discardDraft = (id: string) =>
+    void act.run(async () => {
+      await call(api.DELETE("/api/admin/rulepacks/{pack_id}/draft", { params: { path: { pack_id: id } } }));
+      if (current.id === id) load(blankPack(), null, null, null);
+      void packs.refresh();
     });
   const save = () =>
     void act.run(async () => {
-      let id = current.id;
-      if (!id) id = (await call(api.POST("/api/admin/rulepacks", { body: { name: pack.world.name || "rulepack" } }))).pack_id;
+      const id = await ensureId();
       const v = await call(api.POST("/api/admin/rulepacks/{pack_id}/versions", { params: { path: { pack_id: id } }, body: { pack } }));
-      setCurrent({ id, version: v.version });
+      load(pack, id, v.version, null);
       void packs.refresh();
     });
   const importFile = (file: File) =>
     void act.run(async () => {
       const v = await call(api.POST("/api/admin/rulepacks/import", { body: { text: await file.text() } }));
-      setPack(v.pack);
-      setCurrent({ id: v.pack_id, version: v.version });
+      load(v.pack, v.pack_id, v.version, null);
       void packs.refresh();
     });
   const remove = (id: string, version: number) =>
@@ -528,14 +616,19 @@ export function RulesPanel() {
       void packs.refresh();
     });
 
+  let editing = t("rules.editing_new");
+  if (current.id && current.version !== null) editing = t("rules.editing", { id: current.id, version: String(current.version) });
+  else if (current.id) editing = t("rules.editing_draft", { id: current.id });
+
   return (
-    <Section title={t("admin.panel.rules")}>
+    <div className={help ? "sk-with-drawer" : undefined}>
+      <Section title={t("admin.panel.rules")}>
       <div className="sk-card">
         <h3>{t("rules.packs")}</h3>
         <ul>
           {(packs.data ?? []).map((p) => (
             <li key={p.pack_id}>
-              <strong>{p.name}</strong>{" "}
+              <strong>{p.name || p.pack_id}</strong>{" "}
               {p.versions.map((v) => (
                 <span key={v} className="sk-chip">
                   <button className="sk-link" onClick={() => open(p.pack_id, v)}>v{v}</button>
@@ -543,38 +636,61 @@ export function RulesPanel() {
                   <button className="sk-link" onClick={() => remove(p.pack_id, v)}>{t("common.remove")}</button>
                 </span>
               ))}
+              {p.draft_updated_at && (
+                <span className="sk-chip sk-chip-draft">
+                  <button className="sk-link" onClick={() => openDraft(p.pack_id)}>{t("rules.draft_chip", { time: when(p.draft_updated_at) })}</button>
+                  <button className="sk-link" onClick={() => discardDraft(p.pack_id)}>{t("rules.draft_discard")}</button>
+                </span>
+              )}
             </li>
           ))}
         </ul>
         <div className="sk-row">
-          <button onClick={() => { setPack(blankPack()); setCurrent({ id: null, version: null }); }}>{t("rules.new")}</button>
+          <button onClick={() => load(blankPack(), null, null, null)}>{t("rules.new")}</button>
           <label className="sk-inline">
             {t("rules.import")}
             <input type="file" accept=".json,application/json" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
           </label>
         </div>
       </div>
-      <p className="sk-hint">
-        {current.id ? t("rules.editing", { id: current.id, version: String(current.version) }) : t("rules.editing_new")}
-      </p>
+      <p className="sk-hint">{editing}</p>
       <PackEditor pack={pack} onChange={setPack} validate={validate} />
       <TryPanel pack={pack} />
+      {help && <FormulaHelp onClose={() => setHelp(false)} />}
       <div className="sk-sticky">
         {problems === null ? (
           <span className="sk-hint">{t("rules.checking")}</span>
         ) : problems.length > 0 ? (
           <details>
             <summary className="sk-invalid">{t("rules.problems", { n: String(problems.length) })}</summary>
-            <ul>{problems.slice(0, 50).map((p, i) => <li key={i}>{p.code} {p.path} {p.params ? JSON.stringify(p.params) : ""}</li>)}</ul>
+            <ul className="sk-problems">
+              {problems.slice(0, 50).map((p, i) => {
+                const where = describePath(t, pack, p.path ?? "");
+                return (
+                  <li key={i}>
+                    {where && <span className="sk-hint">{t("rules.problem_where", { where })}</span>}
+                    {translateCode(lang, p.code, p.params)}
+                  </li>
+                );
+              })}
+            </ul>
           </details>
         ) : (
           <span>{t("rules.valid")}</span>
         )}
+        <span className="sk-hint">{dirty ? t("rules.unsaved") : draftAt ? t("rules.draft_saved", { time: when(draftAt) }) : ""}</span>
+        <button disabled={act.busy} onClick={() => void act.run(() => saveDraft(pack))}>
+          {t("rules.save_draft")}
+        </button>
         <button className="sk-primary" disabled={act.busy || problems === null || problems.length > 0} onClick={save}>
           {t("rules.save_version")}
         </button>
-        <ErrorBox error={act.error ?? checkError} />
+        <button className="sk-link" onClick={() => setHelp((x) => !x)}>
+          {t("fh.open")}
+        </button>
+        <ErrorBox error={act.error ?? draftError ?? checkError} />
       </div>
-    </Section>
+      </Section>
+    </div>
   );
 }
