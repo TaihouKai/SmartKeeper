@@ -24,6 +24,9 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
 .sk-page { max-width: 960px; margin: 0 auto; padding: 12px 16px 80px; }
+/* 管理控制台要填大表格，尽量用满屏幕宽度；游戏界面也放宽一些 */
+.sk-page.sk-admin { max-width: 1680px; padding-left: 24px; padding-right: 24px; }
+.sk-page.sk-play { max-width: 1280px; }
 h1 { font-size: 20px; margin: 8px 0; }
 h2 { font-size: 17px; margin: 0; }
 h3 { font-size: 15px; margin: 12px 0 6px; }
@@ -154,3 +157,10 @@ tr.inactive { opacity: 0.5; }
   .sk-field-side { grid-column: 1 / -1; padding-top: 0; }
 }
 @media (max-width: 600px) { .sk-derived-head { display: none; } }
+.sk-entry-table th { white-space: nowrap; vertical-align: bottom; }
+.sk-entry-table td { min-width: 120px; }
+.sk-entry-table td textarea { min-height: 34px; }
+.sk-entry-table .sk-nowrap, .sk-nowrap { white-space: nowrap; min-width: 0; }
+.sk-subrow > td { background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+.sk-col-active { font-weight: 700; text-decoration: underline; }
+.sk-col-edit { border-color: var(--accent); }

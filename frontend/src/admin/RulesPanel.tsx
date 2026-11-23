@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, Fold, FormulaInput, Mover, Section, moved } from "../ui/components";
-import { EntryEditor, type Effect, type Entry, type Shape } from "../ui/EntryEditor";
+import { FieldCard, blankField, useListEdit, type Validate } from "./fieldCard";
+import { GroupTable } from "./GroupTable";
 import { translateCode } from "../ui/errors";
 import { FormulaHelp } from "../ui/FormulaHelp";
 import { useAction, usePoll } from "../ui/hooks";
@@ -11,7 +12,6 @@ type Pack = Schemas["RulePack"];
 type Template = Schemas["EntityTemplate"];
 type Field = Schemas["FieldDef"];
 type Group = Schemas["GroupDef"];
-type Preset = Schemas["GroupPreset"];
 
 const SHAPES = ["capsule", "box", "sphere", "cone"] as const;
 
@@ -96,161 +96,6 @@ function blankTemplate(name: string, t: T): Template {
   };
 }
 
-function blankField(): Field {
-  return { name: "", label: "", description: "", kind: "number", cls: "player", required: true, hidden: false, choices: [] };
-}
-
-type Scope = "any_entity" | "dice";
-type Validate = (formula: string, template: string | null, inEntry?: string, scope?: Scope) => Promise<{ problems: { code: string }[]; names: string[] }>;
-
-function useListEdit<T>(list: T[], set: (l: T[]) => void) {
-  return {
-    update: (i: number, v: T) => set(list.map((x, j) => (j === i ? v : x))),
-    remove: (i: number) => set(list.filter((_, j) => j !== i)),
-    add: (v: T) => set([...list, v]),
-    move: (from: number, to: number) => set(moved(list, from, to)),
-  };
-}
-
-function parseChoices(text: string): string[] {
-  return text
-    .split(/[|,，、]/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
-
-/** 一个字段一张小卡片：第一行是名字、显示名、类型、类别；下面只显示这种类型用得上的设置。 */
-function FieldCard({
-  f,
-  onChange,
-  onRemove,
-  validate,
-  isAppearance,
-  isFly = false,
-  inGroup,
-  mover,
-}: {
-  f: Field;
-  onChange: (f: Field) => void;
-  onRemove: () => void;
-  validate: (formula: string) => ReturnType<Validate>;
-  isAppearance: boolean;
-  isFly?: boolean;
-  inGroup: boolean;
-  mover?: ReactNode;
-}) {
-  const { t } = useI18n();
-  const cls = inGroup ? "player" : (f.cls ?? "player");
-  const numeric = f.kind === "number" || f.kind === "resource";
-  // 引擎必需的字段：名字、类型、类别都不能改，也不能删
-  const locked = isAppearance || isFly;
-  const [choicesText, setChoicesText] = useState((f.choices ?? []).join("、"));
-  useEffect(() => {
-    // 换了一个规则包或版本时，用新的值覆盖输入框
-    if (parseChoices(choicesText).join("|") !== (f.choices ?? []).join("|")) setChoicesText((f.choices ?? []).join("、"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [f.choices]);
-  return (
-    <div className="sk-field">
-      <div className="sk-field-main">
-        <label>
-          {t("rules.f.name")}
-          <input value={f.name} disabled={locked} title={locked ? t("rules.locked") : undefined} placeholder={t("rules.ph.field_name")} onChange={(e) => onChange({ ...f, name: e.target.value })} />
-        </label>
-        <label>
-          {t("rules.f.label")}
-          <input value={f.label ?? ""} placeholder={isAppearance ? t("rules.ph.appearance_label") : isFly ? t("rules.ph.label_can_fly") : t("rules.ph.field_label")} onChange={(e) => onChange({ ...f, label: e.target.value })} />
-        </label>
-        <label>
-          {t("rules.f.kind")}
-          <select value={f.kind} disabled={locked} title={locked ? t("rules.locked") : undefined} onChange={(e) => onChange({ ...f, kind: e.target.value as Field["kind"] })}>
-            <option value="number">{t("rules.kind.number")}</option>
-            <option value="resource">{t("rules.kind.resource")}</option>
-            <option value="text">{t("rules.kind.text")}</option>
-            <option value="boolean">{t("rules.kind.boolean")}</option>
-            <option value="formula">{t("rules.kind.formula")}</option>
-          </select>
-        </label>
-        {!inGroup && (
-          <label>
-            {t("rules.f.cls")}
-            <select value={cls} disabled={locked} title={locked ? t("rules.locked") : undefined} onChange={(e) => onChange({ ...f, cls: e.target.value as Field["cls"] })}>
-              <option value="player">{t("rules.cls.player")}</option>
-              <option value="runtime">{t("rules.cls.runtime")}</option>
-            </select>
-          </label>
-        )}
-        <div className="sk-field-side sk-side-actions">
-          {mover}
-          {locked ? (
-            <span className="sk-badge-req">{t(isFly ? "rules.can_fly_badge" : "rules.appearance_badge")}</span>
-          ) : (
-            <button className="sk-link" onClick={onRemove}>
-              {t("common.remove")}
-            </button>
-          )}
-        </div>
-      </div>
-      <p className="sk-hint sk-field-help">
-        {isAppearance ? t("rules.help.appearance") : isFly ? t("rules.help.can_fly") : `${t(`rules.kind_help.${f.kind}`)} ${inGroup ? "" : t(`rules.cls_help.${cls}`)}`}
-      </p>
-      <label className="sk-field-desc-input">
-        {t("rules.f.description")}
-        <input value={f.description ?? ""} placeholder={t("rules.ph.field_description")} onChange={(e) => onChange({ ...f, description: e.target.value })} />
-      </label>
-      {!locked && (
-        <div className="sk-field-extra">
-          {numeric && (
-            <>
-              <label>
-                {t("rules.f.unit")}
-                <input value={f.unit ?? ""} placeholder={t("rules.ph.unit")} onChange={(e) => onChange({ ...f, unit: e.target.value || null })} />
-              </label>
-              <label>
-                {t("rules.f.min")}
-                <FormulaInput value={f.min ?? ""} validate={validate} placeholder={t("rules.ph.min")} onChange={(x) => onChange({ ...f, min: x || null })} />
-              </label>
-              <label>
-                {f.kind === "resource" ? t("rules.f.max_required") : t("rules.f.max")}
-                <FormulaInput value={f.max ?? ""} validate={validate} placeholder={f.kind === "resource" ? t("rules.ph.max_resource") : t("rules.ph.max")} onChange={(x) => onChange({ ...f, max: x || null })} />
-              </label>
-            </>
-          )}
-          {cls === "runtime" && f.kind !== "text" && f.kind !== "formula" && (
-            <label>
-              {t("rules.f.initial_required")}
-              <FormulaInput value={f.initial ?? ""} validate={validate} placeholder={t("rules.ph.initial")} onChange={(x) => onChange({ ...f, initial: x || null })} />
-            </label>
-          )}
-          {f.kind === "text" && cls === "player" && (
-            <label className="sk-wide">
-              {t("rules.f.choices")}
-              <input
-                value={choicesText}
-                placeholder={t("rules.ph.choices")}
-                onChange={(e) => {
-                  setChoicesText(e.target.value);
-                  onChange({ ...f, choices: parseChoices(e.target.value) });
-                }}
-              />
-            </label>
-          )}
-          <div className="sk-field-flags">
-            {cls === "player" && f.kind !== "boolean" && (
-              <label className="sk-inline">
-                <input type="checkbox" checked={f.required ?? true} onChange={(e) => onChange({ ...f, required: e.target.checked })} /> {t("rules.f.required")}
-              </label>
-            )}
-            <label className="sk-inline">
-              <input type="checkbox" checked={f.hidden ?? false} onChange={(e) => onChange({ ...f, hidden: e.target.checked })} /> {t("rules.f.hidden")}
-            </label>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function FieldsTable({
   fields,
   onChange,
@@ -289,48 +134,9 @@ function FieldsTable({
   );
 }
 
-function toEntry(p: Preset): Entry {
-  return {
-    name: p.name,
-    description: p.description ?? "",
-    fields: (p.fields ?? {}) as Entry["fields"],
-    effects: (p.effects ?? []).map((e) => ({ description: e.description ?? "", target: e.target ?? null, formula: e.formula ?? null })) as Effect[],
-    shape: (p.shape ?? null) as Shape | null,
-  };
-}
-
-function fromEntry(e: Entry, when: string): Preset {
-  // 清空的数字框是 ""，不存进规则包
-  const fields = Object.fromEntries(Object.entries(e.fields).filter(([, v]) => v !== ""));
-  return { ...e, fields, when };
-}
-
-/** 一个固定条目：生效条件 + 和玩家条目一样的编辑框。 */
-function PresetCard({ p, group, derived, onChange, onRemove, validate, mover }: { p: Preset; group: Group; derived: string[]; onChange: (p: Preset) => void; onRemove: () => void; validate: (f: string, inEntry?: string, dice?: boolean) => ReturnType<Validate>; mover: ReactNode }) {
-  const { t } = useI18n();
-  const vWhen = useCallback((f: string) => validate(f), [validate]);
-  const vEntry = useCallback((f: string, inEntry: string, dice?: boolean) => validate(f, inEntry, dice), [validate]);
-  return (
-    <div className="sk-preset">
-      <div className="sk-row sk-row-end">
-        <span className="sk-hint sk-grow">{t("rules.p.what")}</span>
-        {mover}
-      </div>
-      <label>
-        {t("rules.p.when")}
-        <FormulaInput value={p.when ?? ""} validate={vWhen} placeholder={t("rules.ph.when")} onChange={(x) => onChange({ ...p, when: x })} />
-      </label>
-      <EntryEditor group={group} derived={derived} entry={toEntry(p)} validate={vEntry} withPriority={false} onChange={(e) => onChange(fromEntry(e, p.when ?? ""))} onRemove={onRemove} />
-    </div>
-  );
-}
-
 function GroupCard({ g, onChange, onRemove, validate, template, derived, mover }: { g: Group; onChange: (g: Group) => void; onRemove: () => void; validate: Validate; template: string; derived: string[]; mover: ReactNode }) {
   const { t } = useI18n();
-  const presets = g.presets ?? [];
-  const pre = useListEdit(presets, (x) => onChange({ ...g, presets: x }));
   const allowed = g.shapes?.allowed ?? [];
-  const v = useCallback((f: string, inEntry?: string, dice?: boolean) => validate(f, template, inEntry, dice ? "dice" : undefined), [validate, template]);
   return (
     <div className="sk-card">
       <Fold level={5} title={g.label || g.name || t("rules.g.untitled")}>
@@ -379,14 +185,8 @@ function GroupCard({ g, onChange, onRemove, validate, template, derived, mover }
             </label>
           ))}
         </div>
-        <Fold level={5} title={t("rules.g.fields")} hint={t("rules.g.fields_hint")}>
-          <FieldsTable fields={g.fields ?? []} onChange={(f) => onChange({ ...g, fields: f })} validate={validate} template={template} inGroup />
-        </Fold>
-        <Fold level={5} title={t("rules.g.presets")} hint={`${t("rules.g.presets_hint")} ${t("rules.order_matters_presets")}`}>
-          {presets.map((p, i) => (
-            <PresetCard key={i} p={p} group={g} derived={derived} validate={v} onChange={(x) => pre.update(i, x)} onRemove={() => pre.remove(i)} mover={<Mover index={i} count={presets.length} onMove={pre.move} />} />
-          ))}
-          <button onClick={() => pre.add({ name: "", description: "", fields: {}, effects: [], shape: null, when: "" })}>{t("rules.add_preset")}</button>
+        <Fold level={5} title={t("rules.gt.title")} hint={t("rules.gt.hint")}>
+          <GroupTable g={g} onChange={onChange} validate={validate} template={template} derived={derived} />
         </Fold>
       </Fold>
     </div>

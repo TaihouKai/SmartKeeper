@@ -477,6 +477,17 @@
     },
     "groups": "Repeatable groups (skills, abilities…)",
     "groups_hint": "A group is one kind of entry on the sheet, such as class skills, personal skills or special abilities; make one group per kind. Each entry under it is one specific skill or ability. Entries come from two places: players add their own when creating a character, and you can write fixed entries here (optionally with a condition, e.g. only for one class).",
+    "gt": {
+      "add_column": "+ Column",
+      "add_row": "+ Row (entry written by the rules)",
+      "always": "always",
+      "column": "Column: {name}",
+      "empty": "No entries yet. Use “+ Row” below.",
+      "hint": "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Effects and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: effects on one value run top to bottom. Players fill the same columns for their own entries.",
+      "more": "More (effects {n})",
+      "title": "Entry table",
+      "when": "Condition"
+    },
     "help": {
       "appearance": "Appearance: the player describes how the character looks. When others first see the character, its handle (e.g. \"woman in a red scarf\") is generated from this. It can't be removed or retyped.",
       "can_fly": "Can fly: ticked by the player, off by default. Flyers travel in a straight line at fly speed; others go up or down first and then along the ground at move speed. It can't be removed or retyped.",
