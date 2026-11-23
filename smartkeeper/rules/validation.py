@@ -169,6 +169,58 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
         problems += check_formula(pack, tpl, d.formula, f"{path}.derived[{i}]")
     for i, g in enumerate(tpl.groups):
         problems += _check_group(pack, tpl, g, f"{path}.groups[{i}]")
+    problems += _check_cycles(pack, tpl, path)
+    return problems
+
+
+def _refs(text: str) -> set[str]:
+    try:
+        return set(f.names(f.parse(text)))
+    except f.FormulaError:
+        return set()  # 语法错误另有报告
+
+
+def _check_cycles(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Problem]:
+    """推导值、命名公式、固定条目的效果之间的循环引用，不用等到算的时候才发现。
+
+    效果公式里引用目标自己的名字表示“到上一步为止的值”，不算循环。
+    """
+    deps: dict[str, set[str]] = {d.name: _refs(d.formula) for d in tpl.derived}
+    for x in pack.formulas:
+        deps.setdefault(x.name, set()).update(_refs(x.formula))
+    for g in tpl.groups:
+        for preset in g.presets:
+            for eff in preset.effects:
+                if eff.is_mechanical and eff.target in deps:
+                    assert eff.formula is not None
+                    deps[eff.target] |= _refs(eff.formula) - {eff.target}
+    nodes = set(deps)
+    graph = {k: sorted(v & nodes) for k, v in deps.items()}
+    problems: list[Problem] = []
+    seen_cycles: set[frozenset[str]] = set()
+    state: dict[str, int] = {}  # 1 = 正在走，2 = 走完了
+    stack: list[str] = []
+
+    def visit(n: str) -> None:
+        state[n] = 1
+        stack.append(n)
+        for m in graph[n]:
+            if state.get(m) == 1:
+                loop = [*stack[stack.index(m) :], m]
+                key = frozenset(loop)
+                if key not in seen_cycles:
+                    seen_cycles.add(key)
+                    problems.append(
+                        Problem(code="formula.cycle", path=path, params={"name": " -> ".join(loop)})
+                    )
+            elif m not in state:
+                visit(m)
+        stack.pop()
+        state[n] = 2
+
+    for n in sorted(graph):
+        if n not in state:
+            visit(n)
     return problems
 
 

@@ -69,6 +69,20 @@ def test_derived_cycle_rejected(rules: RulesService) -> None:
     assert any(p.code == "formula.cycle" for p in rules.validate_pack(pack))
 
 
+def test_cycle_found_without_samples(rules: RulesService) -> None:
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    derived = (
+        *tpl.derived,
+        DerivedDef(name="a", formula="b + 1"),
+        DerivedDef(name="b", formula="a * 2"),
+    )
+    tpl = tpl.model_copy(update={"derived": derived})
+    pack = pack.model_copy(update={"templates": (tpl,), "samples": ()})
+    cycles = [p for p in rules.validate_pack(pack) if p.code == "formula.cycle"]
+    assert len(cycles) == 1 and cycles[0].params["name"] == "a -> b -> a"
+
+
 def test_mechanical_and_conceptual_effects(rules: RulesService) -> None:
     pack = load_pack("single")
     plain = rules.derived_value(pack, "person", BASE, "perception_radius")
