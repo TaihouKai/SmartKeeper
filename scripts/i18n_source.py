@@ -507,8 +507,8 @@ T: dict[str, tuple[str, str]] = {
         "Number: attributes, skill levels, sizes.",
     ),
     "rules.kind_help.resource": (
-        "资源：有上限、会被消耗或恢复的数，例如 HP、魔力、限次能力的剩余次数。上限必填，可以是公式（例如 hp_max）。",
-        "Resource: a value with a ceiling that gets spent or restored (HP, mana, uses left). A maximum is required and may be a formula such as hp_max.",
+        "资源：会被消耗或恢复的数，例如 HP、魔力、护盾、限次能力的剩余次数。上限可以是公式（例如 hp_max），留空表示没有上限。",
+        "Resource: a value that gets spent or restored (HP, mana, shield, uses left). The maximum may be a formula such as hp_max; empty means no limit.",
     ),
     "rules.kind_help.text": (
         "文字：外观、背景、性格这类描述；填了可选值时，玩家只能从中选一个。",
@@ -565,7 +565,7 @@ T: dict[str, tuple[str, str]] = {
     "rules.ph.template_label": ("例如 主角", "e.g. Hero"),
     "rules.ph.field_name": ("例如 hp", "e.g. hp"),
     "rules.ph.field_label": ("中文名，例如 力量", "e.g. Strength"),
-    "rules.ph.max_resource": ("例如 hp_max", "e.g. hp_max"),
+    "rules.ph.max_resource": ("例如 hp_max；留空表示没有上限", "e.g. hp_max; empty means no limit"),
     "rules.ph.initial": ("例如 hp_max", "e.g. hp_max"),
     "rules.ph.derived_name": ("例如 hp_max", "e.g. hp_max"),
     "rules.ph.derived_label": ("例如 生命值上限", "e.g. Max HP"),

@@ -108,8 +108,6 @@ def _check_field_def(
         and fd.initial is None
     ):
         problems.append(Problem(code="pack.runtime_needs_initial", path=path))
-    if fd.kind == "resource" and fd.max is None:
-        problems.append(Problem(code="pack.resource_needs_max", path=path))
     for attr in ("min", "max", "initial"):
         text = getattr(fd, attr)
         if text is not None:

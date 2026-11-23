@@ -124,7 +124,7 @@ export function FieldCard({
                 <FormulaInput value={f.min ?? ""} validate={validate} placeholder={t("rules.ph.min")} onChange={(x) => onChange({ ...f, min: x || null })} />
               </label>
               <label>
-                {f.kind === "resource" ? t("rules.f.max_required") : t("rules.f.max")}
+                {t("rules.f.max")}
                 <FormulaInput value={f.max ?? ""} validate={validate} placeholder={f.kind === "resource" ? t("rules.ph.max_resource") : t("rules.ph.max")} onChange={(x) => onChange({ ...f, max: x || null })} />
               </label>
             </>
