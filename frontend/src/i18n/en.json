@@ -178,11 +178,11 @@
   "event": {
     "anonymous": "Anonymous",
     "approved": "Character approved",
-    "feedback": "Round {round} result",
+    "feedback": "Result",
     "identity": "Identity",
     "kp": "Keeper",
     "me": "Me",
-    "my_action": "My round {round} action",
+    "my_action": "My action",
     "opening": "Opening",
     "quote": "Quote",
     "rejected": "Character needs changes",
@@ -294,7 +294,7 @@
   "kp": {
     "a_point": "a point on the map",
     "action_box": "Action",
-    "action_hint": "Declare this round's action here (\"I …\"). It is parsed for you to confirm, and can be changed until the round resolves. Only confirmed actions change the world.",
+    "action_hint": "Write what your character does next (\"I …\"). It is parsed for you to confirm, with an estimate of how long it takes; you can resubmit until it starts. Once under way it can't be changed until it finishes or something interrupts it. Only confirmed actions change the world.",
     "ask": "Send",
     "busy": "Your action is still under way. You'll be told when it finishes or something affects you; until then it can't be changed.",
     "chat_box": "Ask the keeper",
@@ -481,6 +481,7 @@
       "text": "Text: descriptions such as background; with choices, the player picks one of them."
     },
     "levels_hint": "Checked in order; the first true condition wins. Variables: roll, target, difficulty, opp_roll, opp_target.",
+    "locked": "Required by the engine; can't be changed",
     "new": "New rule pack",
     "p": {
       "when": "Condition (empty means always)"
@@ -589,13 +590,13 @@
     "width": "Width (m)"
   },
   "sheet": {
-    "change": "Round {round} {path}: {old} → {new}",
+    "change": "{path}: {old} → {new}",
     "history": "History",
     "no": "No",
     "source": {
       "admin": "admin edit",
       "engine": "engine",
-      "feedback": "see that round's result",
+      "feedback": "see the matching result",
       "opening": "opening"
     },
     "statuses": "Statuses:",

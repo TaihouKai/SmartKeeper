@@ -178,11 +178,11 @@
   "event": {
     "anonymous": "匿名",
     "approved": "角色卡审核通过",
-    "feedback": "第 {round} 轮反馈",
+    "feedback": "KP 反馈",
     "identity": "身份",
     "kp": "KP",
     "me": "我",
-    "my_action": "我的第 {round} 轮行动",
+    "my_action": "我的行动",
     "opening": "开场",
     "quote": "引用",
     "rejected": "角色卡需要修改",
@@ -294,7 +294,7 @@
   "kp": {
     "a_point": "地图上的点",
     "action_box": "行动框",
-    "action_hint": "在这里声明本轮行动（“我要……”）。提交前会解析给你确认；结算开始前可以修改。只有这里确认过的行动会改变世界。",
+    "action_hint": "在这里写你的角色接下来要做什么（“我要……”）。提交前会解析给你确认，并告诉你大概要花多久；确认之后、结算开始之前还可以重新提交。行动开始后，直到做完或者有人打断都不能改。只有这里确认过的行动会改变世界。",
     "ask": "发送",
     "busy": "你的行动还在进行。行动做完、或者发生了和你有关的事时会通知你；在那之前不能改变行动。",
     "chat_box": "聊天框",
@@ -481,6 +481,7 @@
       "text": "文字：外观、背景、性格这类描述；填了可选值时，玩家只能从中选一个。"
     },
     "levels_hint": "按顺序判断，第一个条件为真的等级就是结果。可用变量 roll、target、difficulty、opp_roll、opp_target。",
+    "locked": "引擎必需，不能修改",
     "new": "新建规则包",
     "p": {
       "when": "生效条件（留空表示总是生效）"
@@ -589,13 +590,13 @@
     "width": "宽（米）"
   },
   "sheet": {
-    "change": "第 {round} 轮 {path}: {old} → {new}",
+    "change": "{path}: {old} → {new}",
     "history": "变更历史",
     "no": "否",
     "source": {
       "admin": "管理员修改",
       "engine": "引擎",
-      "feedback": "见当轮反馈",
+      "feedback": "见对应的反馈",
       "opening": "开场"
     },
     "statuses": "状态：",

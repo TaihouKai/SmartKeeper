@@ -472,6 +472,7 @@ T: dict[str, tuple[str, str]] = {
     ),
     "rules.ph.appearance_label": ("例如 外观", "e.g. Appearance"),
     "rules.required_badge": ("引擎必需", "required"),
+    "rules.locked": ("引擎必需，不能修改", "Required by the engine; can't be changed"),
     "rules.d.name": ("名字（公式里用的英文名）", "Name (used in formulas)"),
     "rules.d.label": ("显示名", "Label"),
     "rules.d.formula": ("公式", "Formula"),

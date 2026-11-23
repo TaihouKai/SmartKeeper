@@ -128,7 +128,7 @@ function FieldCard({
       <div className="sk-field-main">
         <label>
           {t("rules.f.name")}
-          <input value={f.name} disabled={locked} placeholder={t("rules.ph.field_name")} onChange={(e) => onChange({ ...f, name: e.target.value })} />
+          <input value={f.name} disabled={locked} title={locked ? t("rules.locked") : undefined} placeholder={t("rules.ph.field_name")} onChange={(e) => onChange({ ...f, name: e.target.value })} />
         </label>
         <label>
           {t("rules.f.label")}
@@ -136,7 +136,7 @@ function FieldCard({
         </label>
         <label>
           {t("rules.f.kind")}
-          <select value={f.kind} disabled={locked} onChange={(e) => onChange({ ...f, kind: e.target.value as Field["kind"] })}>
+          <select value={f.kind} disabled={locked} title={locked ? t("rules.locked") : undefined} onChange={(e) => onChange({ ...f, kind: e.target.value as Field["kind"] })}>
             <option value="number">{t("rules.kind.number")}</option>
             <option value="resource">{t("rules.kind.resource")}</option>
             <option value="text">{t("rules.kind.text")}</option>
@@ -146,7 +146,7 @@ function FieldCard({
         {!inGroup && (
           <label>
             {t("rules.f.cls")}
-            <select value={cls} disabled={locked} onChange={(e) => onChange({ ...f, cls: e.target.value as Field["cls"] })}>
+            <select value={cls} disabled={locked} title={locked ? t("rules.locked") : undefined} onChange={(e) => onChange({ ...f, cls: e.target.value as Field["cls"] })}>
               <option value="player">{t("rules.cls.player")}</option>
               <option value="runtime">{t("rules.cls.runtime")}</option>
             </select>
@@ -390,7 +390,7 @@ function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; 
             return (
               <div key={i}>
                 <div className="sk-derived-row">
-                  <input value={d.name} disabled={required} placeholder={t("rules.ph.derived_name")} onChange={(e) => ded.update(i, { ...d, name: e.target.value })} />
+                  <input value={d.name} disabled={required} title={required ? t("rules.locked") : undefined} placeholder={t("rules.ph.derived_name")} onChange={(e) => ded.update(i, { ...d, name: e.target.value })} />
                   <input value={d.label ?? ""} placeholder={required ? t(`rules.ph.label_${d.name}`) : t("rules.ph.derived_label")} onChange={(e) => ded.update(i, { ...d, label: e.target.value })} />
                   <FormulaInput value={d.formula} validate={v} placeholder={required ? t(`rules.ph.formula_${d.name}`) : t("rules.ph.formula")} onChange={(x) => ded.update(i, { ...d, formula: x })} />
                   <input className="sk-small" value={d.unit ?? ""} placeholder={required ? t(`rules.ph.unit_${d.name}`) : ""} onChange={(e) => ded.update(i, { ...d, unit: e.target.value || null })} />

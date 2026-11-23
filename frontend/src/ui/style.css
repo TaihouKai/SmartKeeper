@@ -31,6 +31,8 @@ a { color: var(--accent); }
 input, select, textarea, button { font: inherit; color: inherit; }
 input, select, textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
 input[type="checkbox"] { width: auto; }
+/* 不能改的框：灰底、灰字、禁止光标，一眼看得出是锁住的 */
+input:disabled, select:disabled, textarea:disabled { background: color-mix(in srgb, var(--muted) 32%, var(--bg)); color: var(--muted); border-style: dashed; cursor: not-allowed; opacity: 1; }
 textarea { resize: vertical; }
 label { display: block; margin: 6px 0; font-size: 13px; color: var(--muted); }
 label > input, label > select, label > textarea { margin-top: 2px; color: var(--fg); }
