@@ -75,8 +75,8 @@ T: dict[str, tuple[str, str]] = {
         "Dice formula, e.g. 1d6 or 1d str; rolled by the engine when used",
     ),
     "rules.p.what": (
-        "这是一个具体的条目（例如一个技能）。名称就是它的显示名；下面每个框是上面“每个条目要填的字段”在这个条目上的值，类型在那里定。",
-        "One concrete entry (e.g. one skill). Its name is what players see; each box below is this entry's value for a field defined in “Fields of each entry”, whose type is set there.",
+        "这是表里的一行，也就是一个具体的条目（例如一个技能）。“名称”和“描述”是每一行自带的；再往下的每个框，对应上面“表头”里你加的一列。",
+        "One row of the table, i.e. one concrete entry (e.g. one skill). Name and description come with every row; each box further down is one column you added in the header above.",
     ),
     "character.entry_description": ("描述", "Description"),
     "character.effects": ("效果", "Effects"),
@@ -581,15 +581,18 @@ T: dict[str, tuple[str, str]] = {
         "条目可以带的范围形状（用于范围攻击、光束等，不需要就都不勾）",
         "Area shapes entries may have (for area attacks, beams…; leave all unticked if unused)",
     ),
-    "rules.g.fields": ("每个条目要填的字段", "Fields of each entry"),
-    "rules.g.fields_hint": (
-        "每一条都有名字和说明；这里再加每条都要填的数，例如 等级、消耗。不需要就留空。",
-        "Every entry has a name and a description; add any numbers each entry needs here, such as rank or cost. Leave empty if none.",
+    "rules.g.fields": (
+        "表头：除了名称和描述，每个条目还要填哪些列",
+        "Header: columns every entry fills besides name and description",
     ),
-    "rules.g.presets": ("固定条目", "Fixed entries"),
+    "rules.g.fields_hint": (
+        "把一个分组想成一张表：每一行是一个条目（一个技能），每一行都自带“名称”和“描述”两列，不用再加。这里加的是额外的列，例如 等级（数值）、魔力消耗（数值）、伤害（掷骰公式）。下面的固定条目和玩家建角时写的条目，都按这些列来填。不需要额外的列就留空。",
+        "Think of a group as a table: each row is an entry (one skill) and already has Name and Description columns. Add extra columns here, e.g. rank (number), mana cost (number), damage (dice formula). Fixed entries below and players' own entries fill in these columns. Leave empty if you need none.",
+    ),
+    "rules.g.presets": ("固定条目：规则预先填好的行", "Fixed entries: rows filled in by the rules"),
     "rules.g.presets_hint": (
-        '规则里写死的条目，玩家不用自己填。生效条件为真时，这一条自动出现在角色卡上、效果也生效；条件不满足就不会出现。条件只能引用这张卡的字段，文字值要加英文引号，例如 class = "warrior"；也可以写 class != "warrior"、and(class = "warrior", str >= 3)。固定条目不算进上面的“最少/最多”。',
-        'Entries written into the rules that players don\'t fill in. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn\'t appear. Conditions may only use this sheet\'s fields; text values need double quotes, e.g. class = "warrior", class != "warrior" or and(class = "warrior", str >= 3). Fixed entries don\'t count toward the min/max above.',
+        '按上面的表头预先填好的行，玩家不用自己填；玩家建角时自己写的条目是另外加的行。生效条件为真时，这一条自动出现在角色卡上、效果也生效；条件不满足就不会出现。条件只能引用这张卡的字段，文字值要加英文引号，例如 class = "warrior"；也可以写 class != "warrior"、and(class = "warrior", str >= 3)。固定条目不算进上面的“最少/最多”。',
+        'Rows filled in from the header above, so players don\'t write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn\'t appear. Conditions may only use this sheet\'s fields; text values need double quotes, e.g. class = "warrior", class != "warrior" or and(class = "warrior", str >= 3). Fixed entries don\'t count toward the min/max above.',
     ),
     "rules.p.when": ("生效条件（留空表示总是生效）", "Condition (empty means always)"),
     "rules.ph.when": ('例如 class = "warrior"', 'e.g. class = "warrior"'),

@@ -463,15 +463,15 @@
     "formulas": "Named formulas",
     "g": {
       "effects": "Entries may carry effects (modify derived values)",
-      "fields": "Fields of each entry",
-      "fields_hint": "Every entry has a name and a description; add any numbers each entry needs here, such as rank or cost. Leave empty if none.",
+      "fields": "Header: columns every entry fills besides name and description",
+      "fields_hint": "Think of a group as a table: each row is an entry (one skill) and already has Name and Description columns. Add extra columns here, e.g. rank (number), mana cost (number), damage (dice formula). Fixed entries below and players' own entries fill in these columns. Leave empty if you need none.",
       "hidden": "Hide the whole group from players",
       "label": "Group name (shown to players)",
       "max": "Max entries a player writes",
       "min": "Min entries a player writes",
       "name": "Group ID (internal code)",
-      "presets": "Fixed entries",
-      "presets_hint": "Entries written into the rules that players don't fill in. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn't appear. Conditions may only use this sheet's fields; text values need double quotes, e.g. class = \"warrior\", class != \"warrior\" or and(class = \"warrior\", str >= 3). Fixed entries don't count toward the min/max above.",
+      "presets": "Fixed entries: rows filled in by the rules",
+      "presets_hint": "Rows filled in from the header above, so players don't write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn't appear. Conditions may only use this sheet's fields; text values need double quotes, e.g. class = \"warrior\", class != \"warrior\" or and(class = \"warrior\", str >= 3). Fixed entries don't count toward the min/max above.",
       "shapes": "Area shapes entries may have (for area attacks, beams…; leave all unticked if unused)",
       "untitled": "Untitled group"
     },
@@ -510,7 +510,7 @@
     "open": "Open",
     "order_matters_presets": "Note: the order of fixed entries matters; effects on the same value run top to bottom.",
     "p": {
-      "what": "One concrete entry (e.g. one skill). Its name is what players see; each box below is this entry's value for a field defined in “Fields of each entry”, whose type is set there.",
+      "what": "One row of the table, i.e. one concrete entry (e.g. one skill). Name and description come with every row; each box further down is one column you added in the header above.",
       "when": "Condition (empty means always)"
     },
     "packs": "Rule packs",
