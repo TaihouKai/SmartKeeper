@@ -288,8 +288,8 @@ T: dict[str, tuple[str, str]] = {
     "rules.w.description": ("描述", "Description"),
     "rules.w.sites": ("参考网站（每行一个）", "Reference sites (one per line)"),
     "rules.templates": ("角色卡模板", "Character templates"),
-    "rules.t.name": ("名字", "Name"),
-    "rules.t.label": ("显示名", "Label"),
+    "rules.t.name": ("模板 ID（英文代号）", "Template ID"),
+    "rules.t.label": ("这种卡叫什么（给玩家看）", "Shown to players as"),
     "rules.t.appearance": ("外观描述字段", "Appearance field"),
     "rules.remove_template": ("删除模板", "Remove template"),
     "rules.add_template": ("添加模板", "Add template"),
@@ -318,8 +318,8 @@ T: dict[str, tuple[str, str]] = {
     ),
     "rules.add_derived": ("添加推导值", "Add derived value"),
     "rules.template_hint": (
-        "这是新建规则包时预先放好的一个起始模板。名字（引擎内部用的英文名，例如 hero）和显示名（例如 主角）都改成你自己的；需要几种实体就加几个模板。",
-        "A starter template pre-filled for new packs. Rename it (an internal English name such as hero, and a display label); add one template per kind of entity.",
+        "模板是一种角色卡的格式，不是某个具体角色：玩家建角时照着它填卡。所有玩家用同一种卡就只要一个模板；如果每个玩家要同时有两种卡（例如一个人加一个同伴），就建两个模板。模板 ID 是系统内部用的英文代号，只用小写字母、数字和下划线，例如 hero；显示名是玩家在界面上看到的名称，例如 主角。默认的 character 可以直接用，不改也行。",
+        "A template is the format of one kind of character sheet, not a specific character: players fill a sheet from it. One template is enough if every player has the same kind of sheet; add a second if each player also controls, say, a companion. The ID is an internal code (lowercase letters, digits, underscores, e.g. hero); the label is what players see. The default character works as is.",
     ),
     "rules.fields_hint": (
         "玩家在角色卡上填写或游戏中会变化的数值和文字。appearance（外观描述）是必需的：别人看到这个角色时，系统会根据它起代号。",
