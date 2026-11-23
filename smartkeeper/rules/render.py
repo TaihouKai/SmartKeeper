@@ -22,6 +22,8 @@ def _field(fd: FieldDef) -> str:
         bits.append("{" + " | ".join(fd.choices) + "}")
     if fd.spends:
         bits.append(f"spends={fd.spends}")
+    if fd.per_minute:
+        bits.append(f"per_minute={fd.per_minute}")
     if fd.description:
         bits.append(f"— {fd.description}")
     return "- " + " ".join(b for b in bits if b)

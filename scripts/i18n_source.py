@@ -415,6 +415,14 @@ T: dict[str, tuple[str, str]] = {
         "Chosen on use: a number the player picks each time the skill is used, e.g. how much mana to spend. Not filled at character creation; the player says it in the action and the keeper passes it to the engine when rolling. Min and max are formulas that may use the character's fields and self.<column>. With a resource to spend from, the engine checks there is enough and deducts it when the round resolves. Dice formulas refer to it as self.<column name>, e.g. (1d4 + int) * floor(30 / self.mp_spent).",
     ),
     "rules.f.spends": ("从哪个资源扣", "Spend from"),
+    "rules.f.per_minute": (
+        "每分钟自然变化（正数恢复，负数消耗）",
+        "Change per minute (+ recovers, − drains)",
+    ),
+    "rules.ph.per_minute": (
+        "留空表示不变，例如 1 或 con / 2",
+        "empty means none, e.g. 1 or con / 2",
+    ),
     "rules.f.spends_none": ("不扣", "nothing"),
     "rules.gt.param_cell": ("使用时填写", "chosen on use"),
     "character.param_field": (

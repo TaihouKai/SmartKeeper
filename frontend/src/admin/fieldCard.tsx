@@ -142,6 +142,12 @@ export function FieldCard({
               </select>
             </label>
           )}
+          {cls === "runtime" && (f.kind === "number" || f.kind === "resource") && (
+            <label>
+              {t("rules.f.per_minute")}
+              <FormulaInput value={f.per_minute ?? ""} validate={validate} placeholder={t("rules.ph.per_minute")} onChange={(x) => onChange({ ...f, per_minute: x || null })} />
+            </label>
+          )}
           {cls === "runtime" && f.kind !== "text" && f.kind !== "formula" && f.kind !== "param" && (
             <label>
               {t("rules.f.initial_required")}

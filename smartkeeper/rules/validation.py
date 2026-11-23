@@ -114,6 +114,10 @@ def _check_field_def(
         text = getattr(fd, attr)
         if text is not None:
             problems += check_formula(pack, tpl, text, f"{path}.{attr}", entry_fields=entry_fields)
+    if fd.per_minute is not None:
+        if fd.cls != "runtime" or fd.kind not in ("number", "resource"):
+            problems.append(Problem(code="pack.per_minute_needs_runtime", path=path))
+        problems += check_formula(pack, tpl, fd.per_minute, f"{path}.per_minute")
     if fd.spends is not None and fd.kind != "param":
         problems.append(Problem(code="pack.spends_needs_param", path=path))
     if fd.spends is not None and tpl is not None:

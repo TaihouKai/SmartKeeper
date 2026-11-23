@@ -1330,6 +1330,51 @@ class Engine:
             fields[pf.name] = v
         return spends
 
+    def _regen_ops(self, pack: RulePack, state: State, seconds: int) -> list[PatchOp]:
+        """运行值的自然变化（例如每分钟回复的 HP、魔力），按这段时间算，截断在上下限之内。
+
+        这是时间流逝本身，不算“受到影响”，不会因此通知玩家。"""
+        if seconds <= 0:
+            return []
+        ops: list[PatchOp] = []
+        for eid, raw in sorted(_obj(state.get("entities")).items()):
+            ent = _obj(raw)
+            template = str(ent.get("template", ""))
+            tpl = pack.template(template)
+            if tpl is None:
+                continue
+            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet")))
+            fields = _obj(sheet.get("fields"))
+            for fd in tpl.fields:
+                cur = fields.get(fd.name)
+                if (
+                    fd.per_minute is None
+                    or not isinstance(cur, int | float)
+                    or isinstance(cur, bool)
+                ):
+                    continue
+
+                def num(text: str, t: str = template, sh: JsonValue = sheet) -> float:
+                    return self._rules.roll(pack, text, self._dice.faces, t, sh).total
+
+                try:
+                    value = float(cur) + num(fd.per_minute) * seconds / 60
+                    if fd.min is not None:
+                        value = max(value, num(fd.min))
+                    if fd.max is not None:
+                        value = min(value, num(fd.max))
+                except ValidationFailed:
+                    continue
+                value = round(value, 2)
+                if value != float(cur):
+                    v: JsonValue = int(value) if value.is_integer() else value
+                    ops.append(
+                        PatchOp(
+                            op="replace", path=f"/entities/{eid}/sheet/fields/{fd.name}", value=v
+                        )
+                    )
+        return ops
+
     def _spend_ops(self, game_id: str, round_no: int, state: State) -> list[PatchOp]:
         """本轮（最近一次规划里）掷骰时用掉的资源：从角色卡上扣掉。"""
         total: dict[tuple[str, str], float] = {}
@@ -1648,6 +1693,10 @@ class Engine:
             ops = [PatchOp(op="replace", path="/kp_notes", value=adj.kp_notes)]
             cur = self._world.apply(cur, ops)
             groups.append(("kp_notes", ops))
+        regen = self._regen_ops(pack, cur, end - now)
+        if regen:
+            cur = self._world.apply(cur, regen)
+            groups.append(("regen", regen))
         ops = [PatchOp(op="replace", path="/game_seconds", value=end)]
         # 做完了的行动、收到结果的玩家的全部行动，到此结束
         notified = outcome_players

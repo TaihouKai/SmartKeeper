@@ -64,6 +64,8 @@ class FieldDef(Frozen):
     required: bool = True
     hidden: bool = False  # 对玩家隐藏
     spends: str | None = None  # kind=param：从角色的哪个资源字段里扣
+    # 运行值的自然变化：每分钟变化多少（公式；正数恢复、负数消耗），按上下限截断；空表示不变
+    per_minute: str | None = None
 
 
 class ShapeDef(Frozen):

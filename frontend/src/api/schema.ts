@@ -1358,6 +1358,8 @@ export interface components {
             min?: string | null;
             /** Name */
             name: string;
+            /** Per Minute */
+            per_minute?: string | null;
             /**
              * Required
              * @default true

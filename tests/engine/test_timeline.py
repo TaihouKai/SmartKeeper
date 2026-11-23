@@ -579,3 +579,33 @@ def test_placement_formulas_use_chosen_on_use_columns_and_spend() -> None:
     state = e.world_state(gid)
     assert state["placements"]["pl_1_1"]["radius"] == 6  # type: ignore[index]
     assert state["entities"][e0]["sheet"]["fields"]["hp"] == hp - 3  # type: ignore[index]
+
+
+def test_runtime_fields_change_per_minute_without_notifying() -> None:
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    fields = tuple(
+        f.model_copy(update={"per_minute": "1"}) if f.name == "hp" else f for f in tpl.fields
+    )
+    pack = pack.model_copy(
+        update={"templates": (tpl.model_copy(update={"fields": fields}), *pack.templates[1:])}
+    )
+    t = setup_table("single", 2, pack=pack)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    hp_max = e.world_state(g)["entities"][e0]["sheet"]["fields"]["hp"]  # type: ignore[index]
+    e.admin_patch(
+        g,
+        [
+            PatchOp(op="replace", path=f"/entities/{e0}/sheet/fields/hp", value=3),
+            PatchOp(op="replace", path=f"/entities/{e1}/sheet/fields/hp", value=hp_max),
+        ],
+    )
+    wait(t, p0, 150)
+    wait(t, p1, 3000)
+    e.close_round(g)
+    publish(t, only=[p0])  # p1 回了血（已满，不变）也不算受到影响
+    ents = e.world_state(g)["entities"]
+    assert ents[e0]["sheet"]["fields"]["hp"] == 5.5  # type: ignore[index]  # 2.5 分钟 × 1
+    assert ents[e1]["sheet"]["fields"]["hp"] == hp_max  # type: ignore[index]  # 截断在上限
