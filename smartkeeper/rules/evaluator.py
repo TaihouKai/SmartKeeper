@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from pydantic import JsonValue
 
-from smartkeeper.contracts import DerivedValue, Effect, EntityTemplate, RulePack, Sheet
+from smartkeeper.contracts import DerivedValue, Effect, EntityTemplate, GroupEntry, RulePack, Sheet
 from smartkeeper.rules import formula as f
 
 
@@ -64,6 +64,39 @@ class EntityContext:
         self._lookup = table_lookup(self.pack)
         self._derived = {d.name: d for d in self.template.derived}
         self._formulas = {x.name: x for x in self.pack.formulas}
+        self._groups: dict[str, tuple[GroupEntry, ...]] | None = None
+
+    # ---- 条目：玩家写的加上生效的固定条目 ----
+
+    def active_presets(self) -> dict[str, tuple[GroupEntry, ...]]:
+        """条件为真的固定条目。条件只看字段，求值出错（例如字段还没填）当作不生效。"""
+        out: dict[str, tuple[GroupEntry, ...]] = {}
+        for g in self.template.groups:
+            hits: list[GroupEntry] = []
+            for p in g.presets:
+                if p.when.strip():
+                    try:
+                        if not f.truthy(self.eval(p.when)):
+                            continue
+                    except f.FormulaError:
+                        continue
+                hits.append(GroupEntry.model_validate(p.model_dump(exclude={"when"})))
+            if hits:
+                out[g.name] = tuple(hits)
+        return out
+
+    def groups(self) -> dict[str, tuple[GroupEntry, ...]]:
+        if self._groups is None:
+            merged = dict(self.sheet.groups)
+            # 条件公式绕回推导值再绕回条目时，_guarded 报循环，那个条目就当不生效
+            for name, presets in self._guarded("presets", self.active_presets).items():
+                merged[name] = presets + merged.get(name, ())
+            self._groups = merged
+        return self._groups
+
+    def full_sheet(self) -> Sheet:
+        """给人和 KP 看的完整角色卡：固定条目排在玩家写的条目前面。"""
+        return self.sheet.model_copy(update={"groups": self.groups()})
 
     # ---- 名字解析 ----
 
@@ -125,7 +158,7 @@ class EntityContext:
     def modifiers_for(self, name: str) -> list[tuple[Effect, Mapping[str, JsonValue] | None, str]]:
         """作用于某个推导值的全部带公式的效果：(效果, 所在条目的字段, 来源说明)。"""
         out: list[tuple[Effect, Mapping[str, JsonValue] | None, str]] = []
-        for group, entries in sorted(self.sheet.groups.items()):
+        for group, entries in sorted(self.groups().items()):
             for entry in entries:
                 for eff in entry.effects:
                     if eff.is_mechanical and eff.target == name:

@@ -9,4 +9,5 @@
   - `export_pack` / `parse_import`：导入导出文件格式 `{"format": "smartkeeper.rulepack", "format_version": 1, "pack": {...}}`。
 - 公式语言（`formula.py`）：数字、`"文字"`、`+ - * /`、比较（结果 1/0）、括号、字段引用 `name` / `self.name`、掷骰 `NdM`（只在给了 `faces` 时允许），函数见 `FUNCTIONS`（前端“公式速查”同一张表，有测试保证一致）。不执行任何外部代码。
 - 推导值 = (公式 + 全部加法修正) × 全部乘法修正。修正来自分组条目里带公式的效果和状态上的修正。
+- 分组的固定条目（`GroupDef.presets`）按字段条件生效，不存进卡：`EntityContext.groups()` 把生效的固定条目排在玩家条目前面，推导值修正和 `full_sheet` 都用它。
 - 单独测试：`uv run pytest tests/rules`（用 `tests/fixtures` 的假骰子）

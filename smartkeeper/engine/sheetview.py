@@ -129,7 +129,7 @@ def build_sheet_views(
             SheetView(
                 entity_id=eid,
                 template=tpl.name,
-                sheet=visible_sheet(tpl, ent.get("sheet")),
+                sheet=visible_sheet(tpl, rules.full_sheet(pack, tpl.name, ent.get("sheet"))),
                 derived=derived,
                 history=tuple(history.get(eid, [])),
             )

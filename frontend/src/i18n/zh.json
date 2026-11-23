@@ -38,6 +38,7 @@
     "effects": "效果",
     "entry_description": "描述",
     "entry_name": "名称",
+    "fixed_entries": "按现在的填写，会自动获得：{names}",
     "name": "角色名",
     "remove_entry": "删除这一条",
     "shape": "范围形状",
@@ -359,6 +360,7 @@
     "add_field": "添加字段",
     "add_group": "添加分组",
     "add_level": "添加结果等级",
+    "add_preset": "添加固定条目",
     "add_template": "添加模板",
     "appearance_badge": "外观描述（必需）",
     "c": {
@@ -394,6 +396,7 @@
     "f": {
       "choices": "可选值",
       "cls": "类别",
+      "description": "给玩家看的说明（可不填）",
       "hidden": "对玩家隐藏",
       "initial": "初值",
       "initial_required": "初值（必填）",
@@ -410,12 +413,21 @@
     "fields_hint": "玩家在角色卡上填写或游戏中会变化的数值和文字。appearance（外观描述）是必需的：别人看到这个角色时，系统会根据它起代号。",
     "formulas": "命名公式",
     "g": {
-      "effects": "条目可带效果",
-      "max": "最多",
-      "min": "最少",
-      "shapes": "允许的范围形状（capsule|box|sphere|cone）"
+      "effects": "条目可以带效果（修改推导值）",
+      "fields": "每个条目要填的字段",
+      "fields_hint": "每一条都有名字和说明；这里再加每条都要填的数，例如 等级、消耗。不需要就留空。",
+      "hidden": "整个分组对玩家隐藏",
+      "label": "分组名（玩家看到的类别名）",
+      "max": "玩家最多写几条",
+      "min": "玩家最少写几条",
+      "name": "分组 ID（英文代号，系统内部用）",
+      "presets": "固定条目",
+      "presets_hint": "规则里写死的条目，玩家不用自己填。生效条件为真时，这一条自动出现在角色卡上、效果也生效；条件不满足就不会出现。条件只能引用这张卡的字段，文字值要加英文引号，例如 class = \"warrior\"；也可以写 class != \"warrior\"、and(class = \"warrior\", str >= 3)。固定条目不算进上面的“最少/最多”。",
+      "shapes": "条目可以带的范围形状（用于范围攻击、光束等，不需要就都不勾）",
+      "untitled": "未命名分组"
     },
     "groups": "可重复分组（技能、能力等）",
+    "groups_hint": "一个分组就是角色卡上的一类条目，例如“职业技能”“天赋”“特殊能力”，每一类建一个分组。分组下面的每一条是一个具体的技能或能力。条目有两种来源：玩家建角时自己添加的；你在这里写好的固定条目（可以带生效条件，例如只有某个职业才有）。",
     "help": {
       "appearance": "外观描述：玩家建角时用文字描述自己角色的样子。别人第一次看到这个角色时，系统根据它起代号（例如“红围巾的女人”）。这个字段不能删除，名字和类型也不能改。",
       "concealment": "匿踪系数：别人察觉这个角色的距离要乘以它。1 表示普通；0.3 表示别人得靠得很近才能发现（例如气息遮断）。默认 1，可以直接保留。",
@@ -435,20 +447,26 @@
     },
     "levels_hint": "按顺序判断，第一个条件为真的等级就是结果。可用变量 roll、target、difficulty、opp_roll、opp_target。",
     "new": "新建规则包",
+    "p": {
+      "when": "生效条件（留空表示总是生效）"
+    },
     "packs": "规则包",
     "path": {
       "checks": "检定",
       "derived": "推导值",
       "dice": "骰子",
+      "effects": "效果",
       "fields": "字段",
       "formulas": "命名公式",
       "groups": "分组",
       "levels": "结果等级",
       "player_entities": "建角实体",
+      "presets": "固定条目",
       "samples": "例题",
       "tables": "查表",
       "target": "目标值",
-      "templates": "模板"
+      "templates": "模板",
+      "when": "生效条件"
     },
     "ph": {
       "appearance_label": "例如 外观",
@@ -456,12 +474,16 @@
       "derived_label": "例如 生命值上限",
       "derived_name": "例如 hp_max",
       "dice": "例如 1d100",
+      "field_description": "例如 运动能力、近战格斗能力、力气",
       "field_label": "中文名，例如 力量",
       "field_name": "例如 hp",
       "formula": "例如 str * 2 + 10",
       "formula_concealment": "例如 1",
       "formula_move_speed": "例如 80",
       "formula_perception_radius": "例如 50 + per",
+      "group_label": "例如 职业技能",
+      "group_max": "不限",
+      "group_name": "例如 class_skills",
       "initial": "例如 hp_max",
       "label_concealment": "例如 匿踪系数",
       "label_move_speed": "例如 移动速度",
@@ -474,7 +496,8 @@
       "unit": "可不填，例如 米",
       "unit_concealment": "无单位",
       "unit_move_speed": "米/分钟",
-      "unit_perception_radius": "米"
+      "unit_perception_radius": "米",
+      "when": "例如 class = \"warrior\""
     },
     "player_entities": "玩家建角时要创建的实体（模板、最少、最多）",
     "problem_where": "{where}：",

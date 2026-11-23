@@ -1208,6 +1208,11 @@ export interface components {
              */
             cls: "player" | "runtime";
             /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
              * Hidden
              * @default false
              */
@@ -1321,6 +1326,8 @@ export interface components {
         /**
          * GroupDef
          * @description 可重复的分组，例如技能、特殊能力。每个条目有模板规定的字段和一个效果列表。
+         *
+         *     条目有两种来源：玩家建角时自己写的（数量受 min/max_count 限制），和 presets 里满足条件的固定条目。
          */
         GroupDef: {
             /**
@@ -1352,6 +1359,11 @@ export interface components {
             min_count: number;
             /** Name */
             name: string;
+            /**
+             * Presets
+             * @default []
+             */
+            presets: components["schemas"]["GroupPreset"][];
             /** @default {
              *       "allowed": []
              *     } */
@@ -1379,6 +1391,38 @@ export interface components {
             /** Name */
             name: string;
             shape?: components["schemas"]["Shape"] | null;
+        };
+        /**
+         * GroupPreset
+         * @description 规则包写好的固定条目。when 是条件公式（只能引用这张卡的字段），为真时条目出现在角色卡上；
+         *     空表示总是出现。固定条目不存进角色卡，每次读卡时按当前字段重新算，所以不算进 min/max_count。
+         */
+        GroupPreset: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Effects
+             * @default []
+             */
+            effects: components["schemas"]["Effect"][];
+            /**
+             * Fields
+             * @default {}
+             */
+            fields: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Name */
+            name: string;
+            shape?: components["schemas"]["Shape"] | null;
+            /**
+             * When
+             * @default
+             */
+            when: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1731,6 +1775,13 @@ export interface components {
         PreviewOut: {
             /** Derived */
             derived: components["schemas"]["DerivedValue"][];
+            /**
+             * Presets
+             * @default {}
+             */
+            presets: {
+                [key: string]: string[];
+            };
             /** Problems */
             problems: components["schemas"]["Problem"][];
         };

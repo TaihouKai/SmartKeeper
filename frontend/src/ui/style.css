@@ -101,6 +101,19 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; min
 .sk-chip-draft { border-style: dashed; }
 @media (min-width: 900px) { .sk-with-drawer { margin-right: 420px; } }
 .sk-derived-head { font-size: 12px; color: var(--muted); margin-bottom: 0; }
+.sk-fold > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+.sk-fold > summary::-webkit-details-marker { display: none; }
+.sk-fold > summary::before { content: "▶"; color: var(--accent); font-size: 11px; width: 14px; display: inline-block; transition: transform 0.15s; }
+.sk-fold[open] > summary::before { transform: rotate(90deg); }
+.sk-fold > summary > h3, .sk-fold > summary > h4, .sk-fold > summary > h5 { display: inline; margin: 10px 0 6px; }
+.sk-fold .sk-fold { margin-left: 2px; }
+.sk-group-main { display: grid; grid-template-columns: minmax(120px, 1.4fr) minmax(120px, 1.4fr) minmax(90px, 0.8fr) minmax(90px, 0.8fr) auto; gap: 8px; align-items: end; }
+.sk-group-main label { margin: 0; }
+.sk-shapes { display: flex; gap: 12px; flex-wrap: wrap; }
+.sk-preset { border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+.sk-field-desc { display: block; color: var(--muted); font-size: 12px; }
+.sk-field-desc-input { margin-top: 6px; }
+@media (max-width: 640px) { .sk-group-main { grid-template-columns: 1fr 1fr; } }
 .sk-derived-help { margin: -2px 0 8px 2px; font-size: 12px; }
 .sk-badge-req { font-size: 11px; color: var(--accent); white-space: nowrap; align-self: center; }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.6; }

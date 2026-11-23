@@ -108,6 +108,11 @@ class Rules(Protocol):
         """建角提交后补上运行值的初值。"""
         ...
 
+    def full_sheet(self, pack: RulePack, template: str, sheet: JsonValue) -> JsonValue:
+        """角色卡加上此刻生效的固定条目（规则包分组里带条件的条目）。给人和 KP 看、查能力时用它；
+        世界状态里存的卡不含固定条目。卡的结构不合法时原样返回。"""
+        ...
+
     def derive(self, pack: RulePack, template: str, sheet: JsonValue) -> list[DerivedValue]: ...
 
     def derived_value(

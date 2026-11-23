@@ -13,6 +13,7 @@ from smartkeeper.contracts import (
     EntityTemplate,
     FieldDef,
     GroupDef,
+    GroupEntry,
     Problem,
     RulePack,
     Sheet,
@@ -117,6 +118,16 @@ def _check_group(pack: RulePack, tpl: EntityTemplate, g: GroupDef, path: str) ->
         problems += _check_field_def(pack, tpl, fd, f"{path}.fields[{i}]")
     if g.max_count is not None and g.max_count < g.min_count:
         problems.append(Problem(code="pack.bad_count", path=path))
+    derived = {d.name for d in tpl.derived}
+    field_names = [x.name for x in tpl.fields]
+    for name in sorted(_dupes(p.name for p in g.presets)):
+        problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
+    for i, p in enumerate(g.presets):
+        pp = f"{path}.presets[{i}]"
+        if p.when.strip():
+            # 条件只看这张卡的字段：固定条目会影响推导值，条件再引用推导值就绕成圈了
+            problems += check_formula(pack, None, p.when, f"{pp}.when", extra=field_names)
+        problems += _check_entry(pack, tpl, g, p, derived, pp, required_fields=False)
     return problems
 
 
@@ -358,25 +369,40 @@ def _check_group_entries(
         problems.append(
             Problem(code="sheet.group_count", path=path, params={"count": len(entries)})
         )
-    fdefs = {x.name: x for x in g.fields}
     for i, entry in enumerate(entries):
-        ep = f"{path}[{i}]"
-        if not entry.name.strip():
-            problems.append(Problem(code="sheet.required", path=f"{ep}.name"))
-        for name in sorted(entry.fields):
-            if name not in fdefs:
-                problems.append(Problem(code="sheet.unknown_field", path=f"{ep}.fields.{name}"))
-        for name, fd in fdefs.items():
-            if name in entry.fields:
-                problems += _check_value(None, fd, entry.fields[name], f"{ep}.fields.{name}")
-            elif fd.required:
-                problems.append(Problem(code="sheet.missing_field", path=f"{ep}.fields.{name}"))
-        if entry.effects and not g.effects:
-            problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
-        for j, eff in enumerate(entry.effects):
-            problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
-        if entry.shape is not None and entry.shape.kind not in g.shapes.allowed:
-            problems.append(Problem(code="sheet.shape_not_allowed", path=f"{ep}.shape"))
+        problems += _check_entry(pack, tpl, g, entry, derived, f"{path}[{i}]")
+    return problems
+
+
+def _check_entry(
+    pack: RulePack,
+    tpl: EntityTemplate,
+    g: GroupDef,
+    entry: GroupEntry,
+    derived: set[str],
+    ep: str,
+    *,
+    required_fields: bool = True,
+) -> list[Problem]:
+    """一个条目：玩家写的，或规则包里的固定条目（固定条目的字段可以留空）。"""
+    problems: list[Problem] = []
+    fdefs = {x.name: x for x in g.fields}
+    if not entry.name.strip():
+        problems.append(Problem(code="sheet.required", path=f"{ep}.name"))
+    for name in sorted(entry.fields):
+        if name not in fdefs:
+            problems.append(Problem(code="sheet.unknown_field", path=f"{ep}.fields.{name}"))
+    for name, fd in fdefs.items():
+        if name in entry.fields:
+            problems += _check_value(None, fd, entry.fields[name], f"{ep}.fields.{name}")
+        elif fd.required and required_fields:
+            problems.append(Problem(code="sheet.missing_field", path=f"{ep}.fields.{name}"))
+    if entry.effects and not g.effects:
+        problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
+    for j, eff in enumerate(entry.effects):
+        problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
+    if entry.shape is not None and entry.shape.kind not in g.shapes.allowed:
+        problems.append(Problem(code="sheet.shape_not_allowed", path=f"{ep}.shape"))
     return problems
 
 

@@ -86,6 +86,13 @@ class Space:
             )
         self._perceived: dict[str, list[str]] = {}
 
+    def full_sheet(self, entity_id: str) -> dict[str, JsonValue]:
+        """实体的角色卡，含此刻生效的固定条目。"""
+        ent = _obj(self.entities.get(entity_id))
+        return _obj(
+            self.rules.full_sheet(self.pack, str(ent.get("template", "")), ent.get("sheet"))
+        )
+
     def derived(self, entity_id: str, name: str) -> float:
         ent = _obj(self.entities.get(entity_id))
         return self.rules.derived_value(

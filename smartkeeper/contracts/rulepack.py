@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import Field, JsonValue
 
 from smartkeeper.contracts.base import Frozen
+from smartkeeper.contracts.sheet import GroupEntry
 
 # 引擎必需的推导值。每个实体模板都必须为它们提供公式。
 REQUIRED_DERIVED: tuple[str, ...] = ("perception_radius", "concealment", "move_speed")
@@ -36,6 +37,7 @@ class FieldDef(Frozen):
 
     name: str
     label: str = ""
+    description: str = ""  # 给玩家看的一句说明，例如“运动能力、近战、力气”
     kind: FieldKind
     cls: FieldClass = "player"
     unit: str | None = None
@@ -53,12 +55,24 @@ class ShapeDef(Frozen):
     allowed: tuple[Literal["capsule", "box", "sphere", "cone"], ...] = ()
 
 
+class GroupPreset(GroupEntry):
+    """规则包写好的固定条目。when 是条件公式（只能引用这张卡的字段），为真时条目出现在角色卡上；
+    空表示总是出现。固定条目不存进角色卡，每次读卡时按当前字段重新算，所以不算进 min/max_count。
+    """
+
+    when: str = ""
+
+
 class GroupDef(Frozen):
-    """可重复的分组，例如技能、特殊能力。每个条目有模板规定的字段和一个效果列表。"""
+    """可重复的分组，例如技能、特殊能力。每个条目有模板规定的字段和一个效果列表。
+
+    条目有两种来源：玩家建角时自己写的（数量受 min/max_count 限制），和 presets 里满足条件的固定条目。
+    """
 
     name: str
     label: str = ""
     fields: tuple[FieldDef, ...] = ()
+    presets: tuple[GroupPreset, ...] = ()
     min_count: int = 0
     max_count: int | None = None
     effects: bool = True  # 条目是否可以带效果

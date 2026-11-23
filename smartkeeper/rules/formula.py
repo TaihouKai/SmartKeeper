@@ -1,6 +1,6 @@
 """受限的公式语言。引擎不执行任何外部代码，这里是自己的解析器和求值器。
 
-- 数字、"字符串"、+ - * /、比较（< <= > >= == !=，结果是 1 或 0）、括号
+- 数字、"字符串"、+ - * /、比较（< <= > >= == !=，结果是 1 或 0；单个 = 等同 ==）、括号
 - 名字：字段、推导值、命名公式；条目里可用 self.x
 - 掷骰：NdM。数字后面紧跟 d 就是掷骰（3d6、1dstr、2d(str+1)）；名字和名字之间要加空格
   （np_level d luck）；d20 等于 1d20，d% 等于 1d100。掷骰比乘除先算：2d6*5 是 (2d6)*5。
@@ -98,7 +98,7 @@ type Node = Num | Str | Name | Unary | Binary | Call | Dice
 
 _TOKEN = re.compile(
     r"\s*(?:(?P<num>\d+(?:\.\d+)?)|(?P<str>\"[^\"]*\")|(?P<name>[^\W\d]\w*(?:\.[^\W\d]\w*)?)"
-    r"|(?P<op><=|>=|==|!=|[-+*/()<>,%]))"
+    r"|(?P<op><=|>=|==|!=|[-+*/()<>,%=]))"
 )
 _DIE_NAME = re.compile(r"[dD](\d*)")
 
@@ -174,10 +174,10 @@ class _Parser:
 
     def comparison(self) -> Node:
         left = self.additive()
-        if self.peek_op(*COMPARISONS):
+        if self.peek_op(*COMPARISONS, "="):
             op = self.take().text
-            left = Binary(op, left, self.additive())
-            if self.peek_op(*COMPARISONS):
+            left = Binary("==" if op == "=" else op, left, self.additive())
+            if self.peek_op(*COMPARISONS, "="):
                 raise FormulaError("formula.chained_comparison")
         return left
 
@@ -330,7 +330,7 @@ def _num(v: Value) -> float:
     return v
 
 
-def _truthy(v: Value) -> bool:
+def truthy(v: Value) -> bool:
     return v != 0 and v != ""
 
 
@@ -385,13 +385,13 @@ class _Eval:
             assert isinstance(first, Name)
             return self.lookup(first.name, self.run(args[1]))
         if fn == "if":
-            return self.run(args[1]) if _truthy(self.run(args[0])) else self.run(args[2])
+            return self.run(args[1]) if truthy(self.run(args[0])) else self.run(args[2])
         if fn == "and":
-            return 1.0 if all(_truthy(self.run(a)) for a in args) else 0.0
+            return 1.0 if all(truthy(self.run(a)) for a in args) else 0.0
         if fn == "or":
-            return 1.0 if any(_truthy(self.run(a)) for a in args) else 0.0
+            return 1.0 if any(truthy(self.run(a)) for a in args) else 0.0
         if fn == "not":
-            return 0.0 if _truthy(self.run(args[0])) else 1.0
+            return 0.0 if truthy(self.run(args[0])) else 1.0
         v = [self.num(a) for a in args]
         if fn in ("highest", "lowest"):
             faces = sorted(self.roll(v[0], v[1]), reverse=fn == "highest")

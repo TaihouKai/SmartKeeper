@@ -969,7 +969,7 @@ class Engine:
     ) -> list[Problem]:
         if ability is not None:
             # 依据能力的特殊移动：只校验这个能力确实在该实体的角色卡上
-            sheet = _obj(_obj(space.entities.get(eid)).get("sheet"))
+            sheet = space.full_sheet(eid)
             names: set[str] = set()
             for entries in _obj(sheet.get("groups")).values():
                 if isinstance(entries, list):
@@ -1510,7 +1510,7 @@ class Engine:
         for e in mine:
             ent = _obj(space.entities.get(e))
             tpl = pack.template(str(ent.get("template", "")))
-            sheet = visible_sheet(tpl, ent.get("sheet")) if tpl else {}
+            sheet = visible_sheet(tpl, space.full_sheet(e)) if tpl else {}
             perceived: list[JsonValue] = []
             for other in space.perceived_by(e):
                 if other in mine:
@@ -1574,7 +1574,7 @@ class Engine:
         toward = self._resolve_point(space, q.toward, "toward")
         shape_raw: JsonValue = None
         if q.ability is not None:
-            sheet = _obj(_obj(space.entities.get(q.entity)).get("sheet"))
+            sheet = space.full_sheet(q.entity)
             for entries in _obj(sheet.get("groups")).values():
                 for e in entries if isinstance(entries, list) else []:
                     if _obj(e).get("name") == q.ability:

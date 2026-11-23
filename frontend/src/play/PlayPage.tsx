@@ -199,10 +199,13 @@ function ChatTab() {
 function SheetTab() {
   const { t } = useI18n();
   const sheets = usePoll(() => call(api.GET("/api/sheets")), 30_000);
+  const rules = usePoll(() => call(api.GET("/api/rules")), 600_000);
   const [hist, setHist] = useState<string | null>(null);
   return (
     <div>
       {(sheets.data ?? []).map((s) => {
+        const tpl = ((rules.data?.templates ?? []) as unknown as Schemas["EntityTemplate"][]).find((x) => x.name === s.template);
+        const fdef = (k: string) => tpl?.fields?.find((f) => f.name === k);
         const sheet = s.sheet as { name?: string; fields?: Record<string, unknown>; groups?: Record<string, { name: string; description?: string }[]>; statuses?: { tag: string }[]; items?: { name: string; qty?: number }[] };
         return (
           <div key={s.entity_id} className="sk-card">
@@ -211,8 +214,11 @@ function SheetTab() {
               <tbody>
                 {Object.entries(sheet.fields ?? {}).map(([k, v]) => (
                   <tr key={k}>
-                    <th>{k}</th>
-                    <td>{String(v)}</td>
+                    <th>{fdef(k)?.label || k}</th>
+                    <td>
+                      {String(v)}
+                      {fdef(k)?.description && <div className="sk-hint">{fdef(k)?.description}</div>}
+                    </td>
                   </tr>
                 ))}
                 {s.derived.map((d) => (
@@ -225,7 +231,7 @@ function SheetTab() {
             </table>
             {Object.entries(sheet.groups ?? {}).map(([g, entries]) => (
               <div key={g}>
-                <strong>{g}</strong>
+                <strong>{tpl?.groups?.find((x) => x.name === g)?.label || g}</strong>
                 <ul>
                   {entries.map((en, i) => (
                     <li key={i}>

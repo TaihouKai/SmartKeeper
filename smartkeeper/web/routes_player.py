@@ -15,6 +15,8 @@ from smartkeeper.contracts import (
     IdentityRules,
     Player,
     Problem,
+    RulePack,
+    Rules,
     SheetSubmission,
     SheetView,
     ValidationFailed,
@@ -93,6 +95,7 @@ class PreviewIn(BaseModel):
 class PreviewOut(BaseModel):
     derived: list[DerivedValue]
     problems: list[Problem]
+    presets: dict[str, list[str]] = {}  # 分组名 -> 按当前填写会生效的固定条目名
 
 
 class FormulaIn(BaseModel):
@@ -146,6 +149,26 @@ class ProjectOut(BaseModel):
 
 class OkOut(BaseModel):
     ok: bool = True
+
+
+def _presets(rules: Rules, pack: RulePack, template: str, sheet: JsonValue) -> dict[str, list[str]]:
+    """按这张卡现在的填写会生效的固定条目名（固定条目排在玩家条目前面）。"""
+    full = rules.full_sheet(pack, template, sheet)
+    if not isinstance(full, dict) or not isinstance(sheet, dict):
+        return {}
+    own = sheet.get("groups")
+    own = own if isinstance(own, dict) else {}
+    out: dict[str, list[str]] = {}
+    groups = full.get("groups")
+    for g, entries in (groups if isinstance(groups, dict) else {}).items():
+        mine = own.get(g)
+        if not isinstance(entries, list):
+            continue
+        n = len(entries) - (len(mine) if isinstance(mine, list) else 0)
+        names = [str(e.get("name", "")) for e in entries[:n] if isinstance(e, dict)]
+        if names:
+            out[g] = names
+    return out
 
 
 def build_player_router(s: Services, require_player: Callable[..., Player]) -> APIRouter:
@@ -260,7 +283,11 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         derived: list[DerivedValue] = []
         if not problems:
             derived = s.rules.derive(pack, body.template, sheet)
-        return PreviewOut(derived=derived, problems=problems)
+        return PreviewOut(
+            derived=derived,
+            problems=problems,
+            presets=_presets(s.rules, pack, body.template, sheet),
+        )
 
     @r.post("/formula/validate")
     def formula(p: Annotated[Player, Depends(require_player)], body: FormulaIn) -> FormulaOut:

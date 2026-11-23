@@ -20,6 +20,8 @@ def _field(fd: FieldDef) -> str:
         bits.append(f"initial={fd.initial}")
     if fd.choices:
         bits.append("{" + " | ".join(fd.choices) + "}")
+    if fd.description:
+        bits.append(f"— {fd.description}")
     return "- " + " ".join(b for b in bits if b)
 
 
@@ -39,6 +41,18 @@ def _template(t: EntityTemplate, include_hidden: bool) -> list[str]:
         out.append(f"- [{g.label or g.name}] (`{g.name}`, {count})")
         for fd in g.fields:
             out.append("  " + _field(fd))
+        for p in g.presets:
+            cond = f" when `{p.when}`" if p.when.strip() else ""
+            vals = ", ".join(f"{k}={v}" for k, v in p.fields.items())
+            line = f"  - * {p.name}{cond}"
+            if vals:
+                line += f" ({vals})"
+            if p.description:
+                line += f": {p.description}"
+            out.append(line)
+            for eff in p.effects:
+                mech = f" `{eff.target} {eff.op} {eff.value}`" if eff.is_mechanical else ""
+                out.append(f"    - {eff.description}{mech}")
     out.append("")
     return out
 

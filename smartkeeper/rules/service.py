@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pydantic import JsonValue
+from pydantic import ValidationError as PydanticError
 
 from smartkeeper.contracts import (
     AdHocCheck,
@@ -84,6 +85,16 @@ class RulesService:
             return sheets.init_sheet(pack, self._tpl(pack, template), sheet)
         except f.FormulaError as e:
             raise ValidationFailed(e.code, **e.params) from e
+
+    def full_sheet(self, pack: RulePack, template: str, sheet: JsonValue) -> JsonValue:
+        tpl = pack.template(template)
+        if tpl is None:
+            return sheet
+        try:
+            parsed = Sheet.model_validate(sheet)
+        except PydanticError:
+            return sheet
+        return EntityContext(pack, tpl, parsed).full_sheet().model_dump(mode="json")
 
     def derive(self, pack: RulePack, template: str, sheet: JsonValue) -> list[DerivedValue]:
         ctx = EntityContext(pack, self._tpl(pack, template), Sheet.model_validate(sheet))

@@ -38,6 +38,7 @@
     "effects": "Effects",
     "entry_description": "Description",
     "entry_name": "Name",
+    "fixed_entries": "From what you've filled in, you automatically get: {names}",
     "name": "Name",
     "remove_entry": "Remove entry",
     "shape": "Area shape",
@@ -359,6 +360,7 @@
     "add_field": "Add field",
     "add_group": "Add group",
     "add_level": "Add result level",
+    "add_preset": "Add fixed entry",
     "add_template": "Add template",
     "appearance_badge": "appearance (required)",
     "c": {
@@ -394,6 +396,7 @@
     "f": {
       "choices": "Choices",
       "cls": "Class",
+      "description": "Description for players (optional)",
       "hidden": "Hidden",
       "initial": "Initial",
       "initial_required": "Initial value (required)",
@@ -410,12 +413,21 @@
     "fields_hint": "Values and text on the sheet. The appearance field is required: other players' handles for this character are generated from it.",
     "formulas": "Named formulas",
     "g": {
-      "effects": "Entries may have effects",
-      "max": "Max",
-      "min": "Min",
-      "shapes": "Allowed shapes (capsule|box|sphere|cone)"
+      "effects": "Entries may carry effects (modify derived values)",
+      "fields": "Fields of each entry",
+      "fields_hint": "Every entry has a name and a description; add any numbers each entry needs here, such as rank or cost. Leave empty if none.",
+      "hidden": "Hide the whole group from players",
+      "label": "Group name (shown to players)",
+      "max": "Max entries a player writes",
+      "min": "Min entries a player writes",
+      "name": "Group ID (internal code)",
+      "presets": "Fixed entries",
+      "presets_hint": "Entries written into the rules that players don't fill in. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn't appear. Conditions may only use this sheet's fields; text values need double quotes, e.g. class = \"warrior\", class != \"warrior\" or and(class = \"warrior\", str >= 3). Fixed entries don't count toward the min/max above.",
+      "shapes": "Area shapes entries may have (for area attacks, beams…; leave all unticked if unused)",
+      "untitled": "Untitled group"
     },
     "groups": "Repeatable groups (skills, abilities…)",
+    "groups_hint": "A group is one kind of entry on the sheet, such as class skills, personal skills or special abilities; make one group per kind. Each entry under it is one specific skill or ability. Entries come from two places: players add their own when creating a character, and you can write fixed entries here (optionally with a condition, e.g. only for one class).",
     "help": {
       "appearance": "Appearance: the player describes how the character looks. When others first see the character, its handle (e.g. \"woman in a red scarf\") is generated from this. It can't be removed or retyped.",
       "concealment": "Multiplies how far others can notice this character: 1 is normal, 0.3 means others must be much closer. The default 1 is fine.",
@@ -435,20 +447,26 @@
     },
     "levels_hint": "Checked in order; the first true condition wins. Variables: roll, target, difficulty, opp_roll, opp_target.",
     "new": "New rule pack",
+    "p": {
+      "when": "Condition (empty means always)"
+    },
     "packs": "Rule packs",
     "path": {
       "checks": "Check",
       "derived": "Derived value",
       "dice": "Dice",
+      "effects": "Effect",
       "fields": "Field",
       "formulas": "Named formula",
       "groups": "Group",
       "levels": "Result level",
       "player_entities": "Player entities",
+      "presets": "Fixed entry",
       "samples": "Example",
       "tables": "Table",
       "target": "Target",
-      "templates": "Template"
+      "templates": "Template",
+      "when": "Condition"
     },
     "ph": {
       "appearance_label": "e.g. Appearance",
@@ -456,12 +474,16 @@
       "derived_label": "e.g. Max HP",
       "derived_name": "e.g. hp_max",
       "dice": "e.g. 1d100",
+      "field_description": "e.g. athletics, melee, raw strength",
       "field_label": "e.g. Strength",
       "field_name": "e.g. hp",
       "formula": "e.g. str * 2 + 10",
       "formula_concealment": "e.g. 1",
       "formula_move_speed": "e.g. 80",
       "formula_perception_radius": "e.g. 50 + per",
+      "group_label": "e.g. Class skills",
+      "group_max": "no limit",
+      "group_name": "e.g. class_skills",
       "initial": "e.g. hp_max",
       "label_concealment": "e.g. Concealment",
       "label_move_speed": "e.g. Move speed",
@@ -474,7 +496,8 @@
       "unit": "optional, e.g. m",
       "unit_concealment": "none",
       "unit_move_speed": "m/min",
-      "unit_perception_radius": "m"
+      "unit_perception_radius": "m",
+      "when": "e.g. class = \"warrior\""
     },
     "player_entities": "Entities each player creates (template, min, max)",
     "problem_where": "{where}: ",

@@ -74,3 +74,17 @@ def test_text_in_arithmetic() -> None:
 @given(st.integers(-1000, 1000), st.integers(-1000, 1000))
 def test_arithmetic_matches_python(a: int, b: int) -> None:
     assert ev(f"{abs(a)} - {abs(b)} * 2") == abs(a) - abs(b) * 2
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ('cls = "warrior"', 1),
+        ('cls == "warrior"', 1),
+        ('cls != "warrior"', 0),
+        ('cls = "mage"', 0),
+        ('if(cls = "warrior", 2, 3)', 2),
+    ],
+)
+def test_text_equality_and_single_equals(text: str, expected: float) -> None:
+    assert ev(text, cls="warrior") == expected

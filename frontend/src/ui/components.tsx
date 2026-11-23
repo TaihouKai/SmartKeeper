@@ -49,6 +49,21 @@ export function Tabs<K extends string>({
   );
 }
 
+/** 可折叠的一段。默认展开；标题点一下收起。 */
+export function Fold({ title, hint, level = 3, children }: { title: ReactNode; hint?: ReactNode; level?: 3 | 4 | 5; children: ReactNode }) {
+  const [open, setOpen] = useState(true);
+  const H = `h${level}` as "h3" | "h4" | "h5";
+  return (
+    <details className="sk-fold" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>
+        <H>{title}</H>
+      </summary>
+      {hint && <p className="sk-hint">{hint}</p>}
+      {children}
+    </details>
+  );
+}
+
 export function Section({ title, children, actions }: { title: string; children: ReactNode; actions?: ReactNode }) {
   return (
     <section className="sk-section">
