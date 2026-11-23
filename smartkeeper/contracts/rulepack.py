@@ -24,6 +24,9 @@ REQUIRED_DERIVED: tuple[str, ...] = (
 )
 # 引擎必需的字段：每个模板都必须有这个“是/否”字段，决定移动按飞行还是地面计算。
 FLY_FIELD = "can_fly"
+# 每个模板都必须有生命值：运行值（数值或资源）。引擎扣伤害时按 SHIELD_FIELD（有的话）→ HP_FIELD 的顺序。
+HP_FIELD = "hp"
+SHIELD_FIELD = "shield"
 
 FieldKind = Literal["number", "text", "resource", "boolean", "formula", "param"]
 FieldClass = Literal["player", "runtime"]

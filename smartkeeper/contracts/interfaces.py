@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Literal, Protocol
 
 from pydantic import JsonValue
@@ -101,23 +101,36 @@ class Rules(Protocol):
         """公式输入框可补全的名字。"""
         ...
 
-    def validate_sheet(self, pack: RulePack, template: str, sheet: JsonValue) -> list[Problem]:
+    def validate_sheet(
+        self, pack: RulePack, template: str, sheet: JsonValue, peers: Peers | None = None
+    ) -> list[Problem]:
         """按模板校验角色卡：字段存在、类型与单位、资源不越界、推导值不可直接写。"""
         ...
 
-    def init_sheet(self, pack: RulePack, template: str, sheet: JsonValue) -> JsonValue:
+    def init_sheet(
+        self, pack: RulePack, template: str, sheet: JsonValue, peers: Peers | None = None
+    ) -> JsonValue:
         """建角提交后补上运行值的初值。"""
         ...
 
-    def full_sheet(self, pack: RulePack, template: str, sheet: JsonValue) -> JsonValue:
+    def full_sheet(
+        self, pack: RulePack, template: str, sheet: JsonValue, peers: Peers | None = None
+    ) -> JsonValue:
         """角色卡加上此刻生效的固定条目（规则包分组里带条件的条目）。给人和 KP 看、查能力时用它；
         世界状态里存的卡不含固定条目。卡的结构不合法时原样返回。"""
         ...
 
-    def derive(self, pack: RulePack, template: str, sheet: JsonValue) -> list[DerivedValue]: ...
+    def derive(
+        self, pack: RulePack, template: str, sheet: JsonValue, peers: Peers | None = None
+    ) -> list[DerivedValue]: ...
 
     def derived_value(
-        self, pack: RulePack, template: str, sheet: JsonValue, name: str
+        self,
+        pack: RulePack,
+        template: str,
+        sheet: JsonValue,
+        name: str,
+        peers: Peers | None = None,
     ) -> float: ...
 
     def check_dice(self, pack: RulePack, check: str) -> str:
@@ -132,6 +145,7 @@ class Rules(Protocol):
         template: str | None = None,
         sheet: JsonValue = None,
         entry: dict[str, JsonValue] | None = None,
+        peers: Peers | None = None,
     ) -> DiceResult:
         """求值一条可以掷骰的公式（例如 1d100、1d str、highest(4, 6, 3)）。
 
@@ -151,6 +165,7 @@ class Rules(Protocol):
         roll: DiceResult,
         difficulty: float | None = None,
         opponent: tuple[str, str, JsonValue, DiceResult] | None = None,
+        peers: Peers | None = None,
     ) -> CheckResult:
         """按成功条件算出结果等级。opponent = (实体 id, 模板, 角色卡, 对手的骰子)。"""
         ...
@@ -199,6 +214,8 @@ class RandomSource(Protocol):
 type Faces = Callable[[int, int], tuple[int, ...]]
 """(个数, 面数) -> 每颗骰子的点数。"""
 
+# 同一个玩家控制的其他实体：模板名 -> 角色卡；同一个模板有不止一个时为 None（引用它会报错）
+type Peers = Mapping[str, JsonValue | None]
 type FormulaScope = Literal["any_entity", "dice"]
 
 

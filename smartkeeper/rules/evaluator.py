@@ -57,10 +57,15 @@ class EntityContext:
     template: EntityTemplate
     sheet: Sheet
     extra: Mapping[str, f.Value] = field(default_factory=dict[str, f.Value])
+    # 同一个玩家控制的其他实体（模板名 -> 角色卡；None 表示有不止一个，引用会报错），和作用对象
+    peers: Mapping[str, JsonValue | None] = field(default_factory=dict[str, JsonValue | None])
+    target: EntityContext | None = None
     _cache: dict[str, DerivedValue] = field(default_factory=dict[str, DerivedValue])
+    # 互相引用的几个实体共用一个栈，跨实体的循环引用也能发现
     _stack: list[str] = field(default_factory=list[str])
 
     def __post_init__(self) -> None:
+        self._peer_ctx: dict[str, EntityContext] = {}
         self._lookup = table_lookup(self.pack)
         self._derived = {d.name: d for d in self.template.derived}
         self._formulas = {x.name: x for x in self.pack.formulas}
@@ -88,7 +93,8 @@ class EntityContext:
     def groups(self) -> dict[str, tuple[GroupEntry, ...]]:
         if self._groups is None:
             merged = dict(self.sheet.groups)
-            for name, presets in self._guarded("presets", self.active_presets).items():
+            guard = f"{self.template.name}:presets"
+            for name, presets in self._guarded(guard, self.active_presets).items():
                 merged[name] = presets + merged.get(name, ())
             self._groups = merged
         return self._groups
@@ -117,9 +123,80 @@ class EntityContext:
                 if v is None:
                     raise f.FormulaError("formula.bad_value", name=name)
                 return v
+            if "." in name:
+                return self.dotted(name)
             return self.value_of(name)
 
         return resolve
+
+    # ---- 引用别的实体和条目 ----
+
+    def peer(self, template: str) -> EntityContext | None:
+        """同一个玩家控制的那个模板的实体。没有就是 None；有不止一个时报错。"""
+        if template not in self.peers:
+            return None
+        hit = self._peer_ctx.get(template)
+        if hit is not None:
+            return hit
+        raw = self.peers[template]
+        tpl = self.pack.template(template)
+        if raw is None or tpl is None:
+            raise f.FormulaError("formula.ambiguous_partner", name=template)
+        mine = self.sheet.model_dump(mode="json")
+        theirs: dict[str, JsonValue | None] = {k: v for k, v in self.peers.items() if k != template}
+        theirs[self.template.name] = mine
+        hit = EntityContext(
+            self.pack, tpl, Sheet.model_validate(raw), peers=theirs, _stack=self._stack
+        )
+        hit._peer_ctx[self.template.name] = self
+        self._peer_ctx[template] = hit
+        return hit
+
+    def entry_by_id(self, entry_id: str) -> GroupEntry | None:
+        for entries in self.groups().values():
+            for e in entries:
+                if e.id and e.id == entry_id:
+                    return e
+        return None
+
+    def dotted(self, name: str) -> f.Value:
+        """<模板>.x、target.x：自己这边的实体、作用对象的字段、推导值和条目。"""
+        head, *rest = name.split(".")
+        if head == "target":
+            if self.target is None:
+                raise f.FormulaError("formula.no_target", name=name)
+            return self.target.member(rest, name)
+        if head == self.template.name:
+            return self.member(rest, name)
+        other = self.peer(head)
+        if other is not None:
+            return other.member(rest, name)
+        if self.pack.template(head) is not None:
+            return 0.0  # 我这边没有这种角色：按 0 算（例如还没有这种同伴）
+        raise f.FormulaError("formula.unknown_name", name=name)
+
+    def member(self, rest: list[str], full: str) -> f.Value:
+        if rest == ["template"]:
+            return self.template.name
+        if len(rest) == 1:
+            key = rest[0]
+            if (
+                key in self.extra
+                or key in self._derived
+                or key in self.sheet.fields
+                or key in self._formulas
+            ):
+                return self.value_of(key)
+            if any(x.name == key for x in self.template.fields):
+                raise f.FormulaError("formula.bad_value", name=full)  # 字段还没填
+            return 1.0 if self.entry_by_id(key) is not None else 0.0
+        if len(rest) == 2:
+            entry = self.entry_by_id(rest[0])
+            if entry is None:
+                return 0.0
+            v = as_value(entry.fields.get(rest[1]))
+            return 0.0 if v is None else v
+        raise f.FormulaError("formula.unknown_name", name=full)
 
     def value_of(self, name: str) -> f.Value:
         if name in self.extra:
@@ -132,7 +209,8 @@ class EntityContext:
                 raise f.FormulaError("formula.bad_value", name=name)
             return v
         if name in self._formulas:
-            return self._guarded(name, lambda: self.eval(self._formulas[name].formula))
+            key = f"{self.template.name}.{name}"
+            return self._guarded(key, lambda: self.eval(self._formulas[name].formula))
         raise f.FormulaError("formula.unknown_name", name=name)
 
     def eval(
@@ -172,7 +250,7 @@ class EntityContext:
         固定条目（按分组和条目的定义顺序）→ 玩家写的条目（按 priority 从小到大）→ 状态（按添加先后）。
         """
         out: list[tuple[Effect, Mapping[str, JsonValue] | None, str]] = []
-        presets = self._guarded("presets", self.active_presets)
+        presets = self._guarded(f"{self.template.name}:presets", self.active_presets)
         for g in self.template.groups:
             for entry in presets.get(g.name, ()):
                 for eff in entry.effects:
@@ -211,7 +289,7 @@ class EntityContext:
                 sources.append(src)
             return DerivedValue(name=name, base=base, value=value, modifiers=tuple(sources))
 
-        result = self._guarded(name, compute)
+        result = self._guarded(f"{self.template.name}.{name}", compute)
         self._cache[name] = result
         return result
 

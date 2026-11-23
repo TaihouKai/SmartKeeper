@@ -19,6 +19,7 @@ from smartkeeper.contracts import (
     ValidationFailed,
     World,
 )
+from smartkeeper.engine.space import peers_of
 
 
 def _obj(v: JsonValue) -> dict[str, JsonValue]:
@@ -38,7 +39,11 @@ def visible_sheet(tpl: EntityTemplate, sheet: JsonValue) -> dict[str, JsonValue]
 
 
 def _numbers(
-    rules: Rules, pack: RulePack, tpl: EntityTemplate, ent: dict[str, JsonValue]
+    rules: Rules,
+    pack: RulePack,
+    tpl: EntityTemplate,
+    ent: dict[str, JsonValue],
+    peers: dict[str, JsonValue | None],
 ) -> dict[str, JsonValue]:
     """一个实体全部可见的数值：字段和推导值。"""
     out: dict[str, JsonValue] = {}
@@ -47,7 +52,7 @@ def _numbers(
         out[f"fields.{k}"] = v
     hidden = {d.name for d in tpl.derived if d.hidden}
     try:
-        for d in rules.derive(pack, tpl.name, sheet):
+        for d in rules.derive(pack, tpl.name, sheet, peers):
             if d.name not in hidden:
                 out[f"derived.{d.name}"] = d.value
     except ValidationFailed:
@@ -80,7 +85,7 @@ def build_sheet_views(
             ent = _obj(ents.get(eid))
             tpl = pack.template(str(ent.get("template", "")))
             if tpl is not None:
-                out[eid] = _numbers(rules, pack, tpl, ent)
+                out[eid] = _numbers(rules, pack, tpl, ent, peers_of(st, eid))
         return out
 
     for round_no, cause, ops in patches:
@@ -122,14 +127,15 @@ def build_sheet_views(
         if tpl is None:
             continue
         hidden = {d.name for d in tpl.derived if d.hidden}
+        peers = peers_of(state, eid)
         derived = tuple(
-            d for d in rules.derive(pack, tpl.name, ent.get("sheet")) if d.name not in hidden
+            d for d in rules.derive(pack, tpl.name, ent.get("sheet"), peers) if d.name not in hidden
         )
         views.append(
             SheetView(
                 entity_id=eid,
                 template=tpl.name,
-                sheet=visible_sheet(tpl, rules.full_sheet(pack, tpl.name, ent.get("sheet"))),
+                sheet=visible_sheet(tpl, rules.full_sheet(pack, tpl.name, ent.get("sheet"), peers)),
                 derived=derived,
                 history=tuple(history.get(eid, [])),
             )

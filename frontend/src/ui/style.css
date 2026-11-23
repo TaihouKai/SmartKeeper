@@ -165,3 +165,4 @@ tr.inactive { opacity: 0.5; }
 .sk-subrow > td { background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
 .sk-col-active { font-weight: 700; text-decoration: underline; }
 .sk-col-edit { border-color: var(--accent); }
+.sk-presets .sk-chip { cursor: pointer; margin: 0 4px 0 0; padding: 1px 8px; }

@@ -43,6 +43,22 @@ def _num(v: JsonValue) -> bool:
     return isinstance(v, int | float) and not isinstance(v, bool)
 
 
+def _peers(state: State, entity_id: str) -> dict[str, JsonValue | None]:
+    """同一个玩家控制的其他实体：模板名 -> 角色卡（同一模板不止一个时为 None）。"""
+    ents = _obj(state.get("entities")) or {}
+    for ctl in (_obj(state.get("controls")) or {}).values():
+        mine = [str(e) for e in ctl] if isinstance(ctl, list) else []
+        if entity_id not in mine:
+            continue
+        out: dict[str, JsonValue | None] = {}
+        for other in mine:
+            if other != entity_id:
+                tpl = str((_obj(ents.get(other)) or {}).get("template", ""))
+                out[tpl] = None if tpl in out else (_obj(ents.get(other)) or {}).get("sheet")
+        return out
+    return {}
+
+
 class WorldService:
     def __init__(self, rules: Rules) -> None:
         self._rules = rules
@@ -94,7 +110,7 @@ class WorldService:
         if entities is None:
             return [*problems, Problem(code="state.type", path="/entities")]
         for eid, ent in sorted(entities.items()):
-            problems += self._validate_entity(eid, ent, pack)
+            problems += self._validate_entity(eid, ent, pack, _peers(state, eid))
         problems += self._validate_activities(state["activities"], entities)
         places = _obj(state["placements"])
         if places is None:
@@ -130,7 +146,9 @@ class WorldService:
                     owner[e] = pid
         return problems
 
-    def _validate_entity(self, eid: str, raw: JsonValue, pack: RulePack) -> list[Problem]:
+    def _validate_entity(
+        self, eid: str, raw: JsonValue, pack: RulePack, peers: dict[str, JsonValue | None]
+    ) -> list[Problem]:
         base = f"/entities/{eid}"
         ent = _obj(raw)
         if ent is None:
@@ -150,7 +168,7 @@ class WorldService:
         inside = ent.get("inside")
         if inside is not None and not isinstance(inside, str):
             problems.append(Problem(code="state.type", path=f"{base}/inside"))
-        for p in self._rules.validate_sheet(pack, template, ent.get("sheet")):
+        for p in self._rules.validate_sheet(pack, template, ent.get("sheet"), peers):
             path = "/" + p.path.replace(".", "/") if p.path else ""
             problems.append(p.model_copy(update={"path": f"{base}/sheet{path}"}))
         return problems

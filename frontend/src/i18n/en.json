@@ -119,6 +119,7 @@
       "malformed": "Malformed: {msg}",
       "missing_appearance": "Missing the appearance field {name} (must be text)",
       "missing_can_fly": "Missing the can-fly field {name} (must be yes/no)",
+      "missing_hp": "Missing the HP field {name} (must be a runtime value)",
       "missing_required_derived": "Missing the required derived value {name}",
       "no_player_entities": "Set which entities each player creates",
       "no_templates": "Add at least one template",
@@ -203,8 +204,12 @@
     "b": {
       "arith": "Arithmetic; brackets change the order",
       "compare": "Comparison (< <= > >= == !=): 1 if true, 0 if false",
+      "entry": "<template>.<entry ID>: whether that entry exists (1 or 0). The entry needs an ID in its table",
+      "entry_col": "<template>.<entry ID>.<column>: a column of that entry (not chosen-on-use columns); 0 if the entry is missing",
       "names": "Refer to fields, derived values and named formulas by name",
+      "peer": "<template>.field: a character on your side. Your own template name is you; another template name is the character of that template controlled by the same player. 0 if there is none",
       "self": "Inside an entry's effects, a field of that entry",
+      "target": "target.field: the target of a skill (in on-use effects)",
       "text": "Text goes in double quotes"
     },
     "basic": "Basics",
@@ -435,6 +440,7 @@
       "player": "Player-defined: entered by the player during character creation.",
       "runtime": "Runtime: changes during play (e.g. current HP); players can't set it, only the keeper's rulings change it. Needs an initial value."
     },
+    "common_fields": "Common:",
     "d": {
       "formula": "Formula",
       "label": "Label",
@@ -449,8 +455,13 @@
       "fly_speed": "Fly speed",
       "hear_distance": "Hearing range",
       "hear_multiplier": "Hearing multiplier",
+      "hp": "HP",
       "move_speed": "Move speed",
-      "perception_radius": "Perception radius"
+      "mp": "MP",
+      "perception_radius": "Perception radius",
+      "san": "Sanity",
+      "shield": "Shield",
+      "sp": "SP"
     },
     "derived": "Derived values",
     "derived_hint": "Numbers computed by formula from other fields; players can't enter them. The three below are required by the engine: keep their names, but write their formulas.",
@@ -507,6 +518,9 @@
       "column": "Column: {name}",
       "empty": "No entries yet. Use “+ Row” below.",
       "hint": "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Effects and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: effects on one value run top to bottom. Players fill the same columns for their own entries.",
+      "id": "ID (for references, optional)",
+      "id_hint": "English ID, needed to refer to this entry in formulas: hero.fireball is whether it exists (1 or 0), hero.fireball.level is its level column. Must be unique on a sheet.",
+      "id_ph": "e.g. fireball",
       "more": "More (effects {n})",
       "param_cell": "chosen on use",
       "title": "Entry table",
@@ -520,9 +534,11 @@
       "fly_speed": "Metres per minute when flying; default fly_multiplier * move_speed. Only matters for characters who can fly.",
       "hear_distance": "How far (in metres) this character hears people talking. Bystanders within this range of either speaker hear the whole conversation, relayed by the keeper. Required, e.g. 30 * hear_multiplier. Walls are ignored.",
       "hear_multiplier": "Hearing multiplier, default 1. Skills and statuses can modify it (e.g. keen ears ×2); use it in the hearing range formula.",
+      "hp": "HP: every kind of character must have it, as a runtime value. Its limits, initial value and change per minute can be edited; its name, kind and class can't. Damage comes off shield first (if there is one), then HP.",
       "move_speed": "Metres per minute. Required, e.g. 80 for an ordinary person, or 60 + agi * 2.",
       "perception_radius": "How far (in metres) this character notices others. Required, e.g. 50 + per, or a constant like 100."
     },
+    "hp_badge": "HP (required)",
     "import": "Import file",
     "kind": {
       "boolean": "Yes/no",
@@ -537,7 +553,7 @@
       "formula": "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or self.level d lookup(table, self.level). Not computed until the keeper asks the engine to roll it during a ruling (the engine rolls and logs it); the keeper then applies the result per the rules text (e.g. lowers HP). In a group, each entry fills its own and may use self.<field>.",
       "number": "Number: attributes, skill levels, sizes.",
       "param": "Chosen on use: a number the player picks each time the skill is used, e.g. how much mana to spend. Not filled at character creation; the player says it in the action and the keeper passes it to the engine when rolling. Min and max are formulas that may use the character's fields and self.<column>. With a resource to spend from, the engine checks there is enough and deducts it when the round resolves. Dice formulas refer to it as self.<column name>, e.g. (1d4 + int) * floor(30 / self.mp_spent).",
-      "resource": "Resource: a value with a ceiling that gets spent or restored (HP, mana, uses left). A maximum is required and may be a formula such as hp_max.",
+      "resource": "Resource: a value that gets spent or restored (HP, mana, shield, uses left). The maximum may be a formula such as hp_max; empty means no limit.",
       "text": "Text: descriptions such as background; with choices, the player picks one of them."
     },
     "levels_hint": "Checked in order; the first true condition wins. Variables: roll, target, difficulty, opp_roll, opp_target.",
@@ -598,7 +614,7 @@
       "label_move_speed": "e.g. Move speed",
       "label_perception_radius": "e.g. Perception radius",
       "max": "e.g. 100",
-      "max_resource": "e.g. hp_max",
+      "max_resource": "e.g. hp_max; empty means no limit",
       "min": "e.g. 0",
       "per_minute": "empty means none, e.g. 1 or con / 2",
       "template_label": "e.g. Hero",

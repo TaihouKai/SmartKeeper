@@ -7,6 +7,10 @@ const BASICS: [string, string][] = [
   ['occupation == "doctor"', "fh.b.text"],
   ["hp_max", "fh.b.names"],
   ["self.level", "fh.b.self"],
+  ["companion.str", "fh.b.peer"],
+  ["hero.fireball", "fh.b.entry"],
+  ["hero.fireball.level", "fh.b.entry_col"],
+  ["target.hp", "fh.b.target"],
 ];
 
 const DICE: [string, string][] = [

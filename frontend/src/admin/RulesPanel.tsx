@@ -17,6 +17,7 @@ const SHAPES = ["capsule", "box", "sphere", "cone"] as const;
 
 export const REQUIRED_DERIVED = ["perception_radius", "concealment", "move_speed", "fly_multiplier", "fly_speed", "hear_multiplier", "hear_distance"];
 const FLY_FIELD = "can_fly";
+const HP_FIELD = "hp";
 
 const DEFAULT_FORMULA: Record<string, string> = { concealment: "1", fly_multiplier: "1", fly_speed: "fly_multiplier * move_speed", hear_multiplier: "1" };
 const DEFAULT_UNIT: Record<string, string> = { perception_radius: "m", move_speed: "m/min", fly_speed: "m/min", hear_distance: "m" };
@@ -37,7 +38,7 @@ export function blankPack(t: T): Pack {
 }
 
 /** 引擎必需项的默认显示名（按界面语言），也是它们显示名框里的提示。 */
-const REQUIRED_FIELDS = ["appearance", FLY_FIELD];
+const REQUIRED_FIELDS = ["appearance", FLY_FIELD, HP_FIELD];
 function defaultLabel(t: T, name: string): string {
   return t(`rules.default_label.${name}`);
 }
@@ -51,8 +52,8 @@ function withEngineDefaults(p: Pack, t: T): Pack {
     templates: p.templates.map((tpl) => {
       const fields = tpl.fields ?? [];
       const derived = tpl.derived ?? [];
-      const fly = blank.fields?.find((f) => f.name === FLY_FIELD);
-      const allFields = fly && !fields.some((f) => f.name === FLY_FIELD) ? [...fields, fly] : fields;
+      const missing = (blank.fields ?? []).filter((f) => f.name !== "appearance" && !fields.some((x) => x.name === f.name));
+      const allFields = [...fields, ...missing];
       const allDerived = [...derived, ...(blank.derived ?? []).filter((d) => !derived.some((x) => x.name === d.name))];
       return {
         ...tpl,
@@ -84,6 +85,7 @@ function blankTemplate(name: string, t: T): Template {
     fields: [
       { name: "appearance", label: defaultLabel(t, "appearance"), description: "", kind: "text", cls: "player", required: true, hidden: false, choices: [] },
       { name: FLY_FIELD, label: defaultLabel(t, FLY_FIELD), description: "", kind: "boolean", cls: "player", required: true, hidden: false, choices: [] },
+      { name: HP_FIELD, label: defaultLabel(t, HP_FIELD), description: "", kind: "resource", cls: "runtime", min: "0", initial: "10", required: true, hidden: false, choices: [] },
     ],
     groups: [],
     derived: REQUIRED_DERIVED.map((n) => ({
@@ -124,6 +126,7 @@ function FieldsTable({
           inGroup={inGroup}
           isAppearance={!inGroup && !!appearance && f.name === appearance}
           isFly={!inGroup && f.name === FLY_FIELD}
+          isHp={!inGroup && f.name === HP_FIELD}
           onChange={(x) => ed.update(i, x)}
           onRemove={() => ed.remove(i)}
           mover={<Mover index={i} count={fields.length} onMove={ed.move} />}

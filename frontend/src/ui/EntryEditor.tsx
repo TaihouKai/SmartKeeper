@@ -11,7 +11,7 @@ type GroupDef = Schemas["GroupDef"];
 export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null };
 export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
 export type PlacementSpec = { radius: string; perceive_multiplier?: string; charges?: string; duration?: string; notify_owner?: boolean };
-export type Entry = { name: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null };
+export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null };
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
@@ -93,6 +93,11 @@ export function EntryEditor({
       <label>
         {t("character.entry_name")}
         <input value={entry.name} onChange={(e) => onChange({ ...entry, name: e.target.value })} />
+      </label>
+      <label>
+        {t("rules.gt.id")}
+        <small className="sk-field-desc">{t("rules.gt.id_hint")}</small>
+        <input value={entry.id ?? ""} placeholder={t("rules.gt.id_ph")} onChange={(e) => onChange({ ...entry, id: e.target.value.trim() })} />
       </label>
       <label>
         {t("character.entry_description")}

@@ -77,7 +77,7 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
               />
             ))}
             {(g.max_count === null || g.max_count === undefined || entries.length < g.max_count) && (
-              <button type="button" onClick={() => setEntries([...entries, { name: "", description: "", fields: {}, effects: [], shape: null }])}>
+              <button type="button" onClick={() => setEntries([...entries, { name: "", id: "", description: "", fields: {}, effects: [], shape: null }])}>
                 {t("character.add_entry")}
               </button>
             )}

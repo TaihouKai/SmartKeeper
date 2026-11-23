@@ -84,7 +84,7 @@ from smartkeeper.engine.mentions import find_mentions, replace_mentions
 from smartkeeper.engine.placements import perceived_placements, placements_of, triggers
 from smartkeeper.engine.repo import Repo
 from smartkeeper.engine.sheetview import build_sheet_views, visible_sheet
-from smartkeeper.engine.space import EMPTY_MAP, Space, point_of
+from smartkeeper.engine.space import EMPTY_MAP, Space, peers_of, point_of
 from smartkeeper.engine.timeline import (
     activities_of,
     build_activities,
@@ -382,14 +382,23 @@ class Engine:
                         )
                     )
             filled: list[JsonValue] = []
+            raws = [x.sheet.model_dump(mode="json") for x in sheets]
+
+            def peers_at(i: int) -> dict[str, JsonValue | None]:
+                out: dict[str, JsonValue | None] = {}
+                for j, other in enumerate(sheets):
+                    if j != i:
+                        out[other.template] = None if other.template in out else raws[j]
+                return out
+
             for i, s in enumerate(sheets):
-                raw = s.sheet.model_dump(mode="json")
+                raw = raws[i]
                 try:
-                    init = self._rules.init_sheet(pack, s.template, raw)
+                    init = self._rules.init_sheet(pack, s.template, raw, peers_at(i))
                 except ValidationFailed as e:
                     problems.append(Problem(code=e.code, path=f"sheets[{i}]", params=e.params))
                     continue
-                for prob in self._rules.validate_sheet(pack, s.template, init):
+                for prob in self._rules.validate_sheet(pack, s.template, init, peers_at(i)):
                     problems.append(prob.model_copy(update={"path": f"sheets[{i}].{prob.path}"}))
                 filled.append({"template": s.template, "sheet": init})
             if problems:
@@ -1088,7 +1097,9 @@ class Engine:
             ent = self._entity(self._state(game_id), entity)
             template = str(ent.get("template", ""))
             tpl = pack.template(template)
-            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet")))
+            state = self._state(game_id)
+            peers = peers_of(state, entity)
+            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
             fields: dict[str, JsonValue] | None = None
             spends: dict[str, JsonValue] = {}
             if entry is None:
@@ -1105,11 +1116,11 @@ class Engine:
                 gname, row = found[0]
                 fields = dict(_obj(row.get("fields")))
                 gdef = next((g for g in tpl.groups if g.name == gname), None) if tpl else None
-                spends = self._use_params(pack, template, sheet, gdef, fields, params, entry)
+                spends = self._use_params(pack, template, sheet, gdef, fields, params, entry, peers)
                 expr = fields.get(field)
             if not isinstance(expr, str) or not expr.strip():
                 raise ValidationFailed("roll.not_a_formula", field=field)
-            res = self._rules.roll(pack, expr, self._dice.faces, template, sheet, fields)
+            res = self._rules.roll(pack, expr, self._dice.faces, template, sheet, fields, peers)
             extra: dict[str, JsonValue] = {
                 "entity": entity,
                 "field": field,
@@ -1198,7 +1209,8 @@ class Engine:
                     )
                     continue
             template = str(ent.get("template", ""))
-            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet")))
+            peers = peers_of(cur, pin.owner)
+            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
             found = next(
                 (
                     (str(gname), _obj(e))
@@ -1220,7 +1232,7 @@ class Engine:
             gdef = next((x for x in tpl.groups if x.name == gname), None) if tpl else None
             try:
                 spent = self._use_params(
-                    pack, template, sheet, gdef, fields, dict(pin.params), pin.entry
+                    pack, template, sheet, gdef, fields, dict(pin.params), pin.entry, peers
                 )
             except ValidationFailed as e:
                 problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
@@ -1231,8 +1243,9 @@ class Engine:
                 t: str = template,
                 sh: JsonValue = sheet,
                 fl: dict[str, JsonValue] = fields,
+                pe: dict[str, JsonValue | None] = peers,
             ) -> float:
-                return self._rules.roll(pack, text, self._dice.faces, t, sh, fl).total
+                return self._rules.roll(pack, text, self._dice.faces, t, sh, fl, pe).total
 
             try:
                 radius = val(spec.radius)
@@ -1304,6 +1317,7 @@ class Engine:
         fields: dict[str, JsonValue],
         params: dict[str, float],
         entry: str,
+        peers: dict[str, JsonValue | None] | None = None,
     ) -> dict[str, JsonValue]:
         """条目的“使用时填写”的列：检查这次填的数在范围内、资源够，写进 fields（公式里 self.<列>）。
         返回要扣的资源：资源字段名 -> 数量。"""
@@ -1317,7 +1331,9 @@ class Engine:
             for bound, op in ((pf.min, "min"), (pf.max, "max")):
                 if bound is None:
                     continue
-                lim = self._rules.roll(pack, bound, self._dice.faces, template, sheet, fields).total
+                lim = self._rules.roll(
+                    pack, bound, self._dice.faces, template, sheet, fields, peers
+                ).total
                 if (op == "min" and v < lim) or (op == "max" and v > lim):
                     raise ValidationFailed(
                         "roll.param_out_of_range", name=pf.name, value=v, **{op: lim}
@@ -1343,7 +1359,8 @@ class Engine:
             tpl = pack.template(template)
             if tpl is None:
                 continue
-            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet")))
+            peers = peers_of(state, eid)
+            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
             fields = _obj(sheet.get("fields"))
             for fd in tpl.fields:
                 cur = fields.get(fd.name)
@@ -1354,8 +1371,13 @@ class Engine:
                 ):
                     continue
 
-                def num(text: str, t: str = template, sh: JsonValue = sheet) -> float:
-                    return self._rules.roll(pack, text, self._dice.faces, t, sh).total
+                def num(
+                    text: str,
+                    t: str = template,
+                    sh: JsonValue = sheet,
+                    pe: dict[str, JsonValue | None] = peers,
+                ) -> float:
+                    return self._rules.roll(pack, text, self._dice.faces, t, sh, None, pe).total
 
                 try:
                     value = float(cur) + num(fd.per_minute) * seconds / 60
@@ -1418,8 +1440,15 @@ class Engine:
             state = self._state(game_id)
             ent = self._entity(state, entity_id)
             faces = self._dice.faces
+            peers = peers_of(state, entity_id)
             roll = self._rules.roll(
-                pack, self._rules.check_dice(pack, check), faces, str(ent["template"]), ent["sheet"]
+                pack,
+                self._rules.check_dice(pack, check),
+                faces,
+                str(ent["template"]),
+                ent["sheet"],
+                None,
+                peers,
             )
             opponent = None
             opp_roll = None
@@ -1429,7 +1458,13 @@ class Engine:
                 assert cdef is not None
                 opp_expr = self._rules.check_dice(pack, cdef.opposed_by or check)
                 opp_roll = self._rules.roll(
-                    pack, opp_expr, faces, str(opp["template"]), opp["sheet"]
+                    pack,
+                    opp_expr,
+                    faces,
+                    str(opp["template"]),
+                    opp["sheet"],
+                    None,
+                    peers_of(state, against),
                 )
                 opponent = (against, str(opp["template"]), opp["sheet"], opp_roll)
             res = self._rules.resolve_check(
@@ -1441,6 +1476,7 @@ class Engine:
                 roll=roll,
                 difficulty=float(against) if isinstance(against, int | float) else None,
                 opponent=opponent,
+                peers=peers,
             )
             payload: dict[str, JsonValue] = {
                 "expr": roll.expr,
@@ -1475,13 +1511,16 @@ class Engine:
     ) -> CheckResult:
         with self._lock:
             r = self._require(game_id, "roll")
-            ent = self._entity(self._state(game_id), entity_id)
+            state = self._state(game_id)
+            ent = self._entity(state, entity_id)
             roll = self._rules.roll(
                 self.rulepack(game_id),
                 spec.dice,
                 self._dice.faces,
                 str(ent["template"]),
                 ent["sheet"],
+                None,
+                peers_of(state, entity_id),
             )
             res = self._rules.resolve_adhoc(entity_id, spec, roll)
             payload: dict[str, JsonValue] = {
@@ -2641,12 +2680,15 @@ class Engine:
         """各实体此刻生效的固定条目（仅供 KP）：实体 id -> 分组名 -> 条目。"""
         pack = self.rulepack(game_id)
         out: dict[str, JsonValue] = {}
-        for eid, raw in _obj(self._state(game_id).get("entities")).items():
+        state = self._state(game_id)
+        for eid, raw in _obj(state.get("entities")).items():
             ent = _obj(raw)
             own = _obj(_obj(ent.get("sheet")).get("groups"))
             full = _obj(
                 _obj(
-                    self._rules.full_sheet(pack, str(ent.get("template", "")), ent.get("sheet"))
+                    self._rules.full_sheet(
+                        pack, str(ent.get("template", "")), ent.get("sheet"), peers_of(state, eid)
+                    )
                 ).get("groups")
             )
             extra: dict[str, JsonValue] = {}
@@ -2667,10 +2709,13 @@ class Engine:
         """全部实体的推导值（仅供 KP 与控制台）。"""
         pack = self.rulepack(game_id)
         out: dict[str, dict[str, float]] = {}
-        for eid, raw in _obj(self._state(game_id).get("entities")).items():
+        state = self._state(game_id)
+        for eid, raw in _obj(state.get("entities")).items():
             ent = _obj(raw)
             try:
-                vals = self._rules.derive(pack, str(ent.get("template", "")), ent.get("sheet"))
+                vals = self._rules.derive(
+                    pack, str(ent.get("template", "")), ent.get("sheet"), peers_of(state, eid)
+                )
             except (ValidationFailed, NotFound):
                 continue
             out[eid] = {d.name: round(d.value, 4) for d in vals}

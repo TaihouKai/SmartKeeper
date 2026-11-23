@@ -535,6 +535,17 @@ T: dict[str, tuple[str, str]] = {
     "rules.ph.label_can_fly": ("例如 飞行能力", "e.g. Can fly"),
     "rules.default_label.appearance": ("外观", "Appearance"),
     "rules.default_label.can_fly": ("飞行能力", "Can fly"),
+    "rules.default_label.hp": ("生命值", "HP"),
+    "rules.default_label.mp": ("魔力值", "MP"),
+    "rules.default_label.sp": ("体力值", "SP"),
+    "rules.default_label.san": ("理智值", "Sanity"),
+    "rules.default_label.shield": ("护盾", "Shield"),
+    "rules.hp_badge": ("生命值（必需）", "HP (required)"),
+    "rules.help.hp": (
+        "生命值：每种角色都必须有，必须是运行值。上下限、初值、每分钟自然变化可以改，名字、类型、类别不能改。受到伤害时，有护盾（shield）的话先扣护盾，扣完再扣生命值；没有护盾就直接扣生命值。",
+        "HP: every kind of character must have it, as a runtime value. Its limits, initial value and change per minute can be edited; its name, kind and class can't. Damage comes off shield first (if there is one), then HP.",
+    ),
+    "rules.common_fields": ("常用：", "Common:"),
     "rules.default_label.perception_radius": ("感知半径", "Perception radius"),
     "rules.default_label.concealment": ("匿踪系数", "Concealment"),
     "rules.default_label.move_speed": ("移动速度", "Move speed"),
@@ -647,6 +658,12 @@ T: dict[str, tuple[str, str]] = {
         "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Effects and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: effects on one value run top to bottom. Players fill the same columns for their own entries.",
     ),
     "rules.gt.when": ("生效条件", "Condition"),
+    "rules.gt.id": ("ID（引用用，可不填）", "ID (for references, optional)"),
+    "rules.gt.id_ph": ("例如 fireball", "e.g. fireball"),
+    "rules.gt.id_hint": (
+        "英文 ID，填了才能在公式里引用：hero.fireball 是有没有这一条（1 或 0），hero.fireball.level 是这一条的 level 列。同一张卡上不能重复。",
+        "English ID, needed to refer to this entry in formulas: hero.fireball is whether it exists (1 or 0), hero.fireball.level is its level column. Must be unique on a sheet.",
+    ),
     "rules.gt.always": ("总是生效", "always"),
     "rules.gt.add_column": ("+ 列", "+ Column"),
     "rules.gt.add_row": ("+ 行（规则写好的条目）", "+ Row (entry written by the rules)"),
@@ -858,6 +875,10 @@ T: dict[str, tuple[str, str]] = {
         "缺少外观描述字段 {name}（必须是文字）",
         "Missing the appearance field {name} (must be text)",
     ),
+    "codes.pack.missing_hp": (
+        "缺少生命值字段 {name}（必须是运行值）",
+        "Missing the HP field {name} (must be a runtime value)",
+    ),
     "codes.pack.missing_can_fly": (
         "缺少“能否飞行”字段 {name}（必须是“是/否”类型）",
         "Missing the can-fly field {name} (must be yes/no)",
@@ -912,6 +933,22 @@ T: dict[str, tuple[str, str]] = {
     "fh.b.names": (
         "用名字（英文代号）引用字段、推导值、命名公式",
         "Refer to fields, derived values and named formulas by name",
+    ),
+    "fh.b.peer": (
+        "<模板ID>.字段：自己这边的角色。写自己的模板名就是自己；写别的模板名，是同一个玩家控制的那个角色（例如主角卡上写同伴的模板名）。没有这种角色时按 0 算",
+        "<template>.field: a character on your side. Your own template name is you; another template name is the character of that template controlled by the same player. 0 if there is none",
+    ),
+    "fh.b.entry": (
+        "<模板ID>.<条目ID>：有没有这一条（1 或 0），可以用来写条件。条目要在表里填了 ID 才能引用",
+        "<template>.<entry ID>: whether that entry exists (1 or 0). The entry needs an ID in its table",
+    ),
+    "fh.b.entry_col": (
+        "<模板ID>.<条目ID>.<列>：那一条的某一列（“使用时填写”的列不能引用）；没有这一条时按 0 算",
+        "<template>.<entry ID>.<column>: a column of that entry (not chosen-on-use columns); 0 if the entry is missing",
+    ),
+    "fh.b.target": (
+        "target.字段：技能作用的对象（作用效果里用）",
+        "target.field: the target of a skill (in on-use effects)",
     ),
     "fh.b.self": (
         "在条目的效果里引用这个条目自己的字段",

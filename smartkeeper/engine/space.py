@@ -33,6 +33,24 @@ def _obj(v: JsonValue) -> dict[str, JsonValue]:
     return cast(dict[str, JsonValue], v) if isinstance(v, dict) else {}
 
 
+def peers_of(state: State, entity_id: str) -> dict[str, JsonValue | None]:
+    """同一个玩家控制的其他实体：模板名 -> 角色卡。同一个模板有不止一个时为 None（引用会报错）。"""
+    ents = _obj(state.get("entities"))
+    for ctl in _obj(state.get("controls")).values():
+        mine = [str(e) for e in ctl] if isinstance(ctl, list) else []
+        if entity_id not in mine:
+            continue
+        out: dict[str, JsonValue | None] = {}
+        for other in mine:
+            if other == entity_id:
+                continue
+            ent = _obj(ents.get(other))
+            tpl = str(ent.get("template", ""))
+            out[tpl] = None if tpl in out else ent.get("sheet")
+        return out
+    return {}
+
+
 def point_of(raw: JsonValue) -> Point | None:
     p = _obj(raw)
     if not p:
@@ -71,9 +89,10 @@ class Space:
                 continue
             tpl = str(ent.get("template", ""))
             sheet = ent.get("sheet")
+            peers = peers_of(state, eid)
             try:
-                pr = self.rules.derived_value(pack, tpl, sheet, "perception_radius")
-                cc = self.rules.derived_value(pack, tpl, sheet, "concealment")
+                pr = self.rules.derived_value(pack, tpl, sheet, "perception_radius", peers)
+                cc = self.rules.derived_value(pack, tpl, sheet, "concealment", peers)
             except ValidationFailed:
                 pr, cc = 0.0, 1.0
             inside = ent.get("inside")
@@ -90,13 +109,22 @@ class Space:
         """实体的角色卡，含此刻生效的固定条目。"""
         ent = _obj(self.entities.get(entity_id))
         return _obj(
-            self.rules.full_sheet(self.pack, str(ent.get("template", "")), ent.get("sheet"))
+            self.rules.full_sheet(
+                self.pack,
+                str(ent.get("template", "")),
+                ent.get("sheet"),
+                peers_of(self.state, entity_id),
+            )
         )
 
     def derived(self, entity_id: str, name: str) -> float:
         ent = _obj(self.entities.get(entity_id))
         return self.rules.derived_value(
-            self.pack, str(ent.get("template", "")), ent.get("sheet"), name
+            self.pack,
+            str(ent.get("template", "")),
+            ent.get("sheet"),
+            name,
+            peers_of(self.state, entity_id),
         )
 
     def perceived_by(self, entity_id: str) -> list[str]:

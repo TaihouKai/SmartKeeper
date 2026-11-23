@@ -62,6 +62,9 @@ class PlacementSpec(Frozen):
 
 class GroupEntry(Frozen):
     name: str
+    # 引用用的英文 ID（例如 attack_magic）：公式里 master.attack_magic 表示有没有这一条（1/0），
+    # master.attack_magic.level 是这一条的 level 列。不填就不能被引用。
+    id: str = ""
     description: str = ""
     fields: dict[str, JsonValue] = {}
     effects: tuple[Effect, ...] = ()

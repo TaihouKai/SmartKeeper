@@ -8,6 +8,7 @@ from smartkeeper.contracts import (
     CheckResult,
     DiceResult,
     NotFound,
+    Peers,
     RulePack,
     Sheet,
     ValidationFailed,
@@ -16,11 +17,13 @@ from smartkeeper.rules import formula as f
 from smartkeeper.rules.evaluator import EntityContext, table_lookup
 
 
-def _ctx(pack: RulePack, template: str, sheet: JsonValue) -> EntityContext:
+def _ctx(
+    pack: RulePack, template: str, sheet: JsonValue, peers: Peers | None = None
+) -> EntityContext:
     tpl = pack.template(template)
     if tpl is None:
         raise NotFound("rules.unknown_template", name=template)
-    return EntityContext(pack, tpl, Sheet.model_validate(sheet))
+    return EntityContext(pack, tpl, Sheet.model_validate(sheet), peers=peers or {})
 
 
 def resolve_check(
@@ -33,12 +36,13 @@ def resolve_check(
     roll: DiceResult,
     difficulty: float | None,
     opponent: tuple[str, str, JsonValue, DiceResult] | None,
+    peers: Peers | None = None,
 ) -> CheckResult:
     cdef = pack.check(check)
     if cdef is None:
         raise NotFound("rules.unknown_check", name=check)
     try:
-        target = _ctx(pack, template, sheet).eval_num(cdef.target)
+        target = _ctx(pack, template, sheet, peers).eval_num(cdef.target)
         variables: dict[str, f.Value] = {
             "roll": float(roll.total),
             "target": target,
@@ -96,6 +100,7 @@ def roll(
     template: str | None = None,
     sheet: JsonValue = None,
     entry: dict[str, JsonValue] | None = None,
+    peers: Peers | None = None,
 ) -> DiceResult:
     rolls: list[int] = []
 
@@ -106,7 +111,11 @@ def roll(
 
     try:
         node = f.parse(expr)
-        resolve = _ctx(pack, template, sheet).resolver(entry) if template is not None else _vars({})
+        resolve = (
+            _ctx(pack, template, sheet, peers).resolver(entry)
+            if template is not None
+            else _vars({})
+        )
         v = f.evaluate(node, resolve, table_lookup(pack), record)
         if isinstance(v, str):
             raise f.FormulaError("formula.text_result", value=v)

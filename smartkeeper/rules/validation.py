@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
 from pydantic import JsonValue
@@ -9,12 +10,14 @@ from pydantic import ValidationError as PydanticError
 
 from smartkeeper.contracts import (
     FLY_FIELD,
+    HP_FIELD,
     REQUIRED_DERIVED,
     Effect,
     EntityTemplate,
     FieldDef,
     GroupDef,
     GroupEntry,
+    Peers,
     Problem,
     RulePack,
     Sheet,
@@ -24,6 +27,8 @@ from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.sheets import init_sheet
 
 CHECK_VARS = ("roll", "target", "difficulty", "opp_roll", "opp_target")
+_ID = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+RESERVED_IDS = {"self", "target", "template"}
 
 
 def known_names(pack: RulePack, template: EntityTemplate | None) -> set[str]:
@@ -54,6 +59,11 @@ def check_formula(
     allowed = known_names(pack, template) | set(extra)
     entry = set(entry_fields) if entry_fields is not None else None
     for name in sorted(f.names(node)):
+        if "." in name and not name.startswith("self."):
+            bad = _check_dotted(pack, name, set(extra))
+            if bad:
+                problems.append(Problem(code=bad, path=path, params={"name": name}))
+            continue
         if name.startswith("self."):
             if entry is None or name[5:] not in entry:
                 problems.append(
@@ -66,6 +76,47 @@ def check_formula(
         if t not in table_names:
             problems.append(Problem(code="formula.unknown_table", path=path, params={"name": t}))
     return problems
+
+
+def preset_ids(tpl: EntityTemplate) -> dict[str, list[str]]:
+    """模板里固定条目的 ID -> 那个分组里可以引用的列（“使用时填写”的列不能引用）。"""
+    out: dict[str, list[str]] = {}
+    for g in tpl.groups:
+        cols = [x.name for x in g.fields if x.kind != "param"]
+        for p in g.presets:
+            if p.id:
+                out[p.id] = cols
+    return out
+
+
+def _check_dotted(pack: RulePack, name: str, extra: set[str]) -> str | None:
+    """<模板>.x / <模板>.<条目ID>.<列> / target.x 的名字是否说得通。返回问题代码。"""
+    head, *rest = name.split(".")
+    if not rest or len(rest) > 2:
+        return "formula.unknown_name"
+    if head == "target":
+        templates = list(pack.templates)
+    else:
+        tpl = pack.template(head)
+        if tpl is None:
+            return "formula.unknown_name"
+        templates = [tpl]
+    if rest == ["template"]:
+        return None
+    for tpl in templates:
+        plain = known_names(pack, tpl)
+        ids = preset_ids(tpl)
+        if len(rest) == 1 and (rest[0] in plain or rest[0] in ids or rest[0] in extra):
+            return None
+        if len(rest) == 2:
+            if rest[0] in ids and rest[1] in ids[rest[0]]:
+                return None
+            if rest[0] in extra:
+                return None  # 这张卡上玩家写的条目：列在求值时再看
+            group_cols = {c for g in tpl.groups for c in [x.name for x in g.fields]}
+            if rest[0] in ids and rest[1] in group_cols:
+                return "formula.param_not_referenceable"
+    return "formula.unknown_name"
 
 
 def _unknown_name(name: str, allowed: set[str], path: str) -> Problem:
@@ -143,6 +194,8 @@ def _check_group(pack: RulePack, tpl: EntityTemplate, g: GroupDef, path: str) ->
         problems.append(Problem(code="pack.bad_count", path=path))
     derived = {d.name for d in tpl.derived}
     field_names = [x.name for x in tpl.fields]
+    for pid in sorted(_dupes(p.id for g2 in tpl.groups for p in g2.presets if p.id)):
+        problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": pid}))
     for name in sorted(_dupes(p.name for p in g.presets)):
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
     for i, p in enumerate(g.presets):
@@ -182,6 +235,9 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
                 code="pack.missing_appearance", path=path, params={"name": tpl.appearance_field}
             )
         )
+    hp = next((x for x in tpl.fields if x.name == HP_FIELD), None)
+    if hp is None or hp.kind not in ("number", "resource") or hp.cls != "runtime":
+        problems.append(Problem(code="pack.missing_hp", path=path, params={"name": HP_FIELD}))
     fly = next((x for x in tpl.fields if x.name == FLY_FIELD), None)
     if fly is None or fly.kind != "boolean":
         problems.append(Problem(code="pack.missing_can_fly", path=path, params={"name": FLY_FIELD}))
@@ -391,7 +447,9 @@ def _check_value(
     return problems
 
 
-def validate_sheet(pack: RulePack, tpl: EntityTemplate, raw: JsonValue) -> list[Problem]:
+def validate_sheet(
+    pack: RulePack, tpl: EntityTemplate, raw: JsonValue, peers: Peers | None = None
+) -> list[Problem]:
     try:
         sheet = Sheet.model_validate(raw)
     except PydanticError as e:
@@ -425,6 +483,9 @@ def validate_sheet(pack: RulePack, tpl: EntityTemplate, raw: JsonValue) -> list[
         if name in sheet.fields:
             problems += _check_value(None, fd, sheet.fields[name], f"fields.{name}")
     problems += _check_formula_fields(pack, tpl, tpl.fields, sheet.fields, "", in_entry=False)
+    own_ids = [e.id for entries in sheet.groups.values() for e in entries if e.id]
+    for eid in sorted(_dupes([*own_ids, *preset_ids(tpl)])):
+        problems.append(Problem(code="sheet.duplicate_entry_id", path="groups", params={"id": eid}))
     for g in groups.values():
         problems += _check_group_entries(pack, tpl, g, sheet, derived)
     problems += _check_priorities(sheet)
@@ -435,7 +496,7 @@ def validate_sheet(pack: RulePack, tpl: EntityTemplate, raw: JsonValue) -> list[
             )
     if problems:
         return problems
-    ctx = EntityContext(pack, tpl, sheet)
+    ctx = EntityContext(pack, tpl, sheet, peers=peers or {})
     for name, fd in fields.items():
         if name in sheet.fields:
             problems += _check_value(ctx, fd, sheet.fields[name], f"fields.{name}")
@@ -524,6 +585,14 @@ def _check_entry(
     """一个条目：玩家写的，或规则包里的固定条目（固定条目的字段可以留空）。"""
     problems: list[Problem] = []
     fdefs = {x.name: x for x in g.fields}
+    if entry.id and (not _ID.fullmatch(entry.id) or entry.id in RESERVED_IDS):
+        problems.append(
+            Problem(code="sheet.bad_entry_id", path=f"{ep}.id", params={"id": entry.id})
+        )
+    elif entry.id and entry.id in known_names(pack, tpl) | {t.name for t in pack.templates}:
+        problems.append(
+            Problem(code="sheet.entry_id_clash", path=f"{ep}.id", params={"id": entry.id})
+        )
     if not entry.name.strip():
         problems.append(Problem(code="sheet.required", path=f"{ep}.name"))
     for name in sorted(entry.fields):

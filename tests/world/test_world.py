@@ -23,7 +23,9 @@ from smartkeeper.world import WorldService, apply_patch
 class FakeRules:
     """只认一个模板 t：fields.hp 必须是 0..10 的数。"""
 
-    def validate_sheet(self, pack: RulePack, template: str, sheet: JsonValue) -> list[Problem]:
+    def validate_sheet(
+        self, pack: RulePack, template: str, sheet: JsonValue, peers: object = None
+    ) -> list[Problem]:
         assert isinstance(sheet, dict)
         fields = sheet.get("fields")
         assert isinstance(fields, dict)

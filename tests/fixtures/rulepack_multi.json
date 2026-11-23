@@ -39,7 +39,7 @@
             "max": "20"
           },
           {
-            "name": "vigor",
+            "name": "hp",
             "kind": "resource",
             "cls": "runtime",
             "min": "0",
@@ -139,7 +139,7 @@
             "required": false
           },
           {
-            "name": "vigor",
+            "name": "hp",
             "kind": "resource",
             "cls": "runtime",
             "min": "0",

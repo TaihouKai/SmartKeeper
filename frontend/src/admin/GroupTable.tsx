@@ -73,7 +73,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
     onChange({ ...g, fields: next });
     setCol(to);
   };
-  const width = 5 + fields.length;
+  const width = 6 + fields.length;
 
   return (
     <div>
@@ -84,6 +84,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
               <th />
               <th>{t("rules.gt.when")}</th>
               <th>{t("character.entry_name")}</th>
+              <th title={t("rules.gt.id_hint")}>{t("rules.gt.id")}</th>
               <th>{t("character.entry_description")}</th>
               {fields.map((f, i) => (
                 <th key={i}>
@@ -115,6 +116,9 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   </td>
                   <td>
                     <input value={p.name} onChange={(e) => setRow(r, { name: e.target.value })} />
+                  </td>
+                  <td>
+                    <input value={p.id ?? ""} placeholder={t("rules.gt.id_ph")} onChange={(e) => setRow(r, { id: e.target.value.trim() })} />
                   </td>
                   <td>
                     <textarea rows={1} value={p.description ?? ""} onChange={(e) => setRow(r, { description: e.target.value })} />
@@ -163,7 +167,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
           </tbody>
         </table>
       </div>
-      <button type="button" onClick={() => pre.add({ name: "", description: "", fields: {}, effects: [], shape: null, when: "" })}>
+      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], shape: null, when: "" })}>
         {t("rules.gt.add_row")}
       </button>
       {col !== null && fields[col] && (

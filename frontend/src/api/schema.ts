@@ -1525,6 +1525,11 @@ export interface components {
             fields: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /**
+             * Id
+             * @default
+             */
+            id: string;
             /** Name */
             name: string;
             placement?: components["schemas"]["PlacementSpec"] | null;
@@ -1553,6 +1558,11 @@ export interface components {
             fields: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /**
+             * Id
+             * @default
+             */
+            id: string;
             /** Name */
             name: string;
             placement?: components["schemas"]["PlacementSpec"] | null;

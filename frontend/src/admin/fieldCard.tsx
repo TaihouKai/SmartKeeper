@@ -28,6 +28,14 @@ function parseChoices(text: string): string[] {
     .filter(Boolean);
 }
 
+/** 常用的可选字段：点一下把这张卡片设成它（运行值资源）。shield 是引擎认得的护盾：受伤时先扣它再扣 hp。 */
+const COMMON: Pick<Field, "name" | "kind" | "cls" | "min" | "max" | "initial">[] = [
+  { name: "mp", kind: "resource", cls: "runtime", min: "0", max: null, initial: "10" },
+  { name: "sp", kind: "resource", cls: "runtime", min: "0", max: null, initial: "10" },
+  { name: "san", kind: "resource", cls: "runtime", min: "0", max: null, initial: "50" },
+  { name: "shield", kind: "resource", cls: "runtime", min: "0", max: null, initial: "0" },
+];
+
 /** 一个字段一张小卡片：第一行是名字、显示名、类型、类别；下面只显示这种类型用得上的设置。 */
 export function FieldCard({
   f,
@@ -36,6 +44,7 @@ export function FieldCard({
   validate,
   isAppearance,
   isFly = false,
+  isHp = false,
   inGroup,
   mover,
   spendTargets = [],
@@ -46,6 +55,7 @@ export function FieldCard({
   validate: (formula: string) => ReturnType<Validate>;
   isAppearance: boolean;
   isFly?: boolean;
+  isHp?: boolean;
   inGroup: boolean;
   mover?: ReactNode;
   /** 角色卡上的数值/资源字段：“使用时填写”的列可以从其中一个里扣 */
@@ -54,8 +64,9 @@ export function FieldCard({
   const { t } = useI18n();
   const cls = inGroup ? "player" : (f.cls ?? "player");
   const numeric = f.kind === "number" || f.kind === "resource" || f.kind === "param";
-  // 引擎必需的字段：名字、类型、类别都不能改，也不能删
+  // 引擎必需的字段：名字、类型、类别都不能改，也不能删（生命值的上下限、初值可以改）
   const locked = isAppearance || isFly;
+  const fixed = locked || isHp;
   const [choicesText, setChoicesText] = useState((f.choices ?? []).join("、"));
   useEffect(() => {
     // 换了一个规则包或版本时，用新的值覆盖输入框
@@ -67,7 +78,7 @@ export function FieldCard({
       <div className="sk-field-main">
         <label>
           {t("rules.f.name")}
-          <input value={f.name} disabled={locked} title={locked ? t("rules.locked") : undefined} placeholder={t("rules.ph.field_name")} onChange={(e) => onChange({ ...f, name: e.target.value })} />
+          <input value={f.name} disabled={fixed} title={fixed ? t("rules.locked") : undefined} placeholder={t("rules.ph.field_name")} onChange={(e) => onChange({ ...f, name: e.target.value })} />
         </label>
         <label>
           {t("rules.f.label")}
@@ -75,7 +86,7 @@ export function FieldCard({
         </label>
         <label>
           {t("rules.f.kind")}
-          <select value={f.kind} disabled={locked} title={locked ? t("rules.locked") : undefined} onChange={(e) => onChange({ ...f, kind: e.target.value as Field["kind"] })}>
+          <select value={f.kind} disabled={fixed} title={fixed ? t("rules.locked") : undefined} onChange={(e) => onChange({ ...f, kind: e.target.value as Field["kind"] })}>
             <option value="number">{t("rules.kind.number")}</option>
             <option value="resource">{t("rules.kind.resource")}</option>
             <option value="text">{t("rules.kind.text")}</option>
@@ -87,7 +98,7 @@ export function FieldCard({
         {!inGroup && (
           <label>
             {t("rules.f.cls")}
-            <select value={cls} disabled={locked} title={locked ? t("rules.locked") : undefined} onChange={(e) => onChange({ ...f, cls: e.target.value as Field["cls"] })}>
+            <select value={cls} disabled={fixed} title={fixed ? t("rules.locked") : undefined} onChange={(e) => onChange({ ...f, cls: e.target.value as Field["cls"] })}>
               <option value="player">{t("rules.cls.player")}</option>
               <option value="runtime">{t("rules.cls.runtime")}</option>
             </select>
@@ -95,8 +106,8 @@ export function FieldCard({
         )}
         <div className="sk-field-side sk-side-actions">
           {mover}
-          {locked ? (
-            <span className="sk-badge-req">{t(isFly ? "rules.can_fly_badge" : "rules.appearance_badge")}</span>
+          {fixed ? (
+            <span className="sk-badge-req">{t(isHp ? "rules.hp_badge" : isFly ? "rules.can_fly_badge" : "rules.appearance_badge")}</span>
           ) : (
             <button className="sk-link" onClick={onRemove}>
               {t("common.remove")}
@@ -105,8 +116,18 @@ export function FieldCard({
         </div>
       </div>
       <p className="sk-hint sk-field-help">
-        {isAppearance ? t("rules.help.appearance") : isFly ? t("rules.help.can_fly") : `${t(`rules.kind_help.${f.kind}`)} ${inGroup ? "" : t(`rules.cls_help.${cls}`)}`}
+        {isAppearance ? t("rules.help.appearance") : isFly ? t("rules.help.can_fly") : isHp ? t("rules.help.hp") : `${t(`rules.kind_help.${f.kind}`)} ${inGroup ? "" : t(`rules.cls_help.${cls}`)}`}
       </p>
+      {!inGroup && !fixed && (
+        <p className="sk-hint sk-presets">
+          {t("rules.common_fields")}{" "}
+          {COMMON.map((c) => (
+            <button key={c.name} type="button" className="sk-chip" onClick={() => onChange({ ...f, ...c, label: t(`rules.default_label.${c.name}`), description: f.description })}>
+              {c.name} {t(`rules.default_label.${c.name}`)}
+            </button>
+          ))}
+        </p>
+      )}
       <label className="sk-field-desc-input">
         {t("rules.f.description")}
         <input value={f.description ?? ""} placeholder={t("rules.ph.field_description")} onChange={(e) => onChange({ ...f, description: e.target.value })} />
