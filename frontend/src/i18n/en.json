@@ -356,12 +356,30 @@
     "public": "Public part scenario_public.md",
     "scenarios": "Scenarios"
   },
+  "placement": {
+    "charges": "Charges",
+    "duration": "Lasts (seconds)",
+    "hint": "When set, the keeper places it on the map and these formulas give its values (they may use self.<column> and the owner's fields). Anyone walking into the radius triggers it once, as the engine works out from movement; the engine removes it when charges run out or it expires. Others spot it within their perception radius × the detection multiplier; the owner always sees it.",
+    "is": "This entry is a placed object (trap, ward…)",
+    "notify": "Tell the owner when triggered",
+    "perceive": "Detection multiplier",
+    "ph": {
+      "forever": "empty means until removed",
+      "perceive": "e.g. 0.2 (smaller is harder to spot; 0 never)",
+      "radius": "e.g. 5 or self.level * 2",
+      "unlimited": "empty means unlimited"
+    },
+    "radius": "Trigger radius (m)",
+    "tag": "placed"
+  },
   "play": {
     "close": "Close",
     "handle_label": "Label",
     "handle_note": "Private note",
     "map_hint": "Tap a person or place to @ it; tap the ground to pick a destination. Describe height in words (\"the rooftop\", \"100 m up\").",
     "nobody": "(nobody nearby)",
+    "placement_unknown": "unknown placed object",
+    "placements": "Placed objects you notice:",
     "presence": "Currently perceived:",
     "rename": "Rename / note",
     "seen": "People you've seen",
@@ -473,6 +491,7 @@
       "max": "Max entries a player writes",
       "min": "Min entries a player writes",
       "name": "Group ID (internal code)",
+      "placements": "Entries may be placed objects (traps, wards… left on the map)",
       "presets": "Fixed entries: rows filled in by the rules",
       "presets_hint": "Rows filled in from the header above, so players don't write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn't appear. Conditions may only use this sheet's fields; text values need double quotes, e.g. class = \"warrior\", class != \"warrior\" or and(class = \"warrior\", str >= 3). Fixed entries don't count toward the min/max above.",
       "shapes": "Area shapes entries may have (for area attacks, beams…; leave all unticked if unused)",

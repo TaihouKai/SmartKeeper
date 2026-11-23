@@ -338,6 +338,10 @@ class Contexts:
                 "各实体此刻生效的固定条目（规则包写好的，不在世界状态里）",
                 dumps(e.active_presets_all(game_id)),
             ),
+            section(
+                "地图上的设置物（陷阱、结界等）与本轮按行动推算会被触发的",
+                dumps(e.placement_report(game_id)),
+            ),
             section("滚动摘要（只提供氛围，不能作为事实依据）", e.latest_summary(game_id)),
             section(f"最近 {self.cfg.recent_rounds} 轮的事件原文", render_events(recent, names)),
             section("按实体检索到的往事（记事条目与原始裁定）", memory_text),

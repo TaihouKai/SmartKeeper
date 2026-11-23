@@ -296,12 +296,21 @@ class PresenceOut(BaseModel):
     inside: str | None
 
 
+class PlacementOut(BaseModel):
+    ref: str
+    label: str  # 自己放的才有名字
+    pos: LonLatPoint
+    radius: float
+    mine: bool
+
+
 class OwnOut(BaseModel):
     ref: str
     name: str
     pos: LonLatPoint | None
     inside: str | None
     presence: list[PresenceOut]
+    placements: list[PlacementOut] = []
 
 
 class SeenOut(BaseModel):
@@ -337,6 +346,12 @@ def scene(engine: Engine, game_id: str, player_id: str) -> SceneOut:
                         ref=p.ref, label=p.label, note=p.note, pos=lonlat(m, p.pos), inside=p.inside
                     )
                     for p in e.presence
+                ],
+                placements=[
+                    PlacementOut(
+                        ref=x.ref, label=x.label, pos=lonlat(m, x.pos), radius=x.radius, mine=x.mine
+                    )
+                    for x in e.placements
                 ],
             )
             for e in s.entities

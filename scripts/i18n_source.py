@@ -607,6 +607,33 @@ T: dict[str, tuple[str, str]] = {
         'Rows filled in from the header above, so players don\'t write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn\'t appear. Conditions may only use this sheet\'s fields; text values need double quotes, e.g. class = "warrior", class != "warrior" or and(class = "warrior", str >= 3). Fixed entries don\'t count toward the min/max above.',
     ),
     "rules.gt.title": ("条目表", "Entry table"),
+    "rules.g.placements": (
+        "条目可以是设置物（陷阱、结界等，放在地图上）",
+        "Entries may be placed objects (traps, wards… left on the map)",
+    ),
+    "placement.is": (
+        "这一条是设置物（陷阱、结界等）",
+        "This entry is a placed object (trap, ward…)",
+    ),
+    "placement.tag": ("设置物", "placed"),
+    "placement.radius": ("触发范围半径（米）", "Trigger radius (m)"),
+    "placement.perceive": ("感知距离系数", "Detection multiplier"),
+    "placement.charges": ("可触发次数", "Charges"),
+    "placement.duration": ("持续时间（秒）", "Lasts (seconds)"),
+    "placement.notify": ("被触发时通知设置者", "Tell the owner when triggered"),
+    "placement.ph.radius": ("例如 5 或 self.level * 2", "e.g. 5 or self.level * 2"),
+    "placement.ph.perceive": (
+        "例如 0.2（越小越难发现，0 发现不了）",
+        "e.g. 0.2 (smaller is harder to spot; 0 never)",
+    ),
+    "placement.ph.unlimited": ("留空表示无限", "empty means unlimited"),
+    "placement.ph.forever": ("留空表示一直存在", "empty means until removed"),
+    "placement.hint": (
+        "设置时由 KP 在裁定里放到地图上，参数按这里的公式算（可以用 self.<列名> 和设置者的字段）。有人从范围外走进范围就触发一次，由引擎按移动路线判断；次数用完、到期由引擎移除。别人发现它的距离 = 那人的感知半径 × 感知距离系数；设置者自己总能看到。",
+        "When set, the keeper places it on the map and these formulas give its values (they may use self.<column> and the owner's fields). Anyone walking into the radius triggers it once, as the engine works out from movement; the engine removes it when charges run out or it expires. Others spot it within their perception radius × the detection multiplier; the owner always sees it.",
+    ),
+    "play.placements": ("察觉到的设置物：", "Placed objects you notice:"),
+    "play.placement_unknown": ("不明的设置物", "unknown placed object"),
     "rules.gt.hint": (
         '这一类条目是一张表：每一行是一个规则写好的条目（例如一个技能），每一列是每个条目都要填的一项。“生效条件”“名称”“描述”三列每行自带；点“+ 列”加一列（例如 等级、魔力消耗、伤害），点列名可以改这一列的名字和类型。效果和范围形状点这一行的“更多”。生效条件只能用这张卡的字段，文字要加英文引号，例如 class = "warrior"，留空表示总是生效。行的顺序会影响计算：同一个值上的效果从上到下接力。玩家建角时也按这些列填自己的条目。',
         "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Effects and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: effects on one value run top to bottom. Players fill the same columns for their own entries.",

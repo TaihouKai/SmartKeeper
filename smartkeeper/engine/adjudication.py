@@ -12,7 +12,7 @@ from smartkeeper.contracts import (
     Problem,
 )
 
-ENGINE_ONLY_PATHS = ("/game_seconds", "/map", "/activities")
+ENGINE_ONLY_PATHS = ("/game_seconds", "/map", "/activities", "/placements")
 _POS_PATH = re.compile(r"^/entities/[^/]+/(pos|inside)(/|$)")
 _ENTITY_PATH = re.compile(r"^/entities/([^/]+)$")
 _ANY_ENTITY_PATH = re.compile(r"^/entities/([^/]+)")

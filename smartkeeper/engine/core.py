@@ -48,6 +48,9 @@ from smartkeeper.contracts import (
     OwnEntity,
     PatchOp,
     Place,
+    Placement,
+    PlacementSeen,
+    PlacementSpec,
     Player,
     Point,
     PresenceEntry,
@@ -77,6 +80,7 @@ from smartkeeper.contracts import (
 from smartkeeper.engine import adjudication as adjv
 from smartkeeper.engine import scenario
 from smartkeeper.engine.mentions import find_mentions, replace_mentions
+from smartkeeper.engine.placements import perceived_placements, placements_of, triggers
 from smartkeeper.engine.repo import Repo
 from smartkeeper.engine.sheetview import build_sheet_views, visible_sheet
 from smartkeeper.engine.space import EMPTY_MAP, Space, point_of
@@ -1139,6 +1143,150 @@ class Engine:
             ev = self._events.append(game_id, r.no, [self._dice_event(res, reason, extra)])[0]
             return res.model_copy(update={"seq": ev.seq})
 
+    def _placement_ops(
+        self,
+        game_id: str,
+        adj: Adjudication,
+        cur: State,
+        fired: dict[str, list[str]],
+        end: int,
+        items: dict[str, adjv.ItemInfo],
+        controls: dict[str, set[str]],
+    ) -> tuple[list[PatchOp], list[Problem]]:
+        """设置物的变更：触发扣次数、KP 拆除、KP 放下新的、到期移除。"""
+        pack = self.rulepack(game_id)
+        m = self._map(game_id)
+        places = placements_of(cur.get("placements"))
+        owner_of = {e: pid for pid, ents in controls.items() for e in ents}
+        ops: list[PatchOp] = []
+        problems: list[Problem] = []
+        gone: set[str] = set()
+        for i, plid in enumerate(adj.remove_placements):
+            if plid not in places:
+                problems.append(
+                    Problem(
+                        code="adj.unknown_placement",
+                        path=f"remove_placements[{i}]",
+                        params={"id": plid},
+                    )
+                )
+            elif plid not in gone:
+                gone.add(plid)
+                ops.append(PatchOp(op="remove", path=f"/placements/{plid}"))
+        for plid, ents in sorted(fired.items()):
+            p = places.get(plid)
+            if p is None or plid in gone or p.charges is None:
+                continue
+            left = p.charges - len(ents)
+            if left <= 0:
+                gone.add(plid)
+                ops.append(PatchOp(op="remove", path=f"/placements/{plid}"))
+            else:
+                ops.append(PatchOp(op="replace", path=f"/placements/{plid}/charges", value=left))
+        for plid, p in sorted(places.items()):
+            if plid not in gone and p.expires_at is not None and p.expires_at <= end:
+                gone.add(plid)
+                ops.append(PatchOp(op="remove", path=f"/placements/{plid}"))
+        ents = _obj(cur.get("entities"))
+        r = self.round(game_id)
+        for i, pin in enumerate(adj.placements):
+            path = f"placements[{i}]"
+            ent = _obj(ents.get(pin.owner))
+            if not ent:
+                problems.append(
+                    Problem(code="adj.unknown_entity", path=path, params={"id": pin.owner})
+                )
+                continue
+            if pin.because.startswith("npc:"):
+                if pin.because[4:] != pin.owner or pin.owner in owner_of:
+                    problems.append(
+                        Problem(code="adj.because_not_npc", path=path, params={"id": pin.owner})
+                    )
+                    continue
+            else:
+                info = items.get(pin.because)
+                if info is None or info.actor != pin.owner:
+                    problems.append(
+                        Problem(
+                            code="adj.because_unknown_item", path=path, params={"item": pin.because}
+                        )
+                    )
+                    continue
+            template = str(ent.get("template", ""))
+            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet")))
+            row = next(
+                (
+                    _obj(e)
+                    for entries in _obj(sheet.get("groups")).values()
+                    for e in (entries if isinstance(entries, list) else [])
+                    if _obj(e).get("name") == pin.entry and _obj(e).get("placement")
+                ),
+                None,
+            )
+            if row is None:
+                problems.append(
+                    Problem(code="adj.not_a_placement", path=path, params={"entry": pin.entry})
+                )
+                continue
+            spec = PlacementSpec.model_validate(row["placement"])
+            fields = _obj(row.get("fields"))
+
+            def val(
+                text: str,
+                t: str = template,
+                sh: JsonValue = sheet,
+                fl: dict[str, JsonValue] = fields,
+            ) -> float:
+                return self._rules.roll(pack, text, self._dice.faces, t, sh, fl).total
+
+            try:
+                radius = val(spec.radius)
+                mult = val(spec.perceive_multiplier) if spec.perceive_multiplier.strip() else 1.0
+                charges = int(val(spec.charges)) if spec.charges.strip() else None
+                duration = int(val(spec.duration)) if spec.duration.strip() else None
+            except ValidationFailed as e:
+                problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
+                continue
+            if radius <= 0 or mult < 0 or (charges is not None and charges < 1):
+                problems.append(
+                    Problem(code="adj.bad_placement", path=path, params={"entry": pin.entry})
+                )
+                continue
+            problems += self._check_location(
+                m, pin.owner, Location(pos=pin.at, inside=pin.inside), path
+            )
+            placed = Placement(
+                owner=pin.owner,
+                entry=pin.entry,
+                description=str(row.get("description", "")),
+                pos=pin.at,
+                inside=pin.inside,
+                radius=radius,
+                perceive_multiplier=mult,
+                charges=charges,
+                expires_at=end + duration if duration is not None else None,
+                notify_owner=spec.notify_owner,
+                created_at=end,
+            )
+            ops.append(
+                PatchOp(
+                    op="add",
+                    path=f"/placements/pl_{r.no}_{i + 1}",
+                    value=placed.model_dump(mode="json"),
+                )
+            )
+        return ops, problems
+
+    def placement_report(self, game_id: str) -> dict[str, JsonValue]:
+        """给 KP：地图上全部设置物，以及按进行中的行动推算本轮会被触发的（KP 另行安排移动时以引擎重算为准）。"""
+        state = self._state(game_id)
+        now, end = self.round_window(game_id)
+        fired = triggers(self._space(game_id), self.activities(game_id), {}, now, end)
+        return {
+            "placements": _obj(state.get("placements")),
+            "triggered_this_round": cast(JsonValue, fired),
+        }
+
     def _spend_ops(self, game_id: str, round_no: int, state: State) -> list[PatchOp]:
         """本轮（最近一次规划里）掷骰时用掉的资源：从角色卡上扣掉。"""
         total: dict[tuple[str, str], float] = {}
@@ -1406,6 +1554,26 @@ class Engine:
         if mv_ops:
             cur = self._world.apply(cur, mv_ops)
             groups.append(("movement", mv_ops))
+        # 设置物：本轮被触发的（扣次数、用完移除）、KP 拆除的、新放下的、到期的
+        fired = triggers(start_space, acts, {mv.entity: mv.to for mv in adj.movements}, now, end)
+        pl_ops, pl_problems = self._placement_ops(game_id, adj, cur, fired, end, items, controls)
+        problems += pl_problems
+        if problems:
+            raise ValidationFailed("adjudication.invalid", problems)
+        if pl_ops:
+            cur = self._world.apply(cur, pl_ops)
+            groups.append(("placements", pl_ops))
+        must_hear: set[str] = set()
+        start_places = placements_of(state.get("placements"))
+        for plid, ents in fired.items():
+            must_hear |= {owner[e] for e in ents if e in owner}
+            pl = start_places[plid]
+            if pl.notify_owner and pl.owner in owner:
+                must_hear.add(owner[pl.owner])
+        for pid in sorted(must_hear - outcome_players):
+            problems.append(
+                Problem(code="adj.triggered_needs_outcome", path="outcomes", params={"player": pid})
+            )
         after = self._space_for(m, cur, pack)
         problems += self._check_encounters(adj, after)
         problems += self._check_area_effects(game_id, r.no, adj)
@@ -1416,7 +1584,10 @@ class Engine:
                 e
                 for e in controls.get(pid, set())
                 if e in after_entities
-                and set(start_space.perceived_by(e)) != set(after.perceived_by(e))
+                and (
+                    set(start_space.perceived_by(e)) != set(after.perceived_by(e))
+                    or perceived_placements(start_space, e) != perceived_placements(after, e)
+                )
             ]
             touched = adjv.touched_entities(
                 [*adj.state_patch, *self._spend_ops(game_id, r.no, state)]
@@ -2041,6 +2212,17 @@ class Engine:
             presence.sort(key=lambda x: (x.label, x.ref))
             h_own = handles.get(e) or self._handles.ensure(player_id, e)
             inside = ent.get("inside")
+            places = placements_of(state.get("placements"))
+            seen_places = tuple(
+                PlacementSeen(
+                    ref=hashlib.sha256(f"{player_id}:{plid}".encode()).hexdigest()[:12],
+                    label=places[plid].entry if places[plid].owner == e else "",
+                    pos=places[plid].pos,
+                    radius=places[plid].radius,
+                    mine=places[plid].owner == e,
+                )
+                for plid in perceived_placements(space, e)
+            )
             own.append(
                 OwnEntity(
                     ref=h_own.ref,
@@ -2048,6 +2230,7 @@ class Engine:
                     pos=point_of(ent.get("pos")),
                     inside=inside if isinstance(inside, str) else None,
                     presence=tuple(presence),
+                    placements=seen_places,
                 )
             )
         changes = tuple(

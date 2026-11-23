@@ -1038,10 +1038,20 @@ export interface components {
             /** Outcomes */
             outcomes: components["schemas"]["Outcome"][];
             /**
+             * Placements
+             * @default []
+             */
+            placements: components["schemas"]["PlaceIn"][];
+            /**
              * Public Events
              * @default []
              */
             public_events: string[];
+            /**
+             * Remove Placements
+             * @default []
+             */
+            remove_placements: string[];
             /**
              * State Patch
              * @default []
@@ -1480,6 +1490,11 @@ export interface components {
             /** Name */
             name: string;
             /**
+             * Placements
+             * @default false
+             */
+            placements: boolean;
+            /**
              * Presets
              * @default []
              */
@@ -1510,6 +1525,7 @@ export interface components {
             };
             /** Name */
             name: string;
+            placement?: components["schemas"]["PlacementSpec"] | null;
             shape?: components["schemas"]["Shape"] | null;
         };
         /**
@@ -1537,6 +1553,7 @@ export interface components {
             };
             /** Name */
             name: string;
+            placement?: components["schemas"]["PlacementSpec"] | null;
             shape?: components["schemas"]["Shape"] | null;
             /**
              * When
@@ -1783,6 +1800,11 @@ export interface components {
             inside: string | null;
             /** Name */
             name: string;
+            /**
+             * Placements
+             * @default []
+             */
+            placements: components["schemas"]["PlacementOut"][];
             pos: components["schemas"]["LonLatPoint"] | null;
             /** Presence */
             presence: components["schemas"]["PresenceOut"][];
@@ -1821,6 +1843,61 @@ export interface components {
             display_name: string;
             /** Player Id */
             player_id: string;
+        };
+        /**
+         * PlaceIn
+         * @description 裁定里放下一个设置物：参数取自设置者角色卡上那个条目的设置物参数。
+         */
+        PlaceIn: {
+            at: components["schemas"]["Point"];
+            /** Because */
+            because: string;
+            /** Entry */
+            entry: string;
+            /** Inside */
+            inside?: string | null;
+            /** Owner */
+            owner: string;
+        };
+        /** PlacementOut */
+        PlacementOut: {
+            /** Label */
+            label: string;
+            /** Mine */
+            mine: boolean;
+            pos: components["schemas"]["LonLatPoint"];
+            /** Radius */
+            radius: number;
+            /** Ref */
+            ref: string;
+        };
+        /**
+         * PlacementSpec
+         * @description 条目是设置物（陷阱、结界等）时的参数。都是公式，在设置者的角色卡和这个条目上求值，设置时算定。
+         */
+        PlacementSpec: {
+            /**
+             * Charges
+             * @default
+             */
+            charges: string;
+            /**
+             * Duration
+             * @default
+             */
+            duration: string;
+            /**
+             * Notify Owner
+             * @default true
+             */
+            notify_owner: boolean;
+            /**
+             * Perceive Multiplier
+             * @default 1
+             */
+            perceive_multiplier: string;
+            /** Radius */
+            radius: string;
         };
         /**
          * PlayerEntities

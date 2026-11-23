@@ -11,6 +11,22 @@ class Point(Frozen):
     z: float = 0.0
 
 
+class Placement(Frozen):
+    """地图上的设置物（陷阱、结界等），世界状态 /placements/<id>。只有引擎能写。"""
+
+    owner: str  # 设置者实体
+    entry: str  # 来自设置者角色卡上的哪个条目
+    description: str = ""
+    pos: Point
+    inside: str | None = None
+    radius: float
+    perceive_multiplier: float = 1.0
+    charges: int | None = None  # 剩余可触发次数；None 表示无限
+    expires_at: int | None = None  # 游戏内秒；None 表示一直存在
+    notify_owner: bool = True
+    created_at: int = 0
+
+
 class Location(Frozen):
     pos: Point
     inside: str | None = None  # 所在建筑的地物 id

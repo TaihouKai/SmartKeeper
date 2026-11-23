@@ -2,7 +2,7 @@ import { Fragment, useCallback, useState } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { FormulaInput, Mover } from "../ui/components";
-import { EffectsEditor, FieldInput, ShapeEditor, fieldLabel, type Effect, type Shape } from "../ui/EntryEditor";
+import { EffectsEditor, FieldInput, PlacementEditor, ShapeEditor, fieldLabel, type Effect, type PlacementSpec, type Shape } from "../ui/EntryEditor";
 import { FieldCard, blankField, useListEdit, type Validate } from "./fieldCard";
 
 type Field = Schemas["FieldDef"];
@@ -134,9 +134,10 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                     </td>
                   ))}
                   <td className="sk-nowrap">
-                    {(g.effects !== false || shapes.length > 0) && (
+                    {(g.effects !== false || shapes.length > 0 || g.placements) && (
                       <button type="button" className="sk-link" onClick={() => setOpen(open === r ? null : r)}>
                         {t("rules.gt.more", { n: String((p.effects ?? []).length) })}
+                        {p.placement ? ` · ${t("placement.tag")}` : ""}
                       </button>
                     )}
                   </td>
@@ -146,6 +147,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                     <td colSpan={width}>
                       {g.effects !== false && <EffectsEditor effects={effectsOf(p)} derived={derived} validate={vEff} withPriority={false} onChange={(effects) => setRow(r, { effects })} />}
                       {shapes.length > 0 && <ShapeEditor allowed={shapes} shape={(p.shape ?? null) as Shape | null} onChange={(shape) => setRow(r, { shape })} />}
+                      {g.placements && <PlacementEditor spec={(p.placement ?? null) as PlacementSpec | null} validate={vEff} onChange={(placement) => setRow(r, { placement: placement ? { radius: placement.radius, perceive_multiplier: placement.perceive_multiplier ?? "1", charges: placement.charges ?? "", duration: placement.duration ?? "", notify_owner: placement.notify_owner ?? true } : null })} />}
                     </td>
                   </tr>
                 )}

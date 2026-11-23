@@ -419,3 +419,85 @@ def test_param_spends_a_resource_once_per_attempt() -> None:
     assert res.total == (sum(res.rolls) + 1) * 3
     publish(t, only=t.players)
     assert e.world_state(g)["entities"][e0]["sheet"]["fields"]["hp"] == hp - 4  # type: ignore[index]
+
+
+# ---------------- 设置物 ----------------
+
+
+def trap_pack() -> RulePack:
+    """skills 分组允许设置物；人人都有一个固定条目 trap：半径 5 米，感知系数 0.2，触发 1 次，通知设置者。"""
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    g = tpl.groups[0]
+    trap = {
+        "name": "trap",
+        "description": "a hidden snare",
+        "fields": {"level": 1},
+        "placement": {
+            "radius": "5",
+            "perceive_multiplier": "0.2",
+            "charges": "1",
+            "notify_owner": True,
+        },
+    }
+    g = g.model_copy(update={"placements": True, "presets": (GroupPreset.model_validate(trap),)})
+    tpl = tpl.model_copy(update={"groups": (g, *tpl.groups[1:])})
+    return pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+
+
+def test_placed_trap_triggers_once_and_tells_its_owner() -> None:
+    from smartkeeper.contracts import PlaceIn
+
+    t = setup_table("single", 2, pack=trap_pack())
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    e.admin_patch(
+        g,
+        [
+            PatchOp(op="replace", path=f"/entities/{e0}/pos", value={"x": -90, "y": -90, "z": 0}),
+            PatchOp(op="replace", path=f"/entities/{e1}/pos", value={"x": 150, "y": 100, "z": 0}),
+        ],
+    )
+    # 第一轮：p0 在 (100, 100) 设陷阱；p1 开始往西走 100 米（50 秒），这一轮只走到 (130, 100)
+    wait(t, p0, 10)
+    walk(t, p1, Point(x=50, y=100))
+    e.close_round(g)
+    item = e.activities(g)[e0].steps[0].item
+    place = PlaceIn(owner=e0, entry="trap", at=Point(x=100, y=100), because=item)
+    publish(t, only=[p0], placements=[place])
+    traps = e.world_state(g)["placements"]
+    assert isinstance(traps, dict) and list(traps) == ["pl_1_1"]
+    assert traps["pl_1_1"]["radius"] == 5 and traps["pl_1_1"]["charges"] == 1  # type: ignore[index]
+    # 设置者自己看得到；p1 在 30 米外，发现距离 90 × 0.2 = 18 米，看不到
+    assert [x.mine for x in e.scene(g, p0).entities[0].placements] == [True]
+    # 第二轮：p1 走过陷阱，被触发；设置者开了通知，也必须有结果
+    wait(t, p0, 300)
+    e.close_round(g)
+    with pytest.raises(ValidationFailed) as err:
+        e.apply_adjudication(g, t.simple_adjudication(only=[p1]))
+    codes = {p.code for p in err.value.problems}
+    assert "adj.triggered_needs_outcome" in codes
+    assert e.placement_report(g)["triggered_this_round"] == {"pl_1_1": [e1]}
+    publish(t, only=[p0, p1])
+    assert e.world_state(g)["placements"] == {}  # 只能触发 1 次，用完移除
+
+
+def test_placement_must_come_from_a_placement_entry() -> None:
+    from smartkeeper.contracts import PlaceIn
+
+    t = setup_table("single", 2, pack=trap_pack())
+    e, g = t.engine, t.game_id
+    p0 = t.players[0]
+    e0 = t.entities(p0)[0]
+    wait(t, p0, 10)
+    wait(t, t.players[1], 10)
+    e.close_round(g)
+    item = e.activities(g)[e0].steps[0].item
+    bad = PlaceIn(owner=e0, entry="first aid", at=Point(x=0, y=0), because=item)
+    with pytest.raises(ValidationFailed) as err:
+        e.apply_adjudication(
+            g, t.simple_adjudication(placements=[bad], remove_placements=["pl_9_9"])
+        )
+    codes = {p.code for p in err.value.problems}
+    assert {"adj.not_a_placement", "adj.unknown_placement"} <= codes

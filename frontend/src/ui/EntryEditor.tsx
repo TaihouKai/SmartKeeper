@@ -10,7 +10,8 @@ type GroupDef = Schemas["GroupDef"];
 // formula 算出 target 的新值；写 target 自己的名字表示到这一步为止的值。priority 只有玩家写的效果才有
 export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null };
 export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
-export type Entry = { name: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null };
+export type PlacementSpec = { radius: string; perceive_multiplier?: string; charges?: string; duration?: string; notify_owner?: boolean };
+export type Entry = { name: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null };
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
@@ -107,6 +108,7 @@ export function EntryEditor({
       ))}
       {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} onChange={(effects) => onChange({ ...entry, effects })} />}
       {shapes.length > 0 && <ShapeEditor allowed={shapes} shape={entry.shape} onChange={(shape) => onChange({ ...entry, shape })} />}
+      {group.placements && <PlacementEditor spec={entry.placement ?? null} validate={v} onChange={(placement) => onChange({ ...entry, placement })} />}
       {onRemove && (
         <button type="button" className="sk-link" onClick={onRemove}>
           {t("character.remove_entry")}
@@ -193,6 +195,46 @@ export function ShapeEditor({ allowed, shape, onChange }: { allowed: string[]; s
             <input type="number" value={shape[k] ?? ""} onChange={(e) => onChange({ ...shape, [k]: e.target.value === "" ? null : Number(e.target.value) })} />
           </label>
         ))}
+    </div>
+  );
+}
+
+/** 设置物参数（陷阱、结界等）：勾上“这一条是设置物”后填范围、发现难度、次数、持续时间、是否通知设置者。 */
+export function PlacementEditor({ spec, validate, onChange }: { spec: PlacementSpec | null; validate: Check; onChange: (s: PlacementSpec | null) => void }) {
+  const { t } = useI18n();
+  const set = (patch: Partial<PlacementSpec>) => onChange({ ...(spec ?? { radius: "" }), ...patch });
+  return (
+    <div className="sk-placement">
+      <label className="sk-inline">
+        <input type="checkbox" checked={spec !== null} onChange={(e) => onChange(e.target.checked ? { radius: "1", perceive_multiplier: "1", charges: "", duration: "", notify_owner: true } : null)} />{" "}
+        <strong>{t("placement.is")}</strong>
+      </label>
+      {spec && (
+        <>
+          <div className="sk-field-extra">
+            <label>
+              {t("placement.radius")}
+              <FormulaInput value={spec.radius} validate={validate} placeholder={t("placement.ph.radius")} onChange={(x) => set({ radius: x })} />
+            </label>
+            <label>
+              {t("placement.perceive")}
+              <FormulaInput value={spec.perceive_multiplier ?? "1"} validate={validate} placeholder={t("placement.ph.perceive")} onChange={(x) => set({ perceive_multiplier: x })} />
+            </label>
+            <label>
+              {t("placement.charges")}
+              <FormulaInput value={spec.charges ?? ""} validate={validate} placeholder={t("placement.ph.unlimited")} onChange={(x) => set({ charges: x })} />
+            </label>
+            <label>
+              {t("placement.duration")}
+              <FormulaInput value={spec.duration ?? ""} validate={validate} placeholder={t("placement.ph.forever")} onChange={(x) => set({ duration: x })} />
+            </label>
+          </div>
+          <label className="sk-inline">
+            <input type="checkbox" checked={spec.notify_owner ?? true} onChange={(e) => set({ notify_owner: e.target.checked })} /> {t("placement.notify")}
+          </label>
+          <p className="sk-hint">{t("placement.hint")}</p>
+        </>
+      )}
     </div>
   );
 }

@@ -56,9 +56,10 @@ function MapTab({
     for (const e of scene.entities) {
       if (e.pos) out.set(e.ref, { ref: e.ref, label: e.name, lon: e.pos.lon, lat: e.pos.lat, z: e.pos.z, own: true });
       for (const p of e.presence) out.set(p.ref, { ref: p.ref, label: p.label, lon: p.pos.lon, lat: p.pos.lat, z: p.pos.z, own: false });
+      for (const x of e.placements ?? []) out.set(x.ref, { ref: x.ref, label: x.label || t("play.placement_unknown"), lon: x.pos.lon, lat: x.pos.lat, z: x.pos.z, own: x.mine });
     }
     return [...out.values()];
-  }, [scene]);
+  }, [scene, t]);
   if (!map || !scene) return <p>{t("common.loading")}</p>;
   return (
     <div>
@@ -87,6 +88,12 @@ function MapTab({
           <strong>{e.name}</strong>
           <div className="sk-hint">{t("play.presence")}</div>
           {e.presence.length === 0 && <div className="sk-hint">{t("play.nobody")}</div>}
+          {(e.placements ?? []).length > 0 && (
+            <div className="sk-hint">
+              {t("play.placements")}{" "}
+              {(e.placements ?? []).map((x) => (x.mine ? x.label : t("play.placement_unknown"))).join("、")}
+            </div>
+          )}
           <ul>
             {e.presence.map((p) => (
               <li key={p.ref}>

@@ -13,6 +13,7 @@ from smartkeeper.contracts.adjudication import (
     Opening,
     Outcome,
     PatchOp,
+    PlaceIn,
 )
 from smartkeeper.contracts.base import Frozen, JsonDict, JsonValue
 from smartkeeper.contracts.chat import ChatMessage, ChatStore
@@ -46,7 +47,7 @@ from smartkeeper.contracts.game import (
     Round,
     RoundStatus,
 )
-from smartkeeper.contracts.geometry import Location, Place, Point
+from smartkeeper.contracts.geometry import Location, Place, Placement, Point
 from smartkeeper.contracts.interfaces import (
     Dice,
     EventLog,
@@ -99,6 +100,7 @@ from smartkeeper.contracts.sheet import (
     Effect,
     GroupEntry,
     Item,
+    PlacementSpec,
     Shape,
     Sheet,
     SheetChange,
@@ -117,6 +119,7 @@ from smartkeeper.contracts.spatial import (
     MapFeature,
     MapOrigin,
     OwnEntity,
+    PlacementSeen,
     PresenceEntry,
     QueryResult,
     Scene,
@@ -204,6 +207,10 @@ __all__ = [
     "OwnEntity",
     "PatchOp",
     "Place",
+    "PlaceIn",
+    "Placement",
+    "PlacementSeen",
+    "PlacementSpec",
     "Player",
     "PlayerEntities",
     "Point",

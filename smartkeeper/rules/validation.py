@@ -537,6 +537,16 @@ def _check_entry(
         problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
     for j, eff in enumerate(entry.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
+    if entry.placement is not None:
+        if not g.placements:
+            problems.append(Problem(code="sheet.placement_not_allowed", path=f"{ep}.placement"))
+        spec = entry.placement
+        for attr in ("radius", "perceive_multiplier", "charges", "duration"):
+            text = str(getattr(spec, attr))
+            if attr == "radius" or text.strip():
+                problems += check_formula(
+                    pack, tpl, text, f"{ep}.placement.{attr}", entry_fields=list(fdefs)
+                )
     if entry.shape is not None and entry.shape.kind not in g.shapes.allowed:
         problems.append(Problem(code="sheet.shape_not_allowed", path=f"{ep}.shape"))
     return problems

@@ -171,6 +171,9 @@ function GroupCard({ g, onChange, onRemove, validate, template, derived, mover, 
           <label className="sk-inline">
             <input type="checkbox" checked={g.hidden ?? false} onChange={(e) => onChange({ ...g, hidden: e.target.checked })} /> {t("rules.g.hidden")}
           </label>
+          <label className="sk-inline">
+            <input type="checkbox" checked={g.placements ?? false} onChange={(e) => onChange({ ...g, placements: e.target.checked })} /> {t("rules.g.placements")}
+          </label>
         </div>
         <label>{t("rules.g.shapes")}</label>
         <div className="sk-shapes">
@@ -245,7 +248,7 @@ function TemplateEditor({ tpl, onChange, onRemove, validate, mover }: { tpl: Tem
           {groups.map((g: Group, i) => (
             <GroupCard key={i} g={g} template={tpl.name} derived={derived.map((d) => d.name)} spendTargets={(tpl.fields ?? []).filter((f) => f.kind === "number" || f.kind === "resource").map((f) => f.name)} validate={validate} onChange={(x) => ged.update(i, x)} onRemove={() => ged.remove(i)} mover={<Mover index={i} count={groups.length} onMove={ged.move} />} />
           ))}
-          <button onClick={() => ged.add({ name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false })}>{t("rules.add_group")}</button>
+          <button onClick={() => ged.add({ name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: false })}>{t("rules.add_group")}</button>
         </Fold>
       </Fold>
     </div>

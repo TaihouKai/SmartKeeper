@@ -152,12 +152,23 @@ class SeenEntry(Frozen):
     note: str = ""
 
 
+class PlacementSeen(Frozen):
+    """玩家的实体察觉到的设置物。自己放的带名字（label），别人放的 label 为空。ref 是不透明的引用。"""
+
+    ref: str
+    label: str = ""
+    pos: Point
+    radius: float
+    mine: bool = False
+
+
 class OwnEntity(Frozen):
     ref: str
     name: str
     pos: Point | None
     inside: str | None
     presence: tuple[PresenceEntry, ...]
+    placements: tuple[PlacementSeen, ...] = ()
 
 
 class Scene(Frozen):

@@ -41,6 +41,16 @@ class Movement(Frozen):
     ability: str | None = None  # 依据某个能力的特殊移动
 
 
+class PlaceIn(Frozen):
+    """裁定里放下一个设置物：参数取自设置者角色卡上那个条目的设置物参数。"""
+
+    owner: str  # 设置者实体
+    entry: str  # 条目名（技能名）
+    at: Point
+    inside: str | None = None
+    because: str  # 行动条目 id，或 npc:<实体 id>
+
+
 class AreaEffect(Frozen):
     query_id: str
     affected: tuple[str, ...]
@@ -59,6 +69,8 @@ class Adjudication(Frozen):
     encounters: tuple[Encounter, ...] = ()
     movements: tuple[Movement, ...] = ()
     area_effects: tuple[AreaEffect, ...] = ()
+    placements: tuple[PlaceIn, ...] = ()  # 新放下的设置物
+    remove_placements: tuple[str, ...] = ()  # 被拆除、失效的设置物 id
     public_events: tuple[str, ...] = ()
     state_patch: tuple[PatchOp, ...] = ()
     memory_entries: tuple[MemoryEntryIn, ...] = ()

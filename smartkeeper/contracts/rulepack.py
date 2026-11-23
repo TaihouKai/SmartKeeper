@@ -94,6 +94,7 @@ class GroupDef(Frozen):
     max_count: int | None = None
     effects: bool = True  # 条目是否可以带效果
     shapes: ShapeDef = ShapeDef()
+    placements: bool = False  # 条目是否可以是设置物（陷阱、结界等）
     hidden: bool = False
 
 

@@ -50,12 +50,23 @@ class Shape(Frozen):
     angle: float | None = None
 
 
+class PlacementSpec(Frozen):
+    """条目是设置物（陷阱、结界等）时的参数。都是公式，在设置者的角色卡和这个条目上求值，设置时算定。"""
+
+    radius: str  # 触发范围（米），圆形
+    perceive_multiplier: str = "1"  # 别人发现它的距离 = 那人的感知半径 × 这个系数；0 表示发现不了
+    charges: str = ""  # 可触发次数；空表示无限
+    duration: str = ""  # 持续多少秒；空表示一直存在，直到被移除
+    notify_owner: bool = True  # 被触发时是否通知设置者
+
+
 class GroupEntry(Frozen):
     name: str
     description: str = ""
     fields: dict[str, JsonValue] = {}
     effects: tuple[Effect, ...] = ()
     shape: Shape | None = None
+    placement: PlacementSpec | None = None
 
 
 class Status(Frozen):
