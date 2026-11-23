@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { ErrorBox, Fold, FormulaInput, Section } from "../ui/components";
+import { ErrorBox, Fold, FormulaInput, Mover, Section, moved } from "../ui/components";
 import { EntryEditor, type Effect, type Entry, type Shape } from "../ui/EntryEditor";
 import { translateCode } from "../ui/errors";
 import { FormulaHelp } from "../ui/FormulaHelp";
@@ -95,6 +95,7 @@ function useListEdit<T>(list: T[], set: (l: T[]) => void) {
     update: (i: number, v: T) => set(list.map((x, j) => (j === i ? v : x))),
     remove: (i: number) => set(list.filter((_, j) => j !== i)),
     add: (v: T) => set([...list, v]),
+    move: (from: number, to: number) => set(moved(list, from, to)),
   };
 }
 
@@ -114,6 +115,7 @@ function FieldCard({
   isAppearance,
   isFly = false,
   inGroup,
+  mover,
 }: {
   f: Field;
   onChange: (f: Field) => void;
@@ -122,6 +124,7 @@ function FieldCard({
   isAppearance: boolean;
   isFly?: boolean;
   inGroup: boolean;
+  mover?: ReactNode;
 }) {
   const { t } = useI18n();
   const cls = inGroup ? "player" : (f.cls ?? "player");
@@ -163,7 +166,8 @@ function FieldCard({
             </select>
           </label>
         )}
-        <div className="sk-field-side">
+        <div className="sk-field-side sk-side-actions">
+          {mover}
           {locked ? (
             <span className="sk-badge-req">{t(isFly ? "rules.can_fly_badge" : "rules.appearance_badge")}</span>
           ) : (
@@ -263,6 +267,7 @@ function FieldsTable({
           isFly={!inGroup && f.name === FLY_FIELD}
           onChange={(x) => ed.update(i, x)}
           onRemove={() => ed.remove(i)}
+          mover={<Mover index={i} count={fields.length} onMove={ed.move} />}
         />
       ))}
       <button onClick={() => ed.add(blankField())}>{t("rules.add_field")}</button>
@@ -287,12 +292,13 @@ function fromEntry(e: Entry, when: string): Preset {
 }
 
 /** 一个固定条目：生效条件 + 和玩家条目一样的编辑框。 */
-function PresetCard({ p, group, derived, onChange, onRemove, validate }: { p: Preset; group: Group; derived: string[]; onChange: (p: Preset) => void; onRemove: () => void; validate: (f: string, inEntry?: string) => ReturnType<Validate> }) {
+function PresetCard({ p, group, derived, onChange, onRemove, validate, mover }: { p: Preset; group: Group; derived: string[]; onChange: (p: Preset) => void; onRemove: () => void; validate: (f: string, inEntry?: string) => ReturnType<Validate>; mover: ReactNode }) {
   const { t } = useI18n();
   const vWhen = useCallback((f: string) => validate(f), [validate]);
   const vEntry = useCallback((f: string, inEntry: string) => validate(f, inEntry), [validate]);
   return (
     <div className="sk-preset">
+      <div className="sk-row sk-row-end">{mover}</div>
       <label>
         {t("rules.p.when")}
         <FormulaInput value={p.when ?? ""} validate={vWhen} placeholder={t("rules.ph.when")} onChange={(x) => onChange({ ...p, when: x })} />
@@ -302,7 +308,7 @@ function PresetCard({ p, group, derived, onChange, onRemove, validate }: { p: Pr
   );
 }
 
-function GroupCard({ g, onChange, onRemove, validate, template, derived }: { g: Group; onChange: (g: Group) => void; onRemove: () => void; validate: Validate; template: string; derived: string[] }) {
+function GroupCard({ g, onChange, onRemove, validate, template, derived, mover }: { g: Group; onChange: (g: Group) => void; onRemove: () => void; validate: Validate; template: string; derived: string[]; mover: ReactNode }) {
   const { t } = useI18n();
   const presets = g.presets ?? [];
   const pre = useListEdit(presets, (x) => onChange({ ...g, presets: x }));
@@ -328,7 +334,8 @@ function GroupCard({ g, onChange, onRemove, validate, template, derived }: { g: 
             {t("rules.g.max")}
             <input type="number" min={0} value={g.max_count ?? ""} placeholder={t("rules.ph.group_max")} onChange={(e) => onChange({ ...g, max_count: e.target.value === "" ? null : Number(e.target.value) })} />
           </label>
-          <div className="sk-field-side">
+          <div className="sk-field-side sk-side-actions">
+            {mover}
             <button className="sk-link" onClick={onRemove}>
               {t("common.remove")}
             </button>
@@ -358,9 +365,9 @@ function GroupCard({ g, onChange, onRemove, validate, template, derived }: { g: 
         <Fold level={5} title={t("rules.g.fields")} hint={t("rules.g.fields_hint")}>
           <FieldsTable fields={g.fields ?? []} onChange={(f) => onChange({ ...g, fields: f })} validate={validate} template={template} inGroup />
         </Fold>
-        <Fold level={5} title={t("rules.g.presets")} hint={t("rules.g.presets_hint")}>
+        <Fold level={5} title={t("rules.g.presets")} hint={`${t("rules.g.presets_hint")} ${t("rules.order_matters_presets")}`}>
           {presets.map((p, i) => (
-            <PresetCard key={i} p={p} group={g} derived={derived} validate={v} onChange={(x) => pre.update(i, x)} onRemove={() => pre.remove(i)} />
+            <PresetCard key={i} p={p} group={g} derived={derived} validate={v} onChange={(x) => pre.update(i, x)} onRemove={() => pre.remove(i)} mover={<Mover index={i} count={presets.length} onMove={pre.move} />} />
           ))}
           <button onClick={() => pre.add({ name: "", description: "", fields: {}, effects: [], shape: null, when: "" })}>{t("rules.add_preset")}</button>
         </Fold>
@@ -369,7 +376,7 @@ function GroupCard({ g, onChange, onRemove, validate, template, derived }: { g: 
   );
 }
 
-function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; onChange: (t: Template) => void; onRemove: () => void; validate: Validate }) {
+function TemplateEditor({ tpl, onChange, onRemove, validate, mover }: { tpl: Template; onChange: (t: Template) => void; onRemove: () => void; validate: Validate; mover: ReactNode }) {
   const { t } = useI18n();
   const groups = tpl.groups ?? [];
   const derived = tpl.derived ?? [];
@@ -383,6 +390,7 @@ function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; 
         <div className="sk-row">
           <label>{t("rules.t.name")}<input value={tpl.name} placeholder={t("rules.ph.template_name")} onChange={(e) => onChange({ ...tpl, name: e.target.value })} /></label>
           <label>{t("rules.t.label")}<input value={tpl.label ?? ""} placeholder={t("rules.ph.template_label")} onChange={(e) => onChange({ ...tpl, label: e.target.value })} /></label>
+          {mover}
           <button className="sk-link" onClick={onRemove}>{t("rules.remove_template")}</button>
         </div>
         <Fold level={5} title={t("rules.fields")} hint={t("rules.fields_hint")}>
@@ -405,7 +413,10 @@ function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; 
                   <input value={d.label ?? ""} placeholder={required ? t(`rules.ph.label_${d.name}`) : t("rules.ph.derived_label")} onChange={(e) => ded.update(i, { ...d, label: e.target.value })} />
                   <FormulaInput value={d.formula} validate={v} placeholder={required ? t(`rules.ph.formula_${d.name}`) : t("rules.ph.formula")} onChange={(x) => ded.update(i, { ...d, formula: x })} />
                   <input className="sk-small" value={d.unit ?? ""} placeholder={required ? t(`rules.ph.unit_${d.name}`) : ""} onChange={(e) => ded.update(i, { ...d, unit: e.target.value || null })} />
-                  {required ? <span className="sk-badge-req">{t("rules.required_badge")}</span> : <button className="sk-link" onClick={() => ded.remove(i)}>{t("common.remove")}</button>}
+                  <span className="sk-side-actions">
+                    <Mover index={i} count={derived.length} onMove={ded.move} />
+                    {required ? <span className="sk-badge-req">{t("rules.required_badge")}</span> : <button className="sk-link" onClick={() => ded.remove(i)}>{t("common.remove")}</button>}
+                  </span>
                 </div>
                 {required && <div className="sk-hint sk-derived-help">{t(`rules.help.${d.name}`)}</div>}
               </div>
@@ -415,7 +426,7 @@ function TemplateEditor({ tpl, onChange, onRemove, validate }: { tpl: Template; 
         </Fold>
         <Fold level={5} title={t("rules.groups")} hint={t("rules.groups_hint")}>
           {groups.map((g: Group, i) => (
-            <GroupCard key={i} g={g} template={tpl.name} derived={derived.map((d) => d.name)} validate={validate} onChange={(x) => ged.update(i, x)} onRemove={() => ged.remove(i)} />
+            <GroupCard key={i} g={g} template={tpl.name} derived={derived.map((d) => d.name)} validate={validate} onChange={(x) => ged.update(i, x)} onRemove={() => ged.remove(i)} mover={<Mover index={i} count={groups.length} onMove={ged.move} />} />
           ))}
           <button onClick={() => ged.add({ name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false })}>{t("rules.add_group")}</button>
         </Fold>
@@ -447,7 +458,7 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
 
       <Fold title={t("rules.templates")}>
       {pack.templates.map((tp, i) => (
-        <TemplateEditor key={i} tpl={tp} validate={validate} onChange={(x) => ted.update(i, x)} onRemove={() => ted.remove(i)} />
+        <TemplateEditor key={i} tpl={tp} validate={validate} onChange={(x) => ted.update(i, x)} onRemove={() => ted.remove(i)} mover={<Mover index={i} count={pack.templates.length} onMove={ted.move} />} />
       ))}
       <button onClick={() => ted.add(blankTemplate(`template_${pack.templates.length + 1}`, t))}>{t("rules.add_template")}</button>
       </Fold>
@@ -460,6 +471,7 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
           </select>
           <input type="number" value={pe.min ?? 1} onChange={(e) => ped.update(i, { ...pe, min: Number(e.target.value) })} />
           <input type="number" value={pe.max ?? 1} onChange={(e) => ped.update(i, { ...pe, max: Number(e.target.value) })} />
+          <Mover index={i} count={pack.player_entities.length} onMove={ped.move} />
           <button className="sk-link" onClick={() => ped.remove(i)}>{t("common.remove")}</button>
         </div>
       ))}
@@ -471,6 +483,7 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
         <div key={i} className="sk-row">
           <input value={f.name} onChange={(e) => fed.update(i, { ...f, name: e.target.value })} />
           <FormulaInput value={f.formula} validate={vEntity} onChange={(x) => fed.update(i, { ...f, formula: x })} />
+          <Mover index={i} count={(pack.formulas ?? []).length} onMove={fed.move} />
           <button className="sk-link" onClick={() => fed.remove(i)}>{t("common.remove")}</button>
         </div>
       ))}
@@ -486,6 +499,7 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
               <option value="range">{t("rules.table.range")}</option>
               <option value="exact">{t("rules.table.exact")}</option>
             </select>
+            <Mover index={i} count={(pack.tables ?? []).length} onMove={tbl.move} />
             <button className="sk-link" onClick={() => tbl.remove(i)}>{t("common.remove")}</button>
           </div>
           <textarea
@@ -514,12 +528,14 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
             <label>{t("rules.c.name")}<input value={c.name} onChange={(e) => ced.update(i, { ...c, name: e.target.value })} /></label>
             <label>{t("rules.c.dice")}<FormulaInput value={c.dice} validate={vDice} placeholder={t("rules.ph.dice")} onChange={(x) => ced.update(i, { ...c, dice: x })} /></label>
             <label>{t("rules.c.target")}<FormulaInput value={c.target ?? "0"} validate={vEntity} onChange={(x) => ced.update(i, { ...c, target: x })} /></label>
+            <Mover index={i} count={(pack.checks ?? []).length} onMove={ced.move} />
             <button className="sk-link" onClick={() => ced.remove(i)}>{t("common.remove")}</button>
           </div>
           {c.levels.map((lv, j) => (
             <div key={j} className="sk-row">
               <input value={lv.name} onChange={(e) => ced.update(i, { ...c, levels: c.levels.map((x, k) => (k === j ? { ...x, name: e.target.value } : x)) })} />
               <FormulaInput value={lv.condition} validate={vNone} onChange={(x) => ced.update(i, { ...c, levels: c.levels.map((y, k) => (k === j ? { ...y, condition: x } : y)) })} />
+              <Mover index={j} count={c.levels.length} onMove={(from, to) => ced.update(i, { ...c, levels: moved(c.levels, from, to) })} />
               <button className="sk-link" onClick={() => ced.update(i, { ...c, levels: c.levels.filter((_, k) => k !== j) })}>{t("common.remove")}</button>
             </div>
           ))}
@@ -536,7 +552,7 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
 
       <Fold title={t("rules.samples")} hint={t("rules.samples_hint")}>
       {(pack.samples ?? []).map((s, i) => (
-        <SampleEditor key={i} sample={s} templates={pack.templates.map((x) => x.name)} onChange={(x) => sed.update(i, x)} onRemove={() => sed.remove(i)} />
+        <SampleEditor key={i} sample={s} templates={pack.templates.map((x) => x.name)} onChange={(x) => sed.update(i, x)} onRemove={() => sed.remove(i)} mover={<Mover index={i} count={(pack.samples ?? []).length} onMove={sed.move} />} />
       ))}
       <button onClick={() => sed.add({ name: "", template: pack.templates[0]?.name ?? "", sheet: { name: "sample", fields: {} }, expected: {} })}>{t("common.add")}</button>
       </Fold>
@@ -544,10 +560,24 @@ function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pa
   );
 }
 
-function SampleEditor({ sample, templates, onChange, onRemove }: { sample: Schemas["SampleSheet"]; templates: string[]; onChange: (s: Schemas["SampleSheet"]) => void; onRemove: () => void }) {
+function SampleEditor({ sample, templates, onChange, onRemove, mover }: { sample: Schemas["SampleSheet"]; templates: string[]; onChange: (s: Schemas["SampleSheet"]) => void; onRemove: () => void; mover: ReactNode }) {
   const { t } = useI18n();
   const [sheetText, setSheetText] = useState(() => JSON.stringify(sample.sheet, null, 1));
   const [bad, setBad] = useState(false);
+  useEffect(() => {
+    // 换了位置或换了规则包时，用新的内容覆盖输入框（正在输入的不合法 JSON 不覆盖）
+    let same = false;
+    try {
+      same = JSON.stringify(JSON.parse(sheetText)) === JSON.stringify(sample.sheet);
+    } catch {
+      same = bad;
+    }
+    if (!same) {
+      setSheetText(JSON.stringify(sample.sheet, null, 1));
+      setBad(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sample.sheet]);
   return (
     <div className="sk-card">
       <div className="sk-row">
@@ -555,6 +585,7 @@ function SampleEditor({ sample, templates, onChange, onRemove }: { sample: Schem
         <select value={sample.template} onChange={(e) => onChange({ ...sample, template: e.target.value })}>
           {templates.map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
+        {mover}
         <button className="sk-link" onClick={onRemove}>{t("common.remove")}</button>
       </div>
       <label>

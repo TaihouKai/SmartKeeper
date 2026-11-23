@@ -104,6 +104,11 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; min
 .sk-fh-rows dd { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
 .sk-problems { max-height: 40vh; overflow-y: auto; margin: 4px 0; padding-left: 18px; }
 .sk-chip-draft { border-style: dashed; }
+.sk-row-end { justify-content: flex-end; }
+.sk-mover { display: inline-flex; gap: 0; white-space: nowrap; }
+.sk-mover button { padding: 2px 6px; margin: 0; }
+.sk-mover button:disabled { visibility: hidden; }
+.sk-side-actions { display: inline-flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
 .sk-pack-picker > select { flex: 1 1 260px; max-width: 480px; }
 /* 看起来像按钮的链接和文件选择 */
 .sk-button { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; margin: 4px 4px 4px 0; text-decoration: none; white-space: nowrap; font-size: 15px; }

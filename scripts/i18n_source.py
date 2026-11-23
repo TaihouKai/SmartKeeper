@@ -600,6 +600,12 @@ T: dict[str, tuple[str, str]] = {
         "Dice (may use fields, e.g. 1d100, 1d str)",
     ),
     "rules.c.target": ("目标值公式", "Target formula"),
+    "common.move_up": ("上移", "Move up"),
+    "common.move_down": ("下移", "Move down"),
+    "rules.order_matters_presets": (
+        "注意：固定条目的顺序会影响计算，同一个值上的效果按这里从上到下接力。",
+        "Note: the order of fixed entries matters; effects on the same value run top to bottom.",
+    ),
     "rules.add_level": ("添加结果等级", "Add result level"),
     "rules.levels_hint": (
         "按顺序判断，第一个条件为真的等级就是结果。可用变量 roll、target、difficulty、opp_roll、opp_target。",

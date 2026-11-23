@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { FormulaInput } from "./components";
+import type { ReactNode } from "react";
+import { FormulaInput, Mover, moved } from "./components";
 
 type FieldDef = Schemas["FieldDef"];
 type GroupDef = Schemas["GroupDef"];
@@ -52,6 +53,7 @@ export function EntryEditor({
   onRemove,
   validate,
   withPriority = true,
+  mover,
 }: {
   group: GroupDef;
   derived: string[];
@@ -61,6 +63,7 @@ export function EntryEditor({
   validate: (f: string, inEntry: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
   /** 玩家写的条目要给效果填计算顺序；规则包的固定条目按定义顺序，不用填 */
   withPriority?: boolean;
+  mover?: ReactNode;
 }) {
   const { t } = useI18n();
   const fields = group.fields ?? [];
@@ -68,6 +71,7 @@ export function EntryEditor({
   const v = useCallback((f: string) => validate(f, group.name), [validate, group.name]);
   return (
     <div className="sk-entry">
+      {mover && <div className="sk-row sk-row-end">{mover}</div>}
       <label>
         {t("character.entry_name")}
         <input value={entry.name} onChange={(e) => onChange({ ...entry, name: e.target.value })} />
@@ -109,6 +113,7 @@ export function EntryEditor({
                   )}
                 </>
               )}
+              <Mover index={i} count={entry.effects.length} onMove={(from, to) => onChange({ ...entry, effects: moved(entry.effects, from, to) })} />
               <button type="button" className="sk-link" onClick={() => onChange({ ...entry, effects: entry.effects.filter((_, j) => j !== i) })}>
                 {t("common.remove")}
               </button>

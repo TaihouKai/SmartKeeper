@@ -49,6 +49,30 @@ export function Tabs<K extends string>({
   );
 }
 
+/** 列表里的一项上移、下移。只改排列，不改含义（会影响计算的列表在旁边另有说明）。 */
+export function Mover({ index, count, onMove }: { index: number; count: number; onMove: (from: number, to: number) => void }) {
+  const { t } = useI18n();
+  return (
+    <span className="sk-mover">
+      <button type="button" className="sk-link" disabled={index === 0} title={t("common.move_up")} aria-label={t("common.move_up")} onClick={() => onMove(index, index - 1)}>
+        ↑
+      </button>
+      <button type="button" className="sk-link" disabled={index >= count - 1} title={t("common.move_down")} aria-label={t("common.move_down")} onClick={() => onMove(index, index + 1)}>
+        ↓
+      </button>
+    </span>
+  );
+}
+
+/** 把列表里 from 位置的一项挪到 to。 */
+export function moved<T>(list: T[], from: number, to: number): T[] {
+  if (to < 0 || to >= list.length) return list;
+  const out = [...list];
+  const [x] = out.splice(from, 1);
+  out.splice(to, 0, x as T);
+  return out;
+}
+
 /** 可折叠的一段。默认展开；标题点一下收起。 */
 export function Fold({ title, hint, level = 3, children }: { title: ReactNode; hint?: ReactNode; level?: 3 | 4 | 5; children: ReactNode }) {
   const [open, setOpen] = useState(true);

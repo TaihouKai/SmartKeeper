@@ -167,6 +167,8 @@
     "cancel": "Cancel",
     "hide": "Hide",
     "loading": "Loading…",
+    "move_down": "Move down",
+    "move_up": "Move up",
     "remove": "Remove",
     "save": "Save",
     "show": "Show",
@@ -501,6 +503,7 @@
     "locked": "Required by the engine; can't be changed",
     "new": "New rule pack",
     "open": "Open",
+    "order_matters_presets": "Note: the order of fixed entries matters; effects on the same value run top to bottom.",
     "p": {
       "when": "Condition (empty means always)"
     },

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { ErrorBox } from "../ui/components";
+import { ErrorBox, Mover, moved } from "../ui/components";
 import { EntryEditor, FieldInput, fieldLabel, type Entry } from "../ui/EntryEditor";
 
 type Template = Schemas["EntityTemplate"];
@@ -69,6 +69,7 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
                 validate={validate}
                 onChange={(e) => setEntries(entries.map((x, j) => (j === i ? e : x)))}
                 onRemove={() => setEntries(entries.filter((_, j) => j !== i))}
+                mover={<Mover index={i} count={entries.length} onMove={(from, to) => setEntries(moved(entries, from, to))} />}
               />
             ))}
             {(g.max_count === null || g.max_count === undefined || entries.length < g.max_count) && (
