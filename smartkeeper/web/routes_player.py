@@ -106,6 +106,7 @@ class FormulaIn(BaseModel):
     formula: str
     template: str | None = None
     in_entry: str | None = None
+    dice: bool = False  # 掷骰公式字段：允许掷骰
 
 
 class FormulaOut(BaseModel):
@@ -314,7 +315,9 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
     def formula(p: Annotated[Player, Depends(require_player)], body: FormulaIn) -> FormulaOut:
         pack = e.rulepack(p.game_id)
         return FormulaOut(
-            problems=s.rules.validate_formula(pack, body.template, body.formula, body.in_entry),
+            problems=s.rules.validate_formula(
+                pack, body.template, body.formula, body.in_entry, "dice" if body.dice else None
+            ),
             names=s.rules.complete_names(pack, body.template),
         )
 

@@ -489,12 +489,14 @@
     "import": "Import file",
     "kind": {
       "boolean": "Yes/no",
+      "formula": "Dice formula",
       "number": "Number",
       "resource": "Resource",
       "text": "Text"
     },
     "kind_help": {
       "boolean": "Yes/no: a checkbox, e.g. can fly. It's 1 or 0 in formulas.",
+      "formula": "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or self.level d lookup(table, self.level). Not computed until the keeper asks the engine to roll it during a ruling (the engine rolls and logs it); the keeper then applies the result per the rules text (e.g. lowers HP). In a group, each entry fills its own and may use self.<field>.",
       "number": "Number: attributes, skill levels, sizes.",
       "resource": "Resource: a value with a ceiling that gets spent or restored (HP, mana, uses left). A maximum is required and may be a formula such as hp_max.",
       "text": "Text: descriptions such as background; with choices, the player picks one of them."

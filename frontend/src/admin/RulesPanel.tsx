@@ -168,6 +168,7 @@ function FieldCard({
             <option value="resource">{t("rules.kind.resource")}</option>
             <option value="text">{t("rules.kind.text")}</option>
             <option value="boolean">{t("rules.kind.boolean")}</option>
+            <option value="formula">{t("rules.kind.formula")}</option>
           </select>
         </label>
         {!inGroup && (
@@ -215,7 +216,7 @@ function FieldCard({
               </label>
             </>
           )}
-          {cls === "runtime" && f.kind !== "text" && (
+          {cls === "runtime" && f.kind !== "text" && f.kind !== "formula" && (
             <label>
               {t("rules.f.initial_required")}
               <FormulaInput value={f.initial ?? ""} validate={validate} placeholder={t("rules.ph.initial")} onChange={(x) => onChange({ ...f, initial: x || null })} />
@@ -305,10 +306,10 @@ function fromEntry(e: Entry, when: string): Preset {
 }
 
 /** 一个固定条目：生效条件 + 和玩家条目一样的编辑框。 */
-function PresetCard({ p, group, derived, onChange, onRemove, validate, mover }: { p: Preset; group: Group; derived: string[]; onChange: (p: Preset) => void; onRemove: () => void; validate: (f: string, inEntry?: string) => ReturnType<Validate>; mover: ReactNode }) {
+function PresetCard({ p, group, derived, onChange, onRemove, validate, mover }: { p: Preset; group: Group; derived: string[]; onChange: (p: Preset) => void; onRemove: () => void; validate: (f: string, inEntry?: string, dice?: boolean) => ReturnType<Validate>; mover: ReactNode }) {
   const { t } = useI18n();
   const vWhen = useCallback((f: string) => validate(f), [validate]);
-  const vEntry = useCallback((f: string, inEntry: string) => validate(f, inEntry), [validate]);
+  const vEntry = useCallback((f: string, inEntry: string, dice?: boolean) => validate(f, inEntry, dice), [validate]);
   return (
     <div className="sk-preset">
       <div className="sk-row sk-row-end">{mover}</div>
@@ -326,7 +327,7 @@ function GroupCard({ g, onChange, onRemove, validate, template, derived, mover }
   const presets = g.presets ?? [];
   const pre = useListEdit(presets, (x) => onChange({ ...g, presets: x }));
   const allowed = g.shapes?.allowed ?? [];
-  const v = useCallback((f: string, inEntry?: string) => validate(f, template, inEntry), [validate, template]);
+  const v = useCallback((f: string, inEntry?: string, dice?: boolean) => validate(f, template, inEntry, dice ? "dice" : undefined), [validate, template]);
   return (
     <div className="sk-card">
       <Fold level={5} title={g.label || g.name || t("rules.g.untitled")}>

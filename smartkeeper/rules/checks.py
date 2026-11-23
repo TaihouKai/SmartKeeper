@@ -95,6 +95,7 @@ def roll(
     faces: f.Faces,
     template: str | None = None,
     sheet: JsonValue = None,
+    entry: dict[str, JsonValue] | None = None,
 ) -> DiceResult:
     rolls: list[int] = []
 
@@ -105,7 +106,7 @@ def roll(
 
     try:
         node = f.parse(expr)
-        resolve = _ctx(pack, template, sheet).resolver() if template is not None else _vars({})
+        resolve = _ctx(pack, template, sheet).resolver(entry) if template is not None else _vars({})
         v = f.evaluate(node, resolve, table_lookup(pack), record)
         if isinstance(v, str):
             raise f.FormulaError("formula.text_result", value=v)

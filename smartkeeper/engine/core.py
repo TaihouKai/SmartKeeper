@@ -1046,6 +1046,40 @@ class Engine:
             ev = self._events.append(game_id, r.no, [self._dice_event(res, reason)])[0]
             return res.model_copy(update={"seq": ev.seq})
 
+    def roll_formula(
+        self, game_id: str, entity: str, field: str, entry: str | None, reason: str
+    ) -> DiceResult:
+        """掷某个实体角色卡上的掷骰公式字段（例如技能“普通攻击”的 damage）。
+
+        entry 是条目名（在分组里找，含生效的固定条目）；不给时是模板本身的字段。
+        """
+        with self._lock:
+            r = self._require(game_id, "roll")
+            pack = self.rulepack(game_id)
+            ent = self._entity(self._state(game_id), entity)
+            template = str(ent.get("template", ""))
+            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet")))
+            fields: dict[str, JsonValue] | None = None
+            if entry is None:
+                expr = _obj(sheet.get("fields")).get(field)
+            else:
+                found = [
+                    _obj(e)
+                    for entries in _obj(sheet.get("groups")).values()
+                    for e in (entries if isinstance(entries, list) else [])
+                    if _obj(e).get("name") == entry
+                ]
+                if not found:
+                    raise NotFound("roll.unknown_entry", entity=entity, entry=entry)
+                fields = _obj(found[0].get("fields"))
+                expr = fields.get(field)
+            if not isinstance(expr, str) or not expr.strip():
+                raise ValidationFailed("roll.not_a_formula", field=field)
+            res = self._rules.roll(pack, expr, self._dice.faces, template, sheet, fields)
+            extra: dict[str, JsonValue] = {"entity": entity, "field": field, "entry": entry}
+            ev = self._events.append(game_id, r.no, [self._dice_event(res, reason, extra)])[0]
+            return res.model_copy(update={"seq": ev.seq})
+
     def _entity(self, state: State, entity_id: str) -> dict[str, JsonValue]:
         ent = _obj(state.get("entities")).get(entity_id)
         if not isinstance(ent, dict):
@@ -2234,6 +2268,32 @@ class Engine:
     def latest_summary(self, game_id: str) -> str:
         evs = self._events.view_for(game_id, KP, types=["summary"])
         return str(evs[-1].payload.get("text", "")) if evs else ""
+
+    def active_presets_all(self, game_id: str) -> dict[str, JsonValue]:
+        """各实体此刻生效的固定条目（仅供 KP）：实体 id -> 分组名 -> 条目。"""
+        pack = self.rulepack(game_id)
+        out: dict[str, JsonValue] = {}
+        for eid, raw in _obj(self._state(game_id).get("entities")).items():
+            ent = _obj(raw)
+            own = _obj(_obj(ent.get("sheet")).get("groups"))
+            full = _obj(
+                _obj(
+                    self._rules.full_sheet(pack, str(ent.get("template", "")), ent.get("sheet"))
+                ).get("groups")
+            )
+            extra: dict[str, JsonValue] = {}
+            for g, entries in full.items():
+                mine = own.get(g)
+                n = (
+                    len(entries) - (len(mine) if isinstance(mine, list) else 0)
+                    if isinstance(entries, list)
+                    else 0
+                )
+                if n > 0 and isinstance(entries, list):
+                    extra[g] = entries[:n]
+            if extra:
+                out[eid] = extra
+        return out
 
     def derived_all(self, game_id: str) -> dict[str, dict[str, float]]:
         """全部实体的推导值（仅供 KP 与控制台）。"""

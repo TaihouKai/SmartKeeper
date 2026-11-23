@@ -37,6 +37,16 @@ class RulesService:
         in_entry: str | None = None,
         scope: FormulaScope | None = None,
     ) -> list[Problem]:
+        if scope == "dice" and template is not None:
+            # 掷骰公式字段：在这个模板（和条目）上求值，可以掷骰
+            tpl = pack.template(template)
+            fields: list[str] | None = None
+            if tpl is not None and in_entry is not None:
+                grp = next((g for g in tpl.groups if g.name == in_entry), None)
+                fields = [x.name for x in grp.fields] if grp else []
+            return validation.check_formula(
+                pack, tpl, formula, "formula", entry_fields=fields, dice=True
+            )
         if scope is not None:
             extra = validation.all_field_names(pack)
             return validation.check_formula(
@@ -59,8 +69,9 @@ class RulesService:
         faces: Faces,
         template: str | None = None,
         sheet: JsonValue = None,
+        entry: dict[str, JsonValue] | None = None,
     ) -> DiceResult:
-        return checks.roll(pack, expr, faces, template, sheet)
+        return checks.roll(pack, expr, faces, template, sheet, entry)
 
     def complete_names(self, pack: RulePack, template: str | None) -> list[str]:
         tpl = pack.template(template) if template else None

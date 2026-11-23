@@ -12,7 +12,18 @@ export type Effect = { description: string; target: string | null; formula: stri
 export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
 export type Entry = { name: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null };
 
-export function FieldInput({ def, value, onChange }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void }) {
+type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
+
+export function FieldInput({ def, value, onChange, validateFormula }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check }) {
+  const { t } = useI18n();
+  if (def.kind === "formula") {
+    // 掷骰公式（例如伤害 1d str）：平时不算，KP 裁定时才掷
+    return validateFormula ? (
+      <FormulaInput value={typeof value === "string" ? value : ""} validate={validateFormula} placeholder={t("rules.ph.dice")} onChange={(v) => onChange(v)} />
+    ) : (
+      <input value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)} />
+    );
+  }
   if (def.kind === "boolean") {
     return <input type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />;
   }
@@ -60,7 +71,7 @@ export function EntryEditor({
   entry: Entry;
   onChange: (e: Entry) => void;
   onRemove?: () => void;
-  validate: (f: string, inEntry: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
+  validate: (f: string, inEntry: string, dice?: boolean) => Promise<{ problems: { code: string }[]; names: string[] }>;
   /** 玩家写的条目要给效果填计算顺序；规则包的固定条目按定义顺序，不用填 */
   withPriority?: boolean;
   mover?: ReactNode;
@@ -69,6 +80,7 @@ export function EntryEditor({
   const fields = group.fields ?? [];
   const shapes = group.shapes?.allowed ?? [];
   const v = useCallback((f: string) => validate(f, group.name), [validate, group.name]);
+  const vDice = useCallback((f: string) => validate(f, group.name, true), [validate, group.name]);
   return (
     <div className="sk-entry">
       {mover && <div className="sk-row sk-row-end">{mover}</div>}
@@ -84,7 +96,7 @@ export function EntryEditor({
         <label key={f.name}>
           {fieldLabel(f)}
           {f.description && <small className="sk-field-desc">{f.description}</small>}
-          <FieldInput def={f} value={entry.fields[f.name]} onChange={(val) => onChange({ ...entry, fields: { ...entry.fields, [f.name]: val } })} />
+          <FieldInput def={f} value={entry.fields[f.name]} validateFormula={vDice} onChange={(val) => onChange({ ...entry, fields: { ...entry.fields, [f.name]: val } })} />
         </label>
       ))}
       {group.effects !== false && (

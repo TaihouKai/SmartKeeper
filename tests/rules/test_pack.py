@@ -313,3 +313,28 @@ def test_boolean_field_defaults_to_false_and_checks_type(rules: RulesService) ->
         p.code for p in rules.validate_sheet(pack, "person", rules.init_sheet(pack, "person", bad))
     }
     assert "sheet.type" in codes
+
+
+def test_formula_field_values_are_checked_and_may_roll(rules: RulesService) -> None:
+    from smartkeeper.contracts import FieldDef
+
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    g = tpl.groups[0]
+    g = g.model_copy(update={"fields": (*g.fields, FieldDef(name="damage", kind="formula"))})
+    tpl = tpl.model_copy(update={"groups": (g,)})
+    pack = pack.model_copy(update={"templates": (tpl,), "samples": ()})
+    assert rules.validate_pack(pack) == []
+
+    def codes(damage: str) -> set[str]:
+        skill: dict[str, JsonValue] = {"name": "hit", "fields": {"level": 3, "damage": damage}}
+        sheet = rules.init_sheet(pack, "person", {**BASE, "groups": {"skills": [skill]}})
+        return {p.code for p in rules.validate_sheet(pack, "person", sheet)}
+
+    assert codes("1d str") == set()
+    assert codes("self.level d 6 + floor(str / 10)") == set()
+    assert "formula.unknown_name" in codes("1d nope")
+    assert (
+        rules.validate_formula(pack, "person", "self.level d 6", in_entry="skills", scope="dice")
+        == []
+    )

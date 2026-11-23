@@ -168,10 +168,14 @@ class Table:
 
 
 def setup_table(
-    pack_name: str, n_players: int, seed: int = 1, map_id: str | None = "small"
+    pack_name: str,
+    n_players: int,
+    seed: int = 1,
+    map_id: str | None = "small",
+    pack: RulePack | None = None,
 ) -> Table:
     engine, packs = make_engine(seed)
-    pack = load_pack(pack_name)
+    pack = pack or load_pack(pack_name)
     pack_id = packs.create_pack(pack.world.name)
     packs.save_version(pack_id, pack)
     npc_tpl = pack.templates[-1].name

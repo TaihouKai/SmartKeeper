@@ -418,6 +418,11 @@ class KP:
                     self.engine.run_check(game_id, c.entity, c.check, c.against, c.reason)
             except (ValidationFailed, NotFound):
                 continue  # 声明不合法的检定不执行；裁定时看不到它的结果
+        for roll in plan.rolls:
+            try:
+                self.engine.roll_formula(game_id, roll.entity, roll.field, roll.entry, roll.reason)
+            except (ValidationFailed, NotFound):
+                continue  # 不存在的条目或字段不掷；裁定时看不到它的结果
         for q in plan.queries:
             try:
                 self.engine.spatial_query(game_id, q)

@@ -91,8 +91,18 @@ class LeakOut(_Out):
     leaks: list[LeakItem] = []
 
 
+class RollOut(_Out):
+    """掷某个实体角色卡上的掷骰公式字段，例如技能的伤害。"""
+
+    entity: str
+    entry: str | None = None  # 条目名（技能名等）；模板本身的字段时为 null
+    field: str
+    reason: str = ""
+
+
 class PlanOut(_Out):
     checks: list[CheckOut] = []
+    rolls: list[RollOut] = []
     queries: list[SpatialQuery] = []
 
     @field_validator("queries", mode="before")

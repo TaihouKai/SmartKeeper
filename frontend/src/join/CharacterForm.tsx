@@ -24,8 +24,12 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
   const fields = (template.fields ?? []).filter((f) => f.cls !== "runtime");
   const derived = (template.derived ?? []).map((d) => d.name);
   const validate = useCallback(
-    (formula: string, inEntry: string) =>
-      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry } })),
+    (formula: string, inEntry: string, dice?: boolean) =>
+      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: dice ?? false } })),
+    [template.name],
+  );
+  const topDice = useCallback(
+    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true } })),
     [template.name],
   );
   const body = useMemo(() => JSON.stringify(value), [value]);
@@ -48,7 +52,7 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
           {fieldLabel(f)}
           {f.name === template.appearance_field && <small> {t("character.appearance_hint")}</small>}
           {f.description && <small className="sk-field-desc">{f.description}</small>}
-          <FieldInput def={f} value={value.fields[f.name]} onChange={(v) => onChange({ ...value, fields: { ...value.fields, [f.name]: v } })} />
+          <FieldInput def={f} value={value.fields[f.name]} validateFormula={topDice} onChange={(v) => onChange({ ...value, fields: { ...value.fields, [f.name]: v } })} />
         </label>
       ))}
       {(template.groups ?? []).map((g) => {

@@ -399,6 +399,11 @@ T: dict[str, tuple[str, str]] = {
     "rules.kind.text": ("文字", "Text"),
     "rules.kind.resource": ("资源", "Resource"),
     "rules.kind.boolean": ("是/否", "Yes/no"),
+    "rules.kind.formula": ("掷骰公式", "Dice formula"),
+    "rules.kind_help.formula": (
+        "掷骰公式：一条可以带骰子的公式，例如技能的伤害 1d str，或 self.level d lookup(某表, self.level)。平时不算，KP 裁定时要求引擎掷一次才算（骰子由引擎掷，记进日志），KP 再按规则说明决定怎么用这个结果（例如扣 HP）。放在分组的字段里时，每个条目各填各的，可以用 self.<字段> 引用这个条目的字段。",
+        "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or self.level d lookup(table, self.level). Not computed until the keeper asks the engine to roll it during a ruling (the engine rolls and logs it); the keeper then applies the result per the rules text (e.g. lowers HP). In a group, each entry fills its own and may use self.<field>.",
+    ),
     "rules.kind_help.boolean": (
         "是/否：一个勾选框，例如“能否飞行”。公式里是 1 或 0。",
         "Yes/no: a checkbox, e.g. can fly. It's 1 or 0 in formulas.",

@@ -8,17 +8,22 @@ from smartkeeper.contracts import (
     KP,
     ActionItem,
     Activity,
+    FieldDef,
+    GroupPreset,
     IllegalState,
     Intent,
     Location,
     Movement,
+    NotFound,
     PatchOp,
     Point,
+    RulePack,
     Step,
     ValidationFailed,
 )
 from smartkeeper.engine.timeline import cut_time, location_at
 from tests.engine.harness import Table, setup_table
+from tests.fixtures import load_pack
 
 # 夹具规则包 single：move_speed = 60 + dex(60) = 120 米/分钟，即 2 米/秒；开局在 (-50, -40) 和 (-48, -40)
 
@@ -324,3 +329,42 @@ def test_empty_or_far_talks_are_not_overheard() -> None:
     e.say(g, talk.id, p0, "psst")
     e.end_talk(g, talk.id, p0)
     assert e.overhearers(g) == {}  # 45 米，超出 30 米的听力范围
+
+
+# ---------------- 掷骰公式字段 ----------------
+
+
+def damage_pack() -> RulePack:
+    """single 规则包的 skills 分组加一个掷骰公式字段 damage，和一个总是生效的固定条目 punch。"""
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    g = tpl.groups[0]
+    g = g.model_copy(
+        update={
+            "fields": (*g.fields, FieldDef(name="damage", kind="formula", required=False)),
+            "presets": (
+                GroupPreset.model_validate(
+                    {"name": "punch", "fields": {"level": 2, "damage": "self.level d 6 + 1"}}
+                ),
+            ),
+        }
+    )
+    tpl = tpl.model_copy(update={"groups": (g, *tpl.groups[1:])})
+    return pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+
+
+def test_roll_a_formula_field_of_a_fixed_entry() -> None:
+    t = setup_table("single", 2, pack=damage_pack())
+    e, g = t.engine, t.game_id
+    e0 = t.entities(t.players[0])[0]
+    wait(t, t.players[0], 5)
+    wait(t, t.players[1], 5)
+    e.close_round(g)
+    res = e.roll_formula(g, e0, "damage", "punch", "punches the thief")
+    assert len(res.rolls) == 2 and res.total == sum(res.rolls) + 1
+    ev = next(x for x in e.view_for(g, KP) if x.type == "dice_roll")
+    assert ev.payload["entry"] == "punch" and ev.payload["field"] == "damage"
+    with pytest.raises(NotFound):
+        e.roll_formula(g, e0, "damage", "kick", "no such skill")
+    with pytest.raises(ValidationFailed):
+        e.roll_formula(g, e0, "level", "punch", "not a formula")

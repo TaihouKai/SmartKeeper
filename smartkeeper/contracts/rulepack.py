@@ -25,7 +25,7 @@ REQUIRED_DERIVED: tuple[str, ...] = (
 # 引擎必需的字段：每个模板都必须有这个“是/否”字段，决定移动按飞行还是地面计算。
 FLY_FIELD = "can_fly"
 
-FieldKind = Literal["number", "text", "resource", "boolean"]
+FieldKind = Literal["number", "text", "resource", "boolean", "formula"]
 FieldClass = Literal["player", "runtime"]
 
 
@@ -43,6 +43,8 @@ class FieldDef(Frozen):
     - kind=text：文字；choices 非空时只能取其中之一。
     - kind=resource：有上下限的数值。上下限可以是公式（例如引用某个推导值）。
     - kind=boolean：是/否。公式里是 1/0。没填时按“否”。
+    - kind=formula：掷骰公式（例如技能的伤害 1d str）。平时不算，KP 裁定时要求引擎掷一次才算；
+      在分组的条目里可以用 self.<字段> 引用这个条目的字段。
     - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定修改，初值由 initial 公式给出。
     """
 

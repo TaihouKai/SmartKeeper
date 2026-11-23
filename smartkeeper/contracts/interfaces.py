@@ -92,7 +92,8 @@ class Rules(Protocol):
         """校验一条公式：语法、函数白名单、引用的名字是否存在。in_entry 为分组名时允许 self.<字段>。
 
         scope 不给时：有 template 按模板校验，没有按检定结果条件校验（可用 roll、target 等）。
-        any_entity：任何模板的名字都可以（检定目标值、命名公式）；dice：同上并允许掷骰。
+        any_entity：任何模板的名字都可以（检定目标值、命名公式）；dice：同上并允许掷骰；
+        dice 且给了 template：掷骰公式字段，按这个模板（和条目）校验并允许掷骰。
         """
         ...
 
@@ -130,10 +131,12 @@ class Rules(Protocol):
         faces: Faces,
         template: str | None = None,
         sheet: JsonValue = None,
+        entry: dict[str, JsonValue] | None = None,
     ) -> DiceResult:
         """求值一条可以掷骰的公式（例如 1d100、1d str、highest(4, 6, 3)）。
 
-        给了 template 和 sheet 时公式可以引用这张卡上的名字。faces 由 engine 提供，是唯一的随机来源。
+        给了 template 和 sheet 时公式可以引用这张卡上的名字；再给 entry（条目的字段）时可以用 self.<字段>。
+        faces 由 engine 提供，是唯一的随机来源。
         """
         ...
 

@@ -96,7 +96,7 @@ def _check_field_def(
     problems: list[Problem] = []
     if fd.choices and fd.kind != "text":
         problems.append(Problem(code="pack.choices_need_text", path=path))
-    if fd.cls == "runtime" and fd.kind not in ("text", "boolean") and fd.initial is None:
+    if fd.cls == "runtime" and fd.kind not in ("text", "boolean", "formula") and fd.initial is None:
         problems.append(Problem(code="pack.runtime_needs_initial", path=path))
     if fd.kind == "resource" and fd.max is None:
         problems.append(Problem(code="pack.resource_needs_max", path=path))
@@ -328,6 +328,12 @@ def _check_value(
         if not isinstance(value, bool):
             return [Problem(code="sheet.type", path=path, params={"expected": "boolean"})]
         return []
+    if fd.kind == "formula":
+        if not isinstance(value, str):
+            return [Problem(code="sheet.type", path=path, params={"expected": "formula"})]
+        if fd.required and fd.cls == "player" and not value.strip():
+            return [Problem(code="sheet.required", path=path)]
+        return []  # 公式本身由 _check_formula_fields 按模板和条目校验
     if fd.kind == "text":
         if not isinstance(value, str):
             return [Problem(code="sheet.type", path=path, params={"expected": "text"})]
@@ -396,6 +402,7 @@ def validate_sheet(pack: RulePack, tpl: EntityTemplate, raw: JsonValue) -> list[
     for name, fd in fields.items():
         if name in sheet.fields:
             problems += _check_value(None, fd, sheet.fields[name], f"fields.{name}")
+    problems += _check_formula_fields(pack, tpl, tpl.fields, sheet.fields, "", in_entry=False)
     for g in groups.values():
         problems += _check_group_entries(pack, tpl, g, sheet, derived)
     problems += _check_priorities(sheet)
@@ -432,6 +439,28 @@ def _check_group_entries(
         )
     for i, entry in enumerate(entries):
         problems += _check_entry(pack, tpl, g, entry, derived, f"{path}[{i}]")
+    return problems
+
+
+def _check_formula_fields(
+    pack: RulePack,
+    tpl: EntityTemplate,
+    defs: Iterable[FieldDef],
+    values: dict[str, JsonValue],
+    base: str,
+    *,
+    in_entry: bool,
+) -> list[Problem]:
+    """掷骰公式字段的值：语法、引用的名字（条目里可以用 self.<字段>），允许掷骰。"""
+    defs = list(defs)
+    entry_fields = [x.name for x in defs] if in_entry else None
+    problems: list[Problem] = []
+    for fd in defs:
+        v = values.get(fd.name)
+        if fd.kind != "formula" or not isinstance(v, str) or not v.strip():
+            continue
+        path = f"{base}.fields.{fd.name}" if base else f"fields.{fd.name}"
+        problems += check_formula(pack, tpl, v, path, entry_fields=entry_fields, dice=True)
     return problems
 
 
@@ -483,6 +512,7 @@ def _check_entry(
             problems += _check_value(None, fd, entry.fields[name], f"{ep}.fields.{name}")
         elif fd.required and required_fields:
             problems.append(Problem(code="sheet.missing_field", path=f"{ep}.fields.{name}"))
+    problems += _check_formula_fields(pack, tpl, g.fields, entry.fields, ep, in_entry=True)
     if entry.effects and not g.effects:
         problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
     for j, eff in enumerate(entry.effects):

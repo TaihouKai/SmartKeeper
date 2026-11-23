@@ -3,6 +3,7 @@
 任务：检定规划。下面是本轮全部行动和裁定需要的上下文，但还没有掷骰和空间查询的结果。你要声明为了裁定本轮需要哪些检定和空间查询，由引擎执行：
 - 命名检定：{"entity": "<实体 id>", "check": "<规则包里的检定名>", "against": 难度数值 或 "<对抗方实体 id>" 或 null, "reason": "..."}
 - 规则包没有覆盖的情况用临时检定：{"entity": "<实体 id>", "adhoc": {"dice": "1d100", "target": 50, "success_when": "roll<=target" 或 "roll>=target"}, "reason": "..."}
+- 掷骰公式：角色卡上类型为“掷骰公式”的字段（例如技能的伤害 damage = 1d str），用到时由引擎掷：{"entity": "<实体 id>", "entry": "<条目名，例如技能名>" 或 null（模板本身的字段）, "field": "<字段名>", "reason": "..."}。伤害、治疗这类数值一律这样掷，不要自己编数字。
 - 空间查询（LLM 不做空间推理，距离、视线、范围命中都交给引擎）：
   - {"query_id": "q1", "kind": "within", "center": {"kind": "entity", "id": "<实体 id>"}, "radius": 米}
   - {"query_id": "q2", "kind": "sweep", "entity": "<发动者实体 id>", "ability": "<角色卡上的能力名>", "toward": {"kind": "entity", "id": "..."}}
@@ -12,4 +13,4 @@
   toward / center / a / b 也可以是 {"kind": "feature", "id": "<地物 id>"} 或 {"kind": "point", "point": {"x": 0, "y": 0, "z": 0}}
 - 不需要检定的行动就不要声明检定。query_id 在本轮内唯一。
 
-只输出一个 JSON 对象：{"checks": [...], "queries": [...]}
+只输出一个 JSON 对象：{"checks": [...], "rolls": [...], "queries": [...]}
