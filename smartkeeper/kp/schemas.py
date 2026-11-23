@@ -48,6 +48,12 @@ class ItemOut(_Out):
     targets: list[TargetOut] = []
     destination: DestinationOut | None = None
     detail: str = ""
+    seconds: int = Field(ge=0)  # 动作本身的耗时，不含移动；必填，所以 KP 一定会给出一个时间
+
+
+class NpcTalkOut(_Out):
+    text: str = Field(min_length=1)
+    end: bool = False
 
 
 class ClaimOut(_Out):

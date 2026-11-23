@@ -99,7 +99,7 @@ def test_web_search_on_for_the_listed_calls_only() -> None:
 
 def test_reference_sites_in_prompt_only_when_present() -> None:
     from smartkeeper.contracts import GameConfig
-    from tests.engine.harness import make_engine
+    from tests.engine.harness import SCENARIO_PUBLIC, make_engine
     from tests.fixtures import load_pack
 
     for pack_name, expect in (("multi", True), ("single", False)):
@@ -107,7 +107,11 @@ def test_reference_sites_in_prompt_only_when_present() -> None:
         pack = load_pack(pack_name)
         pid = packs.create_pack("x")
         packs.save_version(pid, pack)
-        g = engine.create_game(GameConfig(name="t", rulepack_id=pid, rulepack_version=1))
+        g = engine.create_game(
+            GameConfig(
+                name="t", rulepack_id=pid, rulepack_version=1, scenario_public=SCENARIO_PUBLIC
+            )
+        )
         from smartkeeper.kp import Contexts
 
         ctx = Contexts(engine, KPConfig())

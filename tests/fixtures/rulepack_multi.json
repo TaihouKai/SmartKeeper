@@ -6,7 +6,9 @@
       "name": "Fixture Bonded",
       "description": "A d20 fixture. Each player controls one leader and one or two companions.",
       "canon": "test fixture v1",
-      "reference_sites": ["https://example.org/fixture-wiki"]
+      "reference_sites": [
+        "https://example.org/fixture-wiki"
+      ]
     },
     "templates": [
       {
@@ -14,26 +16,95 @@
         "label": "Leader",
         "appearance_field": "looks",
         "fields": [
-          { "name": "looks", "kind": "text" },
-          { "name": "might", "kind": "number", "min": "1", "max": "20" },
-          { "name": "agility", "kind": "number", "min": "1", "max": "20" },
-          { "name": "wits", "kind": "number", "min": "1", "max": "20" },
-          { "name": "vigor", "kind": "resource", "cls": "runtime", "min": "0", "max": "vigor_max", "initial": "vigor_max" },
-          { "name": "tokens", "kind": "resource", "cls": "runtime", "min": "0", "max": "3", "initial": "3" }
+          {
+            "name": "looks",
+            "kind": "text"
+          },
+          {
+            "name": "might",
+            "kind": "number",
+            "min": "1",
+            "max": "20"
+          },
+          {
+            "name": "agility",
+            "kind": "number",
+            "min": "1",
+            "max": "20"
+          },
+          {
+            "name": "wits",
+            "kind": "number",
+            "min": "1",
+            "max": "20"
+          },
+          {
+            "name": "vigor",
+            "kind": "resource",
+            "cls": "runtime",
+            "min": "0",
+            "max": "vigor_max",
+            "initial": "vigor_max"
+          },
+          {
+            "name": "tokens",
+            "kind": "resource",
+            "cls": "runtime",
+            "min": "0",
+            "max": "3",
+            "initial": "3"
+          },
+          {
+            "name": "can_fly",
+            "kind": "boolean"
+          }
         ],
         "groups": [
           {
             "name": "talents",
-            "fields": [{ "name": "rank", "kind": "number", "min": "1", "max": "5" }],
+            "fields": [
+              {
+                "name": "rank",
+                "kind": "number",
+                "min": "1",
+                "max": "5"
+              }
+            ],
             "max_count": 3
           }
         ],
         "derived": [
-          { "name": "vigor_max", "formula": "10 + might * 2" },
-          { "name": "perception_radius", "formula": "30 + wits * 5", "unit": "m" },
-          { "name": "concealment", "formula": "max(0.2, 1 - agility / 40)" },
-          { "name": "move_speed", "formula": "50 + agility * 3", "unit": "m/min" },
-          { "name": "mod_might", "formula": "floor((might - 10) / 2)" }
+          {
+            "name": "vigor_max",
+            "formula": "10 + might * 2"
+          },
+          {
+            "name": "perception_radius",
+            "formula": "30 + wits * 5",
+            "unit": "m"
+          },
+          {
+            "name": "concealment",
+            "formula": "max(0.2, 1 - agility / 40)"
+          },
+          {
+            "name": "move_speed",
+            "formula": "50 + agility * 3",
+            "unit": "m/min"
+          },
+          {
+            "name": "mod_might",
+            "formula": "floor((might - 10) / 2)"
+          },
+          {
+            "name": "fly_multiplier",
+            "formula": "1"
+          },
+          {
+            "name": "fly_speed",
+            "formula": "fly_multiplier * move_speed",
+            "unit": "m/min"
+          }
         ]
       },
       {
@@ -41,32 +112,119 @@
         "label": "Companion",
         "appearance_field": "looks",
         "fields": [
-          { "name": "looks", "kind": "text" },
-          { "name": "power", "kind": "number", "min": "1", "max": "30" },
-          { "name": "range_m", "kind": "number", "unit": "m", "min": "0", "required": false },
-          { "name": "vigor", "kind": "resource", "cls": "runtime", "min": "0", "max": "vigor_max", "initial": "vigor_max" }
+          {
+            "name": "looks",
+            "kind": "text"
+          },
+          {
+            "name": "power",
+            "kind": "number",
+            "min": "1",
+            "max": "30"
+          },
+          {
+            "name": "range_m",
+            "kind": "number",
+            "unit": "m",
+            "min": "0",
+            "required": false
+          },
+          {
+            "name": "vigor",
+            "kind": "resource",
+            "cls": "runtime",
+            "min": "0",
+            "max": "vigor_max",
+            "initial": "vigor_max"
+          },
+          {
+            "name": "can_fly",
+            "kind": "boolean"
+          }
         ],
         "groups": [
           {
             "name": "abilities",
-            "fields": [{ "name": "uses", "kind": "number", "min": "0", "required": false }],
-            "shapes": { "allowed": ["capsule", "box", "sphere", "cone"] }
+            "fields": [
+              {
+                "name": "uses",
+                "kind": "number",
+                "min": "0",
+                "required": false
+              }
+            ],
+            "shapes": {
+              "allowed": [
+                "capsule",
+                "box",
+                "sphere",
+                "cone"
+              ]
+            }
           }
         ],
         "derived": [
-          { "name": "vigor_max", "formula": "power * 3" },
-          { "name": "perception_radius", "formula": "lookup(sense, power)", "unit": "m" },
-          { "name": "concealment", "formula": "1" },
-          { "name": "move_speed", "formula": "power * 20", "unit": "m/min" }
+          {
+            "name": "vigor_max",
+            "formula": "power * 3"
+          },
+          {
+            "name": "perception_radius",
+            "formula": "lookup(sense, power)",
+            "unit": "m"
+          },
+          {
+            "name": "concealment",
+            "formula": "1"
+          },
+          {
+            "name": "move_speed",
+            "formula": "power * 20",
+            "unit": "m/min"
+          },
+          {
+            "name": "fly_multiplier",
+            "formula": "1"
+          },
+          {
+            "name": "fly_speed",
+            "formula": "fly_multiplier * move_speed",
+            "unit": "m/min"
+          }
         ]
       }
     ],
     "player_entities": [
-      { "template": "leader", "min": 1, "max": 1 },
-      { "template": "companion", "min": 1, "max": 2 }
+      {
+        "template": "leader",
+        "min": 1,
+        "max": 1
+      },
+      {
+        "template": "companion",
+        "min": 1,
+        "max": 2
+      }
     ],
     "tables": [
-      { "name": "sense", "kind": "range", "rows": [[1, 40], [10, 80], [20, 200]] }
+      {
+        "name": "sense",
+        "kind": "range",
+        "rows": [
+          [
+            1,
+            40
+          ],
+          [
+            10,
+            80
+          ],
+          [
+            20,
+            200
+          ]
+        ]
+      }
     ],
     "checks": [
       {
@@ -74,8 +232,14 @@
         "dice": "1d20",
         "target": "mod_might",
         "levels": [
-          { "name": "hit", "condition": "roll + target >= difficulty" },
-          { "name": "miss", "condition": "1" }
+          {
+            "name": "hit",
+            "condition": "roll + target >= difficulty"
+          },
+          {
+            "name": "miss",
+            "condition": "1"
+          }
         ]
       }
     ],
@@ -86,33 +250,76 @@
         "template": "leader",
         "sheet": {
           "name": "Sample Leader",
-          "fields": { "looks": "young, bandaged hands", "might": 14, "agility": 20, "wits": 8 },
-          "groups": { "talents": [{ "name": "steady", "fields": { "rank": 2 } }] }
+          "fields": {
+            "looks": "young, bandaged hands",
+            "might": 14,
+            "agility": 20,
+            "wits": 8
+          },
+          "groups": {
+            "talents": [
+              {
+                "name": "steady",
+                "fields": {
+                  "rank": 2
+                }
+              }
+            ]
+          }
         },
-        "expected": { "vigor_max": 38, "perception_radius": 70, "concealment": 0.5, "move_speed": 110, "mod_might": 2 }
+        "expected": {
+          "vigor_max": 38,
+          "perception_radius": 70,
+          "concealment": 0.5,
+          "move_speed": 110,
+          "mod_might": 2
+        }
       },
       {
         "name": "companion",
         "template": "companion",
         "sheet": {
           "name": "Sample Companion",
-          "fields": { "looks": "armored, silver hair", "power": 22, "range_m": 100000 },
+          "fields": {
+            "looks": "armored, silver hair",
+            "power": 22,
+            "range_m": 100000
+          },
           "groups": {
             "abilities": [
               {
                 "name": "long beam",
                 "description": "a beam of light",
-                "shape": { "kind": "box", "length": 100000, "width": 3, "height": 5 },
-                "effects": [{ "description": "blinding light" }]
+                "shape": {
+                  "kind": "box",
+                  "length": 100000,
+                  "width": 3,
+                  "height": 5
+                },
+                "effects": [
+                  {
+                    "description": "blinding light"
+                  }
+                ]
               },
               {
                 "name": "swift",
-                "effects": [{ "target": "move_speed", "op": "add", "value": "100" }]
+                "effects": [
+                  {
+                    "target": "move_speed",
+                    "op": "add",
+                    "value": "100"
+                  }
+                ]
               }
             ]
           }
         },
-        "expected": { "vigor_max": 66, "perception_radius": 200, "move_speed": 540 }
+        "expected": {
+          "vigor_max": 66,
+          "perception_radius": 200,
+          "move_speed": 540
+        }
       }
     ]
   }

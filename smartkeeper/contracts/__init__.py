@@ -1,6 +1,6 @@
 """跨模块的数据类型（事件、实体、坐标、形状、裁定）和各模块的接口定义，不含逻辑。"""
 
-from smartkeeper.contracts.actions import ActionItem, ClaimRef, Intent, TargetRef
+from smartkeeper.contracts.actions import ActionItem, Activity, ClaimRef, Intent, Step, TargetRef
 from smartkeeper.contracts.adjudication import (
     AdHocCheck,
     Adjudication,
@@ -74,6 +74,7 @@ from smartkeeper.contracts.llm import (
     SearchRecord,
 )
 from smartkeeper.contracts.rulepack import (
+    FLY_FIELD,
     REQUIRED_DERIVED,
     CheckDef,
     DerivedDef,
@@ -124,14 +125,17 @@ from smartkeeper.contracts.spatial import (
     SpatialQueryResult,
     SweepShape,
 )
+from smartkeeper.contracts.talk import Talk, TalkMessage, TalkStatus
 
 __all__ = [
     "ADMIN",
     "ENGINE",
+    "FLY_FIELD",
     "KP",
     "PUBLIC",
     "REQUIRED_DERIVED",
     "ActionItem",
+    "Activity",
     "AdHocCheck",
     "Adjudication",
     "AreaEffect",
@@ -233,8 +237,12 @@ __all__ = [
     "SpatialQueryResult",
     "State",
     "Status",
+    "Step",
     "SweepShape",
     "Table",
+    "Talk",
+    "TalkMessage",
+    "TalkStatus",
     "TargetRef",
     "ValidationFailed",
     "Visibility",

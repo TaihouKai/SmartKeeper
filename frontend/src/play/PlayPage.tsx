@@ -2,23 +2,24 @@ import { useMemo, useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { MapView, type DisplayMap, type MarkerView, type Pick } from "../map";
-import { ErrorBox, LangSwitch, Tabs, formatGameTime } from "../ui/components";
+import { ErrorBox, LangSwitch, Tabs, formatDuration, formatGameTime } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { EventRow, type Ev } from "./events";
 import { KpTab, type Mentionable } from "./KpTab";
+import { TalkTab } from "./TalkTab";
 
-type Tab = "map" | "broadcast" | "kp" | "chat" | "sheet";
+type Tab = "map" | "broadcast" | "kp" | "talk" | "chat" | "sheet";
+type Travel = { x: number; y: number; list: Schemas["TravelOut"][] };
 
 function StatusBar({ status }: { status: Schemas["StatusOut"] | null }) {
   const { t, lang } = useI18n();
   if (!status) return null;
-  const phase = status.game_status === "ended" ? t("status.ended") : status.phase ? t(`status.phase.${status.phase}`) : t("status.not_started");
+  // 只显示自己的时间和自己的状态：没有回合数、没有全局进度
+  const phase = status.game_status === "ended" ? t("status.ended") : status.game_status === "running" ? t(`status.me.${status.me}`) : t("status.not_started");
   return (
     <div className="sk-statusbar">
-      <span>{t("status.round", { round: String(status.round) })}</span>
-      <span>{formatGameTime(status.start_time, status.game_minutes, lang)}</span>
+      <span>{formatGameTime(status.start_time, status.game_seconds, lang)}</span>
       <span>{phase}</span>
-      <span>{t("status.submitted", { done: String(status.submitted), total: String(status.total) })}</span>
       <LangSwitch onChange={(l) => void api.POST("/api/lang", { body: { lang: l } })} />
     </div>
   );
@@ -29,11 +30,21 @@ function MapTab({
   scene,
   onPick,
   onRename,
+  travel,
+  onUseDestination,
+  onCloseTravel,
+  canTalk,
+  onTalk,
 }: {
   map: DisplayMap | null;
   scene: Schemas["SceneOut"] | null;
   onPick: (p: Pick) => void;
   onRename: (ref: string, label: string, note: string) => Promise<void>;
+  travel: Travel | null;
+  onUseDestination: () => void;
+  onCloseTravel: () => void;
+  canTalk: boolean;
+  onTalk: (from: string, to: string) => void;
 }) {
   const { t } = useI18n();
   const [editing, setEditing] = useState<string | null>(null);
@@ -53,6 +64,24 @@ function MapTab({
     <div>
       <MapView map={map} markers={markers} changes={scene.map_changes} onPick={onPick} height="55vh" />
       <p className="sk-hint">{t("play.map_hint")}</p>
+      {travel && (
+        <div className="sk-card sk-echo">
+          <strong>{t("play.travel_title")}</strong>
+          <ul>
+            {travel.list.map((x) => (
+              <li key={x.ref}>
+                {x.name}: {x.seconds === null || x.seconds === undefined ? t("play.travel_none") : t(x.fly ? "play.travel_fly" : "play.travel_walk", { time: formatDuration(t, x.seconds) })}
+              </li>
+            ))}
+          </ul>
+          <button className="sk-primary" onClick={onUseDestination}>
+            {t("play.use_destination")}
+          </button>
+          <button className="sk-link" onClick={onCloseTravel}>
+            {t("play.close")}
+          </button>
+        </div>
+      )}
       {scene.entities.map((e) => (
         <div key={e.ref} className="sk-card">
           <strong>{e.name}</strong>
@@ -65,6 +94,11 @@ function MapTab({
                   @{p.label}
                 </button>
                 {p.note && <span className="sk-hint"> {p.note}</span>}
+                {canTalk && (
+                  <button className="sk-link" onClick={() => onTalk(e.ref, p.ref)}>
+                    {t("play.talk")}
+                  </button>
+                )}
                 <button className="sk-link" onClick={() => { setEditing(p.ref); setLabel(p.label); setNote(p.note); }}>
                   {t("play.rename")}
                 </button>
@@ -216,7 +250,7 @@ function SheetTab() {
                   <tr key={k}>
                     <th>{fdef(k)?.label || k}</th>
                     <td>
-                      {String(v)}
+                      {typeof v === "boolean" ? t(v ? "sheet.yes" : "sheet.no") : String(v)}
                       {fdef(k)?.description && <div className="sk-hint">{fdef(k)?.description}</div>}
                     </td>
                   </tr>
@@ -253,7 +287,7 @@ function SheetTab() {
               <ul className="sk-hint">
                 {s.history.map((h, i) => (
                   <li key={i}>
-                    {t("sheet.change", { round: String(h.round_no), path: h.path, old: JSON.stringify(h.old), new: JSON.stringify(h.new) })}
+                    {t("sheet.change", { path: h.path, old: JSON.stringify(h.old), new: JSON.stringify(h.new) })}
                     {h.source_seq ? ` #${h.source_seq}` : ""} · {t(`sheet.source.${h.source_kind}`)}
                   </li>
                 ))}
@@ -276,13 +310,17 @@ export function PlayPage() {
   const events = usePoll(() => call(api.GET("/api/events", { params: { query: { since: 0 } } })), 10_000);
   const scene = usePoll(() => call(api.GET("/api/scene")), 10_000);
   const map = usePoll(async () => (await call(api.GET("/api/map"))) as unknown as DisplayMap, 3_600_000);
+  const talks = usePoll(() => call(api.GET("/api/talks")), tab === "talk" ? 2_000 : 8_000, [tab]);
+  const [travel, setTravel] = useState<Travel | null>(null);
   const err = useAction();
   const evs = events.data ?? [];
   const refresh = () => {
     void status.refresh();
     void events.refresh();
     void scene.refresh();
+    void talks.refresh();
   };
+  const openTalks = (talks.data ?? []).filter((x) => x.status === "active" || (x.status === "invited" && x.incoming)).length;
   const mentionables: Mentionable[] = useMemo(() => {
     const s = scene.data;
     if (!s) return [];
@@ -306,10 +344,25 @@ export function PlayPage() {
       if (p.kind === "entity") setDraft(`${draft}@[${p.label}](${p.ref}) `);
       else if (p.kind === "feature") setDraft(`${draft}@[${p.name || p.id}](feature:${p.id}) `);
       else {
+        // 地图上的点：先显示走过去要多久，玩家再决定要不要设为目的地
         const m = await call(api.GET("/api/map/project", { params: { query: { lon: p.lon, lat: p.lat } } }));
-        setDraft(`${draft}@[${t("kp.a_point")}](point:${m.x},${m.y},0) `);
+        const list = await call(api.GET("/api/travel", { params: { query: { lon: p.lon, lat: p.lat } } }));
+        setTravel({ x: m.x, y: m.y, list });
+        return;
       }
       setTab("kp");
+    });
+  const useDestination = () => {
+    if (!travel) return;
+    setDraft(`${draft}@[${t("kp.a_point")}](point:${travel.x},${travel.y},0) `);
+    setTravel(null);
+    setTab("kp");
+  };
+  const startTalk = (from: string, to: string) =>
+    void err.run(async () => {
+      await call(api.POST("/api/talks", { body: { to, from } }));
+      void talks.refresh();
+      setTab("talk");
     });
 
   return (
@@ -320,6 +373,7 @@ export function PlayPage() {
           { key: "map", label: t("play.tab.map") },
           { key: "broadcast", label: t("play.tab.broadcast") },
           { key: "kp", label: t("play.tab.kp") },
+          { key: "talk", label: t("play.tab.talk"), badge: openTalks },
           { key: "chat", label: t("play.tab.chat") },
           { key: "sheet", label: t("play.tab.sheet") },
         ]}
@@ -336,6 +390,11 @@ export function PlayPage() {
             await err.run(() => call(api.PATCH("/api/handles/{ref}", { params: { path: { ref } }, body: { label, note } })));
             void scene.refresh();
           }}
+          travel={travel}
+          onUseDestination={useDestination}
+          onCloseTravel={() => setTravel(null)}
+          canTalk={status.data?.me === "act" || status.data?.me === "submitted"}
+          onTalk={startTalk}
         />
       )}
       {tab === "broadcast" && <BroadcastTab events={evs} onQuote={(s) => setQuotes(Array.from(new Set([...quotes, s])))} onChanged={refresh} />}
@@ -351,6 +410,7 @@ export function PlayPage() {
           onChanged={refresh}
         />
       )}
+      {tab === "talk" && <TalkTab talks={talks.data ?? []} onChanged={refresh} />}
       {tab === "chat" && <ChatTab />}
       {tab === "sheet" && <SheetTab />}
     </main>

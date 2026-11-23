@@ -7,16 +7,12 @@ from typing import Literal
 from pydantic import BaseModel, JsonValue
 
 from smartkeeper.contracts import (
-    ActionItem,
-    ClaimRef,
     Event,
     Intent,
     Location,
     MapData,
-    NotFound,
     Point,
-    TargetRef,
-    ValidationFailed,
+    Talk,
 )
 from smartkeeper.engine import Engine
 from smartkeeper.mapdata import to_lonlat
@@ -54,6 +50,17 @@ def _intent_to_refs(engine: Engine, player_id: str, raw: JsonValue) -> JsonValue
 
 
 def event_for_player(engine: Engine, player_id: str, e: Event, names: dict[str, str]) -> EventOut:
+    if e.type.startswith("talk_"):
+        # 对话的内容走 /api/talks；这里不能露出对方是玩家还是 KP 扮演的 NPC
+        return EventOut(
+            seq=e.seq,
+            round_no=0,
+            type=e.type,
+            actor=None,
+            actor_name=None,
+            payload={"talk": e.payload.get("talk")},
+            created_at=e.created_at.isoformat(),
+        )
     payload = dict(e.payload)
     if e.type == "action_declared" and "intent" in payload:
         payload["intent"] = _intent_to_refs(engine, player_id, payload["intent"])
@@ -75,7 +82,7 @@ def event_for_player(engine: Engine, player_id: str, e: Event, names: dict[str, 
         actor, name = "player", names.get(e.actor, "?")
     return EventOut(
         seq=e.seq,
-        round_no=e.round_no,
+        round_no=0,  # 玩家看不到回合数：不能从回合切得快慢推断别人在做什么
         type=e.type,
         actor=actor,
         actor_name=name,
@@ -100,6 +107,8 @@ class RefItem(BaseModel):
     targets: list[RefTarget] = []
     destination: Location | None = None
     detail: str = ""
+    act_seconds: int = 0
+    move_seconds: int = 0
 
 
 class RefClaim(BaseModel):
@@ -133,6 +142,8 @@ class RefIntent(BaseModel):
                 ],
                 destination=it.destination,
                 detail=it.detail,
+                act_seconds=it.act_seconds,
+                move_seconds=it.move_seconds,
             )
             for it in intent.items
         ]
@@ -145,38 +156,6 @@ class RefIntent(BaseModel):
             claims=claims,
             quotes=list(intent.quotes),
             unresolved=list(intent.unresolved),
-        )
-
-    def to_intent(self, engine: Engine, player_id: str) -> Intent:
-        def eid(r: str) -> str:
-            try:
-                return engine.entity_for_ref(player_id, r)
-            except NotFound as e:
-                raise ValidationFailed("action.unknown_ref", ref=r) from e
-
-        items = tuple(
-            ActionItem(
-                actor=eid(it.actor),
-                verb=it.verb,
-                targets=tuple(
-                    TargetRef(kind="entity", id=eid(t.ref))
-                    if t.kind == "entity" and t.ref
-                    else TargetRef(kind=t.kind, id=t.id, point=t.point)
-                    for t in it.targets
-                ),
-                destination=it.destination,
-                detail=it.detail,
-            )
-            for it in self.items
-        )
-        claims = tuple(
-            ClaimRef(
-                text=c.text, entities=tuple(eid(r) for r in c.refs), features=tuple(c.features)
-            )
-            for c in self.claims
-        )
-        return Intent(
-            items=items, claims=claims, quotes=tuple(self.quotes), unresolved=tuple(self.unresolved)
         )
 
 
@@ -195,18 +174,26 @@ class EchoItem(BaseModel):
     destination: LonLatPoint | None = None
     destination_label: str | None = None
     detail: str
+    move_seconds: int
+    act_seconds: int
 
 
 class ActionEcho(BaseModel):
-    """“你的行动被理解为：……”。按玩家自己的代号回显，地点在地图上标出。"""
+    """“你的行动被理解为：……，预计耗时……”。按玩家自己的代号回显，地点在地图上标出。
 
+    确认时只发回 parse_id：解析结果（包括 KP 估的耗时）留在服务器上，玩家改不了。
+    """
+
+    parse_id: str
     text: str
     items: list[EchoItem]
     unresolved: list[str]
-    intent: RefIntent
+    total_seconds: int  # 各实体按顺序做完自己的条目，取最长的那个
 
 
-def echo(engine: Engine, game_id: str, player_id: str, text: str, intent: Intent) -> ActionEcho:
+def echo(
+    engine: Engine, game_id: str, player_id: str, text: str, intent: Intent, parse_id: str
+) -> ActionEcho:
     m = engine.map_data(game_id)
     labels = {h.entity_id: h.label for h in engine.handles(player_id)}
 
@@ -244,13 +231,57 @@ def echo(engine: Engine, game_id: str, player_id: str, text: str, intent: Intent
                 destination=dest,
                 destination_label=dest_label,
                 detail=it.detail,
+                move_seconds=it.move_seconds,
+                act_seconds=it.act_seconds,
             )
         )
+    per_actor: dict[str, int] = {}
+    for it in intent.items:
+        per_actor[it.actor] = per_actor.get(it.actor, 0) + it.move_seconds + it.act_seconds
     return ActionEcho(
+        parse_id=parse_id,
         text=text,
         items=items,
         unresolved=list(intent.unresolved),
-        intent=RefIntent.from_intent(engine, player_id, intent),
+        total_seconds=max(per_actor.values(), default=0),
+    )
+
+
+# ---------------- 对话 ----------------
+
+
+class TalkLineOut(BaseModel):
+    seq: int
+    mine: bool
+    text: str
+
+
+class TalkOut(BaseModel):
+    """玩家看到的一场对话。对方一律用代号，不说明对方是玩家还是 NPC。"""
+
+    id: str
+    status: Literal["invited", "active", "declined", "ended"]
+    incoming: bool  # 是不是别人邀请我
+    me_ref: str
+    me_name: str
+    other_ref: str
+    other_label: str
+    lines: list[TalkLineOut]
+
+
+def talk_for_player(engine: Engine, game_id: str, player_id: str, t: Talk) -> TalkOut:
+    incoming = t.b_player == player_id
+    mine, other = (t.b_entity, t.a_entity) if incoming else (t.a_entity, t.b_entity)
+    labels = {h.entity_id: h.label for h in engine.handles(player_id)}
+    return TalkOut(
+        id=t.id,
+        status=t.status,
+        incoming=incoming,
+        me_ref=engine.ref_for_entity(player_id, mine) or "?",
+        me_name=engine.entity_name(game_id, mine),
+        other_ref=engine.ref_for_entity(player_id, other) or "?",
+        other_label=labels.get(other, "?"),
+        lines=[TalkLineOut(seq=m.seq, mine=m.speaker == mine, text=m.text) for m in t.messages],
     )
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import JsonValue
+from pydantic import Field, JsonValue
 
 from smartkeeper.contracts.base import Frozen
 
@@ -18,6 +18,8 @@ class GameSettings(Frozen):
     kp_language: str = "zh"
     player_webhook: str | None = None
     admin_webhook: str | None = None
+    # 最短回合（秒）：回合结束时刻至少是开始时刻加这么多。功能已做好，默认 0 即不生效。
+    min_round_seconds: int = Field(default=0, ge=0)
 
 
 class GameConfig(Frozen):
@@ -55,8 +57,8 @@ class Round(Frozen):
     game_id: str
     no: int
     status: RoundStatus
-    started_minute: int
-    ended_minute: int | None = None
+    started_second: int  # 游戏内时刻（秒）
+    ended_second: int | None = None  # 结算开始时由引擎定下的结束时刻
     forced: bool = False
     submitted: tuple[str, ...] = ()  # 结算时已提交行动的玩家
     draft: dict[str, JsonValue] | None = None  # 待审核的裁定与反馈草稿

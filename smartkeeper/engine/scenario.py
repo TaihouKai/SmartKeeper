@@ -1,7 +1,7 @@
 """剧本文件的结构化部分：Markdown 开头的 YAML front matter。正文是给 KP 和玩家读的自由文字。
 
 scenario_public.md 的 front matter：
-    start_time: "2030-01-01T22:00"      # 游戏内起始时刻，显示用
+    start_time: "2030-01-01T22:00"      # 游戏内起始时刻，必填；玩家界面的时间从这里往后算
     identities:                         # 可选
       mode: draw | choose
       options: [{id, name, description}]
@@ -14,10 +14,11 @@ scenario_kp.md 的 front matter：
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any, cast
 
 import yaml
-from pydantic import JsonValue, ValidationError
+from pydantic import JsonValue, ValidationError, field_validator
 
 from smartkeeper.contracts import Frozen, IdentityRules, Place, Problem, ValidationFailed
 
@@ -30,8 +31,14 @@ class NpcSpec(Frozen):
 
 
 class PublicMeta(Frozen):
-    start_time: str | None = None
+    start_time: str
     identities: IdentityRules = IdentityRules()
+
+    @field_validator("start_time", mode="before")
+    @classmethod
+    def _yaml_datetime(cls, v: object) -> object:
+        """YAML 里不加引号的时刻会被读成 datetime。"""
+        return v.isoformat() if isinstance(v, datetime | date) else v
 
 
 class KpMeta(Frozen):

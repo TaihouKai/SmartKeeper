@@ -882,30 +882,131 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/talks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Talks */
+        get: operations["talks_api_talks_get"];
+        put?: never;
+        /** Talk Start */
+        post: operations["talk_start_api_talks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/talks/{talk_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Talk Answer */
+        post: operations["talk_answer_api_talks__talk_id__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/talks/{talk_id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Talk End */
+        post: operations["talk_end_api_talks__talk_id__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/talks/{talk_id}/say": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Talk Say */
+        post: operations["talk_say_api_talks__talk_id__say_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/travel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Travel
+         * @description 我的每个实体走（或飞）到地图上这一点要多久。
+         */
+        get: operations["travel_api_travel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
          * ActionEcho
-         * @description “你的行动被理解为：……”。按玩家自己的代号回显，地点在地图上标出。
+         * @description “你的行动被理解为：……，预计耗时……”。按玩家自己的代号回显，地点在地图上标出。
+         *
+         *     确认时只发回 parse_id：解析结果（包括 KP 估的耗时）留在服务器上，玩家改不了。
          */
         ActionEcho: {
-            intent: components["schemas"]["RefIntent"];
             /** Items */
             items: components["schemas"]["EchoItem"][];
+            /** Parse Id */
+            parse_id: string;
             /** Text */
             text: string;
+            /** Total Seconds */
+            total_seconds: number;
             /** Unresolved */
             unresolved: string[];
         };
         /** ActionIn */
         ActionIn: {
-            intent: components["schemas"]["RefIntent"];
-            /** Text */
-            text: string;
+            /** Parse Id */
+            parse_id: string;
+            /**
+             * Quotes
+             * @default []
+             */
+            quotes: number[];
         };
-        /** Adjudication */
+        /**
+         * Adjudication
+         * @description 一回合的裁定。推进多久由引擎决定（最早结束的行动），KP 只裁定这段时间里发生的事。
+         */
         Adjudication: {
             /**
              * Area Effects
@@ -946,8 +1047,6 @@ export interface components {
              * @default []
              */
             state_patch: components["schemas"]["PatchOp"][];
-            /** Time Advance Minutes */
-            time_advance_minutes: number;
         };
         /** AdminEvent */
         AdminEvent: {
@@ -1087,6 +1186,8 @@ export interface components {
         };
         /** EchoItem */
         EchoItem: {
+            /** Act Seconds */
+            act_seconds: number;
             /** Actor Label */
             actor_label: string;
             destination?: components["schemas"]["LonLatPoint"] | null;
@@ -1094,6 +1195,8 @@ export interface components {
             destination_label?: string | null;
             /** Detail */
             detail: string;
+            /** Move Seconds */
+            move_seconds: number;
             /** Targets */
             targets: components["schemas"]["EchoTarget"][];
             /** Verb */
@@ -1193,6 +1296,7 @@ export interface components {
          *     - kind=number：数值（属性、技能、玩家自定义的尺寸等）；可带 unit、min、max。
          *     - kind=text：文字；choices 非空时只能取其中之一。
          *     - kind=resource：有上下限的数值。上下限可以是公式（例如引用某个推导值）。
+         *     - kind=boolean：是/否。公式里是 1/0。没填时按“否”。
          *     - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定修改，初值由 initial 公式给出。
          */
         FieldDef: {
@@ -1223,7 +1327,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "number" | "text" | "resource";
+            kind: "number" | "text" | "resource" | "boolean";
             /**
              * Label
              * @default
@@ -1310,6 +1414,11 @@ export interface components {
              * @default zh
              */
             kp_language: string;
+            /**
+             * Min Round Seconds
+             * @default 0
+             */
+            min_round_seconds: number;
             /** Player Webhook */
             player_webhook?: string | null;
             /**
@@ -1533,12 +1642,6 @@ export interface components {
             /** Lang */
             lang: string;
         };
-        /** Location */
-        Location: {
-            /** Inside */
-            inside?: string | null;
-            pos: components["schemas"]["Point"];
-        };
         /** LoginIn */
         LoginIn: {
             /** Password */
@@ -1627,6 +1730,7 @@ export interface components {
             scenario: string;
             /** @default {
              *       "kp_language": "zh",
+             *       "min_round_seconds": 0,
              *       "review_mode": false,
              *       "web_search": true
              *     } */
@@ -1812,75 +1916,6 @@ export interface components {
             /** Y */
             y: number;
         };
-        /** RefClaim */
-        RefClaim: {
-            /**
-             * Features
-             * @default []
-             */
-            features: string[];
-            /**
-             * Refs
-             * @default []
-             */
-            refs: string[];
-            /** Text */
-            text: string;
-        };
-        /**
-         * RefIntent
-         * @description 玩家这一侧的意图：实体一律用 ref 表示。确认提交时原样发回。
-         */
-        RefIntent: {
-            /**
-             * Claims
-             * @default []
-             */
-            claims: components["schemas"]["RefClaim"][];
-            /** Items */
-            items: components["schemas"]["RefItem"][];
-            /**
-             * Quotes
-             * @default []
-             */
-            quotes: number[];
-            /**
-             * Unresolved
-             * @default []
-             */
-            unresolved: string[];
-        };
-        /** RefItem */
-        RefItem: {
-            /** Actor */
-            actor: string;
-            destination?: components["schemas"]["Location"] | null;
-            /**
-             * Detail
-             * @default
-             */
-            detail: string;
-            /**
-             * Targets
-             * @default []
-             */
-            targets: components["schemas"]["RefTarget"][];
-            /** Verb */
-            verb: string;
-        };
-        /** RefTarget */
-        RefTarget: {
-            /** Id */
-            id?: string | null;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "entity" | "feature" | "point";
-            point?: components["schemas"]["Point"] | null;
-            /** Ref */
-            ref?: string | null;
-        };
         /**
          * ResultLevel
          * @description 检定的一个结果等级。按顺序判断，第一个条件为真的等级就是结果。
@@ -1935,8 +1970,8 @@ export interface components {
             draft?: {
                 [key: string]: components["schemas"]["JsonValue"];
             } | null;
-            /** Ended Minute */
-            ended_minute?: number | null;
+            /** Ended Second */
+            ended_second?: number | null;
             /**
              * Forced
              * @default false
@@ -1950,8 +1985,8 @@ export interface components {
             snapshot?: {
                 [key: string]: components["schemas"]["JsonValue"];
             } | null;
-            /** Started Minute */
-            started_minute: number;
+            /** Started Second */
+            started_second: number;
             /**
              * Status
              * @enum {string}
@@ -2237,24 +2272,22 @@ export interface components {
             /** Tag */
             tag: string;
         };
-        /** StatusOut */
+        /**
+         * StatusOut
+         * @description 玩家只看到自己的状态和自己的时间，没有回合数、没有全局进度：不能从这些推断别人在做什么。
+         */
         StatusOut: {
-            /** Game Minutes */
-            game_minutes: number;
+            /** Game Seconds */
+            game_seconds: number;
             /** Game Status */
             game_status: string;
-            /** Me Submitted */
-            me_submitted: boolean;
-            /** Phase */
-            phase: string | null;
-            /** Round */
-            round: number;
+            /**
+             * Me
+             * @enum {string}
+             */
+            me: "act" | "submitted" | "busy" | "idle";
             /** Start Time */
             start_time: string | null;
-            /** Submitted */
-            submitted: number;
-            /** Total */
-            total: number;
         };
         /**
          * Table
@@ -2275,6 +2308,52 @@ export interface components {
                 number
             ][];
         };
+        /** TalkAnswerIn */
+        TalkAnswerIn: {
+            /** Accept */
+            accept: boolean;
+        };
+        /** TalkLineOut */
+        TalkLineOut: {
+            /** Mine */
+            mine: boolean;
+            /** Seq */
+            seq: number;
+            /** Text */
+            text: string;
+        };
+        /**
+         * TalkOut
+         * @description 玩家看到的一场对话。对方一律用代号，不说明对方是玩家还是 NPC。
+         */
+        TalkOut: {
+            /** Id */
+            id: string;
+            /** Incoming */
+            incoming: boolean;
+            /** Lines */
+            lines: components["schemas"]["TalkLineOut"][];
+            /** Me Name */
+            me_name: string;
+            /** Me Ref */
+            me_ref: string;
+            /** Other Label */
+            other_label: string;
+            /** Other Ref */
+            other_ref: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "invited" | "active" | "declined" | "ended";
+        };
+        /** TalkStartIn */
+        TalkStartIn: {
+            /** From */
+            from?: string | null;
+            /** To */
+            to: string;
+        };
         /** TextBody */
         TextBody: {
             /** Text */
@@ -2284,6 +2363,17 @@ export interface components {
         TextIn: {
             /** Text */
             text: string;
+        };
+        /** TravelOut */
+        TravelOut: {
+            /** Fly */
+            fly: boolean;
+            /** Name */
+            name: string;
+            /** Ref */
+            ref: string;
+            /** Seconds */
+            seconds: number | null;
         };
         /** TryIn */
         TryIn: {
@@ -4221,6 +4311,192 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatusOut"];
+                };
+            };
+        };
+    };
+    talks_api_talks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalkOut"][];
+                };
+            };
+        };
+    };
+    talk_start_api_talks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TalkStartIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    talk_answer_api_talks__talk_id__answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                talk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TalkAnswerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    talk_end_api_talks__talk_id__end_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                talk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    talk_say_api_talks__talk_id__say_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                talk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TextIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TalkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    travel_api_travel_get: {
+        parameters: {
+            query: {
+                lon: number;
+                lat: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TravelOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

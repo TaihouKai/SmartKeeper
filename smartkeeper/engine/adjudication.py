@@ -12,9 +12,21 @@ from smartkeeper.contracts import (
     Problem,
 )
 
-ENGINE_ONLY_PATHS = ("/game_minutes", "/map")
+ENGINE_ONLY_PATHS = ("/game_seconds", "/map", "/activities")
 _POS_PATH = re.compile(r"^/entities/[^/]+/(pos|inside)(/|$)")
 _ENTITY_PATH = re.compile(r"^/entities/([^/]+)$")
+_ANY_ENTITY_PATH = re.compile(r"^/entities/([^/]+)")
+
+
+def touched_entities(ops: Sequence[PatchOp]) -> set[str]:
+    """state_patch 改到的实体。"""
+    out: set[str] = set()
+    for op in ops:
+        for path in [op.path] + ([op.from_] if op.from_ else []):
+            m = _ANY_ENTITY_PATH.match(path)
+            if m:
+                out.add(m.group(1))
+    return out
 
 
 def check_patch_paths(ops: Sequence[PatchOp], existing: set[str]) -> list[Problem]:
@@ -59,15 +71,17 @@ class ItemInfo(Frozen):
 def check_sources(
     adj: Adjudication,
     *,
-    required: Sequence[str],
+    required: set[str],
+    allowed: set[str],
     items: Mapping[str, ItemInfo],
     controls: Mapping[str, set[str]],
     entities: set[str],
 ) -> list[Problem]:
     """行动来源：outcome 与 resolves、movements 的 because。
 
-    - 每个需要行动的玩家恰好一条 outcome，resolves 只能列他本轮确认过的条目。
-    - movement 的 because 必须是本轮确认过的条目，或 npc:<不受玩家控制的实体>。
+    - required 里的玩家（行动做完了或没有行动）必须有 outcome；allowed 里的其他玩家（受到影响的）可以有。
+      每个玩家至多一条。resolves 只能列他进行中的行动里的条目。
+    - movement 的 because 必须是进行中的行动里的条目，或 npc:<不受玩家控制的实体>。
     - 玩家控制的实体因别的玩家的条目移动（被推开），那个条目必须以该实体为目标；
       否则就是借别人的条目自主移动，拒绝。
     """
@@ -75,7 +89,7 @@ def check_sources(
     seen: dict[str, int] = {}
     for i, o in enumerate(adj.outcomes):
         seen[o.player_id] = seen.get(o.player_id, 0) + 1
-        if o.player_id not in required:
+        if o.player_id not in allowed:
             problems.append(
                 Problem(
                     code="adj.outcome_unknown_player",
@@ -94,7 +108,7 @@ def check_sources(
                         params={"item": rid},
                     )
                 )
-    for pid in required:
+    for pid in sorted(required | set(seen)):
         if seen.get(pid, 0) != 1:
             problems.append(
                 Problem(

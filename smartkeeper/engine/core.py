@@ -17,6 +17,7 @@ from smartkeeper.contracts import (
     ADMIN,
     ENGINE,
     KP,
+    Activity,
     AdHocCheck,
     Adjudication,
     Audience,
@@ -25,6 +26,7 @@ from smartkeeper.contracts import (
     DiceResult,
     Event,
     EventLog,
+    EventType,
     Forbidden,
     Game,
     GameConfig,
@@ -65,6 +67,8 @@ from smartkeeper.contracts import (
     SpatialQueryResult,
     State,
     SweepShape,
+    Talk,
+    TalkMessage,
     TargetRef,
     ValidationFailed,
     Visibility,
@@ -76,6 +80,14 @@ from smartkeeper.engine.mentions import find_mentions, replace_mentions
 from smartkeeper.engine.repo import Repo
 from smartkeeper.engine.sheetview import build_sheet_views, visible_sheet
 from smartkeeper.engine.space import EMPTY_MAP, Space, point_of
+from smartkeeper.engine.timeline import (
+    activities_of,
+    build_activities,
+    cut_time,
+    location_at,
+    plan_items,
+    travel_seconds,
+)
 
 MAX_TEXT = 4000
 
@@ -129,6 +141,7 @@ class Engine:
         self._dice = dice
         self._lock = threading.RLock()
         self._state_cache: dict[str, tuple[int, State]] = {}
+        self._view_cache: dict[tuple[str, int], State] = {}
 
     # ================= 读取：局、玩家、规则包 =================
 
@@ -528,13 +541,13 @@ class Engine:
                 NewEvent(
                     type="round_opened",
                     actor=ENGINE,
-                    visibility=Visibility.public(),
-                    payload={"round": 1, "game_minutes": 0},
+                    visibility=Visibility.kp_only(),
+                    payload={"round": 1, "game_seconds": 0},
                 )
             )
             self._events.append(game_id, 0, evs)
             self._repo.insert_round(
-                Round(game_id=game_id, no=1, status="collecting", started_minute=0)
+                Round(game_id=game_id, no=1, status="collecting", started_second=0)
             )
             self._repo.update_game(game_id, status="running", current_round=1)
             self.refresh_handles(game_id)
@@ -610,6 +623,9 @@ class Engine:
                 raise ValidationFailed("action.unresolved_reference", refs=list(intent.unresolved))
             if not intent.items:
                 raise ValidationFailed("action.empty")
+            idle = set(self.idle_entities(g.id, player_id))
+            if not idle:
+                raise IllegalState("action.busy")
             mine = set(self.controlled(g.id, player_id))
             # 玩家只能指代自己的实体和他有代号的实体（感知过的），不能凭实体 ID 猜
             entities = mine | {h.entity_id for h in self._handles.list(player_id)}
@@ -636,6 +652,14 @@ class Engine:
                             params={"actor": item.actor},
                         )
                     )
+                elif item.actor not in idle:
+                    problems.append(
+                        Problem(
+                            code="action.actor_busy",
+                            path=f"items[{i}]",
+                            params={"actor": item.actor},
+                        )
+                    )
                 for t in item.targets:
                     if t.kind == "entity" and t.id not in entities:
                         problems.append(
@@ -651,9 +675,10 @@ class Engine:
                     problems.append(Problem(code="action.quote_not_visible", params={"seq": q}))
             if problems:
                 raise ValidationFailed("action.invalid", problems)
+            planned = plan_items(self._space(g.id), intent.items)
             items = [
                 it.model_copy(update={"id": f"act_{r.no}_{player_id}_{i + 1}"})
-                for i, it in enumerate(intent.items)
+                for i, it in enumerate(planned)
             ]
             stored = intent.model_copy(update={"items": tuple(items)})
             ev = NewEvent(
@@ -667,6 +692,75 @@ class Engine:
             )
             return self._events.append(g.id, r.no, [ev])[0]
 
+    def plan_intent(self, game_id: str, intent: Intent) -> Intent:
+        """给解析出的意图算上移动耗时（确认框显示用）。"""
+        items = plan_items(self._space(game_id), intent.items)
+        return intent.model_copy(update={"items": tuple(items)})
+
+    def activities(self, game_id: str) -> dict[str, Activity]:
+        return activities_of(self._state(game_id).get("activities"))
+
+    def round_window(self, game_id: str) -> tuple[int, int]:
+        """本轮的时间段（秒）：开始时刻和引擎定下的结束时刻。"""
+        now = int(cast(int, self._state(game_id)["game_seconds"]))
+        end = self.round(game_id).ended_second
+        return now, end if end is not None else now
+
+    def outcome_required(self, game_id: str) -> list[str]:
+        """本轮必须有结果的玩家：行动在本轮结束前做完了、或本轮没有行动的。"""
+        _, end = self.round_window(game_id)
+        acts = self.activities(game_id)
+        out: list[str] = []
+        for p in self._active_players(game_id):
+            ents = self.controlled(game_id, p.id)
+            if ents and any(e not in acts or acts[e].end <= end for e in ents):
+                out.append(p.id)
+        return out
+
+    def positions_at_end(self, game_id: str) -> dict[str, Location]:
+        """进行中的行动在本轮结束时刻把各实体带到的位置（KP 没有另行安排时）。"""
+        _, end = self.round_window(game_id)
+        ents = _obj(self._state(game_id).get("entities"))
+        out: dict[str, Location] = {}
+        for eid, act in self.activities(game_id).items():
+            ent = _obj(ents.get(eid))
+            pos = point_of(ent.get("pos"))
+            inside = ent.get("inside")
+            here = (
+                Location(pos=pos, inside=inside if isinstance(inside, str) else None)
+                if pos
+                else None
+            )
+            loc = location_at(act, end, here)
+            if loc is not None:
+                out[eid] = loc
+        return out
+
+    def travel_times(
+        self, game_id: str, player_id: str, to: Point
+    ) -> dict[str, tuple[int | None, bool]]:
+        """该玩家每个实体从现在的位置到 to（地面高度）要几秒、是不是飞过去。走不了的是 None。"""
+        space = self._space(game_id)
+        out: dict[str, tuple[int | None, bool]] = {}
+        for eid in self.controlled(game_id, player_id):
+            pos = point_of(_obj(space.entities.get(eid)).get("pos"))
+            if pos is None:
+                out[eid] = (None, False)
+                continue
+            try:
+                out[eid] = travel_seconds(space, eid, pos, to)
+            except ValidationFailed:
+                out[eid] = (None, False)
+        return out
+
+    def entity_name(self, game_id: str, entity_id: str) -> str:
+        return self._entity_name(self._state(game_id), entity_id)
+
+    def idle_entities(self, game_id: str, player_id: str) -> list[str]:
+        """该玩家控制的、没有进行中行动的实体。"""
+        busy = self.activities(game_id)
+        return [e for e in self.controlled(game_id, player_id) if e not in busy]
+
     def declarations(self, game_id: str, round_no: int | None = None) -> dict[str, Event]:
         """本轮每个玩家最新的一份已确认行动声明。"""
         n = round_no if round_no is not None else self.game(game_id).current_round
@@ -677,8 +771,8 @@ class Engine:
         return out
 
     def required_players(self, game_id: str) -> list[str]:
-        """需要提交行动的玩家：有效且控制着至少一个实体。"""
-        return [p.id for p in self._active_players(game_id) if self.controlled(game_id, p.id)]
+        """需要提交行动的玩家：有效，且至少一个实体没有进行中的行动。"""
+        return [p.id for p in self._active_players(game_id) if self.idle_entities(game_id, p.id)]
 
     def submitted_count(self, game_id: str) -> tuple[int, int]:
         req = self.required_players(game_id)
@@ -690,7 +784,173 @@ class Engine:
         if g.status != "running" or self.round(game_id).status != "collecting":
             return False
         done, total = self.submitted_count(game_id)
-        return total > 0 and done == total
+        return total > 0 and done == total and not self.active_talks(game_id)
+
+    # ================= 对话模式 =================
+
+    _TALK_TYPES: tuple[EventType, ...] = (
+        "talk_invited",
+        "talk_accepted",
+        "talk_declined",
+        "talk_message",
+        "talk_ended",
+    )
+
+    def talks(self, game_id: str) -> list[Talk]:
+        """全部对话，状态由对话事件推出来。"""
+        out: dict[str, Talk] = {}
+        for ev in self._events.view_for(game_id, KP, types=list(self._TALK_TYPES)):
+            p = ev.payload
+            tid = str(p.get("talk"))
+            if ev.type == "talk_invited":
+                b = p.get("b_player")
+                out[tid] = Talk(
+                    id=tid,
+                    round_no=ev.round_no,
+                    status="invited",
+                    a_player=str(p["a_player"]),
+                    a_entity=str(p["from"]),
+                    b_entity=str(p["to"]),
+                    b_player=b if isinstance(b, str) else None,
+                )
+                continue
+            t = out.get(tid)
+            if t is None:
+                continue
+            if ev.type == "talk_accepted":
+                out[tid] = t.model_copy(update={"status": "active"})
+            elif ev.type == "talk_declined":
+                out[tid] = t.model_copy(update={"status": "declined"})
+            elif ev.type == "talk_ended":
+                out[tid] = t.model_copy(update={"status": "ended"})
+            else:
+                msg = TalkMessage(
+                    seq=ev.seq, speaker=str(p.get("from")), text=str(p.get("text", ""))
+                )
+                out[tid] = t.model_copy(update={"messages": (*t.messages, msg)})
+        return list(out.values())
+
+    def talk(self, game_id: str, talk_id: str) -> Talk:
+        t = next((x for x in self.talks(game_id) if x.id == talk_id), None)
+        if t is None:
+            raise NotFound("talk.not_found", id=talk_id)
+        return t
+
+    def active_talks(self, game_id: str) -> list[Talk]:
+        return [t for t in self.talks(game_id) if t.status in ("invited", "active")]
+
+    @staticmethod
+    def _talk_audience(t: Talk) -> Visibility:
+        return Visibility.to(t.a_player, *([t.b_player] if t.b_player else []))
+
+    def _talk_event(
+        self, game_id: str, t: Talk, type_: EventType, actor: str, payload: dict[str, JsonValue]
+    ) -> Event:
+        seconds = int(cast(int, self._state(game_id)["game_seconds"]))
+        ev = NewEvent(
+            type=type_,
+            actor=actor,
+            visibility=self._talk_audience(t),
+            payload={"talk": t.id, "game_seconds": seconds, **payload},
+        )
+        return self._events.append(game_id, self.game(game_id).current_round, [ev])[0]
+
+    def start_talk(self, player_id: str, from_entity: str, to_entity: str) -> Talk:
+        """发起对话：只有需要行动的玩家能发起，对象必须此刻感知得到。对象是 NPC 时自动接受。"""
+        with self._lock:
+            p = self.player(player_id)
+            g = self.game(p.game_id)
+            if g.status != "running" or self.round(g.id).status != "collecting":
+                raise IllegalState("talk.not_now")
+            if from_entity not in self.idle_entities(g.id, player_id):
+                raise IllegalState("talk.busy")
+            space = self._space(g.id)
+            if to_entity not in space.perceived_by(from_entity):
+                raise ValidationFailed("talk.not_perceived")
+            for t in self.active_talks(g.id):
+                if {t.a_entity, t.b_entity} & {from_entity, to_entity}:
+                    raise IllegalState("talk.partner_busy")
+            b_player = space.owner.get(to_entity)
+            if b_player == player_id:
+                raise ValidationFailed("talk.self")
+            r = self.round(g.id)
+            tid = f"talk_{r.no}_{len(self.talks(g.id)) + 1}"
+            t = Talk(
+                id=tid,
+                round_no=r.no,
+                status="invited",
+                a_player=player_id,
+                a_entity=from_entity,
+                b_entity=to_entity,
+                b_player=b_player,
+            )
+            self._talk_event(
+                g.id,
+                t,
+                "talk_invited",
+                player_id,
+                {"from": from_entity, "to": to_entity, "a_player": player_id, "b_player": b_player},
+            )
+            if b_player is None:
+                self._talk_event(g.id, t, "talk_accepted", KP, {})
+            return self.talk(g.id, tid)
+
+    def answer_talk(self, player_id: str, talk_id: str, accept: bool) -> Talk:
+        """被邀请的玩家接受或拒绝。接受了，他的行动就此停止，对话结束后要重新行动。"""
+        with self._lock:
+            game_id = self.player(player_id).game_id
+            t = self.talk(game_id, talk_id)
+            if t.status != "invited" or t.b_player != player_id:
+                raise IllegalState("talk.not_invited")
+            if accept:
+                acts = self.activities(game_id)
+                ops = [
+                    PatchOp(op="remove", path=f"/activities/{e}")
+                    for e in sorted(self.controlled(game_id, player_id))
+                    if e in acts
+                ]
+                if ops:
+                    self._validated(game_id, self._state(game_id), ops)
+                    self._events.append(
+                        game_id,
+                        self.game(game_id).current_round,
+                        [self._patch_event(ops, cause="talk", actor=ENGINE)],
+                    )
+            self._talk_event(
+                game_id, t, "talk_accepted" if accept else "talk_declined", player_id, {}
+            )
+            return self.talk(game_id, talk_id)
+
+    def say(self, game_id: str, talk_id: str, speaker: str, text: str) -> Event:
+        """对话里说一句。speaker 是玩家 id，或 KP（替 NPC 说）。"""
+        with self._lock:
+            t = self.talk(game_id, talk_id)
+            if t.status != "active":
+                raise IllegalState("talk.not_active")
+            if speaker == KP:
+                if t.b_player is not None:
+                    raise IllegalState("talk.not_npc")
+                entity = t.b_entity
+            elif speaker == t.a_player:
+                entity = t.a_entity
+            elif speaker == t.b_player:
+                entity = t.b_entity
+            else:
+                raise IllegalState("talk.not_participant")
+            return self._talk_event(
+                game_id, t, "talk_message", speaker, {"from": entity, "text": _text(text)}
+            )
+
+    def end_talk(self, game_id: str, talk_id: str, by: str) -> Talk:
+        """任何一方结束对话（发起方也可以撤回还没回应的邀请）。by 是玩家 id 或 KP。"""
+        with self._lock:
+            t = self.talk(game_id, talk_id)
+            if t.status not in ("invited", "active"):
+                raise IllegalState("talk.not_active")
+            if by not in (t.a_player, t.b_player) and not (by == KP and t.b_player is None):
+                raise IllegalState("talk.not_participant")
+            self._talk_event(game_id, t, "talk_ended", by, {})
+            return self.talk(game_id, talk_id)
 
     # ================= 结算 =================
 
@@ -700,8 +960,36 @@ class Engine:
             nxt = self._rounds.transition(r.status, "close")
             if not forced and not self.ready_to_close(game_id):
                 raise IllegalState("round.not_ready")
-            submitted = sorted(self.declarations(game_id))
-            self._repo.update_round(game_id, r.no, status=nxt, forced=forced, submitted=submitted)
+            if self.active_talks(game_id):
+                raise IllegalState("round.talk_in_progress")
+            decl = self.declarations(game_id)
+            submitted = sorted(decl)
+            # 确认过的行动变成进行中的行动；回合结束时刻取最早结束的那个
+            state = self._state(game_id)
+            now = int(cast(int, state["game_seconds"]))
+            space = self._space(game_id)
+            ops: list[PatchOp] = []
+            for pid in submitted:
+                intent = Intent.model_validate(decl[pid].payload["intent"])
+                for eid, act in sorted(build_activities(space, pid, now, intent.items).items()):
+                    ops.append(
+                        PatchOp(
+                            op="add", path=f"/activities/{eid}", value=act.model_dump(mode="json")
+                        )
+                    )
+            if ops:
+                state = self._validated(game_id, state, ops)
+                self._events.append(
+                    game_id, r.no, [self._patch_event(ops, cause="activities", actor=ENGINE)]
+                )
+            end = cut_time(
+                activities_of(state.get("activities")),
+                now,
+                self.game(game_id).settings.min_round_seconds,
+            )
+            self._repo.update_round(
+                game_id, r.no, status=nxt, forced=forced, submitted=submitted, ended_second=end
+            )
             return self.round(game_id)
 
     def _require(self, game_id: str, action: str) -> Round:
@@ -844,14 +1132,15 @@ class Engine:
             )[0]
             return res.model_copy(update={"roll": roll.model_copy(update={"seq": ev.seq})})
 
-    def _items(self, game_id: str, round_no: int) -> dict[str, adjv.ItemInfo]:
+    @staticmethod
+    def _items(acts: dict[str, Activity]) -> dict[str, adjv.ItemInfo]:
+        """进行中的行动里的全部条目（包括前几轮确认、还没做完的）。"""
         out: dict[str, adjv.ItemInfo] = {}
-        for pid, ev in self.declarations(game_id, round_no).items():
-            intent = Intent.model_validate(ev.payload["intent"])
-            for it in intent.items:
-                assert it.id is not None
-                targets = frozenset(t.id for t in it.targets if t.kind == "entity" and t.id)
-                out[it.id] = adjv.ItemInfo(player=pid, actor=it.actor, targets=targets)
+        for eid, act in acts.items():
+            for s in act.steps:
+                out[s.item] = adjv.ItemInfo(
+                    player=act.player, actor=eid, targets=frozenset(s.targets)
+                )
         return out
 
     def plan_adjudication(
@@ -868,13 +1157,24 @@ class Engine:
             for pid, v in _obj(state.get("controls")).items()
             if isinstance(v, list)
         }
-        required = self.required_players(game_id)
-        items = self._items(game_id, r.no)
-        if r.forced:
-            # 强制结算：没提交的玩家本轮视为没有行动
-            items = {k: v for k, v in items.items() if v.player in r.submitted}
+        now = int(cast(int, state["game_seconds"]))
+        end = r.ended_second if r.ended_second is not None else now
+        acts = activities_of(state.get("activities"))
+        items = self._items(acts)
+        players = [p.id for p in self._active_players(game_id) if self.controlled(game_id, p.id)]
+        # 必须有结果：行动在本轮结束前做完了的、本轮没有行动的玩家
+        required = {
+            pid
+            for pid in players
+            if any(e not in acts or acts[e].end <= end for e in controls.get(pid, set()))
+        }
         problems = adjv.check_sources(
-            adj, required=required, items=items, controls=controls, entities=entities
+            adj,
+            required=required,
+            allowed=set(players),
+            items=items,
+            controls=controls,
+            entities=entities,
         )
         problems += adjv.check_patch_paths(adj.state_patch, entities)
         groups: list[tuple[str, list[PatchOp]]] = []
@@ -898,7 +1198,42 @@ class Engine:
                         )
                     )
         before = self._space_for(m, cur, pack)
+        start_space = self._space_for(m, state, pack)
         mv_ops: list[PatchOp] = []
+        kp_moved = {mv.entity for mv in adj.movements}
+        # 进行中的行动：引擎把实体推到本轮结束时刻的位置；KP 的 movements 可以覆盖
+        for eid, act in sorted(acts.items()):
+            if eid in kp_moved or eid not in after_entities:
+                continue
+            ent = _obj(_obj(cur.get("entities")).get(eid))
+            pos = point_of(ent.get("pos"))
+            inside = ent.get("inside")
+            here = (
+                Location(pos=pos, inside=inside if isinstance(inside, str) else None)
+                if pos
+                else None
+            )
+            loc = location_at(act, end, here)
+            if loc is not None and loc != here:
+                mv_ops.append(
+                    PatchOp(op="replace", path=f"/entities/{eid}/pos", value=loc.pos.model_dump())
+                )
+                mv_ops.append(
+                    PatchOp(op="replace", path=f"/entities/{eid}/inside", value=loc.inside)
+                )
+        owner = {e: pid for pid, ents in controls.items() for e in ents}
+        outcome_players = {o.player_id for o in adj.outcomes}
+        for i, mv in enumerate(adj.movements):
+            pid = owner.get(mv.entity)
+            if pid is not None and mv.entity in acts and pid not in outcome_players:
+                # 改了进行中行动的实体的位置，就是影响了它：玩家必须收到结果，行动到此结束
+                problems.append(
+                    Problem(
+                        code="adj.moved_needs_outcome",
+                        path=f"movements[{i}]",
+                        params={"player": pid},
+                    )
+                )
         for i, mv in enumerate(adj.movements):
             path = f"movements[{i}]"
             if mv.entity not in after_entities:
@@ -909,7 +1244,7 @@ class Engine:
             loc = Location(pos=mv.to, inside=mv.inside)
             problems += self._check_location(m, mv.entity, loc, path)
             problems += self._check_move_distance(
-                before, mv.entity, mv.to, mv.ability, adj.time_advance_minutes, path
+                before, mv.entity, mv.to, mv.ability, end - now, path
             )
             mv_ops.append(
                 PatchOp(op="replace", path=f"/entities/{mv.entity}/pos", value=mv.to.model_dump())
@@ -925,17 +1260,36 @@ class Engine:
         after = self._space_for(m, cur, pack)
         problems += self._check_encounters(adj, after)
         problems += self._check_area_effects(game_id, r.no, adj)
+        # 感知范围里的人变了、或角色卡被改了的玩家，引擎认定受到了影响，必须有结果
+        for pid in sorted(set(players) - outcome_players):
+            changed = [
+                e
+                for e in controls.get(pid, set())
+                if e in after_entities
+                and set(start_space.perceived_by(e)) != set(after.perceived_by(e))
+            ]
+            touched = adjv.touched_entities(adj.state_patch) & controls.get(pid, set())
+            if changed or touched:
+                problems.append(
+                    Problem(
+                        code="adj.affected_needs_outcome", path="outcomes", params={"player": pid}
+                    )
+                )
         if problems:
             raise ValidationFailed("adjudication.invalid", problems)
         if adj.kp_notes is not None:
             ops = [PatchOp(op="replace", path="/kp_notes", value=adj.kp_notes)]
             cur = self._world.apply(cur, ops)
             groups.append(("kp_notes", ops))
-        minutes = int(cast(int, cur["game_minutes"])) + adj.time_advance_minutes
-        ops = [PatchOp(op="replace", path="/game_minutes", value=minutes)]
+        ops = [PatchOp(op="replace", path="/game_seconds", value=end)]
+        # 做完了的行动、收到结果的玩家的全部行动，到此结束
+        notified = outcome_players
+        for eid, act in sorted(acts.items()):
+            if act.end <= end or act.player in notified:
+                ops.append(PatchOp(op="remove", path=f"/activities/{eid}"))
         cur = self._world.apply(cur, ops)
         groups.append(("time", ops))
-        expire = self._world.expire(cur, minutes)
+        expire = self._world.expire(cur, end)
         if expire:
             cur = self._world.apply(cur, expire)
             groups.append(("expiry", expire))
@@ -965,7 +1319,7 @@ class Engine:
         return out
 
     def _check_move_distance(
-        self, space: Space, eid: str, to: Point, ability: str | None, minutes: int, path: str
+        self, space: Space, eid: str, to: Point, ability: str | None, seconds: int, path: str
     ) -> list[Problem]:
         if ability is not None:
             # 依据能力的特殊移动：只校验这个能力确实在该实体的角色卡上
@@ -982,14 +1336,16 @@ class Engine:
         body = space.bodies.get(eid)
         if body is None:
             return []  # 还没有位置的实体（例如刚出现的）：第一次放置不算移动
-        speed = space.derived(eid, "move_speed")
-        dist = self._spatial.distance(body.pos, to)
-        if dist > speed * minutes + 1e-6:
+        try:
+            need, _ = travel_seconds(space, eid, body.pos, to)
+        except ValidationFailed as e:
+            return [Problem(code=e.code, path=path, params=dict(e.params))]
+        if need > seconds:
             return [
                 Problem(
                     code="space.too_far",
                     path=path,
-                    params={"distance": round(dist, 2), "max": round(speed * minutes, 2)},
+                    params={"seconds_needed": need, "seconds_available": seconds},
                 )
             ]
         return []
@@ -1209,13 +1565,18 @@ class Engine:
                 )
                 for cause, ops in groups
             ]
+            seconds = int(cast(int, final["game_seconds"]))
             for o in adj.outcomes:
                 evs.append(
                     NewEvent(
                         type="feedback",
                         actor=KP,
                         visibility=Visibility.to(o.player_id),
-                        payload={"text": feedback[o.player_id], "round": r.no},
+                        payload={
+                            "text": feedback[o.player_id],
+                            "round": r.no,
+                            "game_seconds": seconds,
+                        },
                     )
                 )
             if isinstance(bc, str):
@@ -1227,13 +1588,13 @@ class Engine:
                         payload={"text": bc, "anonymous": False, "round": r.no},
                     )
                 )
-            minutes = int(cast(int, final["game_minutes"]))
+            # 回合对玩家不可见：没被通知的玩家不能从回合切得快慢推断别人在做什么
             evs.append(
                 NewEvent(
                     type="round_closed",
                     actor=ENGINE,
-                    visibility=Visibility.public(),
-                    payload={"round": r.no, "game_minutes": minutes, "game_over": adj.game_over},
+                    visibility=Visibility.kp_only(),
+                    payload={"round": r.no, "game_seconds": seconds, "game_over": adj.game_over},
                 )
             )
             if not adj.game_over:
@@ -1241,19 +1602,19 @@ class Engine:
                     NewEvent(
                         type="round_opened",
                         actor=ENGINE,
-                        visibility=Visibility.public(),
-                        payload={"round": r.no + 1, "game_minutes": minutes},
+                        visibility=Visibility.kp_only(),
+                        payload={"round": r.no + 1, "game_seconds": seconds},
                     )
                 )
             written = self._events.append(game_id, r.no, evs)
             self._repo.update_round(
-                game_id, r.no, status="published", ended_minute=minutes, snapshot=final
+                game_id, r.no, status="published", ended_second=seconds, snapshot=final
             )
             if adj.game_over:
                 self._repo.update_game(game_id, status="ended")
             else:
                 self._repo.insert_round(
-                    Round(game_id=game_id, no=r.no + 1, status="collecting", started_minute=minutes)
+                    Round(game_id=game_id, no=r.no + 1, status="collecting", started_second=seconds)
                 )
                 self._repo.update_game(game_id, current_round=r.no + 1)
             adj_seq = written[0].seq
@@ -1355,6 +1716,9 @@ class Engine:
             return ""
         v = _obj(_obj(ent.get("sheet")).get("fields")).get(tpl.appearance_field)
         return v if isinstance(v, str) else ""
+
+    def appearance_of(self, game_id: str, entity_id: str) -> str:
+        return self._appearance(self._state(game_id), self.rulepack(game_id), entity_id)
 
     def _entity_name(self, state: State, entity_id: str) -> str:
         sheet = _obj(_obj(_obj(state.get("entities")).get(entity_id)).get("sheet"))
@@ -1458,9 +1822,52 @@ class Engine:
     def handles(self, player_id: str) -> list[Handle]:
         return self._handles.list(player_id)
 
+    def _last_notice(self, game_id: str, player_id: str) -> Event | None:
+        """该玩家最近一次被通知（开场私信、反馈、对话）的事件。"""
+        evs = self._events.view_for(
+            game_id,
+            player_id,
+            types=["feedback", "pm_kp", "talk_invited", "talk_accepted", "talk_ended"],
+        )
+        for e in reversed(evs):
+            if e.type != "pm_kp" or e.payload.get("kind") == "opening":
+                return e
+        return None
+
+    def player_seconds(self, game_id: str, player_id: str) -> int:
+        """该玩家自己的时间：上一次被通知时的游戏内时刻。没被通知的玩家看不到时间往前走。"""
+        e = self._last_notice(game_id, player_id)
+        if e is None:
+            return 0
+        v = e.payload.get("game_seconds")
+        if isinstance(v, int):
+            return v
+        if e.type == "pm_kp":
+            return 0
+        return int(cast(int, self.rebuild_state(game_id, e.seq).get("game_seconds", 0)))
+
+    def _player_state(self, game_id: str, player_id: str) -> State:
+        """该玩家看到的世界。轮到他行动时就是现在；行动还在进行时，是他上一次被通知时那一刻的状态。"""
+        e = self._last_notice(game_id, player_id)
+        if e is None or self.idle_entities(game_id, player_id):
+            return self._state(game_id)
+        key = (game_id, e.seq)
+        hit = self._view_cache.get(key)
+        if hit is None:
+            hit = self.rebuild_state(game_id, e.seq)
+            if len(self._view_cache) > 256:
+                self._view_cache.clear()
+            self._view_cache[key] = hit
+        return hit
+
+    def _player_space(self, game_id: str, player_id: str) -> Space:
+        return self._space_for(
+            self._map(game_id), self._player_state(game_id, player_id), self.rulepack(game_id)
+        )
+
     def scene(self, game_id: str, player_id: str) -> Scene:
-        """我的各实体此刻的位置、各自的在场列表，以及我已知的地图变化。感知不到的实体不出现。"""
-        space = self._space(game_id)
+        """我的各实体在我的时间点的位置、各自的在场列表，以及我已知的地图变化。感知不到的实体不出现。"""
+        space = self._player_space(game_id, player_id)
         state = space.state
         mine = space.controls.get(player_id, [])
         handles = {h.entity_id: h for h in self._handles.list(player_id)}
@@ -1502,7 +1909,7 @@ class Engine:
 
     def state_slice(self, game_id: str, player_id: str) -> dict[str, JsonValue]:
         """该玩家各实体感知范围内的状态，给澄清对话用。只含角色此刻能感知或已知的事。"""
-        space = self._space(game_id)
+        space = self._player_space(game_id, player_id)
         state = space.state
         pack = space.pack
         mine = space.controls.get(player_id, [])
@@ -1542,7 +1949,7 @@ class Engine:
             if c.public or player_id in c.known_by
         ]
         return {
-            "game_minutes": state.get("game_minutes"),
+            "game_seconds": state.get("game_seconds"),
             "entities": own,
             "known_map_changes": changes,
         }

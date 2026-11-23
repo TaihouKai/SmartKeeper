@@ -68,20 +68,23 @@ def test_unattended_round_resolves_and_publishes(site: Site) -> None:
         for c in players:
             echo = c.post("/api/action/parse", json={"text": "我四处看看"}).json()
             assert echo["items"] and not echo["unresolved"]
-            r = c.post("/api/action", json={"text": "我四处看看", "intent": echo["intent"]})
+            r = c.post("/api/action", json={"parse_id": echo["parse_id"]})
             assert r.status_code == 200, r.text
         status = players[0].get("/api/status").json()
-        assert status["round"] == round_no + 1 and status["phase"] == "collecting"
+        assert status["me"] == "act"
+        assert "round" not in status  # 玩家看不到回合数
+        assert status["game_seconds"] == 60 * round_no
         for c in players:
             fb = [e for e in c.get("/api/events").json() if e["type"] == "feedback"]
             assert len(fb) == round_no
+            assert all(e["round_no"] == 0 for e in c.get("/api/events").json())
 
 
 def test_player_never_sees_entity_ids(site: Site) -> None:
     game_id, (p1, _p2) = setup_game(site)
     start(site, game_id)
     echo = p1.post("/api/action/parse", json={"text": "看看"}).json()
-    p1.post("/api/action", json={"text": "看看", "intent": echo["intent"]})
+    p1.post("/api/action", json={"parse_id": echo["parse_id"]})
     for path in ("/api/events", "/api/scene", "/api/sheets"):
         body = p1.get(path).text
         assert "ent_" not in body and "npc_" not in body, path
@@ -96,7 +99,7 @@ def test_chat_canary_never_reaches_llm_or_admin_log(site: Site) -> None:
     assert canary in p2.get("/api/chat").text
     for c in (p1, p2):
         echo = c.post("/api/action/parse", json={"text": "看看"}).json()
-        c.post("/api/action", json={"text": "看看", "intent": echo["intent"]})
+        c.post("/api/action", json={"parse_id": echo["parse_id"]})
     s = site.services
     for call in s.llm_log.list(game_id, 1000):
         assert canary not in call.system and canary not in str(call.messages)

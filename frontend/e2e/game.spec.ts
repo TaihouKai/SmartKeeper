@@ -40,6 +40,26 @@ async function startGame(browser: Browser, gameId: string) {
   expect(r.ok(), await r.text()).toBeTruthy();
 }
 
+/** 管理员手动修改：把各玩家的第一个实体放到指定坐标（米）。 */
+async function placePlayers(browser: Browser, gameId: string, where: Record<string, [number, number]>) {
+  const ctx = await browser.newContext();
+  const req = ctx.request;
+  await req.post(`${SERVER}/api/admin/login`, { data: { password: PASSWORD } });
+  const detail = await (await req.get(`${SERVER}/api/admin/games/${gameId}`)).json();
+  const state = await (await req.get(`${SERVER}/api/admin/games/${gameId}/state`)).json();
+  const ops: unknown[] = [];
+  for (const p of detail.players as { id: string; display_name: string }[]) {
+    const xy = where[p.display_name];
+    const eid = (state.controls[p.id] as string[] | undefined)?.[0];
+    if (!xy || !eid) continue;
+    ops.push({ op: "replace", path: `/entities/${eid}/pos`, value: { x: xy[0], y: xy[1], z: 0 } });
+    ops.push({ op: "replace", path: `/entities/${eid}/inside`, value: null });
+  }
+  const r = await req.patch(`${SERVER}/api/admin/games/${gameId}/state`, { data: { ops, note: "e2e" } });
+  expect(r.ok(), await r.text()).toBeTruthy();
+  await ctx.close();
+}
+
 async function createCharacter(page: Page, i: number) {
   await page.getByRole("button", { name: "Draw an identity" }).click();
   await expect(page.getByText("Identity").first()).toBeVisible();
@@ -61,12 +81,14 @@ async function act(page: Page, text: string) {
   await box.locator("textarea").fill(text);
   await box.getByRole("button", { name: "Parse" }).click();
   await expect(page.locator(".sk-echo")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".sk-echo")).toContainText("Estimated time 1m 0s");
+  await shot(page, "play-echo");
   await page.getByRole("button", { name: "Confirm" }).click();
   await expect(page.locator(".sk-echo")).toHaveCount(0);
 }
 
 test("three players create characters and play two rounds without the console", async ({ browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   const { gameId, invites } = await setup(browser, 3);
   const pages: Page[] = [];
   for (const [i, url] of invites.entries()) {
@@ -83,7 +105,7 @@ test("three players create characters and play two rounds without the console", 
   for (const page of pages) {
     await expect(async () => {
       await page.goto(`${SERVER}/play`);
-      await expect(page.locator(".sk-statusbar")).toContainText("Round 1", { timeout: 2_000 });
+      await expect(page.locator(".sk-statusbar")).toContainText("Your move", { timeout: 2_000 });
     }).toPass({ timeout: 60_000 });
   }
   for (const round of [1, 2]) {
@@ -93,12 +115,30 @@ test("three players create characters and play two rounds without the console", 
     for (const page of pages) {
       await expect(async () => {
         await page.reload();
-        await expect(page.locator(".sk-statusbar")).toContainText(`Round ${round + 1}`, { timeout: 2_000 });
+        await expect(page.locator(".sk-event.feedback")).toHaveCount(round, { timeout: 2_000 });
       }).toPass({ timeout: 60_000 });
-      await expect(page.locator(".sk-event.feedback")).toHaveCount(round);
+      // 玩家看不到回合数，只看到自己的时间和状态
+      await expect(page.locator(".sk-statusbar")).toContainText("Your move");
+      await expect(page.locator(".sk-statusbar")).not.toContainText("Round");
     }
   }
   await shot(pages[0]!, "play-kp");
+  // 对话模式：玩家 1 在地图页向身边的 NPC 发起对话，说一句，等对方（脚本化 KP 扮演）回话，再结束
+  // 身份是随机抽的，开场位置也就不同：用管理员手动修改把玩家 1 放到卖花老人（20, -30）身边，其他人放远
+  await placePlayers(browser, gameId, { Player1: [20, -34], Player2: [-90, -90], Player3: [-90, -80] });
+  const a = pages[0]!;
+  await a.reload();
+  await a.getByRole("button", { name: "Map", exact: true }).click();
+  await a.locator(".sk-card li").first().getByRole("button", { name: "Talk", exact: true }).click();
+  await expect(a.locator(".sk-talk textarea")).toBeVisible({ timeout: 10_000 });
+  await a.locator(".sk-talk textarea").fill("Did you see the package?");
+  await a.getByRole("button", { name: "Say", exact: true }).click();
+  await expect(a.locator(".sk-talk")).toContainText("Did you see the package?");
+  // NPC 的回话按长度延迟出现（模拟打字）
+  await expect(a.locator(".sk-talk .sk-event:not(.mine)")).toHaveCount(1, { timeout: 30_000 });
+  await shot(a, "play-talk");
+  await a.getByRole("button", { name: "End conversation" }).click();
+  await expect(a.locator(".sk-talk").first()).toContainText("The conversation is over.", { timeout: 10_000 });
   // 地图页：3D 地图和在场列表
   await pages[0]!.getByRole("button", { name: "Map" }).click();
   await expect(pages[0]!.locator(".maplibregl-canvas")).toBeVisible();
@@ -135,7 +175,7 @@ test("admin console login and panels render", async ({ page }) => {
   await page.getByRole("button", { name: "Games" }).click();
   await page.locator(".sk-chip", { hasText: "e2e" }).first().click();
   await page.getByRole("button", { name: "World state" }).click();
-  await expect(page.locator("pre.sk-code").first()).toContainText("game_minutes");
+  await expect(page.locator("pre.sk-code").first()).toContainText("game_seconds");
   await page.getByRole("button", { name: "LLM calls" }).click();
   await expect(page.getByText("adjudicate").first()).toBeVisible();
   await page.getByText("adjudicate").first().click();

@@ -77,7 +77,17 @@ def install_handlers(g: Game) -> None:
         m = re.search(r'"ref": "(h[0-9a-f]+)",\s*"name"', call.prompt)
         assert m, call.prompt
         return json.dumps(
-            {"items": [{"actor": m.group(1), "verb": "look", "targets": [], "detail": ""}]}
+            {
+                "items": [
+                    {
+                        "actor": m.group(1),
+                        "verb": "look",
+                        "targets": [],
+                        "detail": "",
+                        "seconds": 600,
+                    }
+                ]
+            }
         )
 
     def plan(call: FakeCall) -> str:
@@ -90,22 +100,21 @@ def install_handlers(g: Game) -> None:
 
     def adjudicate(call: FakeCall) -> str:
         r = e.round(g.game_id)
-        decl = e.declarations(g.game_id)
+        acts = e.activities(g.game_id)
         outcomes = []
-        for pid in e.required_players(g.game_id):
-            resolves: list[str] = []
-            if pid in decl and (not r.forced or pid in r.submitted):
-                resolves = [
-                    it.id or "" for it in Intent.model_validate(decl[pid].payload["intent"]).items
-                ]
+        for p in e.players(g.game_id):
+            ents = e.controlled(g.game_id, p.id)
+            if not p.active or not ents:
+                continue
+            resolves = [st.item for x in ents if x in acts for st in acts[x].steps]
             outcomes.append(
                 Outcome(
-                    player_id=pid,
+                    player_id=p.id,
                     resolves=tuple(resolves),
                     result="你看见了 {{npc_thief}} 匆匆走过。",
                 ).model_dump()
             )
-        body: dict[str, Any] = {"time_advance_minutes": 10, "outcomes": outcomes}
+        body: dict[str, Any] = {"outcomes": outcomes}
         body.update(g.round_hooks.get(r.no, {}))
         return json.dumps(body, ensure_ascii=False)
 

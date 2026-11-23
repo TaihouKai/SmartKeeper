@@ -53,7 +53,8 @@ class MemoryEntryIn(Frozen):
 
 
 class Adjudication(Frozen):
-    time_advance_minutes: int = Field(ge=0)
+    """一回合的裁定。推进多久由引擎决定（最早结束的行动），KP 只裁定这段时间里发生的事。"""
+
     outcomes: tuple[Outcome, ...]
     encounters: tuple[Encounter, ...] = ()
     movements: tuple[Movement, ...] = ()

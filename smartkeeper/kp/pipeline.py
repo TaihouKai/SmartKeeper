@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from pydantic import BaseModel, JsonValue
 
+from smartkeeper.contracts import KP as KP_ACTOR
 from smartkeeper.contracts import (
     ActionItem,
     Adjudication,
@@ -40,6 +41,7 @@ from smartkeeper.kp.schemas import (
     HandleOut,
     IntentOut,
     LeakOut,
+    NpcTalkOut,
     OpeningOut,
     OutputError,
     PlanOut,
@@ -275,6 +277,7 @@ class KP:
                         targets=tuple(targets),
                         destination=dest,
                         detail=it.detail,
+                        act_seconds=it.seconds,
                     )
                 )
             claims = tuple(
@@ -290,6 +293,26 @@ class KP:
             )
 
         return self._structured("parse_intent", game_id, prompt, IntentOut, convert, judge=False)
+
+    def npc_reply(
+        self, game_id: str, talk_id: str, wait: Callable[[str], None] | None = None
+    ) -> str:
+        """对话模式里替 NPC 回一句；KP 也可以让 NPC 结束对话。wait 在写入前调用（模拟打字的延迟）。"""
+        out = self._structured(
+            "npc_talk",
+            game_id,
+            self.ctx.npc_talk(game_id, talk_id),
+            NpcTalkOut,
+            lambda o: o,
+            judge=False,
+        )
+        if wait is not None:
+            wait(out.text)
+        with contextlib.suppress(IllegalState):  # 等待期间对方已经结束了对话
+            self.engine.say(game_id, talk_id, KP_ACTOR, out.text)
+            if out.end:
+                self.engine.end_talk(game_id, talk_id, KP_ACTOR)
+        return out.text
 
     def on_action(self, game_id: str) -> bool:
         """有人提交行动后调用：全员都已确认行动就自动结算。返回是否开始了结算。"""

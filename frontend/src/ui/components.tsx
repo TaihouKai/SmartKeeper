@@ -156,10 +156,18 @@ export function MarkdownView({ text }: { text: string }) {
   );
 }
 
-export function formatGameTime(start: string | null | undefined, minutes: number, lang: string): string {
-  if (!start) return `+${minutes}m`;
-  const d = new Date(start);
-  if (Number.isNaN(d.getTime())) return `+${minutes}m`;
-  d.setMinutes(d.getMinutes() + minutes);
-  return d.toLocaleString(lang === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+/** 游戏内时刻：剧本的起始时刻加上经过的秒数。 */
+export function formatGameTime(start: string | null | undefined, seconds: number, lang: string): string {
+  const d = start ? new Date(start) : null;
+  if (!d || Number.isNaN(d.getTime())) return `+${seconds}s`;
+  d.setSeconds(d.getSeconds() + seconds);
+  return d.toLocaleString(lang === "zh" ? "zh-CN" : "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+/** 时长：“1 分 20 秒”。 */
+export function formatDuration(t: (k: string, p?: Record<string, string>) => string, seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return t("time.s", { s: String(s) });
+  if (s < 3600) return t("time.ms", { m: String(Math.floor(s / 60)), s: String(s % 60) });
+  return t("time.hm", { h: String(Math.floor(s / 3600)), m: String(Math.floor((s % 3600) / 60)) });
 }

@@ -227,3 +227,23 @@ def test_invalid_import_rejected_by_save(store: SqlRulePackStore) -> None:
 def test_pack_type_roundtrip() -> None:
     pack = load_pack("multi")
     assert RulePack.model_validate_json(pack.model_dump_json()) == pack
+
+
+def test_can_fly_is_a_required_boolean_field(rules: RulesService) -> None:
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    tpl = tpl.model_copy(update={"fields": tuple(f for f in tpl.fields if f.name != "can_fly")})
+    pack = pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+    assert "pack.missing_can_fly" in {p.code for p in rules.validate_pack(pack)}
+
+
+def test_boolean_field_defaults_to_false_and_checks_type(rules: RulesService) -> None:
+    pack = load_pack("single")
+    filled = rules.init_sheet(pack, "person", BASE)
+    assert isinstance(filled, dict)
+    assert filled["fields"]["can_fly"] is False  # type: ignore[index]
+    bad = {**BASE, "fields": {**BASE["fields"], "can_fly": "yes"}}  # type: ignore[dict-item]
+    codes = {
+        p.code for p in rules.validate_sheet(pack, "person", rules.init_sheet(pack, "person", bad))
+    }
+    assert "sheet.type" in codes

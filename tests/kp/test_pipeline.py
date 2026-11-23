@@ -35,7 +35,7 @@ def test_end_to_end_characters_three_rounds_and_ending() -> None:
     assert game.status == "ended"
     assert count(g, "adjudication") == 3
     assert count(g, "feedback") == 9
-    assert e.world_state(g.game_id)["game_minutes"] == 30
+    assert e.world_state(g.game_id)["game_seconds"] == 1800
     assert [r.status for r in e.rounds(g.game_id)] == ["published"] * 3
     # 每个玩家的反馈只发给他自己
     for p in g.players:
@@ -113,7 +113,7 @@ def test_invalid_adjudication_is_retried_with_errors() -> None:
     def flaky(call):  # type: ignore[no-untyped-def]
         calls["n"] += 1
         if calls["n"] == 1:
-            return '{"time_advance_minutes": 10, "outcomes": []}'  # 缺 outcome，引擎校验会拒绝
+            return '{"outcomes": []}'  # 缺 outcome，引擎校验会拒绝
         return good(call)
 
     g.llm.on("adjudicate", flaky)
@@ -190,7 +190,16 @@ def test_long_memory_brings_back_old_event() -> None:
     g.llm.on(
         "parse_intent",
         lambda c: json.dumps(
-            {"items": [{"actor": g.own_ref(p1), "verb": "talk", "targets": [{"ref": ref}]}]}
+            {
+                "items": [
+                    {
+                        "actor": g.own_ref(p1),
+                        "verb": "talk",
+                        "targets": [{"ref": ref}],
+                        "seconds": 600,
+                    }
+                ]
+            }
         ),
     )
     g.declare(p1, f"我问 @[x]({ref}) 记不记得那一巴掌")
@@ -211,7 +220,7 @@ def test_claim_check_recorded_and_used() -> None:
         "parse_intent",
         lambda c: json.dumps(
             {
-                "items": [{"actor": g.own_ref(p1), "verb": "remind"}],
+                "items": [{"actor": g.own_ref(p1), "verb": "remind", "seconds": 600}],
                 "claims": [{"text": "我以前帮过他"}],
             }
         ),
@@ -223,3 +232,25 @@ def test_claim_check_recorded_and_used() -> None:
     g.declare(g.players[1])
     assert count(g, "claim_check", verdict="holds") == 1
     assert '"verdict": "holds"' in g.llm.by_purpose("adjudicate")[-1].prompt
+
+
+def test_npc_reply_in_talk_mode() -> None:
+    from smartkeeper.contracts import PatchOp
+
+    g = new_game(2)
+    e, p0 = g.engine, g.players[0]
+    me = g.ents(p0)[0]
+    e.admin_patch(
+        g.game_id,
+        [PatchOp(op="replace", path=f"/entities/{me}/pos", value={"x": 22, "y": -30, "z": 0})],
+    )
+    talk = e.start_talk(p0, me, "npc_vendor")
+    e.say(g.game_id, talk.id, p0, "老人家，看见一个背黑包的人吗？")
+    g.llm.on("npc_talk", lambda c: '{"text": "往西去了。", "end": true}')
+    waited: list[str] = []
+    assert g.kp.npc_reply(g.game_id, talk.id, wait=waited.append) == "往西去了。"
+    assert waited == ["往西去了。"]  # 写入之前先等（模拟打字）
+    t = e.talk(g.game_id, talk.id)
+    assert [m.text for m in t.messages][-1] == "往西去了。" and t.status == "ended"
+    call = next(c for c in g.llm.calls if c.purpose == "npc_talk")
+    assert "背黑包" in call.prompt and "<player_text" in call.prompt

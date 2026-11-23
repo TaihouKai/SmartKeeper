@@ -8,6 +8,7 @@ from pydantic import JsonValue
 from pydantic import ValidationError as PydanticError
 
 from smartkeeper.contracts import (
+    FLY_FIELD,
     REQUIRED_DERIVED,
     Effect,
     EntityTemplate,
@@ -95,7 +96,7 @@ def _check_field_def(
     problems: list[Problem] = []
     if fd.choices and fd.kind != "text":
         problems.append(Problem(code="pack.choices_need_text", path=path))
-    if fd.cls == "runtime" and fd.kind != "text" and fd.initial is None:
+    if fd.cls == "runtime" and fd.kind not in ("text", "boolean") and fd.initial is None:
         problems.append(Problem(code="pack.runtime_needs_initial", path=path))
     if fd.kind == "resource" and fd.max is None:
         problems.append(Problem(code="pack.resource_needs_max", path=path))
@@ -159,6 +160,9 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
                 code="pack.missing_appearance", path=path, params={"name": tpl.appearance_field}
             )
         )
+    fly = next((x for x in tpl.fields if x.name == FLY_FIELD), None)
+    if fly is None or fly.kind != "boolean":
+        problems.append(Problem(code="pack.missing_can_fly", path=path, params={"name": FLY_FIELD}))
     for i, fd in enumerate(tpl.fields):
         problems += _check_field_def(pack, tpl, fd, f"{path}.fields[{i}]")
     for i, d in enumerate(tpl.derived):
@@ -268,6 +272,10 @@ def _check_value(
     value: JsonValue,
     path: str,
 ) -> list[Problem]:
+    if fd.kind == "boolean":
+        if not isinstance(value, bool):
+            return [Problem(code="sheet.type", path=path, params={"expected": "boolean"})]
+        return []
     if fd.kind == "text":
         if not isinstance(value, str):
             return [Problem(code="sheet.type", path=path, params={"expected": "text"})]

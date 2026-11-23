@@ -27,6 +27,11 @@ EventType = Literal[
     "identity_assigned",
     "admin_override",
     "summary",
+    "talk_invited",
+    "talk_accepted",
+    "talk_declined",
+    "talk_message",
+    "talk_ended",
 ]
 
 KP = "kp"

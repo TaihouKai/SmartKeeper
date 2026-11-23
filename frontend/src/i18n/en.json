@@ -52,7 +52,9 @@
   },
   "codes": {
     "action": {
+      "busy": "Your action isn't finished yet",
       "invalid": "Invalid action",
+      "parse_expired": "That parse expired; parse again",
       "unresolved_reference": "Some references couldn't be matched"
     },
     "auth": {
@@ -98,6 +100,9 @@
     "mention": {
       "unknown": "Unknown @ reference"
     },
+    "move": {
+      "cannot_move": "This character can't move (speed 0)"
+    },
     "pack": {
       "bad_count": "Min and max counts don't make sense",
       "check_needs_levels": "A check needs at least one result level",
@@ -106,6 +111,7 @@
       "group_field_must_be_player": "Fields in a group must be player-entered",
       "malformed": "Malformed: {msg}",
       "missing_appearance": "Missing the appearance field {name} (must be text)",
+      "missing_can_fly": "Missing the can-fly field {name} (must be yes/no)",
       "missing_required_derived": "Missing the required derived value {name}",
       "no_player_entities": "Set which entities each player creates",
       "no_templates": "Add at least one template",
@@ -122,7 +128,8 @@
     },
     "round": {
       "illegal_transition": "Not allowed in this phase ({status})",
-      "not_ready": "Some players haven't submitted"
+      "not_ready": "Some players haven't submitted",
+      "talk_in_progress": "A conversation is still open"
     },
     "rulepack": {
       "invalid": "The rule pack is invalid",
@@ -137,6 +144,14 @@
       "required": "Required",
       "type": "Wrong type",
       "unknown_field": "Unknown field"
+    },
+    "talk": {
+      "busy": "You're busy and can't start a conversation",
+      "not_active": "The conversation is over",
+      "not_now": "You can't start a conversation now",
+      "not_perceived": "You can't perceive them right now",
+      "partner_busy": "They're already talking to someone",
+      "self": "You can't talk to yourself"
     },
     "text": {
       "empty": "Text can't be empty",
@@ -232,6 +247,8 @@
     "kp_language": "Keeper language",
     "lifecycle": "Progress",
     "map": "Map",
+    "min_round": "Minimum round (seconds)",
+    "min_round_hint": "Built but off at 0. Above 0, every round advances at least this many seconds even if someone's action finishes sooner.",
     "name": "Name",
     "new": "New game",
     "no_search": "The configured model can't search the web; the keeper relies on its own knowledge.",
@@ -279,14 +296,18 @@
     "action_box": "Action",
     "action_hint": "Declare this round's action here (\"I …\"). It is parsed for you to confirm, and can be changed until the round resolves. Only confirmed actions change the world.",
     "ask": "Send",
+    "busy": "Your action is still under way. You'll be told when it finishes or something affects you; until then it can't be changed.",
     "chat_box": "Ask the keeper",
     "chat_hint": "Ask questions and clarify. The keeper answers only what your character could know; nothing here counts as an action.",
     "confirm": "Confirm",
+    "confirm_hint": "Once confirmed, the time can't be changed.",
     "edit": "Edit",
+    "estimate": "Estimated time {total}",
     "insert_mention": "Insert @…",
+    "item_time": "travel {move} + action {act}",
     "parse": "Parse",
     "quote_chip": "Quote #{seq}",
-    "submitted_already": "Submitted this round:",
+    "submitted_already": "Submitted:",
     "understood_as": "Your action was understood as:",
     "unresolved": "These references could not be matched; use @ and parse again:"
   },
@@ -327,6 +348,7 @@
     "scenarios": "Scenarios"
   },
   "play": {
+    "close": "Close",
     "handle_label": "Label",
     "handle_note": "Private note",
     "map_hint": "Tap a person or place to @ it; tap the ground to pick a destination. Describe height in words (\"the rooftop\", \"100 m up\").",
@@ -339,8 +361,15 @@
       "chat": "Chat",
       "kp": "Keeper",
       "map": "Map",
-      "sheet": "Sheet"
-    }
+      "sheet": "Sheet",
+      "talk": "Talk"
+    },
+    "talk": "Talk",
+    "travel_fly": "flying {time}",
+    "travel_none": "can't get there",
+    "travel_title": "Time to reach this point",
+    "travel_walk": "walking {time}",
+    "use_destination": "Use as destination"
   },
   "review": {
     "adjudication": "Adjudication JSON",
@@ -368,6 +397,7 @@
       "name": "Check name (the keeper uses it)",
       "target": "Target formula"
     },
+    "can_fly_badge": "can fly (required)",
     "checking": "Checking…",
     "checks": "Checks",
     "cls": {
@@ -430,17 +460,22 @@
     "groups_hint": "A group is one kind of entry on the sheet, such as class skills, personal skills or special abilities; make one group per kind. Each entry under it is one specific skill or ability. Entries come from two places: players add their own when creating a character, and you can write fixed entries here (optionally with a condition, e.g. only for one class).",
     "help": {
       "appearance": "Appearance: the player describes how the character looks. When others first see the character, its handle (e.g. \"woman in a red scarf\") is generated from this. It can't be removed or retyped.",
+      "can_fly": "Can fly: ticked by the player, off by default. Flyers travel in a straight line at fly speed; others go up or down first and then along the ground at move speed. It can't be removed or retyped.",
       "concealment": "Multiplies how far others can notice this character: 1 is normal, 0.3 means others must be much closer. The default 1 is fine.",
+      "fly_multiplier": "How many times the move speed a flyer flies. Default 1. Only matters for characters who can fly.",
+      "fly_speed": "Metres per minute when flying; default fly_multiplier * move_speed. Only matters for characters who can fly.",
       "move_speed": "Metres per minute. Required, e.g. 80 for an ordinary person, or 60 + agi * 2.",
       "perception_radius": "How far (in metres) this character notices others. Required, e.g. 50 + per, or a constant like 100."
     },
     "import": "Import file",
     "kind": {
+      "boolean": "Yes/no",
       "number": "Number",
       "resource": "Resource",
       "text": "Text"
     },
     "kind_help": {
+      "boolean": "Yes/no: a checkbox, e.g. can fly. It's 1 or 0 in formulas.",
       "number": "Number: attributes, skill levels, sizes.",
       "resource": "Resource: a value with a ceiling that gets spent or restored (HP, mana, uses left). A maximum is required and may be a formula such as hp_max.",
       "text": "Text: descriptions such as background; with choices, the player picks one of them."
@@ -479,6 +514,8 @@
       "field_name": "e.g. hp",
       "formula": "e.g. str * 2 + 10",
       "formula_concealment": "e.g. 1",
+      "formula_fly_multiplier": "e.g. 1",
+      "formula_fly_speed": "e.g. fly_multiplier * move_speed",
       "formula_move_speed": "e.g. 80",
       "formula_perception_radius": "e.g. 50 + per",
       "group_label": "e.g. Class skills",
@@ -486,6 +523,8 @@
       "group_name": "e.g. class_skills",
       "initial": "e.g. hp_max",
       "label_concealment": "e.g. Concealment",
+      "label_fly_multiplier": "e.g. Fly multiplier",
+      "label_fly_speed": "e.g. Fly speed",
       "label_move_speed": "e.g. Move speed",
       "label_perception_radius": "e.g. Perception radius",
       "max": "e.g. 100",
@@ -495,6 +534,8 @@
       "template_name": "e.g. hero",
       "unit": "optional, e.g. m",
       "unit_concealment": "none",
+      "unit_fly_multiplier": "none",
+      "unit_fly_speed": "m/min",
       "unit_move_speed": "m/min",
       "unit_perception_radius": "m",
       "when": "e.g. class = \"warrior\""
@@ -550,13 +591,15 @@
   "sheet": {
     "change": "Round {round} {path}: {old} → {new}",
     "history": "History",
+    "no": "No",
     "source": {
       "admin": "admin edit",
       "engine": "engine",
       "feedback": "see that round's result",
       "opening": "opening"
     },
-    "statuses": "Statuses:"
+    "statuses": "Statuses:",
+    "yes": "Yes"
   },
   "state": {
     "apply": "Apply",
@@ -568,6 +611,12 @@
   },
   "status": {
     "ended": "Ended",
+    "me": {
+      "act": "Your move",
+      "busy": "Your action is under way",
+      "idle": "Waiting",
+      "submitted": "Submitted, waiting"
+    },
     "not_started": "Not started",
     "phase": {
       "adjudicating": "Resolving",
@@ -575,7 +624,26 @@
       "published": "Published",
       "review": "Awaiting review"
     },
-    "round": "Round {round}",
-    "submitted": "Submitted {done}/{total}"
+    "round": "Round {round}"
+  },
+  "talk": {
+    "accept": "Accept",
+    "cancel": "Withdraw",
+    "decline": "Decline",
+    "declined": "They didn't respond.",
+    "end": "End conversation",
+    "ended": "The conversation is over.",
+    "hint": "Talking happens face to face and is heard at once. While any conversation is open the round won't resolve; talking takes no game time.",
+    "invited_me": "@{label} wants to talk to you. If you accept, what you were doing stops and you'll act again after the talk.",
+    "me": "You",
+    "none": "No conversation. Use Talk next to someone in the map tab's “Currently perceived” list.",
+    "send": "Say",
+    "waiting": "Waiting for an answer…",
+    "with": "Talking with @{label}"
+  },
+  "time": {
+    "hm": "{h}h {m}m",
+    "ms": "{m}m {s}s",
+    "s": "{s}s"
   }
 }

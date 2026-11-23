@@ -8,9 +8,12 @@ type GroupDef = Schemas["GroupDef"];
 
 export type Effect = { description: string; target: string | null; op: "add" | "mul" | null; value: string | null };
 export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
-export type Entry = { name: string; description: string; fields: Record<string, string | number>; effects: Effect[]; shape: Shape | null };
+export type Entry = { name: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null };
 
-export function FieldInput({ def, value, onChange }: { def: FieldDef; value: string | number | undefined; onChange: (v: string | number) => void }) {
+export function FieldInput({ def, value, onChange }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void }) {
+  if (def.kind === "boolean") {
+    return <input type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />;
+  }
   if (def.kind === "text") {
     if (def.choices && def.choices.length) {
       return (

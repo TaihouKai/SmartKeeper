@@ -112,7 +112,7 @@ function NewGame({ onCreated }: { onCreated: (id: string) => void }) {
         onClick={() =>
           void act.run(async () => {
             const [rulepack_id = "", v = "1"] = form.pack.split("@");
-            const g = await call(api.POST("/api/admin/games", { body: { name: form.name, rulepack_id, rulepack_version: Number(v), map_id: form.map || null, scenario: form.scenario, settings: { review_mode: false, web_search: true, kp_language: "zh" } } }));
+            const g = await call(api.POST("/api/admin/games", { body: { name: form.name, rulepack_id, rulepack_version: Number(v), map_id: form.map || null, scenario: form.scenario, settings: { review_mode: false, web_search: true, kp_language: "zh", min_round_seconds: 0 } } }));
             onCreated(g.id);
           })
         }
@@ -140,6 +140,8 @@ function Settings({ game, onSaved }: { game: Schemas["Game"]; onSaved: () => voi
           <option value="en">{t("lang.en")}</option>
         </select>
       </label>
+      <label>{t("games.min_round")}<input type="number" min={0} value={s.min_round_seconds ?? 0} onChange={(e) => setS({ ...s, min_round_seconds: Math.max(0, Number(e.target.value) || 0) })} /></label>
+      <p className="sk-hint">{t("games.min_round_hint")}</p>
       <label>{t("games.player_webhook")}<input value={s.player_webhook ?? ""} onChange={(e) => setS({ ...s, player_webhook: e.target.value || null })} /></label>
       <label>{t("games.admin_webhook")}<input value={s.admin_webhook ?? ""} onChange={(e) => setS({ ...s, admin_webhook: e.target.value || null })} /></label>
       <button onClick={() => void act.run(async () => { await call(api.PATCH("/api/admin/games/{game_id}", { params: { path: { game_id: game.id } }, body: { settings: s } })); onSaved(); })}>{t("common.save")}</button>

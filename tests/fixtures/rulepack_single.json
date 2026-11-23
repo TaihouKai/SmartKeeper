@@ -14,36 +14,143 @@
         "label": "Person",
         "appearance_field": "appearance",
         "fields": [
-          { "name": "appearance", "kind": "text" },
-          { "name": "occupation", "kind": "text", "choices": ["doctor", "reporter", "officer"] },
-          { "name": "str", "kind": "number", "min": "1", "max": "100" },
-          { "name": "dex", "kind": "number", "min": "1", "max": "100" },
-          { "name": "per", "kind": "number", "min": "1", "max": "100" },
-          { "name": "hp", "kind": "resource", "cls": "runtime", "min": "0", "max": "hp_max", "initial": "hp_max" },
-          { "name": "notes", "kind": "text", "cls": "runtime", "hidden": true }
+          {
+            "name": "appearance",
+            "kind": "text"
+          },
+          {
+            "name": "occupation",
+            "kind": "text",
+            "choices": [
+              "doctor",
+              "reporter",
+              "officer"
+            ]
+          },
+          {
+            "name": "str",
+            "kind": "number",
+            "min": "1",
+            "max": "100"
+          },
+          {
+            "name": "dex",
+            "kind": "number",
+            "min": "1",
+            "max": "100"
+          },
+          {
+            "name": "per",
+            "kind": "number",
+            "min": "1",
+            "max": "100"
+          },
+          {
+            "name": "hp",
+            "kind": "resource",
+            "cls": "runtime",
+            "min": "0",
+            "max": "hp_max",
+            "initial": "hp_max"
+          },
+          {
+            "name": "notes",
+            "kind": "text",
+            "cls": "runtime",
+            "hidden": true
+          },
+          {
+            "name": "can_fly",
+            "kind": "boolean"
+          }
         ],
         "groups": [
           {
             "name": "skills",
             "label": "Skills",
-            "fields": [{ "name": "level", "kind": "number", "min": "0", "max": "100" }],
+            "fields": [
+              {
+                "name": "level",
+                "kind": "number",
+                "min": "0",
+                "max": "100"
+              }
+            ],
             "min_count": 0,
             "max_count": 10
           }
         ],
         "derived": [
-          { "name": "hp_max", "formula": "floor((str + dex) / 10)" },
-          { "name": "perception_radius", "formula": "50 + per", "unit": "m" },
-          { "name": "concealment", "formula": "1" },
-          { "name": "move_speed", "formula": "60 + dex", "unit": "m/min" },
-          { "name": "damage_bonus", "formula": "lookup(db_table, str)" }
+          {
+            "name": "hp_max",
+            "formula": "floor((str + dex) / 10)"
+          },
+          {
+            "name": "perception_radius",
+            "formula": "50 + per",
+            "unit": "m"
+          },
+          {
+            "name": "concealment",
+            "formula": "1"
+          },
+          {
+            "name": "move_speed",
+            "formula": "60 + dex",
+            "unit": "m/min"
+          },
+          {
+            "name": "damage_bonus",
+            "formula": "lookup(db_table, str)"
+          },
+          {
+            "name": "fly_multiplier",
+            "formula": "1"
+          },
+          {
+            "name": "fly_speed",
+            "formula": "fly_multiplier * move_speed",
+            "unit": "m/min"
+          }
         ]
       }
     ],
-    "player_entities": [{ "template": "person", "min": 1, "max": 1 }],
-    "formulas": [{ "name": "half_per", "formula": "per / 2" }],
+    "player_entities": [
+      {
+        "template": "person",
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "formulas": [
+      {
+        "name": "half_per",
+        "formula": "per / 2"
+      }
+    ],
     "tables": [
-      { "name": "db_table", "kind": "range", "rows": [[1, -2], [40, 0], [70, 2], [90, 4]] }
+      {
+        "name": "db_table",
+        "kind": "range",
+        "rows": [
+          [
+            1,
+            -2
+          ],
+          [
+            40,
+            0
+          ],
+          [
+            70,
+            2
+          ],
+          [
+            90,
+            4
+          ]
+        ]
+      }
     ],
     "checks": [
       {
@@ -51,9 +158,18 @@
         "dice": "1d100",
         "target": "per",
         "levels": [
-          { "name": "critical", "condition": "roll <= target / 5" },
-          { "name": "success", "condition": "roll <= target" },
-          { "name": "failure", "condition": "1" }
+          {
+            "name": "critical",
+            "condition": "roll <= target / 5"
+          },
+          {
+            "name": "success",
+            "condition": "roll <= target"
+          },
+          {
+            "name": "failure",
+            "condition": "1"
+          }
         ]
       },
       {
@@ -61,8 +177,14 @@
         "dice": "1d100",
         "target": "str",
         "levels": [
-          { "name": "win", "condition": "target - roll > opp_target - opp_roll" },
-          { "name": "lose", "condition": "1" }
+          {
+            "name": "win",
+            "condition": "target - roll > opp_target - opp_roll"
+          },
+          {
+            "name": "lose",
+            "condition": "1"
+          }
         ]
       }
     ],
@@ -73,32 +195,77 @@
         "template": "person",
         "sheet": {
           "name": "Sample A",
-          "fields": { "appearance": "tall, grey coat", "occupation": "doctor", "str": 50, "dex": 60, "per": 40 },
-          "groups": { "skills": [{ "name": "first aid", "fields": { "level": 30 } }] }
+          "fields": {
+            "appearance": "tall, grey coat",
+            "occupation": "doctor",
+            "str": 50,
+            "dex": 60,
+            "per": 40
+          },
+          "groups": {
+            "skills": [
+              {
+                "name": "first aid",
+                "fields": {
+                  "level": 30
+                }
+              }
+            ]
+          }
         },
-        "expected": { "hp_max": 11, "perception_radius": 90, "concealment": 1, "move_speed": 120, "damage_bonus": 0 }
+        "expected": {
+          "hp_max": 11,
+          "perception_radius": 90,
+          "concealment": 1,
+          "move_speed": 120,
+          "damage_bonus": 0
+        }
       },
       {
         "name": "keen senses",
         "template": "person",
         "sheet": {
           "name": "Sample B",
-          "fields": { "appearance": "short, red scarf", "occupation": "reporter", "str": 75, "dex": 30, "per": 60 },
+          "fields": {
+            "appearance": "short, red scarf",
+            "occupation": "reporter",
+            "str": 75,
+            "dex": 30,
+            "per": 60
+          },
           "groups": {
             "skills": [
               {
                 "name": "keen senses",
-                "fields": { "level": 50 },
+                "fields": {
+                  "level": 50
+                },
                 "effects": [
-                  { "description": "sharper senses", "target": "perception_radius", "op": "mul", "value": "1.5" },
-                  { "description": "a little extra", "target": "perception_radius", "op": "add", "value": "self.level / 5" },
-                  { "description": "notices liars" }
+                  {
+                    "description": "sharper senses",
+                    "target": "perception_radius",
+                    "op": "mul",
+                    "value": "1.5"
+                  },
+                  {
+                    "description": "a little extra",
+                    "target": "perception_radius",
+                    "op": "add",
+                    "value": "self.level / 5"
+                  },
+                  {
+                    "description": "notices liars"
+                  }
                 ]
               }
             ]
           }
         },
-        "expected": { "hp_max": 10, "perception_radius": 180, "damage_bonus": 2 }
+        "expected": {
+          "hp_max": 10,
+          "perception_radius": 180,
+          "damage_bonus": 2
+        }
       }
     ]
   }

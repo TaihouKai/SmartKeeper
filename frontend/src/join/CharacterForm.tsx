@@ -5,7 +5,7 @@ import { ErrorBox } from "../ui/components";
 import { EntryEditor, FieldInput, fieldLabel, type Entry } from "../ui/EntryEditor";
 
 type Template = Schemas["EntityTemplate"];
-export type SheetDraft = { name: string; fields: Record<string, string | number>; groups: Record<string, Entry[]> };
+export type SheetDraft = { name: string; fields: Record<string, string | number | boolean>; groups: Record<string, Entry[]> };
 export type Submission = { template: string; sheet: SheetDraft };
 
 function emptySheet(): SheetDraft {

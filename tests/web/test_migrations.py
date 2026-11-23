@@ -21,6 +21,9 @@ def test_legacy_db_is_stamped(tmp_path: Path) -> None:
     legacy = combined()
     legacy.remove(legacy.tables["rule_pack_draft"])  # 0002 才加的表，旧库里没有
     legacy.create_all(db)
+    with db.begin() as c:  # 0003 之前回合时间是分钟
+        c.exec_driver_sql("ALTER TABLE round RENAME COLUMN started_second TO started_minute")
+        c.exec_driver_sql("ALTER TABLE round RENAME COLUMN ended_second TO ended_minute")
     migrate(db)
     assert "rule_pack_draft" in sa.inspect(db).get_table_names()
     assert "alembic_version" in sa.inspect(db).get_table_names()

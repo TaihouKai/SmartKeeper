@@ -148,7 +148,9 @@ def test_encounter_ok_when_visible_and_one_way() -> None:
 
 
 def test_movement_distance_and_ability() -> None:
-    t = closed(setup_table("single", 2))
+    t = setup_table("single", 2)
+    t.declare_all(seconds=60)  # 本轮 60 秒
+    t.engine.close_round(t.game_id)
     p0 = t.players[0]
     e0 = t.entities(p0)[0]
     decl = t.engine.declarations(t.game_id)
@@ -158,17 +160,17 @@ def test_movement_distance_and_ability() -> None:
     assert item is not None
     # move_speed = 60 + dex(60) = 120 m/min；从 (-50, -40) 出发
     far = Movement(entity=e0, to=Point(x=150, y=-40), because=item)
-    assert "space.too_far" in codes(t, minutes=1, movements=[far])
+    assert "space.too_far" in codes(t, movements=[far])
     ok = Movement(entity=e0, to=Point(x=50, y=-40), because=item)
-    t.engine.apply_adjudication(t.game_id, t.simple_adjudication(minutes=1, movements=[ok]))
+    t.engine.apply_adjudication(t.game_id, t.simple_adjudication(movements=[ok]))
     t.engine.rerun_round(t.game_id)
     teleport = Movement(entity=e0, to=Point(x=150, y=150), because=item, ability="first aid")
-    t.engine.apply_adjudication(t.game_id, t.simple_adjudication(minutes=1, movements=[teleport]))
+    t.engine.apply_adjudication(t.game_id, t.simple_adjudication(movements=[teleport]))
     t.engine.rerun_round(t.game_id)
     fake = Movement(entity=e0, to=Point(x=150, y=150), because=item, ability="teleport")
-    assert "space.unknown_ability" in codes(t, minutes=1, movements=[fake])
+    assert "space.unknown_ability" in codes(t, movements=[fake])
     out = Movement(entity=e0, to=Point(x=900, y=0), because=item, ability="first aid")
-    assert "space.out_of_bounds" in codes(t, minutes=1, movements=[out])
+    assert "space.out_of_bounds" in codes(t, movements=[out])
     wrong = Movement(entity=e0, to=Point(x=30, y=10), inside="bldg_tower", because=item)
     assert "space.not_inside" in codes(t, movements=[wrong])
     right = Movement(entity=e0, to=Point(x=10, y=10, z=6), inside="bldg_tower", because=item)

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+from pydantic import Field
+
 from smartkeeper.contracts.base import Frozen
 from smartkeeper.contracts.geometry import Location, Point
 
@@ -23,6 +25,29 @@ class ActionItem(Frozen):
     targets: tuple[TargetRef, ...] = ()
     destination: Location | None = None
     detail: str = ""
+    act_seconds: int = Field(default=0, ge=0)  # 动作本身的耗时，解析时由 KP 估算，不含移动
+    move_seconds: int = Field(default=0, ge=0)  # 走到 destination 的耗时，由引擎算
+
+
+class Step(Frozen):
+    """进行中行动的一步：先从 start 移动到 to（move 秒），再做动作（act 秒）。"""
+
+    item: str  # 行动条目 id
+    targets: tuple[str, ...] = ()  # 条目以之为目标的实体
+    start: Point | None = None
+    to: Location | None = None
+    move: int = 0
+    act: int = 0
+    fly: bool = False  # 飞过去（直线）还是走过去（先竖直再水平）
+
+
+class Activity(Frozen):
+    """一个实体进行中的行动（世界状态 /activities/<实体 id>）。只有引擎能写。"""
+
+    player: str
+    start: int  # 开始时刻（秒）
+    end: int  # 结束时刻（秒）
+    steps: tuple[Step, ...]
 
 
 class ClaimRef(Frozen):

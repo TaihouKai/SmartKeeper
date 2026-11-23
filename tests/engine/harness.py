@@ -135,23 +135,24 @@ class Table:
     def entities(self, pid: str) -> list[str]:
         return self.engine.controlled(self.game_id, pid)
 
-    def declare_all(self, players: list[str] | None = None) -> None:
+    def declare_all(self, players: list[str] | None = None, seconds: int = 1800) -> None:
+        """每人声明一个耗时 seconds 秒的原地行动。"""
         for pid in players if players is not None else self.players:
             ent = self.entities(pid)[0]
-            intent = Intent(items=(ActionItem(actor=ent, verb="look around"),))
+            intent = Intent(items=(ActionItem(actor=ent, verb="look around", act_seconds=seconds),))
             self.engine.declare_action(pid, "I look around.", intent)
 
-    def simple_adjudication(self, minutes: int = 30, **extra: object) -> Adjudication:
-        r = self.engine.round(self.game_id)
-        decl = self.engine.declarations(self.game_id)
+    def simple_adjudication(self, only: list[str] | None = None, **extra: object) -> Adjudication:
+        """给每个玩家（或 only 里的玩家）一条结果，resolves 是他进行中的行动的全部条目。"""
+        acts = self.engine.activities(self.game_id)
         outcomes: list[Outcome] = []
-        for pid in self.engine.required_players(self.game_id):
-            resolves: tuple[str, ...] = ()
-            if pid in decl and (not r.forced or pid in r.submitted):
-                intent = Intent.model_validate(decl[pid].payload["intent"])
-                resolves = tuple(it.id for it in intent.items if it.id)
+        for pid in only if only is not None else self.players:
+            ents = self.entities(pid)
+            if not ents:
+                continue
+            resolves = tuple(s.item for e in ents if e in acts for s in acts[e].steps)
             outcomes.append(Outcome(player_id=pid, resolves=resolves, result="nothing happens"))
-        body: dict[str, object] = {"time_advance_minutes": minutes, "outcomes": outcomes, **extra}
+        body: dict[str, object] = {"outcomes": outcomes, **extra}
         return Adjudication.model_validate(body)
 
     def play_round(self, adj: Adjudication | None = None, forced: bool = False) -> None:

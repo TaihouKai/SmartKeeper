@@ -13,9 +13,17 @@ from smartkeeper.contracts.base import Frozen
 from smartkeeper.contracts.sheet import GroupEntry
 
 # 引擎必需的推导值。每个实体模板都必须为它们提供公式。
-REQUIRED_DERIVED: tuple[str, ...] = ("perception_radius", "concealment", "move_speed")
+REQUIRED_DERIVED: tuple[str, ...] = (
+    "perception_radius",
+    "concealment",
+    "move_speed",
+    "fly_multiplier",
+    "fly_speed",
+)
+# 引擎必需的字段：每个模板都必须有这个“是/否”字段，决定移动按飞行还是地面计算。
+FLY_FIELD = "can_fly"
 
-FieldKind = Literal["number", "text", "resource"]
+FieldKind = Literal["number", "text", "resource", "boolean"]
 FieldClass = Literal["player", "runtime"]
 
 
@@ -32,6 +40,7 @@ class FieldDef(Frozen):
     - kind=number：数值（属性、技能、玩家自定义的尺寸等）；可带 unit、min、max。
     - kind=text：文字；choices 非空时只能取其中之一。
     - kind=resource：有上下限的数值。上下限可以是公式（例如引用某个推导值）。
+    - kind=boolean：是/否。公式里是 1/0。没填时按“否”。
     - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定修改，初值由 initial 公式给出。
     """
 

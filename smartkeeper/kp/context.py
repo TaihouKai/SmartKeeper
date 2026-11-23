@@ -257,8 +257,17 @@ class Contexts:
         names = self.names(game_id)
         kp_view = e.view_for(game_id, KP)
         this_round = [x for x in kp_view if x.round_no == r.no]
-        decl = e.declarations(game_id)
         state = e.world_state(game_id)
+        now, end = e.round_window(game_id)
+        acts = e.activities(game_id)
+        # 条目 id -> (声明原文, 条目)：进行中的行动可能是前几轮确认的
+        declared: dict[str, tuple[str, JsonValue]] = {}
+        for x in kp_view:
+            if x.type != "action_declared":
+                continue
+            for it in Intent.model_validate(x.payload["intent"]).items:
+                if it.id is not None:
+                    declared[it.id] = (str(x.payload.get("text", "")), it.model_dump(mode="json"))
 
         # 本轮行动
         acting: list[str] = []
@@ -266,35 +275,44 @@ class Contexts:
         targets: set[str] = set()
         features: set[str] = set()
         quotes: set[int] = set()
-        for pid in e.required_players(game_id):
+        for p in e.players(game_id):
+            pid = p.id
             ents = e.controlled(game_id, pid)
-            lines = [f"### 玩家 {pid}（{names.get(pid, pid)}），控制实体 {ents}"]
-            ev = decl.get(pid)
-            if ev is None or (r.forced and pid not in r.submitted):
-                lines.append("本轮没有提交行动（强制结算）；resolves 必须为空。")
-            else:
-                intent = Intent.model_validate(ev.payload["intent"])
+            if not p.active or not ents:
+                continue
+            who = names.get(pid, pid)
+            lines = [f"### 玩家 {pid}（{who}），控制实体 {ents}"]
+            texts: set[str] = set()
+            for eid in ents:
+                act = acts.get(eid)
+                if act is None:
+                    lines.append(f"- 实体 {eid}：没有进行中的行动（强制结算时没提交）。")
+                    continue
+                actors.add(eid)
+                left = act.end - end
+                status = "本轮内做完" if left <= 0 else f"本轮结束时还没做完，还剩 {left} 秒"
                 lines.append(
-                    "原文：" + player_text(str(ev.payload.get("text", "")), names.get(pid, pid))
+                    f"- 实体 {eid}：进行中的行动，第 {act.start} 秒开始，第 {act.end} 秒结束（{status}）"
                 )
-                for it in intent.items:
-                    actors.add(it.actor)
-                    for t in it.targets:
-                        if t.kind == "entity" and t.id:
-                            targets.add(t.id)
-                        if t.kind == "feature" and t.id:
-                            features.add(t.id)
-                    if it.destination and it.destination.inside:
-                        features.add(it.destination.inside)
+                for st in act.steps:
+                    text, item = declared.get(st.item, ("", None))
+                    texts.add(text)
+                    targets.update(st.targets)
+                    if st.to is not None and st.to.inside:
+                        features.add(st.to.inside)
                     lines.append(
-                        f"- 行动条目 {it.id}: "
-                        + player_text(dumps(it.model_dump(mode="json")), names.get(pid, pid))
+                        f"  - 行动条目 {st.item}（移动 {st.move} 秒 + 动作 {st.act} 秒）: "
+                        + player_text(dumps(item), who)
                     )
-                for c in intent.claims:
-                    targets.update(c.entities)
-                    features.update(c.features)
-                quotes.update(intent.quotes)
+            for text in sorted(x for x in texts if x):
+                lines.append("原文：" + player_text(text, who))
             acting.append("\n".join(lines))
+        for ev in e.declarations(game_id).values():
+            intent = Intent.model_validate(ev.payload["intent"])
+            for c in intent.claims:
+                targets.update(c.entities)
+                features.update(c.features)
+            quotes.update(intent.quotes)
 
         # 历史：最近几轮原文 + 按实体检索的记事条目 + 玩家引用的原文
         recent_from = max(0, r.no - self.cfg.recent_rounds)
@@ -306,6 +324,10 @@ class Contexts:
         quoted = [x for x in kp_view if x.seq in quotes]
 
         chat = [x for x in this_round if x.type == "pm_kp"]
+        talk = [x for x in this_round if x.type.startswith("talk_")]
+        ends_at = {
+            eid: loc.model_dump(mode="json") for eid, loc in e.positions_at_end(game_id).items()
+        }
         claims = [x.payload for x in this_round if x.type == "claim_check"]
         parts = [
             section("规则书", e.rulebook(game_id)),
@@ -316,8 +338,17 @@ class Contexts:
             section(f"最近 {self.cfg.recent_rounds} 轮的事件原文", render_events(recent, names)),
             section("按实体检索到的往事（记事条目与原始裁定）", memory_text),
             section("玩家用引用按钮引用的原文", render_events(quoted, names)),
-            section(f"本轮（第 {r.no} 轮）已确认的行动", "\n\n".join(acting)),
-            section("需要结果的玩家", dumps(e.required_players(game_id))),
+            section(
+                "本轮的时间段",
+                f"从游戏内第 {now} 秒到第 {end} 秒，共 {end - now} 秒。结束时刻由引擎取最早做完的行动，"
+                "你只裁定这段时间里发生的事。",
+            ),
+            section("进行中的行动（按玩家）", "\n\n".join(acting)),
+            section(
+                "本轮结束时各实体按行动走到的位置（你没有另行安排移动时就在这里）", dumps(ends_at)
+            ),
+            section("必须有结果的玩家（行动做完了或没有行动）", dumps(e.outcome_required(game_id))),
+            section("本轮的对话（对话模式，双方原话）", render_events(talk, names)),
             section("声明核对结果", dumps(claims)),
             section("聊天问答（背景，不是行动）", render_events(chat, names)),
         ]
@@ -399,7 +430,12 @@ class Contexts:
                     "该玩家能看到的历史（最近的在后）",
                     render_events(view, self.names(game_id), self.cfg.history_events),
                 ),
-                section("本轮推进的时间（分钟）", str(adj.time_advance_minutes)),
+                section(
+                    "距离该玩家上次收到消息过去的游戏内时间（秒）",
+                    str(
+                        self.e.round_window(game_id)[1] - self.e.player_seconds(game_id, player_id)
+                    ),
+                ),
                 section("该玩家本轮的结果", dumps(mine)),
                 section("该玩家看到的别人的行为", dumps(seen)),
                 section("公共事件", dumps(public)),
@@ -455,6 +491,37 @@ class Contexts:
             ]
         )
         return Prompt(templates.render("leak_check"), user)
+
+    def npc_talk(self, game_id: str, talk_id: str) -> Prompt:
+        """对话模式里扮演 NPC：剧本、这个 NPC 的角色卡和位置、对方的外观、对话原文。"""
+        t = self.e.talk(game_id, talk_id)
+        state = self.e.world_state(game_id)
+        ents = state.get("entities")
+        npc = ents.get(t.b_entity) if isinstance(ents, dict) else None
+        names = self.names(game_id)
+        appearance = self.e.appearance_of(game_id, t.a_entity)
+        lines = [
+            f"{'NPC' if m.speaker == t.b_entity else '对方'}: "
+            + (
+                m.text
+                if m.speaker == t.b_entity
+                else player_text(m.text, names.get(t.a_player, "?"))
+            )
+            for m in t.messages
+        ]
+        user = "\n".join(
+            [
+                section("剧本（全部）", self._scenario(game_id, kp=True)),
+                section("KP 长期备忘", str(state.get("kp_notes", ""))),
+                section(f"你扮演的 NPC（实体 {t.b_entity}）", dumps(npc)),
+                section(
+                    "对方的外观（NPC 只知道这些）",
+                    player_text(appearance or "（没有描述）", "sheet"),
+                ),
+                section("对话原文（最近的在后）", "\n".join(lines) or "（对方刚发起对话）"),
+            ]
+        )
+        return Prompt(self._system(game_id, "npc_talk"), user)
 
     def summary(self, game_id: str, adj: Adjudication) -> Prompt:
         lang = templates.language_name(self.language(game_id))

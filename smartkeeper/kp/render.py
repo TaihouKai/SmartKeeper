@@ -56,9 +56,13 @@ def render_event(e: Event, names: Mapping[str, str]) -> str:
     if t == "feedback":
         return f"{head} KP 反馈: {text}"
     if t == "round_opened":
-        return f"{head} 第 {p.get('round')} 轮开始，游戏内第 {p.get('game_minutes')} 分钟"
+        return f"{head} 第 {p.get('round')} 轮开始，游戏内第 {p.get('game_seconds')} 秒"
     if t == "round_closed":
-        return f"{head} 第 {p.get('round')} 轮结束，游戏内第 {p.get('game_minutes')} 分钟"
+        return f"{head} 第 {p.get('round')} 轮结束，游戏内第 {p.get('game_seconds')} 秒"
+    if t == "talk_message":
+        return f"{head} 对话 {p.get('talk')}（{p.get('from')} 说）: {player_text(text, str(p.get('from')))}"
+    if t.startswith("talk_"):
+        return f"{head} 对话 {p.get('talk')}: {t[5:]} {_compact(p)}"
     if t == "identity_assigned":
         return f"{head} 身份: {p.get('name')} — {p.get('description')}"
     if t == "character_submitted":

@@ -9,7 +9,6 @@ import json
 import re
 from typing import Any
 
-from smartkeeper.contracts import Intent
 from smartkeeper.engine import Engine
 from smartkeeper.llm import FakeCall, FakeLLM
 
@@ -74,6 +73,7 @@ def install_scripted(llm: FakeLLM, engine: Engine) -> None:
                         "verb": "act",
                         "targets": targets,
                         "detail": action.strip()[:200],
+                        "seconds": 60,
                     }
                 ]
             },
@@ -81,20 +81,19 @@ def install_scripted(llm: FakeLLM, engine: Engine) -> None:
         )
 
     def adjudicate(c: FakeCall) -> str:
+        # 每个玩家都给结果：大家每轮都重新行动，浏览器测试走最简单的路径
         g = gid(c)
-        r = engine.round(g)
-        decl = engine.declarations(g)
+        acts = engine.activities(g)
         outcomes: list[dict[str, Any]] = []
-        for pid in engine.required_players(g):
-            resolves: list[str] = []
-            if pid in decl and (not r.forced or pid in r.submitted):
-                resolves = [
-                    i.id or "" for i in Intent.model_validate(decl[pid].payload["intent"]).items
-                ]
+        for p in engine.players(g):
+            ents = engine.controlled(g, p.id)
+            if not p.active or not ents:
+                continue
+            resolves = [s.item for e in ents if e in acts for s in acts[e].steps]
             outcomes.append(
-                {"player_id": pid, "resolves": resolves, "result": "（脚本化 KP）你的行动完成了。"}
+                {"player_id": p.id, "resolves": resolves, "result": "（脚本化 KP）你的行动完成了。"}
             )
-        return json.dumps({"time_advance_minutes": 10, "outcomes": outcomes}, ensure_ascii=False)
+        return json.dumps({"outcomes": outcomes}, ensure_ascii=False)
 
     llm.on("review_character", review)
     llm.on("opening", opening)
@@ -104,7 +103,11 @@ def install_scripted(llm: FakeLLM, engine: Engine) -> None:
     llm.on("claim_check", lambda c: json.dumps({"verdict": "holds", "evidence": [], "note": ""}))
     llm.on("plan", lambda c: json.dumps({"checks": [], "queries": []}))
     llm.on("adjudicate", adjudicate)
-    llm.on("feedback", lambda c: "（脚本化 KP）本轮你的行动完成了，时间过去了十分钟。")
+    llm.on("feedback", lambda c: "（脚本化 KP）本轮你的行动完成了，时间过去了一分钟。")
     llm.on("broadcast", lambda c: "（脚本化 KP）公共消息。")
     llm.on("leak_check", lambda c: json.dumps({"leaks": []}))
     llm.on("summary", lambda c: "（脚本化 KP）摘要。")
+    llm.on(
+        "npc_talk",
+        lambda c: json.dumps({"text": "（脚本化 NPC）嗯。", "end": False}, ensure_ascii=False),
+    )

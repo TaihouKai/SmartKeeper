@@ -174,7 +174,7 @@ class World(Protocol):
         """整份世界状态是否符合规则包里的模板。"""
         ...
 
-    def expire(self, state: State, now_minute: int) -> list[PatchOp]:
+    def expire(self, state: State, now_second: int) -> list[PatchOp]:
         """到期需要移除的状态。"""
         ...
 

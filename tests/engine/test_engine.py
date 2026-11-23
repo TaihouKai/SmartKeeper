@@ -47,7 +47,7 @@ def test_rounds_flow(table: Table) -> None:
         table.play_round()
     g = e.game(table.game_id)
     assert g.current_round == 3
-    assert e.world_state(table.game_id)["game_minutes"] == 60
+    assert e.world_state(table.game_id)["game_seconds"] == 3600
     for pid in table.players:
         fb = [x for x in e.view_for(table.game_id, pid) if x.type == "feedback"]
         assert [x.payload["text"] for x in fb] == [f"feedback for {pid}"] * 2
@@ -214,7 +214,9 @@ def test_patch_derived_rejected(small: Table) -> None:
 def test_patch_cannot_touch_time_or_position(small: Table) -> None:
     t = closed(small)
     ent = t.entities(t.players[0])[0]
-    adj = t.simple_adjudication(state_patch=[PatchOp(op="replace", path="/game_minutes", value=9)])
+    adj = t.simple_adjudication(state_patch=[PatchOp(op="replace", path="/game_seconds", value=9)])
+    assert "adj.patch_engine_only" in rejected(t, adj)
+    adj = t.simple_adjudication(state_patch=[PatchOp(op="remove", path=f"/activities/{ent}")])
     assert "adj.patch_engine_only" in rejected(t, adj)
     adj = t.simple_adjudication(
         state_patch=[
@@ -280,7 +282,14 @@ def test_pushed_by_other_player(small: Table) -> None:
         p0,
         "push",
         Intent(
-            items=(ActionItem(actor=e0, verb="push", targets=(TargetRef(kind="entity", id=e1),)),)
+            items=(
+                ActionItem(
+                    actor=e0,
+                    verb="push",
+                    targets=(TargetRef(kind="entity", id=e1),),
+                    act_seconds=60,
+                ),
+            )
         ),
     )
     t.declare_all([p1])
@@ -314,15 +323,16 @@ def test_rerun_discards_draft_without_events(small: Table) -> None:
     t = closed(small)
     e, g = t.engine, t.game_id
     n = event_count(t)
-    e.apply_adjudication(g, t.simple_adjudication(minutes=10))
+    e.apply_adjudication(g, t.simple_adjudication(kp_notes="first"))
     e.rerun_round(g)
     assert e.round(g).status == "adjudicating"
     assert event_count(t) == n
-    t.engine.apply_adjudication(g, t.simple_adjudication(minutes=20))
+    t.engine.apply_adjudication(g, t.simple_adjudication(kp_notes="second"))
     for pid in t.players:
         e.set_feedback_draft(g, pid, "x")
     e.publish_round(g)
-    assert e.world_state(g)["game_minutes"] == 20
+    assert e.world_state(g)["game_seconds"] == 1800
+    assert e.world_state(g)["kp_notes"] == "second"
     assert len([x for x in e.view_for(g, KP) if x.type == "adjudication"]) == 1
 
 

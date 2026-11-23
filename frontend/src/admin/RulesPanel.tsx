@@ -15,7 +15,11 @@ type Preset = Schemas["GroupPreset"];
 
 const SHAPES = ["capsule", "box", "sphere", "cone"] as const;
 
-export const REQUIRED_DERIVED = ["perception_radius", "concealment", "move_speed"];
+export const REQUIRED_DERIVED = ["perception_radius", "concealment", "move_speed", "fly_multiplier", "fly_speed"];
+const FLY_FIELD = "can_fly";
+
+const DEFAULT_FORMULA: Record<string, string> = { concealment: "1", fly_multiplier: "1", fly_speed: "fly_multiplier * move_speed" };
+const DEFAULT_UNIT: Record<string, string> = { perception_radius: "m", move_speed: "m/min", fly_speed: "m/min" };
 
 export function blankPack(): Pack {
   return {
@@ -30,18 +34,39 @@ export function blankPack(): Pack {
   };
 }
 
+/** 以前存的规则包可能缺少后来新增的引擎必需项（能否飞行字段、飞行速度推导值）：打开时补上默认的。 */
+function withEngineDefaults(p: Pack): Pack {
+  const blank = blankTemplate("x");
+  return {
+    ...p,
+    templates: p.templates.map((tpl) => {
+      const fields = tpl.fields ?? [];
+      const derived = tpl.derived ?? [];
+      const fly = blank.fields?.find((f) => f.name === FLY_FIELD);
+      return {
+        ...tpl,
+        fields: fly && !fields.some((f) => f.name === FLY_FIELD) ? [...fields, fly] : fields,
+        derived: [...derived, ...(blank.derived ?? []).filter((d) => !derived.some((x) => x.name === d.name))],
+      };
+    }),
+  };
+}
+
 function blankTemplate(name: string): Template {
   return {
     name,
     label: "",
     appearance_field: "appearance",
-    fields: [{ name: "appearance", label: "", description: "", kind: "text", cls: "player", required: true, hidden: false, choices: [] }],
+    fields: [
+      { name: "appearance", label: "", description: "", kind: "text", cls: "player", required: true, hidden: false, choices: [] },
+      { name: FLY_FIELD, label: "", description: "", kind: "boolean", cls: "player", required: true, hidden: false, choices: [] },
+    ],
     groups: [],
     derived: REQUIRED_DERIVED.map((n) => ({
       name: n,
       label: "",
-      formula: n === "concealment" ? "1" : "",
-      unit: n === "perception_radius" ? "m" : n === "move_speed" ? "m/min" : null,
+      formula: DEFAULT_FORMULA[n] ?? "",
+      unit: DEFAULT_UNIT[n] ?? null,
       hidden: false,
     })),
   };
@@ -76,6 +101,7 @@ function FieldCard({
   onRemove,
   validate,
   isAppearance,
+  isFly = false,
   inGroup,
 }: {
   f: Field;
@@ -83,11 +109,14 @@ function FieldCard({
   onRemove: () => void;
   validate: (formula: string) => ReturnType<Validate>;
   isAppearance: boolean;
+  isFly?: boolean;
   inGroup: boolean;
 }) {
   const { t } = useI18n();
   const cls = inGroup ? "player" : (f.cls ?? "player");
-  const numeric = f.kind !== "text";
+  const numeric = f.kind === "number" || f.kind === "resource";
+  // 引擎必需的字段：名字、类型、类别都不能改，也不能删
+  const locked = isAppearance || isFly;
   const [choicesText, setChoicesText] = useState((f.choices ?? []).join("、"));
   useEffect(() => {
     // 换了一个规则包或版本时，用新的值覆盖输入框
@@ -99,7 +128,7 @@ function FieldCard({
       <div className="sk-field-main">
         <label>
           {t("rules.f.name")}
-          <input value={f.name} disabled={isAppearance} placeholder={t("rules.ph.field_name")} onChange={(e) => onChange({ ...f, name: e.target.value })} />
+          <input value={f.name} disabled={locked} placeholder={t("rules.ph.field_name")} onChange={(e) => onChange({ ...f, name: e.target.value })} />
         </label>
         <label>
           {t("rules.f.label")}
@@ -107,24 +136,25 @@ function FieldCard({
         </label>
         <label>
           {t("rules.f.kind")}
-          <select value={f.kind} disabled={isAppearance} onChange={(e) => onChange({ ...f, kind: e.target.value as Field["kind"] })}>
+          <select value={f.kind} disabled={locked} onChange={(e) => onChange({ ...f, kind: e.target.value as Field["kind"] })}>
             <option value="number">{t("rules.kind.number")}</option>
             <option value="resource">{t("rules.kind.resource")}</option>
             <option value="text">{t("rules.kind.text")}</option>
+            <option value="boolean">{t("rules.kind.boolean")}</option>
           </select>
         </label>
         {!inGroup && (
           <label>
             {t("rules.f.cls")}
-            <select value={cls} disabled={isAppearance} onChange={(e) => onChange({ ...f, cls: e.target.value as Field["cls"] })}>
+            <select value={cls} disabled={locked} onChange={(e) => onChange({ ...f, cls: e.target.value as Field["cls"] })}>
               <option value="player">{t("rules.cls.player")}</option>
               <option value="runtime">{t("rules.cls.runtime")}</option>
             </select>
           </label>
         )}
         <div className="sk-field-side">
-          {isAppearance ? (
-            <span className="sk-badge-req">{t("rules.appearance_badge")}</span>
+          {locked ? (
+            <span className="sk-badge-req">{t(isFly ? "rules.can_fly_badge" : "rules.appearance_badge")}</span>
           ) : (
             <button className="sk-link" onClick={onRemove}>
               {t("common.remove")}
@@ -133,13 +163,13 @@ function FieldCard({
         </div>
       </div>
       <p className="sk-hint sk-field-help">
-        {isAppearance ? t("rules.help.appearance") : `${t(`rules.kind_help.${f.kind}`)} ${inGroup ? "" : t(`rules.cls_help.${cls}`)}`}
+        {isAppearance ? t("rules.help.appearance") : isFly ? t("rules.help.can_fly") : `${t(`rules.kind_help.${f.kind}`)} ${inGroup ? "" : t(`rules.cls_help.${cls}`)}`}
       </p>
       <label className="sk-field-desc-input">
         {t("rules.f.description")}
         <input value={f.description ?? ""} placeholder={t("rules.ph.field_description")} onChange={(e) => onChange({ ...f, description: e.target.value })} />
       </label>
-      {!isAppearance && (
+      {!locked && (
         <div className="sk-field-extra">
           {numeric && (
             <>
@@ -157,7 +187,7 @@ function FieldCard({
               </label>
             </>
           )}
-          {cls === "runtime" && numeric && (
+          {cls === "runtime" && f.kind !== "text" && (
             <label>
               {t("rules.f.initial_required")}
               <FormulaInput value={f.initial ?? ""} validate={validate} placeholder={t("rules.ph.initial")} onChange={(x) => onChange({ ...f, initial: x || null })} />
@@ -177,7 +207,7 @@ function FieldCard({
             </label>
           )}
           <div className="sk-field-flags">
-            {cls === "player" && (
+            {cls === "player" && f.kind !== "boolean" && (
               <label className="sk-inline">
                 <input type="checkbox" checked={f.required ?? true} onChange={(e) => onChange({ ...f, required: e.target.checked })} /> {t("rules.f.required")}
               </label>
@@ -219,6 +249,7 @@ function FieldsTable({
           validate={v}
           inGroup={inGroup}
           isAppearance={!inGroup && !!appearance && f.name === appearance}
+          isFly={!inGroup && f.name === FLY_FIELD}
           onChange={(x) => ed.update(i, x)}
           onRemove={() => ed.remove(i)}
         />
@@ -630,8 +661,9 @@ export function RulesPanel() {
   const dirty = JSON.stringify(pack) !== baseline.current;
 
   const load = (p: Pack, id: string | null, version: number | null, draft: string | null) => {
+    // 基准是原样的内容：补了引擎新增的必需项就算有修改，几秒后自动存成草稿
     baseline.current = JSON.stringify(p);
-    setPack(p);
+    setPack(withEngineDefaults(p));
     setCurrent({ id, version });
     setDraftAt(draft);
   };

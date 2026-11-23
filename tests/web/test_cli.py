@@ -6,7 +6,7 @@ import json
 import re
 from pathlib import Path
 
-from smartkeeper.contracts import Intent, Outcome
+from smartkeeper.contracts import Outcome
 from smartkeeper.llm import FakeCall, FakeLLM
 from smartkeeper.web.app import Settings, build_services
 from smartkeeper.web.cli import run_demo
@@ -33,21 +33,22 @@ def test_cli_demo_with_fake_llm(tmp_path: Path) -> None:
     def intent(c: FakeCall) -> str:
         m = re.search(r'"ref": "(h[0-9a-f]+)",\s*"name"', c.prompt)
         assert m
-        return json.dumps({"items": [{"actor": m.group(1), "verb": "look"}]})
+        return json.dumps({"items": [{"actor": m.group(1), "verb": "look", "seconds": 300}]})
 
     def adjudicate(c: FakeCall) -> str:
-        d = e.declarations(gid())
+        acts = e.activities(gid())
         outs = [
             Outcome(
-                player_id=p,
+                player_id=p.id,
                 resolves=tuple(
-                    i.id or "" for i in Intent.model_validate(d[p].payload["intent"]).items
+                    st.item for x in e.controlled(gid(), p.id) if x in acts for st in acts[x].steps
                 ),
                 result="ok",
             ).model_dump()
-            for p in e.required_players(gid())
+            for p in e.players(gid())
+            if e.controlled(gid(), p.id)
         ]
-        return json.dumps({"time_advance_minutes": 5, "outcomes": outs})
+        return json.dumps({"outcomes": outs})
 
     fake.on("review_character", lambda c: '{"approved": true, "comments": ""}')
     fake.on("opening", opening)

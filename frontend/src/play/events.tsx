@@ -37,12 +37,12 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
     case "feedback":
       body = eventText(e);
       cls += " feedback";
-      who = t("event.feedback", { round: String(e.round_no) });
+      who = t("event.feedback");
       break;
     case "action_declared":
       body = eventText(e);
       cls += " action";
-      who = t("event.my_action", { round: String(e.round_no) });
+      who = t("event.my_action");
       break;
     case "identity_assigned":
       body = `${String(e.payload.name ?? "")} — ${String(e.payload.description ?? "")}`;

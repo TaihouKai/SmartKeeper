@@ -24,17 +24,16 @@ def test_status_expiry_restores_derived(pack: str) -> None:
     t.declare_all()
     status = {
         "tag": "blessed",
-        "expires_at": 45,
+        "expires_at": 2700,
         "modifier": {"target": "perception_radius", "op": "mul", "value": "2"},
     }
     adj = t.simple_adjudication(
-        minutes=30,
         state_patch=[PatchOp(op="add", path=f"/entities/{ent}/sheet/statuses/-", value=status)],
     )
     t.play_round(adj)
     assert derived(e, g, pid, "perception_radius") == base * 2
     t.declare_all()
-    t.play_round(t.simple_adjudication(minutes=30))  # 时间到 60，超过 45
+    t.play_round(t.simple_adjudication())  # 时间到 3600 秒，超过 2700
     assert derived(e, g, pid, "perception_radius") == base
     causes = [x.payload["cause"] for x in e.view_for(g, KP) if x.type == "state_patch"]
     assert "expiry" in causes
@@ -98,6 +97,7 @@ def test_anonymous_broadcast_via_engine() -> None:
 
 
 IDENTITIES = """---
+start_time: "2030-01-01T20:00"
 identities:
   mode: {mode}
   options:
@@ -170,7 +170,9 @@ def test_token_is_hashed() -> None:
     e, packs = make_engine()
     pid = packs.create_pack("x")
     packs.save_version(pid, load_pack("single"))
-    g = e.create_game(GameConfig(name="t", rulepack_id=pid, rulepack_version=1))
+    g = e.create_game(
+        GameConfig(name="t", rulepack_id=pid, rulepack_version=1, scenario_public=SCENARIO_PUBLIC)
+    )
     p, token = e.add_player(g.id, "one")
     found = e.player_by_token(token)
     assert found is not None and found.id == p.id

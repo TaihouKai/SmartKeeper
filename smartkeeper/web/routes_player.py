@@ -4,16 +4,20 @@
 """
 
 import logging
+import secrets
+import time
 from collections.abc import Callable
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, Field, JsonValue
 
 from smartkeeper.contracts import (
     DerivedValue,
     IdentityRules,
+    Intent,
     Player,
+    Point,
     Problem,
     RulePack,
     Rules,
@@ -29,11 +33,12 @@ from smartkeeper.web.services import Services
 from smartkeeper.web.views import (
     ActionEcho,
     EventOut,
-    RefIntent,
     SceneOut,
+    TalkOut,
     echo,
     event_for_player,
     scene,
+    talk_for_player,
 )
 
 log = logging.getLogger("smartkeeper.web")
@@ -51,14 +56,13 @@ class MeOut(BaseModel):
 
 
 class StatusOut(BaseModel):
-    round: int
-    phase: str | None
+    """玩家只看到自己的状态和自己的时间，没有回合数、没有全局进度：不能从这些推断别人在做什么。"""
+
     game_status: str
-    game_minutes: int
+    game_seconds: int  # 自己的时间：上一次收到消息时的游戏内时刻
     start_time: str | None
-    submitted: int
-    total: int
-    me_submitted: bool
+    # act：轮到我行动；submitted：已提交，等结算；busy：我的行动还在进行
+    me: Literal["act", "submitted", "busy", "idle"]
 
 
 class RulesOut(BaseModel):
@@ -115,8 +119,24 @@ class HandleIn(BaseModel):
 
 
 class ActionIn(BaseModel):
-    text: str
-    intent: RefIntent
+    parse_id: str
+    quotes: list[int] = []
+
+
+class TravelOut(BaseModel):
+    ref: str
+    name: str
+    seconds: int | None  # None：没有位置或走不了
+    fly: bool
+
+
+class TalkStartIn(BaseModel):
+    to: str  # 对方的 ref
+    from_: str | None = Field(default=None, alias="from")  # 我的哪个实体；只有一个时可省略
+
+
+class TalkAnswerIn(BaseModel):
+    accept: bool
 
 
 class ChatIn(BaseModel):
@@ -218,18 +238,19 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         g = e.game(p.game_id)
         meta = split_front_matter(g.scenario_public)[0]
         start = meta.get("start_time")
-        done, total = e.submitted_count(g.id) if g.status == "running" else (0, 0)
-        phase = e.round(g.id).status if g.current_round else None
-        minutes = e.world_state(g.id).get("game_minutes")
+        me: Literal["act", "submitted", "busy", "idle"] = "idle"
+        if g.status == "running":
+            if not e.idle_entities(g.id, p.id):
+                me = "busy"
+            elif p.id in e.declarations(g.id) or e.round(g.id).status != "collecting":
+                me = "submitted"
+            else:
+                me = "act"
         return StatusOut(
-            round=g.current_round,
-            phase=phase,
             game_status=g.status,
-            game_minutes=int(minutes) if isinstance(minutes, int) else 0,
+            game_seconds=e.player_seconds(g.id, p.id) if g.status != "setup" else 0,
             start_time=str(start) if start else None,
-            submitted=done,
-            total=total,
-            me_submitted=g.status == "running" and p.id in e.declarations(g.id),
+            me=me,
         )
 
     @r.get("/rules")
@@ -316,9 +337,14 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
     @r.get("/sheets")
     def sheets(p: Annotated[Player, Depends(require_player)]) -> list[SheetView]:
         views = e.sheets(p.game_id, p.id)
-        # 实体 id 换成该玩家的 ref
+        # 实体 id 换成该玩家的 ref；变更历史不带回合数（玩家看不到回合）
         return [
-            v.model_copy(update={"entity_id": e.ref_for_entity(p.id, v.entity_id) or "?"})
+            v.model_copy(
+                update={
+                    "entity_id": e.ref_for_entity(p.id, v.entity_id) or "?",
+                    "history": tuple(h.model_copy(update={"round_no": 0}) for h in v.history),
+                }
+            )
             for v in views
         ]
 
@@ -342,21 +368,119 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         bg.add_task(background(s.kp.answer_chat, p.id))
         return event_for_player(e, p.id, ev, names(p.game_id))
 
+    # 每个玩家最近一次的解析结果：确认时按编号取回，玩家改不了 KP 估的耗时
+    parsed: dict[str, tuple[str, str, Intent]] = {}
+    talk_limit = RateLimiter(limit=30, window=60)
+
     @r.post("/action/parse")
     def action_parse(p: Annotated[Player, Depends(require_player)], body: TextIn) -> ActionEcho:
         if not chat_limit.hit(p.id):
             raise HTTPException(status_code=429, detail={"code": "rate.kp_chat"})
-        intent = s.kp.parse_intent(p.id, body.text)
-        return echo(e, p.game_id, p.id, body.text, intent)
+        intent = e.plan_intent(p.game_id, s.kp.parse_intent(p.id, body.text))
+        parse_id = secrets.token_hex(8)
+        parsed[p.id] = (parse_id, body.text, intent)
+        return echo(e, p.game_id, p.id, body.text, intent, parse_id)
 
     @r.post("/action")
     def action(
         p: Annotated[Player, Depends(require_player)], body: ActionIn, bg: BackgroundTasks
     ) -> EventOut:
-        intent = body.intent.to_intent(e, p.id)
-        ev = e.declare_action(p.id, body.text, intent)
+        hit = parsed.get(p.id)
+        if hit is None or hit[0] != body.parse_id:
+            raise HTTPException(status_code=409, detail={"code": "action.parse_expired"})
+        _, text, intent = hit
+        intent = intent.model_copy(update={"quotes": tuple(sorted(set(body.quotes)))})
+        ev = e.declare_action(p.id, text, intent)
+        parsed.pop(p.id, None)
         bg.add_task(background(s.kp.on_action, p.game_id))
         return event_for_player(e, p.id, ev, names(p.game_id))
+
+    @r.get("/travel")
+    def travel(
+        p: Annotated[Player, Depends(require_player)], lon: float, lat: float
+    ) -> list[TravelOut]:
+        """我的每个实体走（或飞）到地图上这一点要多久。"""
+        m = e.map_data(p.game_id)
+        x, y = to_meters(m.origin.lon, m.origin.lat, lon, lat)
+        out: list[TravelOut] = []
+        for eid, (secs, fly) in e.travel_times(p.game_id, p.id, Point(x=x, y=y, z=0)).items():
+            out.append(
+                TravelOut(
+                    ref=e.ref_for_entity(p.id, eid) or "?",
+                    name=e.entity_name(p.game_id, eid),
+                    seconds=secs,
+                    fly=fly,
+                )
+            )
+        return out
+
+    # ---------------- 对话模式 ----------------
+
+    def npc_turn(game_id: str, talk_id: str) -> None:
+        """KP 替 NPC 回话，按长度延迟出现，模拟打字，玩家分不出对方是不是真人。"""
+        started = time.monotonic()
+
+        def typing(text: str) -> None:
+            delay = min(25.0, 2.0 + 0.25 * len(text))
+            time.sleep(max(0.0, delay - (time.monotonic() - started)))
+
+        s.kp.npc_reply(game_id, talk_id, wait=typing)
+
+    @r.get("/talks")
+    def talks(p: Annotated[Player, Depends(require_player)]) -> list[TalkOut]:
+        return [
+            talk_for_player(e, p.game_id, p.id, t)
+            for t in e.talks(p.game_id)
+            if p.id in (t.a_player, t.b_player)
+        ]
+
+    @r.post("/talks")
+    def talk_start(p: Annotated[Player, Depends(require_player)], body: TalkStartIn) -> TalkOut:
+        to = e.entity_for_ref(p.id, body.to)
+        if body.from_ is not None:
+            mine = e.entity_for_ref(p.id, body.from_)
+        else:
+            idle = e.idle_entities(p.game_id, p.id)
+            if not idle:
+                raise HTTPException(status_code=409, detail={"code": "talk.busy"})
+            mine = idle[0]
+        t = e.start_talk(p.id, mine, to)
+        return talk_for_player(e, p.game_id, p.id, t)
+
+    @r.post("/talks/{talk_id}/answer")
+    def talk_answer(
+        p: Annotated[Player, Depends(require_player)],
+        talk_id: str,
+        body: TalkAnswerIn,
+        bg: BackgroundTasks,
+    ) -> TalkOut:
+        t = e.answer_talk(p.id, talk_id, body.accept)
+        if not body.accept:
+            bg.add_task(background(s.kp.on_action, p.game_id))
+        return talk_for_player(e, p.game_id, p.id, t)
+
+    @r.post("/talks/{talk_id}/say")
+    def talk_say(
+        p: Annotated[Player, Depends(require_player)],
+        talk_id: str,
+        body: TextIn,
+        bg: BackgroundTasks,
+    ) -> TalkOut:
+        if not talk_limit.hit(p.id):
+            raise HTTPException(status_code=429, detail={"code": "rate.kp_chat"})
+        e.say(p.game_id, talk_id, p.id, body.text)
+        t = e.talk(p.game_id, talk_id)
+        if t.b_player is None:
+            bg.add_task(background(npc_turn, p.game_id, talk_id))
+        return talk_for_player(e, p.game_id, p.id, t)
+
+    @r.post("/talks/{talk_id}/end")
+    def talk_end(
+        p: Annotated[Player, Depends(require_player)], talk_id: str, bg: BackgroundTasks
+    ) -> TalkOut:
+        t = e.end_talk(p.game_id, talk_id, p.id)
+        bg.add_task(background(s.kp.on_action, p.game_id))
+        return talk_for_player(e, p.game_id, p.id, t)
 
     @r.get("/chat/peers")
     def peers(p: Annotated[Player, Depends(require_player)]) -> list[PeerOut]:

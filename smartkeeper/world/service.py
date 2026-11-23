@@ -7,8 +7,10 @@ from collections.abc import Sequence
 from typing import cast
 
 from pydantic import JsonValue
+from pydantic import ValidationError as PydanticError
 
 from smartkeeper.contracts import (
+    Activity,
     PatchOp,
     Problem,
     RulePack,
@@ -19,7 +21,8 @@ from smartkeeper.contracts import (
 from smartkeeper.world.patch import PatchError, apply_patch
 
 TOP_LEVEL = (
-    "game_minutes",
+    "game_seconds",
+    "activities",
     "map",
     "controls",
     "entities",
@@ -44,7 +47,8 @@ class WorldService:
 
     def initial_state(self, map_id: str | None) -> State:
         return {
-            "game_minutes": 0,
+            "game_seconds": 0,
+            "activities": {},
             "map": map_id,
             "controls": {},
             "entities": {},
@@ -74,8 +78,8 @@ class WorldService:
                 problems.append(Problem(code="state.missing_key", path=f"/{key}"))
         if problems:
             return problems
-        if not isinstance(state["game_minutes"], int) or isinstance(state["game_minutes"], bool):
-            problems.append(Problem(code="state.type", path="/game_minutes"))
+        if not isinstance(state["game_seconds"], int) or isinstance(state["game_seconds"], bool):
+            problems.append(Problem(code="state.type", path="/game_seconds"))
         if not isinstance(state["kp_notes"], str):
             problems.append(Problem(code="state.type", path="/kp_notes"))
         for key in ("clues", "flags"):
@@ -88,6 +92,7 @@ class WorldService:
             return [*problems, Problem(code="state.type", path="/entities")]
         for eid, ent in sorted(entities.items()):
             problems += self._validate_entity(eid, ent, pack)
+        problems += self._validate_activities(state["activities"], entities)
         controls = _obj(state["controls"])
         if controls is None:
             return [*problems, Problem(code="state.type", path="/controls")]
@@ -138,7 +143,25 @@ class WorldService:
             problems.append(p.model_copy(update={"path": f"{base}/sheet{path}"}))
         return problems
 
-    def expire(self, state: State, now_minute: int) -> list[PatchOp]:
+    def _validate_activities(self, raw: JsonValue, entities: dict[str, JsonValue]) -> list[Problem]:
+        acts = _obj(raw)
+        if acts is None:
+            return [Problem(code="state.type", path="/activities")]
+        problems: list[Problem] = []
+        for eid, a in sorted(acts.items()):
+            path = f"/activities/{eid}"
+            if eid not in entities:
+                problems.append(Problem(code="state.unknown_entity", path=path, params={"id": eid}))
+            try:
+                act = Activity.model_validate(a)
+            except PydanticError:
+                problems.append(Problem(code="state.bad_activity", path=path))
+                continue
+            if act.end < act.start:
+                problems.append(Problem(code="state.bad_activity", path=path))
+        return problems
+
+    def expire(self, state: State, now_second: int) -> list[PatchOp]:
         ops: list[PatchOp] = []
         entities = _obj(state.get("entities")) or {}
         for eid, raw in sorted(entities.items()):
@@ -150,7 +173,7 @@ class WorldService:
             for i in range(len(statuses) - 1, -1, -1):
                 st = _obj(statuses[i]) or {}
                 exp = st.get("expires_at")
-                if _num(exp) and cast(float, exp) <= now_minute:
+                if _num(exp) and cast(float, exp) <= now_second:
                     ops.append(PatchOp(op="remove", path=f"/entities/{eid}/sheet/statuses/{i}"))
         return ops
 

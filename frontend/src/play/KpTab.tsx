@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { ErrorBox } from "../ui/components";
+import { ErrorBox, formatDuration } from "../ui/components";
 import { useAction } from "../ui/hooks";
 import { EventRow, prettyMentions, type Ev } from "./events";
 
@@ -36,9 +36,10 @@ export function KpTab({
   const parse = useAction();
   const confirm = useAction();
   const ask = useAction();
-  const collecting = status?.game_status === "running" && status.phase === "collecting";
-  const kpEvents = events.filter((e) => ["pm_kp", "feedback", "action_declared", "round_opened"].includes(e.type));
-  const myDecl = [...events].reverse().find((e) => e.type === "action_declared" && e.round_no === status?.round);
+  const collecting = status?.game_status === "running" && (status.me === "act" || status.me === "submitted");
+  const busy = status?.game_status === "running" && status.me === "busy";
+  const kpEvents = events.filter((e) => ["pm_kp", "feedback", "action_declared"].includes(e.type));
+  const myDecl = [...events].reverse().find((e) => e.type === "action_declared");
 
   const doParse = () =>
     void parse.run(async () => {
@@ -47,8 +48,7 @@ export function KpTab({
   const doConfirm = () =>
     void confirm.run(async () => {
       if (!echo) return;
-      const intent = { ...echo.intent, quotes: Array.from(new Set([...(echo.intent.quotes ?? []), ...quotes])) };
-      await call(api.POST("/api/action", { body: { text: echo.text, intent } }));
+      await call(api.POST("/api/action", { body: { parse_id: echo.parse_id, quotes } }));
       setEcho(null);
       setDraft("");
       setQuotes([]);
@@ -72,7 +72,8 @@ export function KpTab({
       <div className="sk-box">
         <h3>{t("kp.action_box")}</h3>
         <p className="sk-hint">{t("kp.action_hint")}</p>
-        {status?.me_submitted && myDecl && (
+        {busy && <p className="sk-card">{t("kp.busy")}</p>}
+        {status?.me === "submitted" && myDecl && (
           <p className="sk-card">
             {t("kp.submitted_already")} {prettyMentions(String(myDecl.payload.text ?? ""))}
           </p>
@@ -113,10 +114,14 @@ export function KpTab({
                   <b>{it.actor_label}</b> · {it.verb}
                   {it.targets.length > 0 && <> → {it.targets.map((x) => (x.kind === "entity" ? `@${x.label}` : x.label || t("kp.a_point"))).join(", ")}</>}
                   {it.destination_label && <> ⇒ {it.destination_label}</>}
+                  <div className="sk-hint">{t("kp.item_time", { move: formatDuration(t, it.move_seconds), act: formatDuration(t, it.act_seconds) })}</div>
                   {it.detail && <div className="sk-hint">{prettyMentions(it.detail)}</div>}
                 </li>
               ))}
             </ul>
+            <p>
+              <strong>{t("kp.estimate", { total: formatDuration(t, echo.total_seconds) })}</strong> <span className="sk-hint">{t("kp.confirm_hint")}</span>
+            </p>
             {echo.unresolved.length > 0 && (
               <div className="sk-warn">
                 {t("kp.unresolved")} {echo.unresolved.join(", ")}
