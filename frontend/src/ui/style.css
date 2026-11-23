@@ -105,6 +105,7 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; min
 .sk-problems { max-height: 40vh; overflow-y: auto; margin: 4px 0; padding-left: 18px; }
 .sk-chip-draft { border-style: dashed; }
 .sk-row-end { justify-content: flex-end; }
+.sk-grow { flex: 1 1 auto; }
 .sk-mover { display: inline-flex; gap: 0; white-space: nowrap; }
 .sk-mover button { padding: 2px 6px; margin: 0; }
 .sk-mover button:disabled { visibility: hidden; }

@@ -43,11 +43,13 @@
     "entry_description": "Description",
     "entry_name": "Name",
     "fixed_entries": "From what you've filled in, you automatically get: {names}",
+    "formula_field": "Dice formula, e.g. 1d6 or 1d str; rolled by the engine when used",
     "name": "Name",
     "remove_entry": "Remove entry",
     "shape": "Area shape",
     "shape_none": "None",
-    "submit": "Submit character"
+    "submit": "Submit character",
+    "unnamed_field": "(unnamed field)"
   },
   "chat": {
     "hint": "Chat is out-of-game talk between players. The keeper can't see it and won't act on it.",
@@ -508,6 +510,7 @@
     "open": "Open",
     "order_matters_presets": "Note: the order of fixed entries matters; effects on the same value run top to bottom.",
     "p": {
+      "what": "One concrete entry (e.g. one skill). Its name is what players see; each box below is this entry's value for a field defined in “Fields of each entry”, whose type is set there.",
       "when": "Condition (empty means always)"
     },
     "packs": "Rule packs",

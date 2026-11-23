@@ -312,7 +312,10 @@ function PresetCard({ p, group, derived, onChange, onRemove, validate, mover }: 
   const vEntry = useCallback((f: string, inEntry: string, dice?: boolean) => validate(f, inEntry, dice), [validate]);
   return (
     <div className="sk-preset">
-      <div className="sk-row sk-row-end">{mover}</div>
+      <div className="sk-row sk-row-end">
+        <span className="sk-hint sk-grow">{t("rules.p.what")}</span>
+        {mover}
+      </div>
       <label>
         {t("rules.p.when")}
         <FormulaInput value={p.when ?? ""} validate={vWhen} placeholder={t("rules.ph.when")} onChange={(x) => onChange({ ...p, when: x })} />

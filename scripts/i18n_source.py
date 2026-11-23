@@ -69,6 +69,15 @@ T: dict[str, tuple[str, str]] = {
         "(others will refer to you by this description)",
     ),
     "character.entry_name": ("名称", "Name"),
+    "character.unnamed_field": ("（这个字段还没起名字）", "(unnamed field)"),
+    "character.formula_field": (
+        "掷骰公式，例如 1d6 或 1d str；用的时候由引擎掷",
+        "Dice formula, e.g. 1d6 or 1d str; rolled by the engine when used",
+    ),
+    "rules.p.what": (
+        "这是一个具体的条目（例如一个技能）。名称就是它的显示名；下面每个框是上面“每个条目要填的字段”在这个条目上的值，类型在那里定。",
+        "One concrete entry (e.g. one skill). Its name is what players see; each box below is this entry's value for a field defined in “Fields of each entry”, whose type is set there.",
+    ),
     "character.entry_description": ("描述", "Description"),
     "character.effects": ("效果", "Effects"),
     "character.effect_description": ("效果描述", "Effect description"),

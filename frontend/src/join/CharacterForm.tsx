@@ -49,7 +49,7 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
       </label>
       {fields.map((f) => (
         <label key={f.name}>
-          {fieldLabel(f)}
+          {fieldLabel(f, t("character.unnamed_field"))}
           {f.name === template.appearance_field && <small> {t("character.appearance_hint")}</small>}
           {f.description && <small className="sk-field-desc">{f.description}</small>}
           <FieldInput def={f} value={value.fields[f.name]} validateFormula={topDice} onChange={(v) => onChange({ ...value, fields: { ...value.fields, [f.name]: v } })} />

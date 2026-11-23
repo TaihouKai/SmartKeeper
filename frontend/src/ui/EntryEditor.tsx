@@ -51,8 +51,9 @@ export function FieldInput({ def, value, onChange, validateFormula }: { def: Fie
   );
 }
 
-export function fieldLabel(f: { name: string; label?: string; unit?: string | null }) {
-  return `${f.label || f.name}${f.unit ? ` (${f.unit})` : ""}`;
+/** 字段在表单上的标签。还没起名字的字段（规则面板里刚加的）显示提示，而不是一个空标签。 */
+export function fieldLabel(f: { name: string; label?: string; unit?: string | null }, unnamed = "?") {
+  return `${f.label || f.name || unnamed}${f.unit ? ` (${f.unit})` : ""}`;
 }
 
 /** 分组里的一个条目：名字、说明、字段、效果、范围形状。建角和规则包的固定条目共用。 */
@@ -94,7 +95,8 @@ export function EntryEditor({
       </label>
       {fields.map((f) => (
         <label key={f.name}>
-          {fieldLabel(f)}
+          {fieldLabel(f, t("character.unnamed_field"))}
+          {f.kind === "formula" && <small className="sk-field-desc">{t("character.formula_field")}</small>}
           {f.description && <small className="sk-field-desc">{f.description}</small>}
           <FieldInput def={f} value={entry.fields[f.name]} validateFormula={vDice} onChange={(val) => onChange({ ...entry, fields: { ...entry.fields, [f.name]: val } })} />
         </label>
