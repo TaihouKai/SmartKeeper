@@ -658,6 +658,30 @@ T: dict[str, tuple[str, str]] = {
         "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Effects and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: effects on one value run top to bottom. Players fill the same columns for their own entries.",
     ),
     "rules.gt.when": ("生效条件", "Condition"),
+    "character.effect_duration": ("持续（秒）", "Lasts (s)"),
+    "character.effect_duration_ph": ("空 = 常驻", "empty = always"),
+    "character.effect_duration_hint": (
+        "不填：条目在就一直生效（被动）。填了：只有使用这个技能时才加到作用对象身上，持续这么多秒后消失；公式里这个推导值自己的名字指对象的值，其余名字取施法者施法那一刻的值，target.x 是对象的值。",
+        "Empty: always active while the entry exists (passive). Filled: applied to the target only when the skill is used, for this many seconds; in the formula the derived value's own name is the target's value, other names are the source's values at cast time, target.x is the target's.",
+    ),
+    "action.title": ("作用效果（使用时）", "On-use effects"),
+    "action.add": ("+ 作用效果", "+ On-use effect"),
+    "action.who.target": ("对象", "Target"),
+    "action.who.self": ("自己", "Self"),
+    "action.op.damage": ("受到伤害", "takes damage"),
+    "action.op.add": ("增加", "add to"),
+    "action.op.subtract": ("减少", "subtract from"),
+    "action.op.set": ("设为", "set"),
+    "action.amount_ph": ("数量，例如 1d6 + self.level", "amount, e.g. 1d6 + self.level"),
+    "action.duration_ph": ("空 = 永久", "empty = permanent"),
+    "action.duration_hint": (
+        "限时增加（例如护盾）：到期时把加上去还剩下的部分扣回。",
+        "Timed increase (e.g. a shield): when it ends, whatever is left of the added amount is taken back.",
+    ),
+    "action.hint": (
+        "KP 声明使用这个技能后，引擎掷骰算好数值；KP 判定生效（打中）时引擎执行，没生效只扣消耗。受到伤害时先扣护盾（shield）再扣生命值（hp）。数量公式里的名字取施法者，self.列 是这一条的列，target.x 是对象的值。",
+        "When the KP declares this skill used, the engine rolls the numbers; if the KP rules it took effect (hit), the engine applies them, otherwise only the cost is paid. Damage comes off shield first, then hp. Names in the amount are the source's; self.column is this entry's column; target.x is the target's value.",
+    ),
     "rules.gt.id": ("ID（引用用，可不填）", "ID (for references, optional)"),
     "rules.gt.id_ph": ("例如 fireball", "e.g. fireball"),
     "rules.gt.id_hint": (
@@ -874,6 +898,19 @@ T: dict[str, tuple[str, str]] = {
     "codes.pack.missing_appearance": (
         "缺少外观描述字段 {name}（必须是文字）",
         "Missing the appearance field {name} (must be text)",
+    ),
+    "codes.sheet.action_field": (
+        "作用效果要改的运行值 {name} 不存在",
+        "On-use effect: runtime value {name} doesn't exist",
+    ),
+    "codes.sheet.action_duration_needs_add": ("只有“增加”能限时", "Only an “add” can be timed"),
+    "codes.adj.unknown_use": (
+        "裁定引用了不存在的技能使用 {seq}",
+        "The ruling refers to an unknown skill use {seq}",
+    ),
+    "codes.adj.use_bad_field": (
+        "作用对象没有运行值 {name}",
+        "The target has no runtime value {name}",
     ),
     "codes.pack.missing_hp": (
         "缺少生命值字段 {name}（必须是运行值）",

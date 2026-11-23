@@ -14,6 +14,7 @@ from smartkeeper.contracts.adjudication import (
     Outcome,
     PatchOp,
     PlaceIn,
+    UseResult,
 )
 from smartkeeper.contracts.base import Frozen, JsonDict, JsonValue
 from smartkeeper.contracts.chat import ChatMessage, ChatStore
@@ -101,8 +102,10 @@ from smartkeeper.contracts.rulepack import (
 from smartkeeper.contracts.sheet import (
     DerivedValue,
     Effect,
+    Grant,
     GroupEntry,
     Item,
+    OnUse,
     PlacementSpec,
     Shape,
     Sheet,
@@ -176,6 +179,7 @@ __all__ = [
     "GameConfig",
     "GameSettings",
     "GameStatus",
+    "Grant",
     "GroupDef",
     "GroupEntry",
     "GroupPreset",
@@ -207,6 +211,7 @@ __all__ = [
     "Movement",
     "NewEvent",
     "NotFound",
+    "OnUse",
     "Opening",
     "Outcome",
     "OwnEntity",
@@ -257,6 +262,7 @@ __all__ = [
     "TalkMessage",
     "TalkStatus",
     "TargetRef",
+    "UseResult",
     "ValidationFailed",
     "Visibility",
     "World",

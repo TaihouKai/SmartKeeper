@@ -101,9 +101,20 @@ class RollOut(_Out):
     reason: str = ""
 
 
+class UseOut(_Out):
+    """谁对谁用了哪个技能：引擎算好作用效果的数值，裁定时再决定生效没有。"""
+
+    source: str
+    entry: str  # 条目名或 ID
+    target: str | None = None
+    params: dict[str, float] = {}
+    reason: str = ""
+
+
 class PlanOut(_Out):
     checks: list[CheckOut] = []
     rolls: list[RollOut] = []
+    uses: list[UseOut] = []
     queries: list[SpatialQuery] = []
 
     @field_validator("queries", mode="before")

@@ -19,6 +19,7 @@
 - encounters：玩家相遇时，observed_by 里写每个玩家看到的对方可被观察到的行为。只有在移动之后确实能感知到对方的玩家才能写进 observed_by（感知可以是单向的）。
 - movements：除了进行中行动的移动（引擎自动推算），位置只能通过这里改变，例如被拦住、被推开、NPC 移动、依据能力的特殊移动；写在这里的位置会覆盖引擎推算的位置。because 写起因：本轮某个已确认的行动条目 id（被别人推开时可以是别人的条目，但那个条目必须以被推的实体为目标），或者 "npc:<实体 id>" 表示由不受玩家控制的实体引起。普通移动从本轮开始时的位置算，耗时不能超过本轮的时长（能飞的按 fly_speed 走直线，不能飞的按 move_speed 先上下再平地）；依据某个能力的特殊移动在 ability 里写能力名（必须在该实体的角色卡上）。inside 填所在建筑 id（坐标必须在轮廓内）或 null。
 - 设置物（陷阱、结界等）：玩家用分组里带“设置物参数”的条目设置时，在 placements 里写 {"owner": "<设置者实体 id>", "entry": "<条目名>", "at": {"x": 0, "y": 0, "z": 0}, "inside": null 或建筑 id, "because": "<行动条目 id 或 npc:设置者 id>", "params": {"<使用时填写的列名>": 数值}}，范围、发现难度、次数、持续时间由引擎按那个条目算；条目有“使用时填写”的列（例如消耗多少魔力）时 params 必须给出（按玩家说的，没说用最小值），要扣的资源由引擎扣，不要再在 state_patch 里扣。被拆除或失效的写进 remove_placements（设置物 id）。“本轮会被触发的”由引擎按移动路线判断：被触发的人、以及打开了“通知设置者”的设置者，都必须有结果；触发次数和到期由引擎处理。设置物的效果按它的描述和规则说明裁定。
+- uses：“本轮声明的技能使用”里每一次实际发生的使用写一条 {"seq": <那条的 seq>, "hit": true 或 false}。hit=true 时引擎执行它算好的作用效果（伤害先扣护盾再扣生命值、增减运行值、限时状态）；hit=false 表示用了但没生效（没打中、被挡住），只扣使用时的消耗；没写的当作没用。伤害、治疗、护盾这些数值引擎会自己改，不要再在 state_patch 里改一次。
 - area_effects：范围效果按 query_id 列出受影响的对象，只能从对应查询的结果里选，不能凭空增加。
 - state_patch：对世界状态的 JSON Patch（RFC 6902）。不能写 /game_seconds、/activities 和 /map，不能直接改实体的 pos 和 inside（用 movements），不能写推导值，资源不能越界。新出现的实体用 add /entities/<新 id>，必须指定规则包里的模板并填好角色卡。状态写进 /entities/<实体 id>/sheet/statuses：{"tag": "名称", "source": "来源", "expires_at": 到期的游戏内秒数或 null, "modifier": null 或 {"target": "<推导值>", "formula": "新值的公式，写推导值自己的名字表示原值，例如 move_speed * 0.5"}}。建筑被毁写进 /map_changes：{"feature": "<地物 id>", "status": "destroyed", "above_z": 只毁掉该高度以上时填米数否则 null}。
 - memory_entries：每条一句话，记行为不记后果（例如“{{A}} 打了 {{B}} 一巴掌，逼 {{B}} 去炸楼”而不是“大楼被炸”），entities 填涉及的实体 id，features 填涉及的地物 id，只能用存在的 id。
@@ -31,6 +32,7 @@
  "encounters": [{"players": ["<玩家 id>", "<玩家 id>"], "observed_by": {"<玩家 id>": "他看到的对方的行为"}}],
  "movements": [{"entity": "<实体 id>", "to": {"x": 0, "y": 0, "z": 0}, "inside": null, "because": "<行动条目 id 或 npc:实体id>", "ability": null}],
  "area_effects": [{"query_id": "q1", "affected": ["<实体 id 或地物 id>"]}],
+ "uses": [{"seq": 0, "hit": true}],
  "placements": [],
  "remove_placements": [],
  "public_events": [],

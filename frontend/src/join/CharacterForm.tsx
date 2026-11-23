@@ -69,6 +69,7 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
                 key={i}
                 group={g}
                 derived={derived}
+                runtime={(template.fields ?? []).filter((f) => f.cls === "runtime" && (f.kind === "number" || f.kind === "resource")).map((f) => f.name)}
                 entry={en}
                 validate={validate}
                 onChange={(e) => setEntries(entries.map((x, j) => (j === i ? e : x)))}

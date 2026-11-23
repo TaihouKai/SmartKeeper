@@ -1057,6 +1057,11 @@ export interface components {
              * @default []
              */
             state_patch: components["schemas"]["PatchOp"][];
+            /**
+             * Uses
+             * @default []
+             */
+            uses: components["schemas"]["UseResult"][];
         };
         /** AdminEvent */
         AdminEvent: {
@@ -1238,6 +1243,11 @@ export interface components {
              * @default
              */
             description: string;
+            /**
+             * Duration
+             * @default
+             */
+            duration: string;
             /** Formula */
             formula?: string | null;
             /** Priority */
@@ -1456,6 +1466,16 @@ export interface components {
             web_search: boolean;
         };
         /**
+         * Grant
+         * @description 限时加上的运行值（例如护盾）：到期时扣回还剩下的部分。
+         */
+        Grant: {
+            /** Amount */
+            amount: number;
+            /** Field */
+            field: string;
+        };
+        /**
          * GroupDef
          * @description 可重复的分组，例如技能、特殊能力。每个条目有模板规定的字段和一个效果列表。
          *
@@ -1509,6 +1529,11 @@ export interface components {
         /** GroupEntry */
         GroupEntry: {
             /**
+             * Actions
+             * @default []
+             */
+            actions: components["schemas"]["OnUse"][];
+            /**
              * Description
              * @default
              */
@@ -1541,6 +1566,11 @@ export interface components {
          *     空表示总是出现。固定条目不存进角色卡，每次读卡时按当前字段重新算，所以不算进 min/max_count。
          */
         GroupPreset: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: components["schemas"]["OnUse"][];
             /**
              * Description
              * @default
@@ -1788,6 +1818,43 @@ export interface components {
              * @default true
              */
             ok: boolean;
+        };
+        /**
+         * OnUse
+         * @description 作用效果：条目被使用（并且 KP 判定生效）时由引擎执行的一项状态改变。
+         *
+         *     - who：作用在对象（target）还是自己（self）身上
+         *     - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值
+         *     - amount：数量公式，可以掷骰；名字取施法者这边，self.<列> 是这一条的列，target.x 是对象的
+         *     - duration：只对 add 有意义，秒（公式）；到期时把加上去还剩下的部分扣回
+         */
+        OnUse: {
+            /** Amount */
+            amount: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Duration
+             * @default
+             */
+            duration: string;
+            /** Field */
+            field?: string | null;
+            /**
+             * Op
+             * @default damage
+             * @enum {string}
+             */
+            op: "damage" | "add" | "subtract" | "set";
+            /**
+             * Who
+             * @default target
+             * @enum {string}
+             */
+            who: "target" | "self";
         };
         /** Outcome */
         Outcome: {
@@ -2370,6 +2437,7 @@ export interface components {
         Status: {
             /** Expires At */
             expires_at?: number | null;
+            grant?: components["schemas"]["Grant"] | null;
             modifier?: components["schemas"]["Effect"] | null;
             /**
              * Source
@@ -2499,6 +2567,21 @@ export interface components {
             /** Problems */
             problems: components["schemas"]["Problem"][];
             sheet?: components["schemas"]["JsonValue"];
+        };
+        /**
+         * UseResult
+         * @description 裁定里对一次“使用”（规划时引擎已经算好的 entry_used 事件）的处理：生效了没有。
+         *
+         *     hit=true：作用效果全部执行；hit=false：没生效（没打中、被挡住），只扣使用时的消耗。没列出的使用当作没发生。
+         */
+        UseResult: {
+            /**
+             * Hit
+             * @default true
+             */
+            hit: boolean;
+            /** Seq */
+            seq: number;
         };
         /** ValidateOut */
         ValidateOut: {

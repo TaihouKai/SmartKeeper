@@ -254,13 +254,13 @@ class EntityContext:
         for g in self.template.groups:
             for entry in presets.get(g.name, ()):
                 for eff in entry.effects:
-                    if eff.is_mechanical and eff.target == name:
+                    if eff.is_mechanical and eff.target == name and not eff.duration.strip():
                         out.append((eff, entry.fields, f"{g.name}:{entry.name}"))
         own: list[tuple[int, int, Effect, Mapping[str, JsonValue], str]] = []
         for group, entries in sorted(self.sheet.groups.items()):
             for entry in entries:
                 for eff in entry.effects:
-                    if eff.is_mechanical and eff.target == name:
+                    if eff.is_mechanical and eff.target == name and not eff.duration.strip():
                         prio = eff.priority if eff.priority is not None else 1 << 30
                         own.append((prio, len(own), eff, entry.fields, f"{group}:{entry.name}"))
         out += [(eff, fields, src) for _, _, eff, fields, src in sorted(own, key=lambda x: x[:2])]

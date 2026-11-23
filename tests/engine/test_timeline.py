@@ -609,3 +609,117 @@ def test_runtime_fields_change_per_minute_without_notifying() -> None:
     ents = e.world_state(g)["entities"]
     assert ents[e0]["sheet"]["fields"]["hp"] == 5.5  # type: ignore[index]  # 2.5 分钟 × 1
     assert ents[e1]["sheet"]["fields"]["hp"] == hp_max  # type: ignore[index]  # 截断在上限
+
+
+# ---------------- 作用效果和持续性效果 ----------------
+
+
+def magic_pack() -> RulePack:
+    """single 规则包加一个护盾（运行值，无上限）和三个固定条目：
+    bolt：对象受到 5 点伤害；ward：对象护盾 + level×4，持续 60 秒；haste：对象移动速度 + 施法者的 str，持续 30 秒。"""
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    shield = FieldDef(name="shield", kind="resource", cls="runtime", min="0", initial="0")
+    g = tpl.groups[0]
+    presets = [
+        {
+            "name": "bolt",
+            "id": "bolt",
+            "fields": {"level": 1},
+            "actions": [{"op": "damage", "amount": "5"}],
+        },
+        {
+            "name": "ward",
+            "fields": {"level": 2},
+            "actions": [
+                {"op": "add", "field": "shield", "amount": "self.level * 4", "duration": "60"}
+            ],
+        },
+        {
+            "name": "haste",
+            "fields": {"level": 1},
+            "effects": [{"target": "move_speed", "formula": "move_speed + str", "duration": "30"}],
+        },
+    ]
+    g = g.model_copy(update={"presets": tuple(GroupPreset.model_validate(p) for p in presets)})
+    tpl = tpl.model_copy(update={"fields": (*tpl.fields, shield), "groups": (g, *tpl.groups[1:])})
+    return pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+
+
+def fields_of(t: Table, eid: str) -> dict[str, object]:
+    return t.engine.world_state(t.game_id)["entities"][eid]["sheet"]["fields"]  # type: ignore[index,return-value]
+
+
+def test_damage_goes_through_shield_and_timed_shield_runs_out() -> None:
+    from smartkeeper.contracts import UseResult
+
+    t = setup_table("single", 2, pack=magic_pack())
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    hp = fields_of(t, e1)["hp"]
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+    ward = e.use_entry(g, e0, "ward", e1, {}, "shields p1")
+    bolt1 = e.use_entry(g, e0, "bolt", e1, {}, "zap")
+    bolt2 = e.use_entry(g, e0, "bolt", e1, {}, "zap again")
+    miss = e.use_entry(g, e0, "bolt", e1, {}, "misses")
+    uses = [UseResult(seq=x.seq) for x in (ward, bolt1, bolt2)] + [
+        UseResult(seq=miss.seq, hit=False)
+    ]
+    publish(t, only=t.players, uses=uses)
+    # 护盾 8：第一下 5 全吸收，第二下吸收 3、扣血 2；没打中的那一下不算
+    assert fields_of(t, e1)["shield"] == 0
+    assert fields_of(t, e1)["hp"] == hp - 2  # type: ignore[operator]
+    # 再来一次：只加护盾，60 秒后到期，扣回剩下的
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+    again = e.use_entry(g, e0, "ward", e1, {}, "again")
+    publish(t, only=t.players, uses=[UseResult(seq=again.seq)])
+    assert fields_of(t, e1)["shield"] == 8
+    wait(t, p0, 100)
+    wait(t, p1, 100)
+    e.close_round(g)
+    publish(t, only=t.players)
+    assert fields_of(t, e1)["shield"] == 0
+    assert not e.world_state(g)["entities"][e1]["sheet"]["statuses"]  # type: ignore[index]
+
+
+def test_timed_effect_freezes_the_users_values() -> None:
+    from smartkeeper.contracts import UseResult
+
+    t = setup_table("single", 2, pack=magic_pack())
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+    source_str = fields_of(t, e0)["str"]
+    before = e.derived_all(g)[e1]["move_speed"]
+    haste = e.use_entry(g, e0, "haste", e1, {}, "speeds p1 up")
+    publish(t, only=t.players, uses=[UseResult(seq=haste.seq)])
+    statuses = e.world_state(g)["entities"][e1]["sheet"]["statuses"]  # type: ignore[index]
+    assert isinstance(statuses, list) and len(statuses) == 1
+    formula = statuses[0]["modifier"]["formula"]  # type: ignore[index]
+    assert formula == f"(move_speed + {source_str})"
+    assert statuses[0]["expires_at"] == 10 + 30  # type: ignore[index]
+    assert e.derived_all(g)[e1]["move_speed"] == before + source_str  # type: ignore[operator]
+
+
+def test_unknown_use_is_rejected() -> None:
+    from smartkeeper.contracts import UseResult
+
+    t = setup_table("single", 2, pack=magic_pack())
+    e, g = t.engine, t.game_id
+    wait(t, t.players[0], 10)
+    wait(t, t.players[1], 10)
+    e.close_round(g)
+    with pytest.raises(ValidationFailed) as err:
+        e.apply_adjudication(g, t.simple_adjudication(uses=[UseResult(seq=99999)]))
+    assert "adj.unknown_use" in {p.code for p in err.value.problems}

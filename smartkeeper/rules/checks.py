@@ -101,6 +101,7 @@ def roll(
     sheet: JsonValue = None,
     entry: dict[str, JsonValue] | None = None,
     peers: Peers | None = None,
+    target: tuple[str, JsonValue, Peers | None] | None = None,
 ) -> DiceResult:
     rolls: list[int] = []
 
@@ -111,17 +112,44 @@ def roll(
 
     try:
         node = f.parse(expr)
-        resolve = (
-            _ctx(pack, template, sheet, peers).resolver(entry)
-            if template is not None
-            else _vars({})
-        )
+        if template is not None:
+            ctx = _ctx(pack, template, sheet, peers)
+            if target is not None:
+                ctx.target = _ctx(pack, target[0], target[1], target[2])
+            resolve = ctx.resolver(entry)
+        else:
+            resolve = _vars({})
         v = f.evaluate(node, resolve, table_lookup(pack), record)
         if isinstance(v, str):
             raise f.FormulaError("formula.text_result", value=v)
     except f.FormulaError as e:
         raise ValidationFailed(e.code, formula=expr, **e.params) from e
     return DiceResult(expr=expr.strip(), rolls=tuple(rolls), total=v)
+
+
+def freeze(
+    pack: RulePack,
+    formula: str,
+    template: str,
+    sheet: JsonValue,
+    entry: dict[str, JsonValue] | None,
+    peers: Peers | None,
+    keep: str,
+    target: tuple[str, JsonValue, Peers | None] | None = None,
+) -> str:
+    """持续性效果：除了 keep（作用的推导值自己的名字）和 target.x，其余名字都换成施法者此刻的值。"""
+    try:
+        node = f.parse(formula)
+        ctx = _ctx(pack, template, sheet, peers)
+        if target is not None:
+            ctx.target = _ctx(pack, target[0], target[1], target[2])
+        resolve = ctx.resolver(entry)
+        values: dict[str, f.Value] = {
+            n: resolve(n) for n in f.names(node) if n != keep and not n.startswith("target.")
+        }
+        return f.to_text(node, values)
+    except f.FormulaError as e:
+        raise ValidationFailed(e.code, formula=formula, **e.params) from e
 
 
 def check_dice(pack: RulePack, check: str) -> str:

@@ -2,7 +2,7 @@ import { Fragment, useCallback, useState } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { FormulaInput, Mover } from "../ui/components";
-import { EffectsEditor, FieldInput, PlacementEditor, ShapeEditor, fieldLabel, type Effect, type PlacementSpec, type Shape } from "../ui/EntryEditor";
+import { ActionsEditor, EffectsEditor, FieldInput, PlacementEditor, ShapeEditor, fieldLabel, type Effect, type OnUse, type PlacementSpec, type Shape } from "../ui/EntryEditor";
 import { FieldCard, blankField, useListEdit, type Validate } from "./fieldCard";
 
 type Field = Schemas["FieldDef"];
@@ -24,7 +24,7 @@ function effectsOf(p: Preset): Effect[] {
  * “生效条件”“名称”“描述”是每行自带的列；其余的列是这个分组的字段，点列名在表格下面改这一列的设置。
  * 效果和范围形状放不进格子，点“更多”在这一行下面展开。
  */
-export function GroupTable({ g, onChange, validate, template, derived, spendTargets }: { g: Group; onChange: (g: Group) => void; validate: Validate; template: string; derived: string[]; spendTargets: string[] }) {
+export function GroupTable({ g, onChange, validate, template, derived, spendTargets, runtime = [] }: { g: Group; onChange: (g: Group) => void; validate: Validate; template: string; derived: string[]; spendTargets: string[]; runtime?: string[] }) {
   const { t } = useI18n();
   const fields = g.fields ?? [];
   const presets = g.presets ?? [];
@@ -140,7 +140,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   <td className="sk-nowrap">
                     {(g.effects !== false || shapes.length > 0 || g.placements) && (
                       <button type="button" className="sk-link" onClick={() => setOpen(open === r ? null : r)}>
-                        {t("rules.gt.more", { n: String((p.effects ?? []).length) })}
+                        {t("rules.gt.more", { n: String((p.effects ?? []).length + (p.actions ?? []).length) })}
                         {p.placement ? ` · ${t("placement.tag")}` : ""}
                       </button>
                     )}
@@ -149,7 +149,8 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                 {open === r && (
                   <tr className="sk-subrow">
                     <td colSpan={width}>
-                      {g.effects !== false && <EffectsEditor effects={effectsOf(p)} derived={derived} validate={vEff} withPriority={false} onChange={(effects) => setRow(r, { effects })} />}
+                      {g.effects !== false && <EffectsEditor effects={effectsOf(p)} derived={derived} validate={vEff} withPriority={false} onChange={(effects) => setRow(r, { effects: effects.map((x) => ({ ...x, duration: x.duration ?? "" })) })} />}
+                      {g.effects !== false && <ActionsEditor actions={(p.actions ?? []) as OnUse[]} runtime={runtime} validate={vDice} onChange={(actions) => setRow(r, { actions: actions.map((x) => ({ ...x, duration: x.duration ?? "" })) })} />}
                       {shapes.length > 0 && <ShapeEditor allowed={shapes} shape={(p.shape ?? null) as Shape | null} onChange={(shape) => setRow(r, { shape })} />}
                       {g.placements && <PlacementEditor spec={(p.placement ?? null) as PlacementSpec | null} validate={vEff} onChange={(placement) => setRow(r, { placement: placement ? { radius: placement.radius, perceive_multiplier: placement.perceive_multiplier ?? "1", charges: placement.charges ?? "", duration: placement.duration ?? "", notify_owner: placement.notify_owner ?? true } : null })} />}
                     </td>
@@ -167,7 +168,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
           </tbody>
         </table>
       </div>
-      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], shape: null, when: "" })}>
+      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], actions: [], shape: null, when: "" })}>
         {t("rules.gt.add_row")}
       </button>
       {col !== null && fields[col] && (

@@ -8,10 +8,12 @@ type FieldDef = Schemas["FieldDef"];
 type GroupDef = Schemas["GroupDef"];
 
 // formula 算出 target 的新值；写 target 自己的名字表示到这一步为止的值。priority 只有玩家写的效果才有
-export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null };
+export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null; duration?: string };
+// 作用效果：使用时（KP 判定生效）由引擎执行。damage 先扣护盾再扣生命值；add/subtract/set 改一个运行值
+export type OnUse = { description: string; who: "target" | "self"; op: "damage" | "add" | "subtract" | "set"; field?: string | null; amount: string; duration?: string };
 export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
 export type PlacementSpec = { radius: string; perceive_multiplier?: string; charges?: string; duration?: string; notify_owner?: boolean };
-export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null };
+export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null; actions?: OnUse[] };
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
@@ -71,6 +73,7 @@ export function EntryEditor({
   validate,
   withPriority = true,
   mover,
+  runtime = [],
 }: {
   group: GroupDef;
   derived: string[];
@@ -81,6 +84,8 @@ export function EntryEditor({
   /** 玩家写的条目要给效果填计算顺序；规则包的固定条目按定义顺序，不用填 */
   withPriority?: boolean;
   mover?: ReactNode;
+  /** 作用效果能改的运行值 */
+  runtime?: string[];
 }) {
   const { t } = useI18n();
   const fields = group.fields ?? [];
@@ -112,6 +117,7 @@ export function EntryEditor({
         </label>
       ))}
       {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} onChange={(effects) => onChange({ ...entry, effects })} />}
+      {group.effects !== false && <ActionsEditor actions={entry.actions ?? []} runtime={runtime} validate={vDice} onChange={(actions) => onChange({ ...entry, actions })} />}
       {shapes.length > 0 && <ShapeEditor allowed={shapes} shape={entry.shape} onChange={(shape) => onChange({ ...entry, shape })} />}
       {group.placements && <PlacementEditor spec={entry.placement ?? null} validate={v} onChange={(placement) => onChange({ ...entry, placement })} />}
       {onRemove && (
@@ -157,6 +163,10 @@ export function EffectsEditor({
             <>
               <span className="sk-hint sk-eq">=</span>
               <FormulaInput value={ef.formula ?? ""} validate={validate} placeholder={t("character.effect_formula", { name: ef.target })} onChange={(val) => set(i, { formula: val })} />
+              <label className="sk-inline sk-priority" title={t("character.effect_duration_hint")}>
+                {t("character.effect_duration")}
+                <FormulaInput value={ef.duration ?? ""} validate={validate} placeholder={t("character.effect_duration_ph")} onChange={(val) => set(i, { duration: val })} />
+              </label>
               {withPriority && (
                 <label className="sk-inline sk-priority">
                   {t("character.effect_priority")}
@@ -175,6 +185,58 @@ export function EffectsEditor({
         {t("character.add_effect")}
       </button>
       {effects.some((x) => x.target) && <p className="sk-hint">{t(withPriority ? "character.effect_hint" : "character.effect_hint_fixed")}</p>}
+    </div>
+  );
+}
+
+/** 作用效果：使用时对对象（或自己）造成伤害、增减或设定一个运行值；增加可以限时（到期扣回剩下的）。 */
+export function ActionsEditor({ actions, runtime, validate, onChange }: { actions: OnUse[]; runtime: string[]; validate: Check; onChange: (a: OnUse[]) => void }) {
+  const { t } = useI18n();
+  const set = (i: number, patch: Partial<OnUse>) => onChange(actions.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  return (
+    <div className="sk-effects">
+      <strong>{t("action.title")}</strong>
+      {actions.map((a, i) => (
+        <div key={i} className="sk-effect">
+          <input placeholder={t("character.effect_description")} value={a.description} onChange={(e) => set(i, { description: e.target.value })} />
+          <select value={a.who} onChange={(e) => set(i, { who: e.target.value as OnUse["who"] })}>
+            <option value="target">{t("action.who.target")}</option>
+            <option value="self">{t("action.who.self")}</option>
+          </select>
+          <select value={a.op} onChange={(e) => { const op = e.target.value as OnUse["op"]; set(i, { op, field: op === "damage" ? null : (a.field ?? runtime[0] ?? null), duration: op === "add" ? a.duration : "" }); }}>
+            {(["damage", "add", "subtract", "set"] as const).map((o) => (
+              <option key={o} value={o}>
+                {t(`action.op.${o}`)}
+              </option>
+            ))}
+          </select>
+          {a.op !== "damage" && (
+            <select value={a.field ?? ""} onChange={(e) => set(i, { field: e.target.value || null })}>
+              <option value="" />
+              {runtime.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          )}
+          <FormulaInput value={a.amount} validate={validate} placeholder={t("action.amount_ph")} onChange={(val) => set(i, { amount: val })} />
+          {a.op === "add" && (
+            <label className="sk-inline sk-priority" title={t("action.duration_hint")}>
+              {t("character.effect_duration")}
+              <FormulaInput value={a.duration ?? ""} validate={validate} placeholder={t("action.duration_ph")} onChange={(val) => set(i, { duration: val })} />
+            </label>
+          )}
+          <Mover index={i} count={actions.length} onMove={(from, to) => onChange(moved(actions, from, to))} />
+          <button type="button" className="sk-link" onClick={() => onChange(actions.filter((_, j) => j !== i))}>
+            {t("common.remove")}
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={() => onChange([...actions, { description: "", who: "target", op: "damage", field: null, amount: "", duration: "" }])}>
+        {t("action.add")}
+      </button>
+      {actions.length > 0 && <p className="sk-hint">{t("action.hint")}</p>}
     </div>
   );
 }

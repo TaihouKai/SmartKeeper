@@ -426,6 +426,13 @@ class KP:
                 )
             except (ValidationFailed, NotFound):
                 continue  # 不存在的条目或字段不掷；裁定时看不到它的结果
+        for use in plan.uses:
+            try:
+                self.engine.use_entry(
+                    game_id, use.source, use.entry, use.target, use.params, use.reason
+                )
+            except (ValidationFailed, NotFound):
+                continue  # 用不了（没有这个技能、魔力不够等）：裁定时就看不到它
         for q in plan.queries:
             try:
                 self.engine.spatial_query(game_id, q)

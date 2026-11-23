@@ -369,6 +369,12 @@ class Contexts:
             rolls = [x.payload for x in attempt if x.type == "dice_roll"]
             queries = [x.payload for x in attempt if x.type == "spatial_query"]
             parts.append(section("检定结果（引擎掷骰）", dumps(rolls)))
+            parts.append(
+                section(
+                    "本轮声明的技能使用（引擎已算好数值；在 uses 里按 seq 写生效与否）",
+                    dumps(e.planned_uses(game_id)),
+                )
+            )
             parts.append(section("空间查询结果", dumps(queries)))
         return "\n".join(parts)
 

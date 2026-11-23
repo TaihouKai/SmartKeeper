@@ -72,8 +72,22 @@ class RulesService:
         sheet: JsonValue = None,
         entry: dict[str, JsonValue] | None = None,
         peers: Peers | None = None,
+        target: tuple[str, JsonValue, Peers | None] | None = None,
     ) -> DiceResult:
-        return checks.roll(pack, expr, faces, template, sheet, entry, peers)
+        return checks.roll(pack, expr, faces, template, sheet, entry, peers, target)
+
+    def freeze(
+        self,
+        pack: RulePack,
+        formula: str,
+        template: str,
+        sheet: JsonValue,
+        entry: dict[str, JsonValue] | None,
+        peers: Peers | None,
+        keep: str,
+        target: tuple[str, JsonValue, Peers | None] | None = None,
+    ) -> str:
+        return checks.freeze(pack, formula, template, sheet, entry, peers, keep, target)
 
     def complete_names(self, pack: RulePack, template: str | None) -> list[str]:
         tpl = pack.template(template) if template else None

@@ -314,6 +314,35 @@ def is_die_name(name: str) -> bool:
     return _DIE_NAME.fullmatch(name) is not None
 
 
+def to_text(node: Node, values: dict[str, Value] | None = None) -> str:
+    """把公式树写回文本。values 里的名字换成那个值；target.x 写成 x（在对象身上求值）。"""
+    vals = values or {}
+
+    def lit(v: Value) -> str:
+        if isinstance(v, str):
+            return '"' + v.replace('"', "") + '"'
+        return repr(float(v)) if not float(v).is_integer() else str(int(v))
+
+    def go(n: Node) -> str:
+        if isinstance(n, Num):
+            return lit(n.value)
+        if isinstance(n, Str):
+            return lit(n.value)
+        if isinstance(n, Name):
+            if n.name in vals:
+                return lit(vals[n.name])
+            return n.name[7:] if n.name.startswith("target.") else n.name
+        if isinstance(n, Unary):
+            return f"({n.op}{go(n.operand)})"
+        if isinstance(n, Binary):
+            return f"({go(n.left)} {n.op} {go(n.right)})"
+        if isinstance(n, Call):
+            return f"{n.func}({', '.join(go(a) for a in n.args)})"
+        return f"(({go(n.count)}) d ({go(n.sides)}))"
+
+    return go(node)
+
+
 def has_dice(node: Node) -> bool:
     if isinstance(node, Dice) or (isinstance(node, Call) and node.func in ("highest", "lowest")):
         return True

@@ -146,12 +146,27 @@ class Rules(Protocol):
         sheet: JsonValue = None,
         entry: dict[str, JsonValue] | None = None,
         peers: Peers | None = None,
+        target: tuple[str, JsonValue, Peers | None] | None = None,
     ) -> DiceResult:
         """求值一条可以掷骰的公式（例如 1d100、1d str、highest(4, 6, 3)）。
 
         给了 template 和 sheet 时公式可以引用这张卡上的名字；再给 entry（条目的字段）时可以用 self.<字段>。
         faces 由 engine 提供，是唯一的随机来源。
         """
+        ...
+
+    def freeze(
+        self,
+        pack: RulePack,
+        formula: str,
+        template: str,
+        sheet: JsonValue,
+        entry: dict[str, JsonValue] | None,
+        peers: Peers | None,
+        keep: str,
+        target: tuple[str, JsonValue, Peers | None] | None = None,
+    ) -> str:
+        """持续性效果的公式：keep（作用的推导值）和 target.x 留着，其余名字换成施法者此刻的值。"""
         ...
 
     def resolve_check(

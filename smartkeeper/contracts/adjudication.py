@@ -52,6 +52,16 @@ class PlaceIn(Frozen):
     params: dict[str, float] = {}  # 条目“使用时填写”的列这次填的数，例如 {"mp_spent": 5}
 
 
+class UseResult(Frozen):
+    """裁定里对一次“使用”（规划时引擎已经算好的 entry_used 事件）的处理：生效了没有。
+
+    hit=true：作用效果全部执行；hit=false：没生效（没打中、被挡住），只扣使用时的消耗。没列出的使用当作没发生。
+    """
+
+    seq: int
+    hit: bool = True
+
+
 class AreaEffect(Frozen):
     query_id: str
     affected: tuple[str, ...]
@@ -70,6 +80,7 @@ class Adjudication(Frozen):
     encounters: tuple[Encounter, ...] = ()
     movements: tuple[Movement, ...] = ()
     area_effects: tuple[AreaEffect, ...] = ()
+    uses: tuple[UseResult, ...] = ()  # 规划时算好的技能使用：生效了没有
     placements: tuple[PlaceIn, ...] = ()  # 新放下的设置物
     remove_placements: tuple[str, ...] = ()  # 被拆除、失效的设置物 id
     public_events: tuple[str, ...] = ()

@@ -606,6 +606,30 @@ def _check_entry(
     problems += _check_formula_fields(pack, tpl, g.fields, entry.fields, ep, in_entry=True)
     if entry.effects and not g.effects:
         problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
+    runtime = {
+        x.name
+        for t in pack.templates
+        for x in t.fields
+        if x.cls == "runtime" and x.kind in ("number", "resource")
+    }
+    for j, act in enumerate(entry.actions):
+        ap = f"{ep}.actions[{j}]"
+        if act.op != "damage" and (act.field is None or act.field not in runtime):
+            problems.append(Problem(code="sheet.action_field", path=ap, params={"name": act.field}))
+        problems += check_formula(
+            pack, tpl, act.amount, f"{ap}.amount", entry_fields=list(fdefs), dice=True
+        )
+        if act.duration.strip():
+            if act.op != "add":
+                problems.append(Problem(code="sheet.action_duration_needs_add", path=ap))
+            problems += check_formula(
+                pack, tpl, act.duration, f"{ap}.duration", entry_fields=list(fdefs)
+            )
+    for j, eff in enumerate(entry.effects):
+        if eff.duration.strip():
+            problems += check_formula(
+                pack, tpl, eff.duration, f"{ep}.effects[{j}].duration", entry_fields=list(fdefs)
+            )
     for j, eff in enumerate(entry.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
     if entry.placement is not None:
