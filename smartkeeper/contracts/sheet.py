@@ -98,6 +98,10 @@ class GroupEntry(Frozen):
     shape: Shape | None = None
     placement: PlacementSpec | None = None
     actions: tuple[OnUse, ...] = ()  # 作用效果
+    # 施放时间（分钟，公式）：不到 1 分钟算瞬发。用这个技能的行动至少要这么久
+    cast_time: str = ""
+    # 冷却时间（分钟，公式）：用过之后这么久之内不能再用
+    cooldown: str = ""
 
 
 class Status(Frozen):

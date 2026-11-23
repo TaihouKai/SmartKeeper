@@ -83,9 +83,9 @@ function blankTemplate(name: string, t: T): Template {
     label: "",
     appearance_field: "appearance",
     fields: [
-      { name: "appearance", label: defaultLabel(t, "appearance"), description: "", kind: "text", cls: "player", required: true, hidden: false, choices: [] },
-      { name: FLY_FIELD, label: defaultLabel(t, FLY_FIELD), description: "", kind: "boolean", cls: "player", required: true, hidden: false, choices: [] },
-      { name: HP_FIELD, label: defaultLabel(t, HP_FIELD), description: "", kind: "resource", cls: "runtime", min: "0", initial: "10", required: true, hidden: false, choices: [] },
+      { name: "appearance", label: defaultLabel(t, "appearance"), description: "", kind: "text", cls: "player", required: true, hidden: false, choices: [], vital: false },
+      { name: FLY_FIELD, label: defaultLabel(t, FLY_FIELD), description: "", kind: "boolean", cls: "player", required: true, hidden: false, choices: [], vital: false },
+      { name: HP_FIELD, label: defaultLabel(t, HP_FIELD), description: "", kind: "resource", cls: "runtime", min: "0", initial: "10", required: true, hidden: false, choices: [], vital: true },
     ],
     groups: [],
     derived: REQUIRED_DERIVED.map((n) => ({
@@ -177,6 +177,9 @@ function GroupCard({ g, onChange, onRemove, validate, template, derived, mover, 
           <label className="sk-inline">
             <input type="checkbox" checked={g.placements ?? false} onChange={(e) => onChange({ ...g, placements: e.target.checked })} /> {t("rules.g.placements")}
           </label>
+          <label className="sk-inline">
+            <input type="checkbox" checked={g.timing ?? false} onChange={(e) => onChange({ ...g, timing: e.target.checked })} /> {t("rules.g.timing")}
+          </label>
         </div>
         <label>{t("rules.g.shapes")}</label>
         <div className="sk-shapes">
@@ -251,7 +254,7 @@ function TemplateEditor({ tpl, onChange, onRemove, validate, mover }: { tpl: Tem
           {groups.map((g: Group, i) => (
             <GroupCard key={i} g={g} template={tpl.name} derived={derived.map((d) => d.name)} spendTargets={(tpl.fields ?? []).filter((f) => f.kind === "number" || f.kind === "resource").map((f) => f.name)} runtime={(tpl.fields ?? []).filter((f) => f.cls === "runtime" && (f.kind === "number" || f.kind === "resource")).map((f) => f.name)} validate={validate} onChange={(x) => ged.update(i, x)} onRemove={() => ged.remove(i)} mover={<Mover index={i} count={groups.length} onMove={ged.move} />} />
           ))}
-          <button onClick={() => ged.add({ name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: false })}>{t("rules.add_group")}</button>
+          <button onClick={() => ged.add({ name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: false, timing: false })}>{t("rules.add_group")}</button>
         </Fold>
       </Fold>
     </div>

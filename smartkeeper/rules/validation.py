@@ -71,6 +71,10 @@ def check_formula(
                 )
         elif name not in allowed:
             problems.append(_unknown_name(name, allowed, path))
+    for ref in sorted(f.lists(node)):
+        bad = _check_list(pack, template, ref)
+        if bad:
+            problems.append(Problem(code=bad, path=path, params={"name": ref}))
     table_names = {t.name for t in pack.tables}
     for t in sorted(f.tables(node)):
         if t not in table_names:
@@ -119,6 +123,30 @@ def _check_dotted(pack: RulePack, name: str, extra: set[str]) -> str | None:
     return "formula.unknown_name"
 
 
+def _check_list(pack: RulePack, template: EntityTemplate | None, ref: str) -> str | None:
+    """count/sum 的分组引用：[<模板>. 或 target.]分组[.列]。"""
+    head, *rest = ref.split(".")
+    if head == "target":
+        templates = list(pack.templates)
+    elif pack.template(head) is not None:
+        templates = [t for t in [pack.template(head)] if t is not None]
+    else:
+        templates = [template] if template is not None else list(pack.templates)
+        rest = [head, *rest]
+    if not rest or len(rest) > 2:
+        return "formula.unknown_group"
+    for tpl in templates:
+        g = next((x for x in tpl.groups if x.name == rest[0]), None)
+        if g is None:
+            continue
+        if len(rest) == 1:
+            return None
+        col = next((x for x in g.fields if x.name == rest[1]), None)
+        if col is not None:
+            return "formula.param_not_referenceable" if col.kind == "param" else None
+    return "formula.unknown_group"
+
+
 def _unknown_name(name: str, allowed: set[str], path: str) -> Problem:
     """未知名字；如果它其实是“名字d名字”连写的掷骰，提示在 d 两边加空格。"""
     for i, ch in enumerate(name):
@@ -163,6 +191,8 @@ def _check_field_def(
         text = getattr(fd, attr)
         if text is not None:
             problems += check_formula(pack, tpl, text, f"{path}.{attr}", entry_fields=entry_fields)
+    if fd.vital and (fd.cls != "runtime" or fd.kind not in ("number", "resource")):
+        problems.append(Problem(code="pack.vital_needs_runtime", path=path))
     if fd.per_minute is not None:
         if fd.cls != "runtime" or fd.kind not in ("number", "resource"):
             problems.append(Problem(code="pack.per_minute_needs_runtime", path=path))
@@ -625,6 +655,10 @@ def _check_entry(
             problems += check_formula(
                 pack, tpl, act.duration, f"{ap}.duration", entry_fields=list(fdefs)
             )
+    for key in ("cast_time", "cooldown"):
+        text = str(getattr(entry, key))
+        if text.strip():
+            problems += check_formula(pack, tpl, text, f"{ep}.{key}", entry_fields=list(fdefs))
     for j, eff in enumerate(entry.effects):
         if eff.duration.strip():
             problems += check_formula(

@@ -73,7 +73,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
     onChange({ ...g, fields: next });
     setCol(to);
   };
-  const width = 6 + fields.length;
+  const width = 6 + fields.length + (g.timing ? 2 : 0);
 
   return (
     <div>
@@ -86,6 +86,8 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
               <th>{t("character.entry_name")}</th>
               <th title={t("rules.gt.id_hint")}>{t("rules.gt.id")}</th>
               <th>{t("character.entry_description")}</th>
+              {g.timing && <th title={t("rules.gt.timing_hint")}>{t("rules.gt.cast_time")}</th>}
+              {g.timing && <th title={t("rules.gt.timing_hint")}>{t("rules.gt.cooldown")}</th>}
               {fields.map((f, i) => (
                 <th key={i}>
                   <button type="button" className={col === i ? "sk-link sk-col-active" : "sk-link"} onClick={() => setCol(col === i ? null : i)}>
@@ -123,6 +125,16 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   <td>
                     <textarea rows={1} value={p.description ?? ""} onChange={(e) => setRow(r, { description: e.target.value })} />
                   </td>
+                  {g.timing && (
+                    <td>
+                      <FormulaInput value={p.cast_time ?? ""} validate={vEff} placeholder={t("rules.gt.instant")} onChange={(x) => setRow(r, { cast_time: x })} />
+                    </td>
+                  )}
+                  {g.timing && (
+                    <td>
+                      <FormulaInput value={p.cooldown ?? ""} validate={vEff} placeholder={t("rules.gt.no_cd")} onChange={(x) => setRow(r, { cooldown: x })} />
+                    </td>
+                  )}
                   {fields.map((f, i) => (
                     <td key={i}>
                       {f.kind === "param" ? (
@@ -168,7 +180,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
           </tbody>
         </table>
       </div>
-      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], actions: [], shape: null, when: "" })}>
+      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], actions: [], shape: null, when: "", cast_time: "", cooldown: "" })}>
         {t("rules.gt.add_row")}
       </button>
       {col !== null && fields[col] && (

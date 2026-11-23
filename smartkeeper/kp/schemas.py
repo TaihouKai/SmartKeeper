@@ -49,6 +49,7 @@ class ItemOut(_Out):
     destination: DestinationOut | None = None
     detail: str = ""
     seconds: int = Field(ge=0)  # 动作本身的耗时，不含移动；必填，所以 KP 一定会给出一个时间
+    entry: str | None = None  # 用了角色卡上的哪个技能（条目名或 ID）
 
 
 class NpcTalkOut(_Out):

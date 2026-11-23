@@ -77,6 +77,8 @@ from smartkeeper.contracts.llm import (
     SearchRecord,
 )
 from smartkeeper.contracts.rulepack import (
+    COOLDOWN_TAG,
+    DEAD_TAG,
     FLY_FIELD,
     HP_FIELD,
     REQUIRED_DERIVED,
@@ -138,6 +140,8 @@ from smartkeeper.contracts.talk import Talk, TalkMessage, TalkStatus
 
 __all__ = [
     "ADMIN",
+    "COOLDOWN_TAG",
+    "DEAD_TAG",
     "ENGINE",
     "FLY_FIELD",
     "HP_FIELD",

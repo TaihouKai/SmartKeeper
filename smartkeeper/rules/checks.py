@@ -117,9 +117,11 @@ def roll(
             if target is not None:
                 ctx.target = _ctx(pack, target[0], target[1], target[2])
             resolve = ctx.resolver(entry)
+            collect: f.Collect | None = ctx.collect
         else:
             resolve = _vars({})
-        v = f.evaluate(node, resolve, table_lookup(pack), record)
+            collect = None
+        v = f.evaluate(node, resolve, table_lookup(pack), record, collect)
         if isinstance(v, str):
             raise f.FormulaError("formula.text_result", value=v)
     except f.FormulaError as e:

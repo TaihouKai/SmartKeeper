@@ -723,3 +723,73 @@ def test_unknown_use_is_rejected() -> None:
     with pytest.raises(ValidationFailed) as err:
         e.apply_adjudication(g, t.simple_adjudication(uses=[UseResult(seq=99999)]))
     assert "adj.unknown_use" in {p.code for p in err.value.problems}
+
+
+# ---------------- 施放时间、冷却、致命字段 ----------------
+
+
+def timing_pack() -> RulePack:
+    """magic_pack 上加：hp 致命；技能分组有施放时间和冷却；nuke 1000 伤害冷却 1 分钟；ward 施放 2 分钟；bolt 0.5 分钟（瞬发）。"""
+    pack = magic_pack()
+    tpl = pack.templates[0]
+    fields = tuple(
+        x.model_copy(update={"vital": True}) if x.name == "hp" else x for x in tpl.fields
+    )
+    g = tpl.groups[0]
+    presets = []
+    for p in g.presets:
+        if p.name == "ward":
+            p = p.model_copy(update={"cast_time": "2"})
+        if p.name == "bolt":
+            p = p.model_copy(update={"cast_time": "0.5"})
+        presets.append(p)
+    nuke = GroupPreset.model_validate(
+        {
+            "name": "nuke",
+            "fields": {"level": 1},
+            "cooldown": "1",
+            "actions": [{"op": "damage", "amount": "1000"}],
+        }
+    )
+    g = g.model_copy(update={"timing": True, "presets": (*presets, nuke)})
+    tpl = tpl.model_copy(update={"fields": fields, "groups": (g, *tpl.groups[1:])})
+    return pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+
+
+def test_cast_time_cooldown_and_death() -> None:
+    from smartkeeper.contracts import UseResult
+
+    t = setup_table("single", 2, pack=timing_pack())
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    assert e.cast_seconds(g, e0, "ward") == 120
+    assert e.cast_seconds(g, e0, "bolt") == 0  # 不到 1 分钟算瞬发
+    assert e.cast_seconds(g, e0, "nothing") == 0
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+    nuke = e.use_entry(g, e0, "nuke", e1, {}, "boom")
+    publish(t, only=t.players, uses=[UseResult(seq=nuke.seq)])
+    tags = {s["tag"] for s in e.world_state(g)["entities"][e1]["sheet"]["statuses"]}  # type: ignore[index,union-attr]
+    assert "dead" in tags
+    own = {s["tag"] for s in e.world_state(g)["entities"][e0]["sheet"]["statuses"]}  # type: ignore[index,union-attr]
+    assert "cooldown:nuke" in own
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+    with pytest.raises(ValidationFailed) as err:
+        e.use_entry(g, e0, "nuke", e1, {}, "again")
+    assert err.value.code == "use.cooling_down"
+    with pytest.raises(ValidationFailed) as err:
+        e.use_entry(g, e1, "bolt", e0, {}, "the dead can't cast")
+    assert err.value.code == "use.dead"
+    publish(t, only=t.players)
+    wait(t, p0, 60)
+    wait(t, p1, 60)
+    e.close_round(g)
+    publish(t, only=t.players)
+    own = {s["tag"] for s in e.world_state(g)["entities"][e0]["sheet"]["statuses"]}  # type: ignore[index,union-attr]
+    assert "cooldown:nuke" not in own

@@ -626,6 +626,19 @@ T: dict[str, tuple[str, str]] = {
         'Rows filled in from the header above, so players don\'t write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn\'t appear. Conditions may only use this sheet\'s fields; text values need double quotes, e.g. class = "warrior", class != "warrior" or and(class = "warrior", str >= 3). Fixed entries don\'t count toward the min/max above.',
     ),
     "rules.gt.title": ("条目表", "Entry table"),
+    "rules.g.timing": (
+        "条目有施放时间和冷却时间（技能）",
+        "Entries have a casting time and a cooldown (skills)",
+    ),
+    "rules.gt.cast_time": ("施放（分钟）", "Cast (min)"),
+    "rules.gt.cooldown": ("冷却（分钟）", "Cooldown (min)"),
+    "rules.gt.instant": ("瞬发", "instant"),
+    "rules.gt.no_cd": ("无", "none"),
+    "rules.gt.timing_hint": (
+        "施放时间和冷却时间都按分钟，可以写公式（例如 24*60 是一天）。施放时间不到 1 分钟算瞬发；用这个技能的行动至少要这么久。冷却：用过之后（不管有没有生效）这么久之内不能再用。",
+        "Cast time and cooldown are in minutes and may be formulas (24*60 is a day). Under 1 minute is instant; an action using the skill takes at least the cast time. Cooldown: after a use (hit or not) the skill can't be used again for this long.",
+    ),
+    "rules.f.vital": ("致命：降到 0 时角色死亡", "Vital: the character dies when it reaches 0"),
     "rules.g.placements": (
         "条目可以是设置物（陷阱、结界等，放在地图上）",
         "Entries may be placed objects (traps, wards… left on the map)",
@@ -912,6 +925,17 @@ T: dict[str, tuple[str, str]] = {
         "作用对象没有运行值 {name}",
         "The target has no runtime value {name}",
     ),
+    "codes.formula.list_ref": (
+        "{name} 的第一个参数要写分组引用，例如 traits.level 或 companion.traits.level",
+        "The first argument of {name} must be a group reference, e.g. traits.level",
+    ),
+    "codes.formula.unknown_group": ("没有这个分组或列：{name}", "No such group or column: {name}"),
+    "codes.pack.vital_needs_runtime": (
+        "只有运行值（数值或资源）能设成致命",
+        "Only runtime values (number or resource) can be vital",
+    ),
+    "codes.use.dead": ("{entity} 已经死亡，不能用技能", "{entity} is dead and can't use skills"),
+    "codes.use.cooling_down": ("{entry} 还在冷却", "{entry} is still cooling down"),
     "codes.pack.missing_hp": (
         "缺少生命值字段 {name}（必须是运行值）",
         "Missing the HP field {name} (must be a runtime value)",
@@ -1023,6 +1047,19 @@ T: dict[str, tuple[str, str]] = {
     "fh.fn.or": ("任何一个成立得 1", "1 if any holds"),
     "fh.fn.not": ("成立得 0，不成立得 1", "0 if it holds, 1 if not"),
     "fh.fn.lookup": ("在规则包的表里查值", "Look a value up in one of the pack's tables"),
+    "fh.fn.count": (
+        "数一个分组里的条目：count(分组) 是条目数，count(分组.列, 值) 是这一列等于这个值的条目数",
+        "Count entries in a group: count(group) is how many, count(group.col, value) how many have that value in that column",
+    ),
+    "fh.fn.sum": ("一个分组里所有条目某一列的和", "Sum of one column over all entries of a group"),
+    "fh.b.count": (
+        "同伴的 traits 分组里 rank 等于 3 的条目有几条。分组前面可以写 <模板ID>.（自己这边的角色）或 target.（作用对象），不写就是自己",
+        "How many entries of the companion's traits group have rank 3. Prefix the group with <template>. (your side) or target.; no prefix means yourself",
+    ),
+    "fh.b.sum": (
+        "自己 talents 分组里 cost 列的总和",
+        "Total of the cost column in your talents group",
+    ),
     "fh.fn.highest": (
         "掷 n 颗 s 面骰，取最高的 k 颗之和",
         "Roll n dice with s sides, add the highest k",

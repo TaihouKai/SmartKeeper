@@ -6,7 +6,7 @@ import { FormulaInput, moved } from "../ui/components";
 type Field = Schemas["FieldDef"];
 
 export function blankField(): Field {
-  return { name: "", label: "", description: "", kind: "number", cls: "player", required: true, hidden: false, choices: [] };
+  return { name: "", label: "", description: "", kind: "number", cls: "player", required: true, hidden: false, choices: [], vital: false };
 }
 
 export type Scope = "any_entity" | "dice";
@@ -161,6 +161,11 @@ export function FieldCard({
                   </option>
                 ))}
               </select>
+            </label>
+          )}
+          {cls === "runtime" && (f.kind === "number" || f.kind === "resource") && (
+            <label className="sk-inline">
+              <input type="checkbox" checked={f.vital ?? false} onChange={(e) => onChange({ ...f, vital: e.target.checked })} /> {t("rules.f.vital")}
             </label>
           )}
           {cls === "runtime" && (f.kind === "number" || f.kind === "resource") && (

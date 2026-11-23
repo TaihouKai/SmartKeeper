@@ -277,7 +277,12 @@ class KP:
                         targets=tuple(targets),
                         destination=dest,
                         detail=it.detail,
-                        act_seconds=it.seconds,
+                        # 用了技能：耗时至少是施放时间（引擎算）
+                        act_seconds=max(
+                            it.seconds,
+                            self.engine.cast_seconds(game_id, actor, it.entry) if it.entry else 0,
+                        ),
+                        entry=it.entry,
                     )
                 )
             claims = tuple(

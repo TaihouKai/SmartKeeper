@@ -98,6 +98,10 @@ class RulesService:
             plain = validation.known_names(pack, t) - {x.name for x in pack.formulas}
             names |= {f"{t.name}.{n}" for n in plain}
             names |= {f"target.{n}" for n in plain}
+            for g in t.groups:
+                gcols = [x.name for x in g.fields if x.kind != "param"]
+                names |= {f"{t.name}.{g.name}.{c}" for c in gcols}
+                names |= {f"{g.name}.{c}" for c in gcols}
             for pid, cols in validation.preset_ids(t).items():
                 names.add(f"{t.name}.{pid}")
                 names |= {f"{t.name}.{pid}.{c}" for c in cols}

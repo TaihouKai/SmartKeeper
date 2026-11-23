@@ -175,6 +175,36 @@ class EntityContext:
             return 0.0  # 我这边没有这种角色：按 0 算（例如还没有这种同伴）
         raise f.FormulaError("formula.unknown_name", name=name)
 
+    def collect(self, ref: str) -> list[f.Value]:
+        """count/sum 的分组引用：分组 / 分组.列，前面可以加 <模板>. 或 target.。
+
+        分组.列 是每个条目这一列的值（没填的跳过）；只写分组是每个条目算一个 1。"""
+        head, *rest = ref.split(".")
+        ctx: EntityContext | None = self
+        if head == "target":
+            if self.target is None:
+                raise f.FormulaError("formula.no_target", name=ref)
+            ctx = self.target
+        elif head == self.template.name:
+            pass
+        elif self.pack.template(head) is not None:
+            ctx = self.peer(head)
+        else:
+            rest = [head, *rest]
+        if ctx is None or not rest:
+            return []
+        if len(rest) > 2 or not any(g.name == rest[0] for g in ctx.template.groups):
+            raise f.FormulaError("formula.unknown_group", name=ref)
+        entries = ctx.groups().get(rest[0], ())
+        if len(rest) == 1:
+            return [1.0 for _ in entries]
+        out: list[f.Value] = []
+        for e in entries:
+            v = as_value(e.fields.get(rest[1]))
+            if v is not None:
+                out.append(v)
+        return out
+
     def member(self, rest: list[str], full: str) -> f.Value:
         if rest == ["template"]:
             return self.template.name
@@ -220,7 +250,9 @@ class EntityContext:
         faces: f.Faces | None = None,
         overrides: Mapping[str, f.Value] | None = None,
     ) -> f.Value:
-        return f.evaluate(f.parse(text), self.resolver(entry, overrides), self._lookup, faces)
+        return f.evaluate(
+            f.parse(text), self.resolver(entry, overrides), self._lookup, faces, self.collect
+        )
 
     def eval_num(
         self,

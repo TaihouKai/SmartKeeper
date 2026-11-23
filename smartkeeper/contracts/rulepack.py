@@ -27,6 +27,9 @@ FLY_FIELD = "can_fly"
 # 每个模板都必须有生命值：运行值（数值或资源）。引擎扣伤害时按 SHIELD_FIELD（有的话）→ HP_FIELD 的顺序。
 HP_FIELD = "hp"
 SHIELD_FIELD = "shield"
+# 致命运行值归零时引擎加的状态；冷却中的技能是 COOLDOWN_TAG + 技能名
+DEAD_TAG = "dead"
+COOLDOWN_TAG = "cooldown:"
 
 FieldKind = Literal["number", "text", "resource", "boolean", "formula", "param"]
 FieldClass = Literal["player", "runtime"]
@@ -69,6 +72,7 @@ class FieldDef(Frozen):
     spends: str | None = None  # kind=param：从角色的哪个资源字段里扣
     # 运行值的自然变化：每分钟变化多少（公式；正数恢复、负数消耗），按上下限截断；空表示不变
     per_minute: str | None = None
+    vital: bool = False  # 运行值：降到 0（或以下）时角色死亡
 
 
 class ShapeDef(Frozen):
@@ -100,6 +104,7 @@ class GroupDef(Frozen):
     effects: bool = True  # 条目是否可以带效果
     shapes: ShapeDef = ShapeDef()
     placements: bool = False  # 条目是否可以是设置物（陷阱、结界等）
+    timing: bool = False  # 条目是否有施放时间和冷却时间（技能）
     hidden: bool = False
 
 

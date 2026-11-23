@@ -13,7 +13,7 @@ export type Effect = { description: string; target: string | null; formula: stri
 export type OnUse = { description: string; who: "target" | "self"; op: "damage" | "add" | "subtract" | "set"; field?: string | null; amount: string; duration?: string };
 export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
 export type PlacementSpec = { radius: string; perceive_multiplier?: string; charges?: string; duration?: string; notify_owner?: boolean };
-export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null; actions?: OnUse[] };
+export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null; actions?: OnUse[]; cast_time?: string; cooldown?: string };
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
@@ -108,6 +108,18 @@ export function EntryEditor({
         {t("character.entry_description")}
         <textarea rows={2} value={entry.description} onChange={(e) => onChange({ ...entry, description: e.target.value })} />
       </label>
+      {group.timing && (
+        <div className="sk-field-extra">
+          <label title={t("rules.gt.timing_hint")}>
+            {t("rules.gt.cast_time")}
+            <FormulaInput value={entry.cast_time ?? ""} validate={v} placeholder={t("rules.gt.instant")} onChange={(x) => onChange({ ...entry, cast_time: x })} />
+          </label>
+          <label title={t("rules.gt.timing_hint")}>
+            {t("rules.gt.cooldown")}
+            <FormulaInput value={entry.cooldown ?? ""} validate={v} placeholder={t("rules.gt.no_cd")} onChange={(x) => onChange({ ...entry, cooldown: x })} />
+          </label>
+        </div>
+      )}
       {fields.map((f) => (
         <label key={f.name}>
           {fieldLabel(f, t("character.unnamed_field"))}

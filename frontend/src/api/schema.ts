@@ -1379,6 +1379,11 @@ export interface components {
             spends?: string | null;
             /** Unit */
             unit?: string | null;
+            /**
+             * Vital
+             * @default false
+             */
+            vital: boolean;
         };
         /**
          * Formula
@@ -1525,6 +1530,11 @@ export interface components {
              *       "allowed": []
              *     } */
             shapes: components["schemas"]["ShapeDef"];
+            /**
+             * Timing
+             * @default false
+             */
+            timing: boolean;
         };
         /** GroupEntry */
         GroupEntry: {
@@ -1533,6 +1543,16 @@ export interface components {
              * @default []
              */
             actions: components["schemas"]["OnUse"][];
+            /**
+             * Cast Time
+             * @default
+             */
+            cast_time: string;
+            /**
+             * Cooldown
+             * @default
+             */
+            cooldown: string;
             /**
              * Description
              * @default
@@ -1571,6 +1591,16 @@ export interface components {
              * @default []
              */
             actions: components["schemas"]["OnUse"][];
+            /**
+             * Cast Time
+             * @default
+             */
+            cast_time: string;
+            /**
+             * Cooldown
+             * @default
+             */
+            cooldown: string;
             /**
              * Description
              * @default

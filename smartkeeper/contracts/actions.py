@@ -26,6 +26,7 @@ class ActionItem(Frozen):
     destination: Location | None = None
     detail: str = ""
     act_seconds: int = Field(default=0, ge=0)  # 动作本身的耗时，解析时由 KP 估算，不含移动
+    entry: str | None = None  # 用了哪个技能（条目名或 ID）：耗时至少是它的施放时间
     move_seconds: int = Field(default=0, ge=0)  # 走到 destination 的耗时，由引擎算
 
 

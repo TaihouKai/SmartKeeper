@@ -15,6 +15,8 @@ from pydantic import JsonValue
 
 from smartkeeper.contracts import (
     ADMIN,
+    COOLDOWN_TAG,
+    DEAD_TAG,
     ENGINE,
     HP_FIELD,
     KP,
@@ -1366,6 +1368,11 @@ class Engine:
             tpl = pack.template(template)
             if tpl is None:
                 continue
+            if any(
+                _obj(s).get("tag") == DEAD_TAG
+                for s in _list(_obj(ent.get("sheet")).get("statuses"))
+            ):
+                continue  # 死了不再自然变化
             peers = peers_of(state, eid)
             sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
             fields = _obj(sheet.get("fields"))
@@ -1440,6 +1447,11 @@ class Engine:
                 raise NotFound("roll.unknown_entry", entity=source, entry=entry)
             gname, row = found
             parsed = GroupEntry.model_validate(row)
+            tags = {str(_obj(s).get("tag")) for s in _list(_obj(ent.get("sheet")).get("statuses"))}
+            if DEAD_TAG in tags:
+                raise ValidationFailed("use.dead", entity=source)
+            if COOLDOWN_TAG + parsed.name in tags:
+                raise ValidationFailed("use.cooling_down", entity=source, entry=parsed.name)
             fields = dict(parsed.fields)
             gdef = next((g for g in tpl.groups if g.name == gname), None) if tpl else None
             spends = self._use_params(pack, template, sheet, gdef, fields, params, entry, peers)
@@ -1507,10 +1519,63 @@ class Engine:
                     "spends": spends,
                     "actions": actions,
                     "statuses": statuses,
+                    "cooldown": int(roll(parsed.cooldown).total * 60)
+                    if parsed.cooldown.strip()
+                    else 0,
                     "reason": reason,
                 },
             )
             return self._events.append(game_id, r.no, [ev])[0]
+
+    def cast_seconds(self, game_id: str, entity_id: str, entry: str) -> int:
+        """技能的施放时间（秒）：施放时间列按分钟算，不到 1 分钟算瞬发（0）。没有这个技能也是 0。"""
+        pack = self.rulepack(game_id)
+        state = self._state(game_id)
+        ent = _obj(_obj(state.get("entities")).get(entity_id))
+        if not ent:
+            return 0
+        template = str(ent.get("template", ""))
+        peers = peers_of(state, entity_id)
+        sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
+        for entries in _obj(sheet.get("groups")).values():
+            for e in _list(entries):
+                row = _obj(e)
+                if entry not in (row.get("name"), row.get("id")):
+                    continue
+                text = str(row.get("cast_time") or "")
+                if not text.strip():
+                    return 0
+                fields = _obj(row.get("fields"))
+                minutes = self._rules.roll(
+                    pack, text, self._dice.faces, template, sheet, fields, peers
+                ).total
+                return int(minutes * 60) if minutes >= 1 else 0
+        return 0
+
+    def _vital_ops(self, pack: RulePack, state: State) -> list[PatchOp]:
+        """致命运行值（vital）降到 0 或以下的角色：加上死亡状态。"""
+        ops: list[PatchOp] = []
+        for eid, raw in sorted(_obj(state.get("entities")).items()):
+            ent = _obj(raw)
+            tpl = pack.template(str(ent.get("template", "")))
+            if tpl is None:
+                continue
+            sheet = _obj(ent.get("sheet"))
+            if any(_obj(s).get("tag") == DEAD_TAG for s in _list(sheet.get("statuses"))):
+                continue
+            fields = _obj(sheet.get("fields"))
+            for fd in tpl.fields:
+                v = fields.get(fd.name)
+                if fd.vital and isinstance(v, int | float) and not isinstance(v, bool) and v <= 0:
+                    ops.append(
+                        PatchOp(
+                            op="add",
+                            path=f"/entities/{eid}/sheet/statuses/-",
+                            value=Status(tag=DEAD_TAG, source=fd.name).model_dump(mode="json"),
+                        )
+                    )
+                    break
+        return ops
 
     def _use_ops(
         self, game_id: str, round_no: int, cur: State, adj: Adjudication, end: int
@@ -1573,6 +1638,17 @@ class Engine:
                 have = num(cur, source, res)
                 if have is not None and isinstance(amount, int | float):
                     cur = put(cur, source, res, have - float(amount))
+            cd = p.get("cooldown")
+            if isinstance(cd, int) and cd > 0 and source in _obj(cur.get("entities")):
+                cop = PatchOp(
+                    op="add",
+                    path=f"/entities/{source}/sheet/statuses/-",
+                    value=Status(
+                        tag=COOLDOWN_TAG + str(p.get("entry")), source=source, expires_at=end + cd
+                    ).model_dump(mode="json"),
+                )
+                ops.append(cop)
+                cur = self._world.apply(cur, [cop])
             if not u.hit:
                 continue
             listed = p.get("actions")
@@ -1905,6 +1981,16 @@ class Engine:
                     groups.append(("uses", use_ops))
             except ValidationFailed as e:
                 problems += e.problems or [Problem(code=e.code, params=dict(e.params))]
+        death_ops: list[PatchOp] = []
+        if not problems:
+            regen = self._regen_ops(pack, cur, end - now)
+            if regen:
+                cur = self._world.apply(cur, regen)
+                groups.append(("regen", regen))
+            death_ops = self._vital_ops(pack, cur)
+            if death_ops:
+                cur = self._world.apply(cur, death_ops)
+                groups.append(("death", death_ops))
         after_entities = set(_obj(cur.get("entities")))
         problems += adjv.check_memory_entities(adj, after_entities | entities)
         for i, mem in enumerate(adj.memory_entries):
@@ -2013,7 +2099,7 @@ class Engine:
                 )
             ]
             touched = adjv.touched_entities(
-                [*adj.state_patch, *self._spend_ops(game_id, r.no, state), *use_ops]
+                [*adj.state_patch, *self._spend_ops(game_id, r.no, state), *use_ops, *death_ops]
             ) & controls.get(pid, set())
             overheard = set(heard) & controls.get(pid, set())
             if changed or touched or overheard:
@@ -2028,10 +2114,6 @@ class Engine:
             ops = [PatchOp(op="replace", path="/kp_notes", value=adj.kp_notes)]
             cur = self._world.apply(cur, ops)
             groups.append(("kp_notes", ops))
-        regen = self._regen_ops(pack, cur, end - now)
-        if regen:
-            cur = self._world.apply(cur, regen)
-            groups.append(("regen", regen))
         ops = [PatchOp(op="replace", path="/game_seconds", value=end)]
         # 做完了的行动、收到结果的玩家的全部行动，到此结束
         notified = outcome_players
@@ -3107,3 +3189,7 @@ class Engine:
                 seq = e.seq
             self._state_cache[game_id] = (seq, state)
             return state
+
+
+def _list(v: JsonValue | None) -> list[JsonValue]:
+    return cast(list[JsonValue], v) if isinstance(v, list) else []

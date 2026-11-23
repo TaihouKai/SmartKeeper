@@ -11,6 +11,8 @@ const BASICS: [string, string][] = [
   ["hero.fireball", "fh.b.entry"],
   ["hero.fireball.level", "fh.b.entry_col"],
   ["target.hp", "fh.b.target"],
+  ["count(companion.traits.rank, 3)", "fh.b.count"],
+  ["sum(talents.cost)", "fh.b.sum"],
 ];
 
 const DICE: [string, string][] = [
@@ -40,6 +42,8 @@ export const FUNCTION_SIGNATURES: [string, string][] = [
   ["or", "or(a, b, …)"],
   ["not", "not(a)"],
   ["lookup", "lookup(table, key)"],
+  ["count", "count(group.col, value)"],
+  ["sum", "sum(group.col)"],
   ["highest", "highest(n, s, k)"],
   ["lowest", "lowest(n, s, k)"],
 ];

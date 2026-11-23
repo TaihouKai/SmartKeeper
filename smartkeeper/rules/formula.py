@@ -37,10 +37,14 @@ FUNCTIONS: dict[str, tuple[int, int | None]] = {
     "or": (1, None),
     "not": (1, 1),
     "lookup": (2, 2),
+    "count": (1, 2),
+    "sum": (1, 1),
     "highest": (3, 3),
     "lowest": (3, 3),
 }
 
+# 第一个参数是分组引用（分组、分组.列、<模板>.分组.列、target.分组.列），不是普通名字
+LIST_FUNCTIONS = ("count", "sum")
 COMPARISONS = ("<", "<=", ">", ">=", "==", "!=")
 MAX_DICE = 1000
 MAX_SIDES = 100000
@@ -252,6 +256,8 @@ class _Parser:
             raise FormulaError("formula.arity", name=name, count=len(args))
         if name == "lookup" and not isinstance(args[0], Name):
             raise FormulaError("formula.lookup_table_name")
+        if name in LIST_FUNCTIONS and not isinstance(args[0], Name):
+            raise FormulaError("formula.list_ref", name=name)
         return Call(name, tuple(args))
 
 
@@ -283,15 +289,29 @@ def _children(node: Node) -> tuple[Node, ...]:
 
 
 def names(node: Node) -> set[str]:
-    """公式里引用的全部名字（不含 lookup 的表名）。"""
+    """公式里引用的全部名字（不含 lookup 的表名和 count/sum 的分组引用）。"""
     if isinstance(node, Name):
         return {node.name}
     kids = _children(node)
-    if isinstance(node, Call) and node.func == "lookup":
+    if isinstance(node, Call) and node.func in ("lookup", *LIST_FUNCTIONS):
         kids = kids[1:]
     out: set[str] = set()
     for k in kids:
         out |= names(k)
+    return out
+
+
+def lists(node: Node) -> set[str]:
+    """count/sum 的分组引用。"""
+    out: set[str] = set()
+    kids = _children(node)
+    if isinstance(node, Call) and node.func in LIST_FUNCTIONS:
+        first = kids[0]
+        assert isinstance(first, Name)
+        out.add(first.name)
+        kids = kids[1:]
+    for k in kids:
+        out |= lists(k)
     return out
 
 
@@ -351,6 +371,7 @@ def has_dice(node: Node) -> bool:
 
 type Resolver = Callable[[str], Value]
 type TableLookup = Callable[[str, Value], float]
+type Collect = Callable[[str], list[Value]]  # 分组引用 -> 每个条目的值
 type Faces = Callable[[int, int], tuple[int, ...]]  # (个数, 面数) -> 每颗骰子的点数
 
 
@@ -381,6 +402,7 @@ class _Eval:
     resolve: Resolver
     lookup: TableLookup
     faces: Faces | None
+    collect: Collect | None = None
 
     def roll(self, count: float, sides: float) -> tuple[int, ...]:
         if self.faces is None:
@@ -414,6 +436,18 @@ class _Eval:
             first = args[0]
             assert isinstance(first, Name)
             return self.lookup(first.name, self.run(args[1]))
+        if fn in LIST_FUNCTIONS:
+            first = args[0]
+            assert isinstance(first, Name)
+            if self.collect is None:
+                raise FormulaError("formula.list_ref", name=fn)
+            items = self.collect(first.name)
+            if fn == "sum":
+                return float(sum(_num(x) for x in items))
+            if len(args) == 1:
+                return float(len(items))
+            want = self.run(args[1])
+            return float(sum(1 for x in items if _same(x, want)))
         if fn == "if":
             return self.run(args[1]) if truthy(self.run(args[0])) else self.run(args[2])
         if fn == "and":
@@ -470,9 +504,19 @@ def _math(fn: str, v: list[float]) -> float:
 
 
 def evaluate(
-    node: Node, resolve: Resolver, lookup: TableLookup, faces: Faces | None = None
+    node: Node,
+    resolve: Resolver,
+    lookup: TableLookup,
+    faces: Faces | None = None,
+    collect: Collect | None = None,
 ) -> Value:
-    return _Eval(resolve, lookup, faces).run(node)
+    return _Eval(resolve, lookup, faces, collect).run(node)
+
+
+def _same(x: Value, y: Value) -> bool:
+    if isinstance(x, str) or isinstance(y, str):
+        return str(x) == str(y)
+    return abs(x - y) < 1e-9
 
 
 def _binary(op: str, x: Value, y: Value) -> Value:

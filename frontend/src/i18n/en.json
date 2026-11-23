@@ -109,6 +109,7 @@
       "division_by_zero": "Division by zero",
       "empty": "The formula is empty",
       "expected": "Expected {token} here",
+      "list_ref": "The first argument of {name} must be a group reference, e.g. traits.level",
       "lookup_miss": "Table {table} has no row for {key}",
       "lookup_table_name": "lookup's first argument must be a table name",
       "math_domain": "{name} has no result for these inputs (e.g. sqrt of a negative)",
@@ -119,6 +120,7 @@
       "unexpected": "'{token}' isn't expected here",
       "unexpected_end": "The formula ends too early",
       "unknown_function": "There is no function {name} (see the formula reference)",
+      "unknown_group": "No such group or column: {name}",
       "unknown_name": "Unknown name {name}",
       "unknown_table": "No table named {name}"
     },
@@ -153,7 +155,8 @@
       "runtime_needs_initial": "A runtime value needs an initial value",
       "sample_mismatch": "The example gives {got}, expected {expected}",
       "unknown_check": "No check named {name}",
-      "unknown_template": "No template named {name}"
+      "unknown_template": "No template named {name}",
+      "vital_needs_runtime": "Only runtime values (number or resource) can be vital"
     },
     "rate": {
       "kp_chat": "Too fast; wait a minute",
@@ -191,6 +194,10 @@
     "text": {
       "empty": "Text can't be empty",
       "too_long": "Text too long (max {max})"
+    },
+    "use": {
+      "cooling_down": "{entry} is still cooling down",
+      "dead": "{entity} is dead and can't use skills"
     }
   },
   "common": {
@@ -231,11 +238,13 @@
     "b": {
       "arith": "Arithmetic; brackets change the order",
       "compare": "Comparison (< <= > >= == !=): 1 if true, 0 if false",
+      "count": "How many entries of the companion's traits group have rank 3. Prefix the group with <template>. (your side) or target.; no prefix means yourself",
       "entry": "<template>.<entry ID>: whether that entry exists (1 or 0). The entry needs an ID in its table",
       "entry_col": "<template>.<entry ID>.<column>: a column of that entry (not chosen-on-use columns); 0 if the entry is missing",
       "names": "Refer to fields, derived values and named formulas by name",
       "peer": "<template>.field: a character on your side. Your own template name is you; another template name is the character of that template controlled by the same player. 0 if there is none",
       "self": "Inside an entry's effects, a field of that entry",
+      "sum": "Total of the cost column in your talents group",
       "target": "target.field: the target of a skill (in on-use effects)",
       "text": "Text goes in double quotes"
     },
@@ -255,6 +264,7 @@
       "and": "1 if all hold",
       "ceil": "Round up",
       "clamp": "Keep x between lo and hi",
+      "count": "Count entries in a group: count(group) is how many, count(group.col, value) how many have that value in that column",
       "floor": "Round down",
       "highest": "Roll n dice with s sides, add the highest k",
       "if": "a if the condition holds, otherwise b",
@@ -269,6 +279,7 @@
       "round": "Round to nearest (.5 away from zero)",
       "sign": "1 if positive, -1 if negative, 0 if zero",
       "sqrt": "Square root",
+      "sum": "Sum of one column over all entries of a group",
       "trunc": "Drop the fraction (toward zero)"
     },
     "functions": "Functions",
@@ -516,7 +527,8 @@
       "required": "Player must fill in",
       "spends": "Spend from",
       "spends_none": "nothing",
-      "unit": "Unit"
+      "unit": "Unit",
+      "vital": "Vital: the character dies when it reaches 0"
     },
     "fields": "Fields",
     "fields_hint": "Values and text on the sheet. The appearance field is required: other players' handles for this character are generated from it.",
@@ -534,6 +546,7 @@
       "presets": "Fixed entries: rows filled in by the rules",
       "presets_hint": "Rows filled in from the header above, so players don't write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn't appear. Conditions may only use this sheet's fields; text values need double quotes, e.g. class = \"warrior\", class != \"warrior\" or and(class = \"warrior\", str >= 3). Fixed entries don't count toward the min/max above.",
       "shapes": "Area shapes entries may have (for area attacks, beams…; leave all unticked if unused)",
+      "timing": "Entries have a casting time and a cooldown (skills)",
       "untitled": "Untitled group"
     },
     "groups": "Repeatable groups (skills, abilities…)",
@@ -542,14 +555,19 @@
       "add_column": "+ Column",
       "add_row": "+ Row (entry written by the rules)",
       "always": "always",
+      "cast_time": "Cast (min)",
       "column": "Column: {name}",
+      "cooldown": "Cooldown (min)",
       "empty": "No entries yet. Use “+ Row” below.",
       "hint": "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Effects and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: effects on one value run top to bottom. Players fill the same columns for their own entries.",
       "id": "ID (for references, optional)",
       "id_hint": "English ID, needed to refer to this entry in formulas: hero.fireball is whether it exists (1 or 0), hero.fireball.level is its level column. Must be unique on a sheet.",
       "id_ph": "e.g. fireball",
+      "instant": "instant",
       "more": "More (effects {n})",
+      "no_cd": "none",
       "param_cell": "chosen on use",
+      "timing_hint": "Cast time and cooldown are in minutes and may be formulas (24*60 is a day). Under 1 minute is instant; an action using the skill takes at least the cast time. Cooldown: after a use (hit or not) the skill can't be used again for this long.",
       "title": "Entry table",
       "when": "Condition"
     },

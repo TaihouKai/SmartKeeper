@@ -106,3 +106,43 @@ def test_entry_ids_must_be_unique_and_not_clash(rules: RulesService) -> None:
     assert "sheet.duplicate_entry_id" in dup
     assert "sheet.entry_id_clash" in codes({"name": "a", "id": "might", "fields": {"rank": 1}})
     assert "sheet.bad_entry_id" in codes({"name": "a", "id": "9lives", "fields": {"rank": 1}})
+
+
+def test_count_and_sum(rules: RulesService) -> None:
+    pack = with_derived(
+        load_pack("multi"),
+        "leader",
+        DerivedDef(name="rank2", formula="count(talents.rank, 2)"),
+        DerivedDef(name="ranks", formula="sum(leader.talents.rank)"),
+        DerivedDef(name="n", formula="count(talents)"),
+        DerivedDef(name="their_uses", formula="count(companion.abilities.uses, 3)"),
+    )
+    me: dict[str, JsonValue] = {
+        **LEADER,
+        "groups": {
+            "talents": [
+                {"name": "a", "fields": {"rank": 2}},
+                {"name": "b", "fields": {"rank": 2}},
+                {"name": "c", "fields": {"rank": 5}},
+            ]
+        },
+    }
+    comp: dict[str, JsonValue] = {
+        **COMPANION,
+        "groups": {
+            "abilities": [
+                {"name": "x", "fields": {"uses": 3}},
+                {"name": "y", "fields": {"uses": 1}},
+            ]
+        },
+    }
+    got = {d.name: d.value for d in rules.derive(pack, "leader", me, {"companion": comp})}
+    assert got["rank2"] == 2
+    assert got["ranks"] == 9
+    assert got["n"] == 3
+    assert got["their_uses"] == 1
+    alone = {d.name: d.value for d in rules.derive(pack, "leader", me)}
+    assert alone["their_uses"] == 0
+    assert rules.validate_formula(pack, "leader", "count(talents.rank, 1)") == []
+    for bad in ["count(nothing.rank)", "count(talents.nope)", "count(1 + 2)"]:
+        assert rules.validate_formula(pack, "leader", bad) != [], bad
