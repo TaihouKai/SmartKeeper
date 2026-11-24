@@ -90,7 +90,7 @@ def check_script(
 ) -> list[Problem]:
     """技能脚本：语法，每句的字段是不是能改的值，参数公式里的名字。问题的 params 里带 line。"""
     try:
-        statements = f.parse_script(text)
+        nodes = f.parse_script(text)
     except f.FormulaError as e:
         return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
     # 对象可以是任何模板的角色，所以字段在任何一个模板里有就行
@@ -102,26 +102,47 @@ def check_script(
     }
     derived = {d.name for t in pack.templates for d in t.derived}
     problems: list[Problem] = []
-    for st in statements:
-        found: list[Problem] = []
-        if st.verb in ("add", "sub", "set") and st.field not in runtime:
-            found.append(Problem(code="script.not_runtime", path=path, params={"name": st.field}))
-        if st.verb == "modify" and st.field not in derived:
-            found.append(Problem(code="script.not_derived", path=path, params={"name": st.field}))
-        if st.amount is not None:
-            found += check_formula(
-                pack, template, st.amount, path, entry_fields=entry_fields, dice=True
-            )
-        if st.minutes is not None:
-            found += check_formula(
-                pack, template, st.minutes, path, entry_fields=entry_fields, dice=True
-            )
-        if st.formula is not None and st.field is not None:
-            # 被修正的推导值自己的名字指带着这条修正的角色的值，其余名字取使用者
-            found += check_formula(
-                pack, template, st.formula, path, entry_fields=entry_fields, extra=[st.field]
-            )
-        problems += [p.model_copy(update={"params": {**p.params, "line": st.line}}) for p in found]
+
+    def at(line: int, found: list[Problem]) -> None:
+        problems.extend(p.model_copy(update={"params": {**p.params, "line": line}}) for p in found)
+
+    def walk(body: tuple[f.ScriptNode, ...]) -> None:
+        for node in body:
+            if isinstance(node, f.If):
+                for b in node.branches:
+                    if b.condition is not None:
+                        # 条件在声明使用时算，不掷骰（掷出来的点数没处记）
+                        at(
+                            b.line,
+                            check_formula(
+                                pack, template, b.condition, path, entry_fields=entry_fields
+                            ),
+                        )
+                    walk(b.body)
+                continue
+            st = node
+            found: list[Problem] = []
+            if st.verb in ("add", "sub", "set") and st.field not in runtime:
+                found.append(
+                    Problem(code="script.not_runtime", path=path, params={"name": st.field})
+                )
+            if st.verb == "modify" and st.field not in derived:
+                found.append(
+                    Problem(code="script.not_derived", path=path, params={"name": st.field})
+                )
+            for arg in (st.amount, st.minutes):
+                if arg is not None:
+                    found += check_formula(
+                        pack, template, arg, path, entry_fields=entry_fields, dice=True
+                    )
+            if st.formula is not None and st.field is not None:
+                # 被修正的推导值自己的名字指带着这条修正的角色的值，其余名字取使用者
+                found += check_formula(
+                    pack, template, st.formula, path, entry_fields=entry_fields, extra=[st.field]
+                )
+            at(st.line, found)
+
+    walk(nodes)
     return problems
 
 

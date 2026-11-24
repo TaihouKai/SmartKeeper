@@ -1,6 +1,6 @@
 import pytest
 
-from smartkeeper.lang import FormulaError, Statement, parse_script
+from smartkeeper.lang import Branch, FormulaError, If, Statement, parse_script, statements
 
 
 def test_statements_lines_and_comments() -> None:
@@ -29,6 +29,7 @@ def test_statements_lines_and_comments() -> None:
 
 def test_optional_minutes_and_strings() -> None:
     (st,) = parse_script('target.add(shield, if(this.kind = "a;b", 3, 1), 60)')
+    assert isinstance(st, Statement)
     assert st.minutes == "60"
     assert st.amount == 'if(this.kind = "a;b", 3, 1)'
     assert parse_script("  \n# nothing\n") == ()
@@ -44,6 +45,13 @@ def test_optional_minutes_and_strings() -> None:
         ("self.damage(1, 2)", "script.arity", 1),
         ("target.add(target.hp, 1)", "script.field_arg", 1),
         ("self.damage(1 +)", "formula.unexpected_end", 1),
+        ("self.damage(1)\n  self.damage(2)", "script.unexpected_indent", 2),
+        ("if hp > 1:\nself.damage(1)", "script.empty_block", 1),
+        ("if hp > 1:", "script.empty_block", 1),
+        ("self.damage(1)\nelse:\n  self.damage(2)", "script.dangling_else", 2),
+        ("if hp >:\n  self.damage(1)", "formula.unexpected_end", 1),
+        ("if :\n  self.damage(1)", "script.bad_condition", 1),
+        ("if hp > 1:\n    self.damage(1)\n  self.damage(2)", "script.unexpected_indent", 3),
     ],
 )
 def test_errors_carry_the_line(text: str, code: str, line: int) -> None:
@@ -51,3 +59,82 @@ def test_errors_carry_the_line(text: str, code: str, line: int) -> None:
         parse_script(text)
     assert err.value.code == code
     assert err.value.params["line"] == line
+
+
+def test_if_elif_else_blocks() -> None:
+    text = """
+if target.template == "monster":
+    target.add(mp, 2 * this.mp_spent)   # 怪物
+    if (1 > 0):
+        self.damage(1)
+elif target.template == "boss":
+    target.add(mp, this.mp_spent)
+else:
+    self.add(mp, this.mp_spent)
+self.sub(mp, 1)
+"""
+    got = parse_script(text)
+    assert got == (
+        If(
+            line=2,
+            branches=(
+                Branch(
+                    line=2,
+                    condition='target.template == "monster"',
+                    body=(
+                        Statement(
+                            line=3,
+                            receiver="target",
+                            verb="add",
+                            field="mp",
+                            amount="2 * this.mp_spent",
+                        ),
+                        If(
+                            line=4,
+                            branches=(
+                                Branch(
+                                    line=4,
+                                    condition="(1 > 0)",
+                                    body=(
+                                        Statement(
+                                            line=5, receiver="self", verb="damage", amount="1"
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                Branch(
+                    line=6,
+                    condition='target.template == "boss"',
+                    body=(
+                        Statement(
+                            line=7,
+                            receiver="target",
+                            verb="add",
+                            field="mp",
+                            amount="this.mp_spent",
+                        ),
+                    ),
+                ),
+                Branch(
+                    line=8,
+                    condition=None,
+                    body=(
+                        Statement(
+                            line=9, receiver="self", verb="add", field="mp", amount="this.mp_spent"
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        Statement(line=10, receiver="self", verb="sub", field="mp", amount="1"),
+    )
+    assert len(statements(got)) == 5
+
+
+def test_if_after_if_starts_a_new_block_and_tabs_indent() -> None:
+    got = parse_script("if 1:\n\tself.damage(1)\nif 0:\n\tself.damage(2)\nelse:\n\tself.damage(3)")
+    assert [type(n) for n in got] == [If, If]
+    assert [len(n.branches) for n in got if isinstance(n, If)] == [1, 2]

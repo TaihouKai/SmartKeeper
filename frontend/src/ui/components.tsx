@@ -100,7 +100,9 @@ export function Section({ title, children, actions }: { title: string; children:
   );
 }
 
-/** 公式输入框：实时校验，补全字段名。不合法的公式标红。multiline 时是多行文本框（技能脚本）。 */
+const INDENT = "    ";
+
+/** 公式输入框：实时校验，补全字段名。不合法的公式标红。multiline 时是多行文本框（技能脚本），Tab 和回车帮着缩进。 */
 export function FormulaInput({
   value,
   onChange,
@@ -170,6 +172,22 @@ export function FormulaInput({
     },
     onSelect: (e: SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => setCaret(e.currentTarget.selectionStart),
     onKeyDown: (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (multiline && !suggestions.length && (e.key === "Tab" || e.key === "Enter") && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+        // 脚本：Tab 缩进；回车保持这一行的缩进，行尾是冒号（if / else）时再缩进一级
+        const el = e.currentTarget;
+        const a = el.selectionStart ?? value.length;
+        const b = el.selectionEnd ?? a;
+        const cur = value.slice(value.lastIndexOf("\n", a - 1) + 1, a);
+        const ins = e.key === "Tab" ? INDENT : "\n" + (/^ */.exec(cur)?.[0] ?? "") + (cur.trimEnd().endsWith(":") ? INDENT : "");
+        e.preventDefault();
+        onChange(value.slice(0, a) + ins + value.slice(b));
+        const pos = a + ins.length;
+        window.requestAnimationFrame(() => {
+          el.setSelectionRange(pos, pos);
+          setCaret(pos);
+        });
+        return;
+      }
       if (!suggestions.length) return;
       if (e.key === "Tab" || e.key === "Enter") {
         e.preventDefault();

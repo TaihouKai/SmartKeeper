@@ -678,8 +678,8 @@ T: dict[str, tuple[str, str]] = {
     ),
     "script.line": ("第 {n} 行", "line {n}"),
     "script.hint": (
-        "用这个技能、KP 判定生效（打中）时，引擎一行一行执行；没生效只扣消耗。self 是使用者自己，target 是使用时选的对象（对谁用由玩家决定，也可以是自己）；没有对象时只执行 self 的句子。动作：damage(数量) 受到伤害，先扣护盾 shield 再扣生命值 hp；add(字段, 数量[, 分钟]) 增加，写了分钟就是限时的，到期扣回剩下的部分；sub(字段, 数量) 减少；set(字段, 数量) 设为；modify(推导值, 新值公式, 分钟) 限时修正，公式里这个推导值自己的名字指带着这条修正的角色的值，其余名字取使用那一刻的值。数量是公式，可以掷骰；this.列 是这一条的列（掷骰公式列会当场掷），self.x 和不带前缀的名字是使用者的，target.x 是对象的。# 后面是注释。",
-        "When the skill is used and the keeper rules it took effect (hit), the engine runs it line by line; otherwise only the cost is paid. self is the user, target is whoever it's used on (the player chooses, may be themselves); with no target only the self lines run. Actions: damage(amount) – shield first, then hp; add(field, amount[, minutes]) – with minutes it's timed and the rest is taken back when it ends; sub(field, amount); set(field, amount); modify(derived, new-value formula, minutes) – a timed modifier: the derived value's own name is the bearer's value, other names are the user's at the time of use. Amounts are formulas and may roll dice; this.column is this entry's column (dice-formula columns roll), self.x and bare names are the user's, target.x the target's. # starts a comment.",
+        "用这个技能、KP 判定生效（打中）时，引擎一行一行执行；没生效只扣消耗。self 是使用者自己，target 是使用时选的对象（对谁用由玩家决定，也可以是自己）；没有对象时只执行 self 的句子。动作：damage(数量) 受到伤害，先扣护盾 shield 再扣生命值 hp；add(字段, 数量[, 分钟]) 增加，写了分钟就是限时的，到期扣回剩下的部分；sub(字段, 数量) 减少；set(字段, 数量) 设为；modify(推导值, 新值公式, 分钟) 限时修正，公式里这个推导值自己的名字指带着这条修正的角色的值，其余名字取使用那一刻的值。数量是公式，可以掷骰；this.列 是这一条的列（掷骰公式列会当场掷），self.x 和不带前缀的名字是使用者的，target.x 是对象的，target.template 是对象的模板名。分支：if 条件: 下面缩进的几行只在条件成立时执行，后面可以接 elif 条件: 和 else:；条件在声明使用时算，不能掷骰；没有对象时，问到 target 的条件整块跳过。Tab 缩进，回车自动缩进。# 后面是注释。",
+        "When the skill is used and the keeper rules it took effect (hit), the engine runs it line by line; otherwise only the cost is paid. self is the user, target is whoever it's used on (the player chooses, may be themselves); with no target only the self lines run. Actions: damage(amount) – shield first, then hp; add(field, amount[, minutes]) – with minutes it's timed and the rest is taken back when it ends; sub(field, amount); set(field, amount); modify(derived, new-value formula, minutes) – a timed modifier: the derived value's own name is the bearer's value, other names are the user's at the time of use. Amounts are formulas and may roll dice; this.column is this entry's column (dice-formula columns roll), self.x and bare names are the user's, target.x the target's, target.template the target's template name. Branches: the indented lines under if condition: run only when it holds; elif condition: and else: may follow. Conditions are worked out when the use is declared and can't roll dice; with no target, a block whose condition asks about target is skipped. Tab indents; Enter keeps the indent. # starts a comment.",
     ),
     "rules.gt.id": ("ID（引用用，可不填）", "ID (for references, optional)"),
     "rules.gt.id_ph": ("例如 fireball", "e.g. fireball"),
@@ -887,6 +887,22 @@ T: dict[str, tuple[str, str]] = {
         "{name} 不是推导值，modify 只能修正推导值",
         "{name} isn't a derived value; modify only works on derived values",
     ),
+    "codes.script.unexpected_indent": (
+        "这一行的缩进不对：同一段里的行要对齐，只有 if / elif / else 下面才能缩进",
+        "Unexpected indent: lines in one block must line up; only lines under if / elif / else are indented",
+    ),
+    "codes.script.empty_block": (
+        "if / elif / else 下面要有缩进的几行",
+        "if / elif / else needs indented lines under it",
+    ),
+    "codes.script.dangling_else": (
+        "{name} 前面要有对齐的 if",
+        "{name} needs an if above it at the same indent",
+    ),
+    "codes.script.bad_condition": (
+        '看不懂这个条件：{text}。写成 if 条件:，例如 if target.template == "monster":',
+        'Can\'t read the condition: {text}. Write if condition:, e.g. if target.template == "monster":',
+    ),
     "codes.formula.text_in_arithmetic": (
         "文字“{value}”不能参与计算",
         "Text '{value}' can't be used in arithmetic",
@@ -1044,6 +1060,14 @@ T: dict[str, tuple[str, str]] = {
     "fh.s.modify": (
         "限时修正：对象的移动速度减半，持续 10 分钟",
         "Timed modifier: halve the target's move speed for 10 minutes",
+    ),
+    "fh.s.if": (
+        "对象是 monster 模板时，执行下面缩进的几行（条件不能掷骰）",
+        "When the target uses the monster template, run the indented lines below (conditions can't roll dice)",
+    ),
+    "fh.s.else": (
+        "接在 if 后面：别的条件 / 都不成立时",
+        "After an if: another condition / when none held",
     ),
     "fh.d.basic": ("掷 3 颗 6 面骰，求和", "Roll three six-sided dice and add them"),
     "fh.d.one": ("省略个数就是 1 颗；d% 就是 d100", "No count means one die; d% is d100"),

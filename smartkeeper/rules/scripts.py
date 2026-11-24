@@ -32,7 +32,7 @@ def plan_script(
     target: tuple[str, JsonValue, Peers | None] | None = None,
 ) -> tuple[ScriptStep, ...]:
     try:
-        statements = f.parse_script(script)
+        nodes = f.parse_script(script)
     except f.FormulaError as e:
         raise ValidationFailed(e.code, **e.params) from e
     ctx = context(pack, template, sheet, peers)
@@ -40,13 +40,31 @@ def plan_script(
         ctx.target = context(pack, target[0], target[1], target[2])
     lookup = table_lookup(pack)
     steps: list[ScriptStep] = []
-    for st in statements:
-        if st.receiver == "target" and target is None:
-            continue
-        try:
-            steps.append(_step(ctx, lookup, faces, entry, st))
-        except f.FormulaError as e:
-            raise ValidationFailed(e.code, line=st.line, **e.params) from e
+
+    def run(body: tuple[f.ScriptNode, ...]) -> None:
+        for node in body:
+            line = node.line
+            try:
+                if isinstance(node, f.Statement):
+                    if node.receiver == "target" and target is None:
+                        continue
+                    steps.append(_step(ctx, lookup, faces, entry, node))
+                    continue
+                for b in node.branches:
+                    if b.condition is None:
+                        run(b.body)
+                        break
+                    line = b.line
+                    cond = ctx.prepare(b.condition, entry)
+                    if target is None and any(n.startswith("target.") for n in f.names(cond)):
+                        break  # 没有对象时，问对象的条件整块跳过
+                    if f.truthy(f.evaluate(cond, ctx.resolver(entry), lookup, None, ctx.collect)):
+                        run(b.body)
+                        break
+            except f.FormulaError as e:
+                raise ValidationFailed(e.code, line=line, **e.params) from e
+
+    run(nodes)
     return tuple(steps)
 
 

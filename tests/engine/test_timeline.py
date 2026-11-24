@@ -644,6 +644,21 @@ def magic_pack() -> RulePack:
             "fields": {"level": 2, "damage": "this.level * 3"},
             "script": "target.damage(this.damage); self.add(hp, 2)",
         },
+        {
+            "name": "sort",
+            "fields": {"level": 1},
+            "script": (
+                'if target.template == "nobody":\n'
+                "    target.damage(100)\n"
+                "elif target.template == self.template:\n"
+                "    target.damage(3)\n"
+                "    if 0:\n"
+                "        target.damage(50)\n"
+                "else:\n"
+                "    self.damage(100)\n"
+                "self.damage(1)"
+            ),
+        },
     ]
     damage = FieldDef(name="damage", kind="formula", required=False)
     g = g.model_copy(
@@ -748,6 +763,26 @@ def test_script_hits_both_sides_and_can_target_yourself() -> None:
     assert [a["entity"] for a in nobody.payload["actions"]] == [e0]  # type: ignore[index,union-attr]
     publish(t, only=t.players, uses=[UseResult(seq=own.seq)])
     assert fields_of(t, e0)["hp"] == hp0 - 5  # type: ignore[operator]
+
+
+def test_script_branches_pick_one_and_skip_target_questions_without_a_target() -> None:
+    from smartkeeper.contracts import UseResult
+
+    t = setup_table("single", 2, pack=magic_pack())
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+    hit = e.use_entry(g, e0, "sort", e1, {}, "same template: elif branch")
+    acts = [(a["entity"], a["amount"]) for a in hit.payload["actions"]]  # type: ignore[index,union-attr]
+    assert acts == [(e1, 3), (e0, 1)]
+    alone = e.use_entry(g, e0, "sort", None, {}, "no target: the whole if is skipped")
+    acts = [(a["entity"], a["amount"]) for a in alone.payload["actions"]]  # type: ignore[index,union-attr]
+    assert acts == [(e0, 1)]
+    publish(t, only=t.players, uses=[UseResult(seq=hit.seq)])
 
 
 def test_unknown_use_is_rejected() -> None:

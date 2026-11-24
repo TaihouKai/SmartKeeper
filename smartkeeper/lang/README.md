@@ -123,9 +123,29 @@ target.modify(move_speed,
 - `modify` 只能修正推导值。
 - 动作写死在 `VERBS` 里。治疗就是 `add(hp, …)`，不另设只属于某套规则的动作。
 
-### 3. 求值时机
+### 3. 条件分支
 
-1. **KP 规划时声明使用：** 引擎立刻把每一句算好。数量和分钟当场掷骰，点数记进 `entry_used` 事件。`modify` 的新值公式会被“冻结”：除了被修正的推导值自己的名字，其余名字都换成此刻的值。
+```
+if target.template == "monster":
+    target.add(mp, 2 * this.mp_spent)
+elif target.template == "boss":
+    target.add(mp, this.mp_spent)
+else:
+    self.add(mp, this.mp_spent)
+self.sub(mp, 1)          # 不缩进：不管走哪一支都执行
+```
+
+- 写法和 Python 一样：`if 条件:`，下面缩进的几行是这一支；后面可以接任意个 `elif 条件:`，最后可以有一个 `else:`。
+- 从上往下，第一个成立的条件那一支执行，其余跳过；都不成立就执行 `else`（没有 `else` 就什么都不做）。
+- 缩进几个空格都行（Tab 算 4 个），但同一支里的行要对齐。分支里可以再套分支。
+- `if` 后面的条件是一条公式，0 和空文字算不成立。
+- 条件在声明使用时算，**不能掷骰**，因为条件掷出来的点数没有地方记进日志。要按概率触发，就把掷骰放进数量里，例如 `target.damage(if(1d100 <= 30, 10, 0))`。
+- 没有对象时，条件里用到 `target.` 的整个 `if … elif … else` 都跳过。
+- 编辑框里按 Tab 插入 4 个空格；回车会保持这一行的缩进，行尾是冒号时再多缩进一级。
+
+### 4. 求值时机
+
+1. **KP 规划时声明使用：** 引擎立刻把每一句算好，条件也在这时判断。数量和分钟当场掷骰，点数记进 `entry_used` 事件。`modify` 的新值公式会被“冻结”：除了被修正的推导值自己的名字，其余名字都换成此刻的值。
    - 例如使用者 `str` 是 12，`target.modify(move_speed, move_speed + str, 10)` 存成 `(move_speed + 12)`。之后在带着这条修正的角色身上，用他当时的 `move_speed` 算。
 2. **KP 裁定生效：** 引擎照着算好的数值，一句一句执行。没生效（没打中、被挡住）的话只扣使用时的消耗，冷却照样开始。
 3. 分钟换算成游戏内秒。施放时间、冷却时间和脚本里的持续时间都按分钟。
@@ -146,7 +166,7 @@ target.modify(move_speed,
 | `hero.fireball` | `<模板>.<条目ID>`：有没有这一条（1 / 0） |
 | `hero.fireball.level` | `<模板>.<条目ID>.<列>`：那一条的某一列；没有这一条按 0 算；“使用时填写”的列不能引用 |
 | `target.hp` | 技能的对象的值（只在使用技能时有） |
-| `target.template`、`self.template`、`<模板>.template` | 那个角色的模板名（文字），例如 `if(target.template == "servant", 2, 1)` |
+| `target.template`、`self.template`、`<模板>.template` | 那个角色的模板名（文字），例如 `if(target.template == "monster", 2, 1)` |
 | `roll`、`target`、`difficulty`、`opp_roll`、`opp_target` | 只在检定的结果条件里有 |
 
 字段名不能叫 `d`、`d6` 这种会被当成掷骰的名字。条目 ID 不能叫 `self`、`this`、`target`、`template`。
@@ -172,6 +192,10 @@ target.modify(move_speed,
 | `script.bad_statement` | 不是 `对象.动作(参数)` 的形式 |
 | `script.unknown_receiver` / `script.unknown_verb` | 对象不是 `self` / `target`；没有这个动作 |
 | `script.arity` / `script.field_arg` | 参数个数不对 / 字段参数不是一个简单的名字 |
+| `script.unexpected_indent` | 缩进不对：同一段没对齐，或不在 `if` / `elif` / `else` 下面却缩进了 |
+| `script.empty_block` | `if` / `elif` / `else` 下面没有缩进的行 |
+| `script.dangling_else` | `elif` / `else` 前面没有对齐的 `if` |
+| `script.bad_condition` | `if` / `elif` 后面没写条件 |
 | `script.not_runtime` / `script.not_derived` | `add` / `sub` / `set` 的字段不是运行值；`modify` 的不是推导值 |
 
 ---
@@ -182,5 +206,5 @@ target.modify(move_speed,
 - `evaluate(node, resolve, lookup, faces=None, collect=None)`：`resolve` 解析名字，`lookup` 查表，`faces` 掷骰（不给就不能掷），`collect` 给 `count` / `sum` 列出分组的值。
 - `names` / `tables` / `lists`：公式里引用的名字、表、分组；`has_dice`：有没有掷骰。
 - `substitute(node, fn)`：把名字换成别的公式树（`this.<掷骰公式列>` 的展开用它）。`to_text(node, values)`：写回文本，并把一些名字换成值（冻结用它）。
-- `parse_script(text)` → `Statement` 的元组：行号、对象、动作和参数原文（参数已经检查过能解析）。
+- `parse_script(text)` → `ScriptNode`（`Statement` 或 `If`）的元组。`Statement`：行号、对象、动作和参数原文（参数已经检查过能解析）。`If`：一串 `Branch`（行号、条件原文或 `None`、分支里的语句）。`statements(nodes)` 列出所有分支里的动作句。
 - 改语法时，同时改：这份说明、前端“公式速查”（`frontend/src/ui/FormulaHelp.tsx`，函数表有测试保证和 `FUNCTIONS` 一致）、`tests/lang`。

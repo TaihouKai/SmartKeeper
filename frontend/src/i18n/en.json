@@ -152,10 +152,14 @@
     },
     "script": {
       "arity": "Wrong number of arguments for {name} ({count})",
+      "bad_condition": "Can't read the condition: {text}. Write if condition:, e.g. if target.template == \"monster\":",
       "bad_statement": "Can't read: {text}. Write object.action(arguments), e.g. target.damage(5)",
+      "dangling_else": "{name} needs an if above it at the same indent",
+      "empty_block": "if / elif / else needs indented lines under it",
       "field_arg": "The first argument of {name} must be a field name, e.g. hp",
       "not_derived": "{name} isn't a derived value; modify only works on derived values",
       "not_runtime": "{name} isn't a runtime value (number or resource) and can't be changed by a script",
+      "unexpected_indent": "Unexpected indent: lines in one block must line up; only lines under if / elif / else are indented",
       "unknown_receiver": "{name} isn't an object: use self or target",
       "unknown_verb": "No action {name}: use damage, add, sub, set or modify"
     },
@@ -274,6 +278,8 @@
     "s": {
       "add": "Add 5 to your hp; a third argument (minutes) makes it timed",
       "damage": "The target takes damage: shield first, then hp",
+      "else": "After an if: another condition / when none held",
+      "if": "When the target uses the monster template, run the indented lines below (conditions can't roll dice)",
       "modify": "Timed modifier: halve the target's move speed for 10 minutes",
       "sub": "Subtract 10 from the target's mp; set(field, value) sets it"
     },
@@ -708,7 +714,7 @@
     "world": "World"
   },
   "script": {
-    "hint": "When the skill is used and the keeper rules it took effect (hit), the engine runs it line by line; otherwise only the cost is paid. self is the user, target is whoever it's used on (the player chooses, may be themselves); with no target only the self lines run. Actions: damage(amount) – shield first, then hp; add(field, amount[, minutes]) – with minutes it's timed and the rest is taken back when it ends; sub(field, amount); set(field, amount); modify(derived, new-value formula, minutes) – a timed modifier: the derived value's own name is the bearer's value, other names are the user's at the time of use. Amounts are formulas and may roll dice; this.column is this entry's column (dice-formula columns roll), self.x and bare names are the user's, target.x the target's. # starts a comment.",
+    "hint": "When the skill is used and the keeper rules it took effect (hit), the engine runs it line by line; otherwise only the cost is paid. self is the user, target is whoever it's used on (the player chooses, may be themselves); with no target only the self lines run. Actions: damage(amount) – shield first, then hp; add(field, amount[, minutes]) – with minutes it's timed and the rest is taken back when it ends; sub(field, amount); set(field, amount); modify(derived, new-value formula, minutes) – a timed modifier: the derived value's own name is the bearer's value, other names are the user's at the time of use. Amounts are formulas and may roll dice; this.column is this entry's column (dice-formula columns roll), self.x and bare names are the user's, target.x the target's, target.template the target's template name. Branches: the indented lines under if condition: run only when it holds; elif condition: and else: may follow. Conditions are worked out when the use is declared and can't roll dice; with no target, a block whose condition asks about target is skipped. Tab indents; Enter keeps the indent. # starts a comment.",
     "line": "line {n}",
     "ph": "e.g.\ntarget.damage(this.damage)\nself.add(hp, 5)",
     "title": "Skill script (on use)"

@@ -26,22 +26,34 @@ from smartkeeper.lang.formula import (
     to_text,
     truthy,
 )
-from smartkeeper.lang.script import RECEIVERS, VERBS, Statement, parse_script
+from smartkeeper.lang.script import (
+    RECEIVERS,
+    VERBS,
+    Branch,
+    If,
+    ScriptNode,
+    Statement,
+    parse_script,
+    statements,
+)
 
 __all__ = [
     "FUNCTIONS",
     "LIST_FUNCTIONS",
     "RECEIVERS",
     "VERBS",
+    "Branch",
     "Call",
     "Collect",
     "Dice",
     "Faces",
     "FormulaError",
+    "If",
     "Name",
     "Node",
     "Num",
     "Resolver",
+    "ScriptNode",
     "Statement",
     "Str",
     "TableLookup",
@@ -53,6 +65,7 @@ __all__ = [
     "names",
     "parse",
     "parse_script",
+    "statements",
     "substitute",
     "tables",
     "to_text",

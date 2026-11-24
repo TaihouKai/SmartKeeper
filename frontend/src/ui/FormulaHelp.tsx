@@ -30,6 +30,8 @@ const SCRIPT: [string, string][] = [
   ["self.add(hp, 5)", "fh.s.add"],
   ["target.sub(mp, 10)", "fh.s.sub"],
   ["target.modify(move_speed, move_speed * 0.5, 10)", "fh.s.modify"],
+  ['if target.template == "monster":', "fh.s.if"],
+  ["elif …: / else:", "fh.s.else"],
 ];
 
 export const FUNCTION_SIGNATURES: [string, string][] = [

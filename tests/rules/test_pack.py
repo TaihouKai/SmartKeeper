@@ -390,3 +390,7 @@ def test_script_validation(rules: RulesService) -> None:
     assert codes("target.damage(nope)") == [("formula.unknown_name", 1)]
     assert codes("target.modify(move_speed, 1d6, 1)") == [("formula.dice_not_allowed", 1)]
     assert codes("self.fly(1)") == [("script.unknown_verb", 1)]
+    branchy = 'if target.template == "person":\n  self.add(hp, 1)\nelse:\n  self.add(str, 1)'
+    assert codes(branchy) == [("script.not_runtime", 4)]
+    assert codes("if 1d6 > 3:\n  self.add(hp, 1)") == [("formula.dice_not_allowed", 1)]
+    assert codes("if nope:\n  self.add(hp, 1)") == [("formula.unknown_name", 1)]
