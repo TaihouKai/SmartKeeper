@@ -136,6 +136,9 @@ class EntityTemplate(Frozen):
     # 掷出不小于难度就发现了；空表示发现不了隐匿的角色。每一轮开始时引擎替还没发现的观察者掷一次
     stealth: str = ""
     search: str = ""
+    # 死亡时：这个模板的角色死掉的那一刻执行的脚本（语法同技能脚本）。self 是死者，target 是最后伤到它的角色
+    # （知道时），同伴用模板名（例如主角死了让同伴开始消散：companion.set(fading, 1)）
+    on_death: str = ""
 
 
 class PlayerEntities(Frozen):

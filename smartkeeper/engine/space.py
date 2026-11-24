@@ -51,6 +51,26 @@ def peers_of(state: State, entity_id: str) -> dict[str, JsonValue | None]:
     return {}
 
 
+def partners_of(state: State, entity_id: str) -> dict[str, str]:
+    """同一个玩家控制的其他实体：模板名 -> 实体 id（同一个模板有不止一个时不列）。"""
+    ents = _obj(state.get("entities"))
+    for ctl in _obj(state.get("controls")).values():
+        mine = [str(e) for e in ctl] if isinstance(ctl, list) else []
+        if entity_id not in mine:
+            continue
+        out: dict[str, str] = {}
+        twice: set[str] = set()
+        for other in mine:
+            if other == entity_id:
+                continue
+            tpl = str(_obj(ents.get(other)).get("template", ""))
+            if tpl in out:
+                twice.add(tpl)
+            out[tpl] = other
+        return {k: v for k, v in out.items() if k not in twice}
+    return {}
+
+
 def point_of(raw: JsonValue) -> Point | None:
     p = _obj(raw)
     if not p:

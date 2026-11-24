@@ -40,7 +40,6 @@ def test_optional_minutes_and_strings() -> None:
     ("text", "code", "line"),
     [
         ("target.damage 5", "formula.syntax", 1),
-        ("\nfoe.damage(5)", "script.unknown_receiver", 2),
         ("self.heal(5)", "script.unknown_verb", 1),
         ("damage(5)", "script.bad_statement", 1),
         ("x += 5", "script.bad_statement", 1),

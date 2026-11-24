@@ -73,6 +73,8 @@ def plan_script(
                 if isinstance(node, f.Statement):
                     if node.receiver == "target" and target is None:
                         continue
+                    if node.receiver not in f.RECEIVERS and ctx.peer(node.receiver) is None:
+                        continue  # 没有这个同伴
                     steps.append(_step(ctx, lookup, faces, entry, node, local, prep, damage_kind))
                     continue
                 for b in node.branches:
@@ -143,7 +145,13 @@ def _step(
             v = f.evaluate(prep(st.kind), ctx.resolver(entry, local), lookup, None, ctx.collect)
             kind = str(v) if isinstance(v, str) else damage_kind
         # 受伤的角色按自己模板的“受到伤害的公式”减免
-        hurt = ctx if st.receiver == "self" else ctx.target
+        hurt = (
+            ctx
+            if st.receiver == "self"
+            else ctx.target
+            if st.receiver == "target"
+            else ctx.peer(st.receiver)
+        )
         taken = amount
         if hurt is not None and hurt.template.damage_taken.strip():
             v = hurt.eval(hurt.template.damage_taken, None, None, {"amount": amount, "kind": kind})

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pydantic import JsonValue
 
@@ -33,6 +33,15 @@ class Side:
     template: str
     sheet: dict[str, JsonValue]
     peers: dict[str, JsonValue | None]
+    partners: Mapping[str, str] = field(default_factory=dict[str, str])  # 同伴：模板名 -> 实体 id
+
+    def who(self, receiver: str, other: Side | None) -> str | None:
+        """脚本一句的接收者落在哪个实体上：self、target（other），或同伴的模板名。"""
+        if receiver == "self":
+            return self.entity
+        if receiver == "target":
+            return other.entity if other else None
+        return self.partners.get(receiver)
 
     def as_target(self) -> tuple[str, JsonValue, Mapping[str, JsonValue | None]]:
         return (self.template, self.sheet, self.peers)

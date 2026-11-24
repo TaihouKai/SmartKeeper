@@ -18,9 +18,7 @@ from smartkeeper.contracts import (
     COOLDOWN_TAG,
     DEAD_TAG,
     ENGINE,
-    HP_FIELD,
     KP,
-    SHIELD_FIELD,
     Activity,
     AdHocCheck,
     Adjudication,
@@ -28,7 +26,6 @@ from smartkeeper.contracts import (
     CheckResult,
     Dice,
     DiceResult,
-    Effect,
     Event,
     EventLog,
     EventType,
@@ -36,7 +33,6 @@ from smartkeeper.contracts import (
     Game,
     GameConfig,
     GameSettings,
-    Grant,
     GroupDef,
     GroupEntry,
     Handle,
@@ -94,13 +90,14 @@ from smartkeeper.contracts import (
 )
 from smartkeeper.engine import adjudication as adjv
 from smartkeeper.engine import scenario
+from smartkeeper.engine.applier import StepApplier
 from smartkeeper.engine.duel import Duel, Side, Strike
 from smartkeeper.engine.duel import Result as DuelResult
 from smartkeeper.engine.mentions import find_mentions, replace_mentions
 from smartkeeper.engine.placements import perceived_placements, placements_of, triggers
 from smartkeeper.engine.repo import Repo
 from smartkeeper.engine.sheetview import build_sheet_views, visible_sheet
-from smartkeeper.engine.space import EMPTY_MAP, Space, peers_of, point_of
+from smartkeeper.engine.space import EMPTY_MAP, Space, partners_of, peers_of, point_of
 from smartkeeper.engine.timeline import (
     activities_of,
     build_activities,
@@ -1552,11 +1549,13 @@ class Engine:
                     "use.requires", entity=source, entry=parsed.name, formula=cfg.requires
                 )
             heard = self._reach_checks(game_id, state, pack, source, target, cfg, roll, parsed.name)
-            me = Side(source, template, sheet, peers)
+            me = Side(source, template, sheet, peers, partners_of(state, source))
             them: Side | None = None
             distance, unseen = 0.0, False
             if target is not None and tgt is not None:
-                them = Side(target, tgt[0], _obj(tgt[1]), dict(tgt[2] or {}))
+                them = Side(
+                    target, tgt[0], _obj(tgt[1]), dict(tgt[2] or {}), partners_of(state, target)
+                )
                 if target != source:
                     space = self._space_for(self._map(game_id), state, pack)
                     a, b = space.bodies.get(source), space.bodies.get(target)
@@ -1684,11 +1683,9 @@ class Engine:
     def _step_actions(me: Side, them: Side | None, steps: Sequence[ScriptStep]) -> list[JsonValue]:
         """脚本的每一步落在哪个实体身上。"""
         return [
-            {
-                "entity": me.entity if st.who == "self" else (them.entity if them else None),
-                **st.model_dump(mode="json"),
-            }
+            {"entity": me.who(st.who, them), **st.model_dump(mode="json")}
             for st in steps
+            if me.who(st.who, them) is not None
         ]
 
     def _cfg(self, row: dict[str, JsonValue]) -> SkillConfig:
@@ -1997,7 +1994,7 @@ class Engine:
         cfg = self._cfg(row)
         parsed = GroupEntry.model_validate(row)
         fields = {**_obj(row.get("fields")), **_obj(p.get("params"))}
-        me = Side(source, s_tpl, s_sheet, s_peers)
+        me = Side(source, s_tpl, s_sheet, s_peers, partners_of(state, source))
         d_ent = self._entity(state, defender)
         d_tpl = str(d_ent.get("template", ""))
         d_peers = peers_of(state, defender)
@@ -2006,6 +2003,7 @@ class Engine:
             d_tpl,
             _obj(self._rules.full_sheet(pack, d_tpl, d_ent.get("sheet"), d_peers)),
             d_peers,
+            partners_of(state, defender),
         )
         duel = Duel(self._rules, pack, self._dice.faces)
         strike = Strike.load(p)
@@ -2170,9 +2168,58 @@ class Engine:
                     break
         return ops
 
+    def _on_death(
+        self,
+        pack: RulePack,
+        state: State,
+        death_ops: Sequence[PatchOp],
+        killers: dict[str, str],
+        end: int,
+    ) -> tuple[State, list[PatchOp]]:
+        """刚死的角色：执行它模板的“死亡时”脚本。self 是死者，target 是最后伤到它的角色（知道时），
+        也可以用同伴的模板名。脚本写错（规则包检查会报）就跳过。"""
+        ap = StepApplier(self._world, self._rules, self._dice.faces, pack, end)
+        ents = _obj(state.get("entities"))
+        for op in death_ops:
+            eid = op.path.split("/")[2]
+            ent = _obj(ents.get(eid))
+            tpl = pack.template(str(ent.get("template", "")))
+            if tpl is None or not tpl.on_death.strip():
+                continue
+            peers = peers_of(state, eid)
+            me = Side(eid, tpl.name, _obj(ent.get("sheet")), peers, partners_of(state, eid))
+            killer = killers.get(eid)
+            them: Side | None = None
+            if killer is not None and killer in ents:
+                k = _obj(ents.get(killer))
+                them = Side(
+                    killer,
+                    str(k.get("template", "")),
+                    _obj(k.get("sheet")),
+                    peers_of(state, killer),
+                    partners_of(state, killer),
+                )
+            try:
+                steps = self._rules.plan_script(
+                    pack,
+                    tpl.on_death,
+                    self._dice.faces,
+                    tpl.name,
+                    me.sheet,
+                    {},
+                    peers,
+                    them.as_target() if them else None,
+                )
+            except ValidationFailed:
+                continue
+            state = ap.apply_actions(
+                state, self._step_actions(me, them, steps), eid, DEAD_TAG, f"on_death.{eid}"
+            )
+        return state, ap.ops
+
     def _use_ops(
         self, game_id: str, round_no: int, cur: State, adj: Adjudication, end: int
-    ) -> tuple[State, list[PatchOp], list[Problem]]:
+    ) -> tuple[State, list[PatchOp], list[Problem], dict[str, str]]:
         """执行裁定里列出的技能使用：先扣消耗、开始冷却；命中的再执行技能脚本算好的每一步。
         被应对过的使用：先结算应对的技能（消耗、冷却、效果），再按应对之后的结果结算攻击。"""
         pack = self.rulepack(game_id)
@@ -2183,137 +2230,10 @@ class Engine:
             for e in attempt
             if e.type == "reaction_resolved"
         }
-        ops: list[PatchOp] = []
-        problems: list[Problem] = []
+        ap = StepApplier(self._world, self._rules, self._dice.faces, pack, end)
+        ops, problems = ap.ops, ap.problems
+        spend_and_cool, apply_actions = ap.spend_and_cool, ap.apply_actions
         seen: set[int] = set()
-
-        def fields_of(state: State, eid: str) -> dict[str, JsonValue]:
-            return _obj(_obj(_obj(_obj(state.get("entities")).get(eid)).get("sheet")).get("fields"))
-
-        def bound(state: State, eid: str, name: str) -> tuple[float | None, float | None]:
-            ent = _obj(_obj(state.get("entities")).get(eid))
-            template = str(ent.get("template", ""))
-            tpl = pack.template(template)
-            fd = next((x for x in tpl.fields if x.name == name), None) if tpl else None
-            if fd is None:
-                return None, None
-            peers = peers_of(state, eid)
-
-            def ev(text: str | None) -> float | None:
-                if text is None:
-                    return None
-                return self._rules.roll(
-                    pack, text, self._dice.faces, template, ent.get("sheet"), None, peers
-                ).total
-
-            return ev(fd.min), ev(fd.max)
-
-        def put(state: State, eid: str, name: str, value: float) -> State:
-            lo, hi = bound(state, eid, name)
-            if lo is not None:
-                value = max(value, lo)
-            if hi is not None:
-                value = min(value, hi)
-            value = round(value, 2)
-            v: JsonValue = int(value) if value.is_integer() else value
-            op = PatchOp(op="replace", path=f"/entities/{eid}/sheet/fields/{name}", value=v)
-            ops.append(op)
-            return self._world.apply(state, [op])
-
-        def num(state: State, eid: str, name: str) -> float | None:
-            v = fields_of(state, eid).get(name)
-            return float(v) if isinstance(v, int | float) and not isinstance(v, bool) else None
-
-        def add_status(state: State, who: str, status: Status) -> State:
-            sop = PatchOp(
-                op="add",
-                path=f"/entities/{who}/sheet/statuses/-",
-                value=status.model_dump(mode="json"),
-            )
-            ops.append(sop)
-            return self._world.apply(state, [sop])
-
-        def spend_and_cool(
-            state: State, who: str, spends: JsonValue, entry: str, cd: JsonValue
-        ) -> State:
-            for res, amount in sorted(_obj(spends).items()):
-                have = num(state, who, res)
-                if have is not None and isinstance(amount, int | float):
-                    state = put(state, who, res, have - float(amount))
-            if isinstance(cd, int) and cd > 0 and who in _obj(state.get("entities")):
-                state = add_status(
-                    state, who, Status(tag=COOLDOWN_TAG + entry, source=who, expires_at=end + cd)
-                )
-            return state
-
-        def apply_actions(
-            state: State, listed: JsonValue, source: str, entry: str, path: str
-        ) -> State:
-            for raw in cast(list[JsonValue], listed) if isinstance(listed, list) else []:
-                a = _obj(raw)
-                who = a.get("entity")
-                op = a.get("op")
-                if (
-                    not isinstance(who, str)
-                    or who not in _obj(state.get("entities"))
-                    or op == "negate"
-                ):
-                    continue
-                amount = float(cast(float, a.get("amount", 0)))
-                dur = a.get("seconds")
-                if op == "modify":
-                    state = add_status(
-                        state,
-                        who,
-                        Status(
-                            tag=entry,
-                            source=source,
-                            expires_at=end + dur if isinstance(dur, int) else None,
-                            modifier=Effect(
-                                description=entry,
-                                target=str(a.get("field")),
-                                formula=str(a.get("formula")),
-                            ),
-                        ),
-                    )
-                    continue
-                if op == "damage":
-                    left = max(0.0, amount)
-                    shield = num(state, who, SHIELD_FIELD)
-                    if shield is not None and shield > 0 and left > 0:
-                        take = min(shield, left)
-                        state = put(state, who, SHIELD_FIELD, shield - take)
-                        left -= take
-                    hp = num(state, who, HP_FIELD)
-                    if hp is not None and left > 0:
-                        state = put(state, who, HP_FIELD, hp - left)
-                    continue
-                name = str(a.get("field"))
-                have = num(state, who, name)
-                if have is None:
-                    problems.append(
-                        Problem(code="adj.use_bad_field", path=path, params={"name": name})
-                    )
-                    continue
-                if op == "set":
-                    state = put(state, who, name, amount)
-                elif op == "subtract":
-                    state = put(state, who, name, have - amount)
-                else:
-                    state = put(state, who, name, have + amount)
-                    gained = (num(state, who, name) or have) - have
-                    if isinstance(dur, int) and gained > 0:
-                        state = add_status(
-                            state,
-                            who,
-                            Status(
-                                tag=entry,
-                                source=source,
-                                expires_at=end + dur,
-                                grant=Grant(field=name, amount=gained),
-                            ),
-                        )
-            return state
 
         for i, u in enumerate(adj.uses):
             path = f"uses[{i}]"
@@ -2361,7 +2281,7 @@ class Engine:
                     )
                     ops.append(rop)
                     cur = self._world.apply(cur, [rop])
-        return cur, ops, problems
+        return cur, ops, problems, ap.hurt_by
 
     def _grant_expiry_ops(self, pack: RulePack, state: State, end: int) -> list[PatchOp]:
         """到期的限时加值（例如护盾）：扣回加上去还剩下的部分。状态本身由 World.expire 移除。"""
@@ -2632,9 +2552,10 @@ class Engine:
                 except ValidationFailed as e:
                     problems += e.problems
         use_ops: list[PatchOp] = []
+        killers: dict[str, str] = {}
         if not problems:
             try:
-                cur, use_ops, use_problems = self._use_ops(game_id, r.no, cur, adj, end)
+                cur, use_ops, use_problems, killers = self._use_ops(game_id, r.no, cur, adj, end)
                 problems += use_problems
                 if use_ops:
                     groups.append(("uses", use_ops))
@@ -2647,9 +2568,16 @@ class Engine:
                 cur = self._world.apply(cur, regen)
                 groups.append(("regen", regen))
             death_ops = self._vital_ops(pack, cur)
-            if death_ops:
+            # 死亡时的脚本可能又害死别的角色：接着结算，最多几层
+            for _ in range(5):
+                if not death_ops:
+                    break
                 cur = self._world.apply(cur, death_ops)
                 groups.append(("death", death_ops))
+                cur, last = self._on_death(pack, cur, death_ops, killers, end)
+                if last:
+                    groups.append(("on_death", last))
+                death_ops = self._vital_ops(pack, cur)
         after_entities = set(_obj(cur.get("entities")))
         problems += adjv.check_memory_entities(adj, after_entities | entities)
         for i, mem in enumerate(adj.memory_entries):

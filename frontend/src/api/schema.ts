@@ -1376,6 +1376,11 @@ export interface components {
             /** Name */
             name: string;
             /**
+             * On Death
+             * @default
+             */
+            on_death: string;
+            /**
              * Search
              * @default
              */
@@ -2464,7 +2469,7 @@ export interface components {
          * ScriptStep
          * @description 技能脚本的一句，数值已经算好（规划时掷骰、冻结使用者的值），生效时由引擎执行。
          *
-         *     - who：self 使用者，target 使用时选的对象
+         *     - who：self 使用者，target 使用时选的对象，其他是使用者同伴的模板名
          *     - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值；
          *       modify 给 field 这个推导值加一条限时修正（formula 是冻结好的新值公式）
          *     - seconds：add 的限时（到期扣回加上去还剩下的部分）或 modify 的持续时间；None 表示永久
@@ -2498,11 +2503,8 @@ export interface components {
             rolls: number[];
             /** Seconds */
             seconds?: number | null;
-            /**
-             * Who
-             * @enum {string}
-             */
-            who: "self" | "target";
+            /** Who */
+            who: string;
         };
         /**
          * ScriptTryIn

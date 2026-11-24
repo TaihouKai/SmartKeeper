@@ -13,7 +13,8 @@
         self.add(mp, this.mp_spent)
 
 - 语法就是 Python：一行一句，也可以用 ; 隔开；括号没关上时可以换行接着写；# 后面是注释；pass 什么都不做。
-- 每句是 <对象>.<动作>(参数, ...)。对象：self 是使用者自己，target 是使用时选的对象（也可以是自己）。
+- 每句是 <对象>.<动作>(参数, ...)。对象：self 是使用者自己，target 是使用时选的对象（也可以是自己），
+  也可以写同一个玩家控制的同伴的模板名（例如 companion.add(mp, 5)）。认不认识这个名字由调用方检查。
 - 字段参数写名字；其余参数和条件是公式（见 formula.py）。
 - if / elif / else 后面写冒号，下面缩进的几行是这一支（缩进多少都行，同一支里要对齐）；可以套着写。
 
@@ -25,11 +26,10 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
-from typing import Literal
 
 from smartkeeper.lang.formula import FormulaError, convert, desugar, syntax_error, to_text
 
-type Receiver = Literal["self", "target"]
+type Receiver = str  # self、target，或同伴的模板名
 RECEIVERS: tuple[Receiver, ...] = ("self", "target")
 
 # 动作 -> 参数：field 是字段名，其余是公式；? 表示可以不写
@@ -113,8 +113,6 @@ def _statement(call: ast.Call, line: int, src: str) -> Statement:
             "script.bad_statement", line=line, text=ast.get_source_segment(src, call) or ""
         )
     who, verb = func.value.id, func.attr
-    if who not in RECEIVERS:
-        raise FormulaError("script.unknown_receiver", line=line, name=who)
     if verb not in VERBS:
         raise FormulaError("script.unknown_verb", line=line, name=verb)
     spec = VERBS[verb]
@@ -139,7 +137,7 @@ def _statement(call: ast.Call, line: int, src: str) -> Statement:
             got[kind] = _arg(arg, line)
     return Statement(
         line=line,
-        receiver="self" if who == "self" else "target",
+        receiver=who,
         verb=verb,
         field=got.get("field"),
         amount=got.get("amount"),

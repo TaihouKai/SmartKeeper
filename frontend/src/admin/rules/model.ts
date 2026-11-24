@@ -46,6 +46,7 @@ export function blankTemplate(name: string, t: T): Template {
     damage_taken: "",
     stealth: "",
     search: "",
+    on_death: "",
     derived: REQUIRED_DERIVED.map((n) => ({
       name: n,
       label: defaultLabel(t, n),
@@ -210,6 +211,7 @@ export function docFor(pack: Pack, path: string): Doc | null {
   if (s[2] === "derived" && s[4] === "formula") return { path, kind: "formula", template };
   if (s[2] === "damage_taken") return { path, kind: "formula", template, scope: "damage" };
   if (s[2] === "stealth" || s[2] === "search") return { path, kind: "formula", template, scope: s[2] };
+  if (s[2] === "on_death") return { path, kind: "formula", template, scope: "script" };
   if (s[2] === "fields" && TEMPLATE_FORMULA_KEYS.has(String(s[4]))) return { path, kind: "formula", template };
   if (s[2] !== "groups" || typeof s[3] !== "number") return null;
   const g = tpl.groups?.[s[3]];

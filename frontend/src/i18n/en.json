@@ -959,6 +959,10 @@
       "damage_taken_hint": "Each time a character of this template takes skill damage, the engine uses this to work out how much (never below 0). amount is the raw damage, kind its type (from the skill's group, or damage(amount, \"type\")). Resistances written here apply to every attack.",
       "label": "Shown to players as",
       "name": "Template ID",
+      "on_death": "On death",
+      "on_death_add": "Write a script",
+      "on_death_edit": "Edit the script",
+      "on_death_hint": "Runs the moment a character of this template dies (same syntax as skill scripts). self is the dead one, target whoever hurt it last, partners by template name (e.g. companion.set(fading, 1)).",
       "search": "Search roll",
       "stealth": "Stealth difficulty",
       "stealth_hint": "Stealth is worked out on this character: what someone distance metres away must roll to notice it (observer.<name> reads the observer's sheet); 0 means not hiding. Search is the roll this character makes to notice others. At the start of each round every observer that can see a hider it hasn't found rolls once; once found it stays found until out of sight. Using a skill on someone reveals you to them; a target that hasn't noticed its attacker can't react."

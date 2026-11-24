@@ -105,6 +105,13 @@ export function FieldsSection({ tpl, onChange, onRemove, validate, mover, base }
           <FormulaInput value={tpl.search ?? ""} validate={vSearch} placeholder={t("rules.ph.search")} onChange={(x) => onChange({ ...tpl, search: x })} onExpand={() => wb.open(`${base}.search`)} />
         </label>
         <p className="wb-hint">{t("rules.t.stealth_hint")}</p>
+        <div className="sk-row">
+          <span>{t("rules.t.on_death")}</span>
+          <button type="button" className="wb-script-btn" onClick={() => wb.open(`${base}.on_death`)}>
+            {(tpl.on_death ?? "").trim() ? t("rules.t.on_death_edit") : t("rules.t.on_death_add")}
+          </button>
+        </div>
+        <p className="wb-hint">{t("rules.t.on_death_hint")}</p>
       </div>
       {fields.map((f: Field, i) => (
         <FieldCard

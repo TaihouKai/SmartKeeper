@@ -179,7 +179,8 @@ class RulesService:
                 names.add(f"self.{pid}")
                 names |= {f"self.{pid}.{c}" for c in cols}
         if scope == "script":
-            names |= {f"{who}.{verb}" for who in f.RECEIVERS for verb in f.VERBS}
+            whos = (*f.RECEIVERS, *(t.name for t in pack.templates))
+            names |= {f"{who}.{verb}" for who in whos for verb in f.VERBS}
             names |= {"elif", "pass"}
         if scope == "damage":
             names |= set(validation.DAMAGE_VARS)

@@ -160,6 +160,10 @@ def check_script(
                 continue
             st = node
             found: list[Problem] = []
+            if st.receiver not in f.RECEIVERS and pack.template(st.receiver) is None:
+                found.append(
+                    Problem(code="script.unknown_receiver", path=path, params={"name": st.receiver})
+                )
             if st.verb in ("add", "sub", "set") and st.field not in runtime:
                 found.append(
                     Problem(code="script.not_runtime", path=path, params={"name": st.field})
@@ -448,6 +452,8 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
     for name in sorted(_dupes(g.name for g in tpl.groups)):
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
+    if tpl.on_death.strip():
+        problems += check_script(pack, tpl, tpl.on_death, f"{path}.on_death", [])
     for key in ("stealth", "search"):
         text = str(getattr(tpl, key))
         if text.strip():

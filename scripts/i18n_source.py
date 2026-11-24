@@ -1493,6 +1493,13 @@ T: dict[str, tuple[str, str]] = {
         '这个模板的角色每次受到技能伤害时，引擎用这条公式算实际受到多少（不会小于 0）。amount 是原始伤害，kind 是伤害类型（技能所在分组设的，或 damage(数量, "类型") 写的）。对魔力、护甲、各种抗性写在这里，就对所有攻击生效，不用每个技能各写一遍。',
         'Each time a character of this template takes skill damage, the engine uses this to work out how much (never below 0). amount is the raw damage, kind its type (from the skill\'s group, or damage(amount, "type")). Resistances written here apply to every attack.',
     ),
+    "rules.t.on_death": ("死亡时的脚本", "On death"),
+    "rules.t.on_death_add": ("写脚本", "Write a script"),
+    "rules.t.on_death_edit": ("编辑脚本", "Edit the script"),
+    "rules.t.on_death_hint": (
+        "这个模板的角色死掉的那一刻，引擎执行这段脚本（写法同技能脚本）。self 是死者，target 是最后伤到它的角色，同伴用模板名（例如 companion.set(fading, 1)）。",
+        "Runs the moment a character of this template dies (same syntax as skill scripts). self is the dead one, target whoever hurt it last, partners by template name (e.g. companion.set(fading, 1)).",
+    ),
     "rules.t.stealth": ("隐匿难度", "Stealth difficulty"),
     "rules.t.search": ("侦查骰", "Search roll"),
     "rules.ph.stealth": (
