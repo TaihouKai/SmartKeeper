@@ -1293,8 +1293,8 @@ class Engine:
             except ValidationFailed as e:
                 problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
                 continue
+            here = point_of(ent.get("pos"))
             if reach is not None:
-                here = point_of(ent.get("pos"))
                 dist = self._spatial.distance(here, pin.at) if here is not None else None
                 if dist is None or dist > reach:
                     problems.append(
@@ -1307,6 +1307,16 @@ class Engine:
                                 "range": round(reach, 1),
                             },
                         )
+                    )
+                    continue
+            if cfg.visible:
+                changes = [MapChange.model_validate(c) for c in _list(cur.get("map_changes"))]
+                if (
+                    here is None
+                    or not self._spatial.line_of_sight(m, changes, here, pin.at).visible
+                ):
+                    problems.append(
+                        Problem(code="use.not_in_sight", path=path, params={"entry": pin.entry})
                     )
                     continue
             if cd > 0:
@@ -1618,8 +1628,12 @@ class Engine:
                 )
         if not cfg.noise.strip() or me is None:
             return []
-        radius = roll(cfg.noise).total
-        if radius <= 0:
+        return self._heard(space, source, roll(cfg.noise).total)
+
+    def _heard(self, space: Space, source: str, radius: float) -> list[str]:
+        """动静范围内有实体的其他玩家（不含使用者自己的玩家）。"""
+        me = space.bodies.get(source)
+        if me is None or radius <= 0:
             return []
         mine = space.owner.get(source)
         out: set[str] = set()
@@ -1649,10 +1663,33 @@ class Engine:
                 text = self._cfg(row).cast_time
                 if not text.strip():
                     return 0
-                fields = _obj(row.get("fields"))
-                minutes = self._rules.roll(
-                    pack, text, self._dice.faces, template, sheet, fields, peers
-                ).total
+                fields = dict(_obj(row.get("fields")))
+                # 解析行动时还不知道这次填多少：“使用时填写”的列先按下限（没有下限按 0）
+                tpl = pack.template(template)
+                for g in tpl.groups if tpl else ():
+                    for fd in g.fields:
+                        if fd.kind == "param" and fd.name not in fields:
+                            low = 0.0
+                            if fd.min:
+                                try:
+                                    low = self._rules.roll(
+                                        pack,
+                                        fd.min,
+                                        self._dice.faces,
+                                        template,
+                                        sheet,
+                                        fields,
+                                        peers,
+                                    ).total
+                                except ValidationFailed:
+                                    low = 0.0
+                            fields[fd.name] = low
+                try:
+                    minutes = self._rules.roll(
+                        pack, text, self._dice.faces, template, sheet, fields, peers
+                    ).total
+                except ValidationFailed:
+                    return 0
                 return int(minutes * 60) if minutes >= 1 else 0
         return 0
 
@@ -2469,6 +2506,27 @@ class Engine:
     def draft(self, game_id: str) -> dict[str, JsonValue] | None:
         return self.round(game_id).draft
 
+    def _entry_row(
+        self, space: Space, eid: str, entry: str
+    ) -> (
+        tuple[str, JsonValue, dict[str, JsonValue], dict[str, JsonValue | None], SkillConfig] | None
+    ):
+        """实体卡上的一个条目（名字或 ID）：模板、完整角色卡、这一条的列、同伴、技能设置。"""
+        ent = _obj(space.entities.get(eid))
+        sheet = space.full_sheet(eid)
+        for entries in _obj(sheet.get("groups")).values():
+            for e in _list(entries):
+                row = _obj(e)
+                if entry in (row.get("name"), row.get("id")):
+                    return (
+                        str(ent.get("template", "")),
+                        sheet,
+                        dict(_obj(row.get("fields"))),
+                        peers_of(space.state, eid),
+                        self._cfg(row),
+                    )
+        return None
+
     def _noticed_events(
         self, game_id: str, round_no: int, adj: Adjudication, seconds: int
     ) -> list[NewEvent]:
@@ -2476,14 +2534,37 @@ class Engine:
         看得见使用者的玩家还知道是谁（外貌）。生效没生效都有动静。"""
         used = {e.seq: e for e in self.current_attempt(game_id, round_no) if e.type == "entry_used"}
         out: list[NewEvent] = []
-        space: Space | None = None
+        space = self._space(game_id)
+        noisy: list[tuple[str, str, list[str]]] = []  # (使用者, 技能, 察觉到的玩家)
         for u in adj.uses:
             ev = used.get(u.seq)
             heard = [str(x) for x in _list(ev.payload.get("heard_by"))] if ev else []
-            if ev is None or not heard:
+            if ev is not None and heard:
+                noisy.append((str(ev.payload.get("source")), str(ev.payload.get("entry")), heard))
+        for pin in adj.placements:
+            # 设置物：设置者那里的动静，按设置者的卡和这次填的数算半径
+            row = self._entry_row(space, pin.owner, pin.entry)
+            if row is None:
                 continue
-            space = space or self._space(game_id)
-            src = str(ev.payload.get("source"))
+            template, sheet, fields, peers, cfg = row
+            if not cfg.noise.strip():
+                continue
+            try:
+                radius = self._rules.roll(
+                    space.pack,
+                    cfg.noise,
+                    self._dice.faces,
+                    template,
+                    sheet,
+                    {**fields, **pin.params},
+                    peers,
+                ).total
+            except ValidationFailed:
+                continue
+            heard = self._heard(space, pin.owner, radius)
+            if heard:
+                noisy.append((pin.owner, pin.entry, heard))
+        for src, entry, heard in noisy:
             for pid in heard:
                 seen = src in space.player_perceived(pid)
                 out.append(
@@ -2492,7 +2573,7 @@ class Engine:
                         actor=ENGINE,
                         visibility=Visibility.to(pid),
                         payload={
-                            "entry": ev.payload.get("entry"),
+                            "entry": entry,
                             "who": self._appearance(space.state, space.pack, src) if seen else None,
                             "round": round_no,
                             "game_seconds": seconds,

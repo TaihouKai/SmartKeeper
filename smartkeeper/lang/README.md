@@ -184,7 +184,8 @@ placement = placement(radius=3, perceive=0.5, charges=1, duration=60, notify=Tru
 - 范围形状：`sphere(radius=)`、`cone(length=, angle=)`、`capsule(length=, width=)`、`box(length=, width=, height=)`，参数是数字（米、度）。分组要允许这种形状。
 - 设置物：`placement(radius=, perceive=, charges=, duration=, notify=)`，radius 必填；duration 按分钟。分组要打开“可以是设置物”。
 - `cast_time`、`cooldown` 要分组打开“有施放时间和冷却时间”。
-- 设置物（陷阱、结界）在 KP 裁定放下时检查：`range` 是放置点离设置者的距离，`requires` 和冷却照样检查，放下后开始冷却。
+- 设置物（陷阱、结界）在 KP 裁定放下时检查：`range` 是放置点离设置者的距离，`visible` 是放置点要在设置者的视线内，`requires` 和冷却照样检查，放下后开始冷却；`noise` 范围内的其他玩家在发布时察觉到。
+- `cast_time` 在解析玩家行动时算（那时还不知道这次填多少），“使用时填写”的列按下限算。
 - 引擎怎么用：KP 声明使用时，引擎按 `target` 定对象（self / none 时不看 KP 给的对象，single 不给对象就拒绝），检查 `requires`、`range`（按地图距离）、`visible`（按感知），不满足就拒绝（`use.requires`、`use.out_of_range`、`use.not_perceived`）；`noise` 范围内其他玩家在回合发布时收到一条 `entry_noticed`（看得见使用者的还知道是谁）。
 
 ---

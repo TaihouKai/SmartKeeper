@@ -976,7 +976,8 @@ def test_placement_obeys_range_requirement_and_cooldown() -> None:
     g0 = tpl.groups[0]
     near = g0.presets[0].model_copy(
         update={
-            "config": 'target = "none"\nrange = 10\ncooldown = 1\nplacement = placement(radius=5)'
+            "config": 'target = "none"\nrange = 10\nvisible = True\nnoise = 20\ncooldown = 1\n'
+            "placement = placement(radius=5)"
         }
     )
     pack = pack.model_copy(
@@ -989,9 +990,13 @@ def test_placement_obeys_range_requirement_and_cooldown() -> None:
     t = setup_table("single", 2, pack=pack)
     e, g = t.engine, t.game_id
     p0, p1 = t.players
-    e0 = t.entities(p0)[0]
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
     e.admin_patch(
-        g, [PatchOp(op="replace", path=f"/entities/{e0}/pos", value={"x": -90, "y": -90, "z": 0})]
+        g,
+        [
+            PatchOp(op="replace", path=f"/entities/{e0}/pos", value={"x": -90, "y": -90, "z": 0}),
+            PatchOp(op="replace", path=f"/entities/{e1}/pos", value={"x": -75, "y": -90, "z": 0}),
+        ],
     )
     wait(t, p0, 10)
     wait(t, p1, 10)
@@ -1005,3 +1010,24 @@ def test_placement_obeys_range_requirement_and_cooldown() -> None:
     publish(t, only=t.players, placements=[ok])
     statuses = e.world_state(g)["entities"][e0]["sheet"]["statuses"]  # type: ignore[index]
     assert "cooldown:trap" in {s["tag"] for s in statuses}  # type: ignore[index,union-attr]
+    # 动静 20 米：15 米外的 p1 察觉到有人放了 trap
+    noticed = [x for x in e.view_for(g, p1) if x.type == "entry_noticed"]
+    assert [x.payload["entry"] for x in noticed] == ["trap"]
+
+
+def test_cast_time_may_use_chosen_on_use_columns() -> None:
+    pack = trap_pack()
+    tpl = pack.templates[0]
+    g0 = tpl.groups[0]
+    cost = FieldDef(name="cost", kind="param", min="2", max="hp", spends="hp")
+    slow = g0.presets[0].model_copy(
+        update={
+            "config": 'target = "none"\ncast_time = this.cost * 3\nplacement = placement(radius=5)'
+        }
+    )
+    g0 = g0.model_copy(update={"fields": (*g0.fields, cost), "presets": (slow,)})
+    pack = pack.model_copy(update={"templates": (tpl.model_copy(update={"groups": (g0,)}),)})
+    t = setup_table("single", 2, pack=pack)
+    e0 = t.entities(t.players[0])[0]
+    # 解析行动时还不知道这次填多少：按下限 2 算，6 分钟
+    assert t.engine.cast_seconds(t.game_id, e0, "trap") == 360

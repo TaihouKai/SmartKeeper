@@ -697,7 +697,10 @@ T: dict[str, tuple[str, str]] = {
         "射程（米），None 表示不限；设置物是放置点离施法者的距离",
         "range in metres; None = unlimited; for a placement, how far from the user it may be put",
     ),
-    "config.c.visible": ("对象必须在施法者的感知里", "the target must be perceived"),
+    "config.c.visible": (
+        "对象必须在施法者的感知里；设置物要放在施法者看得见的地方",
+        "the target must be perceived; a placement must be put within line of sight",
+    ),
     "config.c.requires": ("使用条件，例如 not silenced", "condition to use, e.g. not silenced"),
     "config.c.noise": (
         "动静范围（米），None 表示悄无声息",
@@ -1130,6 +1133,10 @@ T: dict[str, tuple[str, str]] = {
     "codes.use.out_of_range": (
         "{entry} 够不着：对象在 {distance} 米外，射程 {range} 米",
         "{entry} is out of range: the target is {distance} m away, range {range} m",
+    ),
+    "codes.use.not_in_sight": (
+        "{entry} 要放在看得见的地方",
+        "{entry} must be placed within line of sight",
     ),
     "codes.use.not_perceived": (
         "{entry} 要看得见（察觉得到）对象才能用",
