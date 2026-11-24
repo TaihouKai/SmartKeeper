@@ -906,7 +906,7 @@
       "min": "e.g. 0",
       "per_minute": "empty means none, e.g. 1 or con / 2",
       "sample_name": "Example name",
-      "table_rows": "One per line: key,value\ne.g. Saber,14",
+      "table_rows": "One per line: key,value\ne.g. warrior,14",
       "template_label": "e.g. Hero",
       "template_name": "e.g. hero",
       "unit": "optional, e.g. m",

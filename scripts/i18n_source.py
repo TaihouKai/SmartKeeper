@@ -865,8 +865,8 @@ T: dict[str, tuple[str, str]] = {
     ),
     "rules.table.range": ("区间", "Range"),
     "rules.ph.table_rows": (
-        "一行一个：键,值\n例如 Saber,14",
-        "One per line: key,value\ne.g. Saber,14",
+        "一行一个：键,值\n例如 warrior,14",
+        "One per line: key,value\ne.g. warrior,14",
     ),
     "rules.table.bad_rows": (
         "第 {lines} 行看不懂，没有存进去：写成 键,值，值要是数",
