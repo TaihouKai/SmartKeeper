@@ -38,6 +38,8 @@ const theme = EditorView.theme({
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: "ui-monospace, 'Cascadia Code', Consolas, monospace", lineHeight: "1.6" },
   ".cm-content": { caretColor: "var(--accent)", padding: "6px 0" },
+  // drawSelection 自己画光标，不用 caretColor；默认是黑的，深色模式下看不见
+  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--fg)", borderLeftWidth: "2px" },
   ".cm-gutters": { backgroundColor: "var(--wb-sunken)", color: "var(--muted)", border: "none", borderRight: "1px solid var(--line)" },
   ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--accent) 6%, transparent)" },
   ".cm-activeLineGutter": { backgroundColor: "color-mix(in srgb, var(--accent) 12%, transparent)", color: "var(--fg)" },
