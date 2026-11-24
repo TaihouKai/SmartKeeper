@@ -58,6 +58,8 @@ export function FieldsSection({ tpl, onChange, onRemove, validate, mover, base }
   const { t } = useI18n();
   const wb = useWorkbench();
   const vDamage = useCallback((f: string) => validate(f, tpl.name, undefined, "damage"), [validate, tpl.name]);
+  const vStealth = useCallback((f: string) => validate(f, tpl.name, undefined, "stealth"), [validate, tpl.name]);
+  const vSearch = useCallback((f: string) => validate(f, tpl.name, undefined, "search"), [validate, tpl.name]);
   const fields = tpl.fields ?? [];
   const ed = useListEdit(fields, (f) => onChange({ ...tpl, fields: f }));
   const v = useCallback((f: string) => validate(f, tpl.name), [validate, tpl.name]);
@@ -94,6 +96,15 @@ export function FieldsSection({ tpl, onChange, onRemove, validate, mover, base }
           <FormulaInput value={tpl.damage_taken ?? ""} validate={vDamage} placeholder={t("rules.ph.damage_taken")} onChange={(x) => onChange({ ...tpl, damage_taken: x })} onExpand={() => wb.open(`${base}.damage_taken`)} />
         </label>
         <p className="wb-hint">{t("rules.t.damage_taken_hint")}</p>
+        <label title={t("rules.t.stealth_hint")}>
+          {t("rules.t.stealth")}
+          <FormulaInput value={tpl.stealth ?? ""} validate={vStealth} placeholder={t("rules.ph.stealth")} onChange={(x) => onChange({ ...tpl, stealth: x })} onExpand={() => wb.open(`${base}.stealth`)} />
+        </label>
+        <label title={t("rules.t.stealth_hint")}>
+          {t("rules.t.search")}
+          <FormulaInput value={tpl.search ?? ""} validate={vSearch} placeholder={t("rules.ph.search")} onChange={(x) => onChange({ ...tpl, search: x })} onExpand={() => wb.open(`${base}.search`)} />
+        </label>
+        <p className="wb-hint">{t("rules.t.stealth_hint")}</p>
       </div>
       {fields.map((f: Field, i) => (
         <FieldCard

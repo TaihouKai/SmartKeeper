@@ -1375,6 +1375,16 @@ export interface components {
             label: string;
             /** Name */
             name: string;
+            /**
+             * Search
+             * @default
+             */
+            search: string;
+            /**
+             * Stealth
+             * @default
+             */
+            stealth: string;
         };
         /** EventOut */
         EventOut: {
@@ -1491,7 +1501,7 @@ export interface components {
             problems: components["schemas"]["Problem"][];
         };
         /** @enum {string} */
-        FormulaScope: "any_entity" | "dice" | "script" | "config" | "check" | "damage";
+        FormulaScope: "any_entity" | "dice" | "script" | "config" | "check" | "damage" | "stealth" | "search";
         /** Game */
         Game: {
             /** Current Round */

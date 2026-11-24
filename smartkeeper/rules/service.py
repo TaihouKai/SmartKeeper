@@ -26,7 +26,15 @@ from smartkeeper.contracts import (
     SkillConfig,
     ValidationFailed,
 )
-from smartkeeper.rules import checkconfig, checks, scripts, sheets, skillconfig, validation
+from smartkeeper.rules import (
+    checkconfig,
+    checks,
+    scripts,
+    sheets,
+    skillconfig,
+    stealth,
+    validation,
+)
 from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.render import render as render_markdown
 
@@ -55,6 +63,10 @@ class RulesService:
             )
         if scope == "check":
             return validation.check_check(pack, formula, "check")
+        if scope in ("stealth", "search"):
+            return validation.check_stealth(
+                pack, pack.template(template) if template else None, formula, "formula", scope
+            )
         if scope == "damage":
             return validation.check_formula(
                 pack,
@@ -171,6 +183,8 @@ class RulesService:
             names |= {"elif", "pass"}
         if scope == "damage":
             names |= set(validation.DAMAGE_VARS)
+        if scope in ("stealth", "search"):
+            names |= set(stealth.VARS)
         if scope == "check":
             names |= (
                 set(checkconfig.KEYS) | set(checkconfig.VARS) | validation.all_field_names(pack)
@@ -300,6 +314,15 @@ class RulesService:
             distance=distance,
             vs_template=vs_template,
         )
+
+    def stealth(
+        self,
+        pack: RulePack,
+        hider: tuple[str, JsonValue, Peers | None],
+        observer: tuple[str, JsonValue, Peers | None],
+        distance: float,
+    ) -> float:
+        return stealth.stealth(pack, hider, observer, distance)
 
     def resolve_adhoc(self, entity: str, spec: AdHocCheck, roll: DiceResult) -> CheckResult:
         if spec.success_when == "roll<=target":

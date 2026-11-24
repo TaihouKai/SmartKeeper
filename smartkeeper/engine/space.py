@@ -103,7 +103,14 @@ class Space:
                 perception_radius=pr,
                 concealment=cc,
             )
+        # 隐匿的角色：哪些观察者已经发现了它（引擎每轮开始时替观察者掷侦查）
+        self.detected: dict[str, set[str]] = {}
+        for eid, raw in self.entities.items():
+            got = _obj(raw).get("detected_by")
+            self.detected[eid] = {str(x) for x in got} if isinstance(got, list) else set()
         self._perceived: dict[str, list[str]] = {}
+        self._sees: dict[str, list[str]] = {}
+        self._hide: dict[tuple[str, str], float] = {}
 
     def full_sheet(self, entity_id: str) -> dict[str, JsonValue]:
         """实体的角色卡，含此刻生效的固定条目。"""
@@ -127,9 +134,9 @@ class Space:
             peers_of(self.state, entity_id),
         )
 
-    def perceived_by(self, entity_id: str) -> list[str]:
-        """某个实体此刻能感知到的实体，即它的在场列表。"""
-        hit = self._perceived.get(entity_id)
+    def sees(self, entity_id: str) -> list[str]:
+        """只看距离和视线：在感知半径（乘对方的匿踪系数）内、看得见的实体。不管隐匿。"""
+        hit = self._sees.get(entity_id)
         if hit is None:
             obs = self.bodies.get(entity_id)
             hit = (
@@ -139,6 +146,36 @@ class Space:
                     self.map, self.changes, obs, list(self.bodies.values())
                 )
             )
+            self._sees[entity_id] = hit
+        return hit
+
+    def hiding(self, hider: str, observer: str) -> float:
+        """观察者此刻发现隐匿者的难度（隐匿者模板的 stealth）；0 及以下是没在隐匿。公式出错当作不隐匿。"""
+        key = (hider, observer)
+        if key not in self._hide:
+            h, o = _obj(self.entities.get(hider)), _obj(self.entities.get(observer))
+            hb, ob = self.bodies.get(hider), self.bodies.get(observer)
+            dist = self.spatial.distance(hb.pos, ob.pos) if hb and ob else 0.0
+            try:
+                self._hide[key] = self.rules.stealth(
+                    self.pack,
+                    (str(h.get("template", "")), h.get("sheet"), peers_of(self.state, hider)),
+                    (str(o.get("template", "")), o.get("sheet"), peers_of(self.state, observer)),
+                    dist,
+                )
+            except ValidationFailed:
+                self._hide[key] = 0.0
+        return self._hide[key]
+
+    def perceived_by(self, entity_id: str) -> list[str]:
+        """某个实体此刻能感知到的实体，即它的在场列表：看得见的，去掉还没发现的隐匿者。"""
+        hit = self._perceived.get(entity_id)
+        if hit is None:
+            hit = [
+                h
+                for h in self.sees(entity_id)
+                if entity_id in self.detected.get(h, set()) or self.hiding(h, entity_id) <= 0
+            ]
             self._perceived[entity_id] = hit
         return hit
 

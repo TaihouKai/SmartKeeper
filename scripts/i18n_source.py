@@ -1493,6 +1493,20 @@ T: dict[str, tuple[str, str]] = {
         '这个模板的角色每次受到技能伤害时，引擎用这条公式算实际受到多少（不会小于 0）。amount 是原始伤害，kind 是伤害类型（技能所在分组设的，或 damage(数量, "类型") 写的）。对魔力、护甲、各种抗性写在这里，就对所有攻击生效，不用每个技能各写一遍。',
         'Each time a character of this template takes skill damage, the engine uses this to work out how much (never below 0). amount is the raw damage, kind its type (from the skill\'s group, or damage(amount, "type")). Resistances written here apply to every attack.',
     ),
+    "rules.t.stealth": ("隐匿难度", "Stealth difficulty"),
+    "rules.t.search": ("侦查骰", "Search roll"),
+    "rules.ph.stealth": (
+        "例如 10 + 5 * ceil(distance / 40) if distance <= 200 else 999；空着是不隐匿",
+        "e.g. 10 + 5 * ceil(distance / 40) if distance <= 200 else 999; empty = never hides",
+    ),
+    "rules.ph.search": (
+        "例如 1d20 + per；空着是发现不了隐匿的角色",
+        "e.g. 1d20 + per; empty = can't find hidden ones",
+    ),
+    "rules.t.stealth_hint": (
+        "隐匿难度在这个角色身上算：别人在 distance 米外发现它要掷出多少（observer.<名字> 是观察者卡上的名字），0 是没在隐匿。侦查骰是这个角色去发现别人时掷的骰子。每一轮开始时，看得见、但还没发现隐匿者的观察者自动掷一次；发现了就一直知道，直到看不见为止。对别人用技能会暴露给对象；没发现攻击者的人不能应对。",
+        "Stealth is worked out on this character: what someone distance metres away must roll to notice it (observer.<name> reads the observer's sheet); 0 means not hiding. Search is the roll this character makes to notice others. At the start of each round every observer that can see a hider it hasn't found rolls once; once found it stays found until out of sight. Using a skill on someone reveals you to them; a target that hasn't noticed its attacker can't react.",
+    ),
     "rules.g.damage_kind": ("伤害类型", "Damage type"),
     "rules.ph.damage_kind": ("例如 magic；空着表示没有类型", "e.g. magic; empty for none"),
     "rules.g.damage_kind_hint": (

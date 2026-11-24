@@ -15,13 +15,13 @@
 
 ## 引擎新功能（按顺序）
 
-1. [ ] 检定改成数字等级：检定代码写 `level = …`（≤0 失败，越大越好）和 `levels = [...]`（名字）；`success` 是简写。
+1. [x] 检定改成数字等级：检定代码写 `level = …`（≤0 失败，越大越好）和 `levels = [...]`（名字）；`success` 是简写。
    去掉 critical_*（迁移）。difficulty 只是技能的难度，不再被对手点数覆盖（对手点数是 opp_roll）。
    opponent.template 有对象就有。新变量 distance（使用者到对象的距离）。
-2. [ ] 对抗按等级：脚本和 hit 条件里有 level / opp_level；技能设置 `hit`、`check = best(...)`、
+2. [x] 对抗按等级：脚本和 hit 条件里有 level / opp_level；技能设置 `hit`、`check = best(...)`、
    `level = …`（不掷骰、直接定等级，宝具用）、`reactions` 可以列检定和应对技能、`reactions = True`。
    技能设置 `save = "检定"`：对象对技能难度做豁免，脚本里有 saved。
-3. [ ] 隐匿：模板公式 `stealth`（在隐匿者身上算，distance、observer 可用；0 = 不隐匿）和 `search`（观察者的侦查骰）。
+3. [x] 隐匿：模板公式 `stealth`（在隐匿者身上算，distance、observer 可用；0 = 不隐匿）和 `search`（观察者的侦查骰）。
    每轮引擎替观察者掷，成功记进隐匿者的 detected_by；出感知范围就忘掉。攻击会暴露给对象。
    没发现攻击者的对象不能应对；脚本里 unseen。
 4. [ ] 死亡触发：模板脚本 `on_death`；脚本里可以用同伴模板名当接收者（servant.set(…)）。

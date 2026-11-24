@@ -24,7 +24,7 @@ from smartkeeper.contracts import (
     RulePack,
     Sheet,
 )
-from smartkeeper.rules import checkconfig, choices, skillconfig
+from smartkeeper.rules import checkconfig, choices, skillconfig, stealth
 from smartkeeper.rules.evaluator import EntityContext, open_columns
 from smartkeeper.rules.sheets import init_sheet
 
@@ -448,6 +448,10 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
     for name in sorted(_dupes(g.name for g in tpl.groups)):
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
+    for key in ("stealth", "search"):
+        text = str(getattr(tpl, key))
+        if text.strip():
+            problems += check_stealth(pack, tpl, text, f"{path}.{key}", key)
     if tpl.damage_taken.strip():
         problems += check_formula(
             pack, tpl, tpl.damage_taken, f"{path}.damage_taken", extra=DAMAGE_VARS
@@ -582,6 +586,19 @@ def validate_pack(pack: RulePack) -> list[Problem]:
     for i in range(len(pack.samples)):
         problems += _check_sample(pack, i)
     return problems
+
+
+def check_stealth(
+    pack: RulePack, tpl: EntityTemplate | None, text: str, path: str, key: str
+) -> list[Problem]:
+    """隐匿难度（stealth：可以用 distance、observer.<名字>）或侦查骰（search：可以用 distance，可以掷骰）。"""
+    if key == "search":
+        return check_formula(pack, tpl, text, path, extra=stealth.VARS, dice=True)
+    try:
+        text = stealth.text_as_target(text)
+    except f.FormulaError as e:
+        return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
+    return check_formula(pack, tpl, text, path, extra=stealth.VARS)
 
 
 def check_check(pack: RulePack, text: str, path: str) -> list[Problem]:

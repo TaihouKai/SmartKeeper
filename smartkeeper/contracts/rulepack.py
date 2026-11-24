@@ -131,6 +131,11 @@ class EntityTemplate(Frozen):
     # 受到伤害的公式：在受伤的角色身上算，amount 是原始伤害、kind 是伤害类型，结果就是实际受到的伤害
     # （不会小于 0）。例如 max(0, amount - 5 * anti_magic) if kind == "magic" else amount。空表示原样受伤
     damage_taken: str = ""
+    # 隐匿：stealth 在隐匿者身上算，是观察者在 distance 米外发现它的难度（observer.<名字> 是观察者卡上的名字），
+    # 0 及以下是不隐匿（空也一样）。search 是这个模板的角色当观察者时掷的骰子（公式，可以用 distance），
+    # 掷出不小于难度就发现了；空表示发现不了隐匿的角色。每一轮开始时引擎替还没发现的观察者掷一次
+    stealth: str = ""
+    search: str = ""
 
 
 class PlayerEntities(Frozen):

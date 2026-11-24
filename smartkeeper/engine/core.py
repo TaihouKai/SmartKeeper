@@ -580,6 +580,7 @@ class Engine:
                 Round(game_id=game_id, no=1, status="collecting", started_second=0)
             )
             self._repo.update_game(game_id, status="running", current_round=1)
+            self._detect(game_id, 1)
             self.refresh_handles(game_id)
             return self.round(game_id)
 
@@ -2347,6 +2348,19 @@ class Engine:
             # 旧数据（引擎还没判命中的）按裁定里的 hit
             if hit is True or (hit is None and p.get("waiting_for") is None and u.hit):
                 cur = apply_actions(cur, listed, source, entry, path)
+            # 对别人用了技能：隐匿的使用者暴露给对象
+            target = p.get("target")
+            if isinstance(target, str) and target != source:
+                ent = _obj(_obj(cur.get("entities")).get(source))
+                seen_by = [str(x) for x in _list(ent.get("detected_by"))]
+                if ent and target not in seen_by:
+                    rop = PatchOp(
+                        op="add",
+                        path=f"/entities/{source}/detected_by",
+                        value=list[JsonValue]([*seen_by, target]),
+                    )
+                    ops.append(rop)
+                    cur = self._world.apply(cur, [rop])
         return cur, ops, problems
 
     def _grant_expiry_ops(self, pack: RulePack, state: State, end: int) -> list[PatchOp]:
@@ -2895,6 +2909,81 @@ class Engine:
                 )
         return out
 
+    def _detect(self, game_id: str, round_no: int) -> None:
+        """一轮开始时：看得见隐匿者、但还没发现它的观察者，各掷一次侦查（观察者模板的 search）对隐匿难度，
+        不小于难度就发现了。离开视野（距离、视线）的就忘掉。掷骰和结果都记日志。"""
+        pack = self.rulepack(game_id)
+        if not any(t.stealth.strip() for t in pack.templates):
+            return
+        state = self._state(game_id)
+        space = self._space_for(self._map(game_id), state, pack)
+        evs: list[NewEvent] = []
+        ops: list[PatchOp] = []
+        for hider in sorted(space.bodies):
+            before = space.detected.get(hider, set())
+            after: set[str] = set()
+            for observer in sorted(space.bodies):
+                if observer == hider or hider not in space.sees(observer):
+                    continue  # 看不见就谈不上发现；之前发现过的也忘掉
+                if observer in before:
+                    after.add(observer)
+                    continue
+                need = space.hiding(hider, observer)
+                if need <= 0 or self._dead(state, observer):
+                    continue
+                ent = _obj(space.entities.get(observer))
+                tpl = pack.template(str(ent.get("template", "")))
+                if tpl is None or not tpl.search.strip():
+                    continue
+                hb, ob = space.bodies[hider], space.bodies[observer]
+                try:
+                    roll = self._rules.roll(
+                        pack,
+                        tpl.search,
+                        self._dice.faces,
+                        tpl.name,
+                        ent.get("sheet"),
+                        None,
+                        peers_of(state, observer),
+                        None,
+                        {"distance": self._spatial.distance(hb.pos, ob.pos)},
+                    )
+                except ValidationFailed:
+                    continue
+                found = roll.total >= need
+                if found:
+                    after.add(observer)
+                evs.append(
+                    NewEvent(
+                        type="dice_roll",
+                        actor=ENGINE,
+                        visibility=Visibility.kp_only(),
+                        payload={
+                            "expr": roll.expr,
+                            "rolls": list(roll.rolls),
+                            "total": roll.total,
+                            "reason": "search",
+                            "check": "search",
+                            "entity": observer,
+                            "against": hider,
+                            "target": need,
+                            "level": 1 if found else 0,
+                        },
+                    )
+                )
+            if after != before:
+                ops.append(
+                    PatchOp(
+                        op="add",
+                        path=f"/entities/{hider}/detected_by",
+                        value=list[JsonValue](sorted(after)),
+                    )
+                )
+        if ops:
+            evs.append(self._patch_event(ops, cause="detection", actor=ENGINE))
+        if evs:
+            self._events.append(game_id, round_no, evs)
+
     def _map_knowledge_ops(self, space: Space) -> list[PatchOp]:
         """地图变化只在玩家的实体感知到它，或者它被公开之后，才对该玩家显示。知道了就一直知道。"""
         ops: list[PatchOp] = []
@@ -3178,6 +3267,7 @@ class Engine:
                     Round(game_id=game_id, no=r.no + 1, status="collecting", started_second=seconds)
                 )
                 self._repo.update_game(game_id, current_round=r.no + 1)
+                self._detect(game_id, r.no + 1)
             adj_seq = written[0].seq
             self._memory.add(self._memory_entries(game_id, r.no, adj, adj_seq))
             self.refresh_handles(game_id)

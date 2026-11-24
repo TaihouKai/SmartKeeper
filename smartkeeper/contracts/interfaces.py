@@ -215,6 +215,17 @@ class Rules(Protocol):
         难度只算在发起的一方。distance 是到对象的距离；vs_template 是没有对抗时对象的模板。"""
         ...
 
+    def stealth(
+        self,
+        pack: RulePack,
+        hider: tuple[str, JsonValue, Peers | None],
+        observer: tuple[str, JsonValue, Peers | None],
+        distance: float,
+    ) -> float:
+        """观察者在 distance 米外发现隐匿者的难度（隐匿者模板的 stealth 公式）；0 及以下是不隐匿。
+        hider、observer 是 (模板, 角色卡, 同伴)。写错抛 ValidationFailed。"""
+        ...
+
     def resolve_adhoc(self, entity: str, spec: AdHocCheck, roll: DiceResult) -> CheckResult:
         """临时检定：骰子公式加目标值，结果只有成功（1）/ 失败（0）。"""
         ...
@@ -261,7 +272,9 @@ type Faces = Callable[[int, int], tuple[int, ...]]
 
 # 同一个玩家控制的其他实体：模板名 -> 角色卡；同一个模板有不止一个时为 None（引用它会报错）
 type Peers = Mapping[str, JsonValue | None]
-type FormulaScope = Literal["any_entity", "dice", "script", "config", "check", "damage"]
+type FormulaScope = Literal[
+    "any_entity", "dice", "script", "config", "check", "damage", "stealth", "search"
+]
 
 
 class Dice(Protocol):

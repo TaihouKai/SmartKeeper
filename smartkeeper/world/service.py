@@ -155,7 +155,7 @@ class WorldService:
             return [Problem(code="state.type", path=base)]
         problems: list[Problem] = []
         for key in ent:
-            if key not in ("template", "pos", "inside", "sheet"):
+            if key not in ("template", "pos", "inside", "sheet", "detected_by"):
                 problems.append(Problem(code="state.unknown_key", path=f"{base}/{key}"))
         template = ent.get("template")
         if not isinstance(template, str) or pack.template(template) is None:
@@ -168,6 +168,12 @@ class WorldService:
         inside = ent.get("inside")
         if inside is not None and not isinstance(inside, str):
             problems.append(Problem(code="state.type", path=f"{base}/inside"))
+        seen = ent.get("detected_by")
+        if seen is not None and not (
+            isinstance(seen, list) and all(isinstance(x, str) for x in seen)
+        ):
+            # 隐匿的角色：已经发现了它的观察者
+            problems.append(Problem(code="state.type", path=f"{base}/detected_by"))
         for p in self._rules.validate_sheet(pack, template, ent.get("sheet"), peers):
             path = "/" + p.path.replace(".", "/") if p.path else ""
             problems.append(p.model_copy(update={"path": f"{base}/sheet{path}"}))

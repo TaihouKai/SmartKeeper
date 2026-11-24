@@ -923,6 +923,8 @@
       "min": "e.g. 0",
       "per_minute": "empty means none, e.g. 1 or con / 2",
       "sample_name": "Example name",
+      "search": "e.g. 1d20 + per; empty = can't find hidden ones",
+      "stealth": "e.g. 10 + 5 * ceil(distance / 40) if distance <= 200 else 999; empty = never hides",
       "table_rows": "One per line: key,value\ne.g. warrior,14",
       "template_label": "e.g. Hero",
       "template_name": "e.g. hero",
@@ -956,7 +958,10 @@
       "damage_taken": "Damage taken",
       "damage_taken_hint": "Each time a character of this template takes skill damage, the engine uses this to work out how much (never below 0). amount is the raw damage, kind its type (from the skill's group, or damage(amount, \"type\")). Resistances written here apply to every attack.",
       "label": "Shown to players as",
-      "name": "Template ID"
+      "name": "Template ID",
+      "search": "Search roll",
+      "stealth": "Stealth difficulty",
+      "stealth_hint": "Stealth is worked out on this character: what someone distance metres away must roll to notice it (observer.<name> reads the observer's sheet); 0 means not hiding. Search is the roll this character makes to notice others. At the start of each round every observer that can see a hider it hasn't found rolls once; once found it stays found until out of sight. Using a skill on someone reveals you to them; a target that hasn't noticed its attacker can't react."
     },
     "table": {
       "bad_rows": "Line {lines} can't be read and isn't saved: write key,value with a number value",
