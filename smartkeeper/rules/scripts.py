@@ -13,13 +13,14 @@ from smartkeeper.rules import skillconfig
 from smartkeeper.rules.checks import context
 from smartkeeper.rules.evaluator import EntityContext, table_lookup
 
-type Op = Literal["damage", "add", "subtract", "set", "modify"]
+type Op = Literal["damage", "add", "subtract", "set", "modify", "negate"]
 _OPS: dict[str, Op] = {
     "damage": "damage",
     "add": "add",
     "sub": "subtract",
     "set": "set",
     "modify": "modify",
+    "negate": "negate",
 }
 
 
@@ -33,6 +34,8 @@ def plan_script(
     peers: Peers | None = None,
     target: tuple[str, JsonValue, Peers | None] | None = None,
     config: str = "",
+    result: str = "",
+    reacting: bool = False,
 ) -> tuple[ScriptStep, ...]:
     try:
         nodes = f.parse_script(script)
@@ -43,7 +46,9 @@ def plan_script(
         ctx.target = context(pack, target[0], target[1], target[2])
     lookup = table_lookup(pack)
     steps: list[ScriptStep] = []
-    local: dict[str, f.Value] = {}  # 局部变量：算一次，后面的句子按名字取
+    # 局部变量：算一次，后面的句子按名字取。result 是技能检定的结果等级（没有检定时是空）
+    # reacting：这次是当反应用的（1）还是平时用（0）
+    local: dict[str, f.Value] = {"result": result, "reacting": 1.0 if reacting else 0.0}
     # 设置的各项：在脚本的公式里换成它们的公式
     env = {k: v for k, v in skillconfig.names(config, script).items() if k in skillconfig.KEYS}
 
@@ -111,6 +116,8 @@ def _step(
             raise f.FormulaError("formula.text_result", value=v)
         return v
 
+    if st.verb == "negate":
+        return ScriptStep(who=st.receiver, op="negate")
     seconds = int(num(st.minutes) * 60) if st.minutes is not None else None
     if st.verb == "modify":
         assert st.formula is not None and st.field is not None

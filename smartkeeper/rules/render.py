@@ -90,9 +90,8 @@ def render(pack: RulePack, include_hidden: bool = True) -> str:
     if pack.checks:
         out += ["## checks", ""]
         for c in pack.checks:
-            out.append(f"- `{c.name}` {c.label}: `{c.dice}` vs `{c.target}`")
-            for lv in c.levels:
-                out.append(f"  - {lv.name}: `{lv.condition}`")
+            out.append(f"- `{c.name}`:")
+            out += [f"  {line}" for line in c.config.strip().splitlines() if line.strip()]
         out.append("")
     if pack.rules_text.strip():
         out += ["## rules", "", pack.rules_text.strip(), ""]

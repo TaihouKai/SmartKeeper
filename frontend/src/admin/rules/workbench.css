@@ -220,3 +220,18 @@
   .wb-pack { max-width: 60vw; }
   .wb-saved { display: none; }
 }
+
+/* 检定的四个结果 */
+.wb-levels { display: grid; gap: 6px; }
+.wb-level { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: center; }
+.wb-level-name { font-size: 13px; font-weight: 600; padding: 3px 8px; border-radius: 6px; text-align: center; background: var(--wb-sunken); border: 1px solid var(--line); }
+.wb-level-critical_success .wb-level-name { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); }
+.wb-level-success .wb-level-name { color: var(--ok); }
+.wb-level-failure .wb-level-name { color: var(--warn); }
+.wb-level-critical_failure .wb-level-name { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); }
+
+/* 检定列表 */
+.wb-check-list { display: flex; flex-direction: column; gap: 6px; }
+.wb-check-row { display: grid; grid-template-columns: minmax(140px, 240px) 1fr auto auto; gap: 10px; align-items: center; padding: 4px 6px; border-radius: 8px; }
+.wb-check-row.active { background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
+.wb-check-label { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

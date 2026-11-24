@@ -57,6 +57,31 @@
     "pick_peer": "Choose a player…",
     "send": "Send"
   },
+  "check": {
+    "c": {
+      "critical_failure": "critical failure condition; False if unused",
+      "critical_success": "critical success condition; False if unused",
+      "dice": "the dice, e.g. 1d20 + per (on the checking character)",
+      "label": "display name",
+      "opposed_by": "the check the opponent rolls; None = the same",
+      "success": "success condition; otherwise failure",
+      "target": "target value (0 if unused), e.g. a skill value"
+    },
+    "level": {
+      "critical_failure": "Critical failure",
+      "critical_success": "Critical success",
+      "failure": "Failure",
+      "success": "Success"
+    },
+    "v": {
+      "difficulty": "difficulty from the keeper; when opposed, the opponent's roll",
+      "natural": "the dice alone without modifiers, e.g. natural == 20",
+      "opp_roll": "the opponent's roll",
+      "opp_target": "the opponent's target",
+      "roll": "the total rolled"
+    },
+    "vars": "In the result conditions"
+  },
   "codes": {
     "action": {
       "busy": "Your action isn't finished yet",
@@ -65,6 +90,7 @@
       "unresolved_reference": "Some references couldn't be matched"
     },
     "adj": {
+      "reaction_pending": "This use is still waiting for the target's reaction",
       "unknown_use": "The ruling refers to an unknown skill use {seq}",
       "use_bad_field": "The target has no runtime value {name}"
     },
@@ -83,7 +109,9 @@
       "bad_value": "Bad value for {name}; expected {expected}",
       "call_keywords": "Arguments of {name}(…) must be name=value",
       "duplicate": "{name} is set twice",
+      "list_of_text": "{name} must be a list of names, e.g. [\"dodge\", \"block\"]",
       "missing_arg": "{name} is missing {arg}",
+      "unknown_check": "No check named {name} (add it under Checks)",
       "unknown_key": "There is no setting {name} (see Reference in the IDE)"
     },
     "formula": {
@@ -131,7 +159,9 @@
     "pack": {
       "bad_count": "Min and max counts don't make sense",
       "boolean_initial": "A yes/no field's initial value should be True / False (or 1 / 0, or a condition), not {value}",
+      "check_needs_dice": "A check needs dice",
       "check_needs_levels": "A check needs at least one result level",
+      "check_needs_success": "A check needs a success condition",
       "choices_need_text": "Only text fields can have choices",
       "duplicate_name": "The name {name} is used twice",
       "group_field_must_be_player": "Fields in a group must be player-entered",
@@ -153,6 +183,12 @@
     "rate": {
       "kp_chat": "Too fast; wait a minute",
       "login": "Too many attempts; try later"
+    },
+    "react": {
+      "bad_check": "{check} can't be used against {entry}",
+      "bad_skill": "{entry} can't be used as a reaction now (not instant, cooling down, or its group doesn't allow reactions)",
+      "choices_mismatch": "Choose a reaction for every attack and send them together",
+      "nothing_pending": "Nothing is waiting for your reaction"
     },
     "round": {
       "illegal_transition": "Not allowed in this phase ({status})",
@@ -228,10 +264,13 @@
   "config": {
     "c": {
       "cast_time": "cast time in minutes; under 1 is instant",
+      "check": "the user's check (a check name); None / True means it always hits",
       "cooldown": "cooldown in minutes",
+      "difficulty": "difficulty when nobody resists",
       "noise": "noise radius in metres; None = silent",
       "placement": "placement, e.g. placement(radius=3, charges=1)",
       "range": "range in metres; None = unlimited; for a placement, how far from the user it may be put",
+      "reactions": "if set, the target may react: a player chooses (these checks, an instant skill of theirs, or nothing); an NPC gets the best check",
       "requires": "condition to use, e.g. not silenced",
       "shape": "area shape, e.g. sphere(radius=5)",
       "target": "single needs a target / self only / none",
@@ -263,6 +302,8 @@
       "not": "1 if it doesn't hold, 0 if it does",
       "or": "1 if either holds; stops at the first that does",
       "pass": "Do nothing (an empty branch)",
+      "reacting": "True when used as a reaction, False otherwise",
+      "result": "The skill check's result: critical_success, success, failure, critical_failure (empty without a check)",
       "self": "The user: self.hp is your value, self.add(…) acts on you",
       "target": "The chosen target: target.hp is its value, target.damage(…) acts on it",
       "this": "This entry: this.column is one of its columns, including chosen-on-use ones"
@@ -296,6 +337,7 @@
       "add": "Add to a runtime value; with minutes it's timed and what's left is taken back. Clamped to its limits",
       "damage": "Take damage: shield first, then hp",
       "modify": "Modify a derived value for a while",
+      "negate": "As a reaction: void the attack on you (does nothing otherwise)",
       "set": "Set a runtime value, clamped to its limits",
       "sub": "Subtract from a runtime value, clamped to its limits"
     }
@@ -312,6 +354,7 @@
     "noticed_who": "You sense {who} using “{entry}”",
     "opening": "Opening",
     "quote": "Quote",
+    "react": "Attacked",
     "rejected": "Character needs changes",
     "round_closed": "— Round {round} ends —",
     "round_opened": "— Round {round} begins —",
@@ -591,6 +634,18 @@
     "travel_walk": "walking {time}",
     "use_destination": "Use as destination"
   },
+  "react": {
+    "admin_title": "Waiting for players' reactions",
+    "admin_waiting": "{player}: {n} attacks (you can choose for them)",
+    "by": "{who} used “{entry}” on your {defender}",
+    "by_unknown": "Someone used “{entry}” on your {defender}",
+    "check": "Resist with the check {name}",
+    "hint": "Pick one for each attack and send them together. The round waits for you.",
+    "none": "Don't resist",
+    "skill": "React with “{name}”",
+    "submit": "Send",
+    "title": "You're under attack: choose how to react"
+  },
   "review": {
     "adjudication": "Adjudication JSON",
     "broadcast": "Broadcast draft",
@@ -614,12 +669,13 @@
     "appearance_badge": "appearance (required)",
     "c": {
       "dice": "Dice (may use fields, e.g. 1d100, 1d str)",
-      "name": "Check name (the keeper uses it)",
-      "target": "Target formula"
+      "name": "Check name (the keeper uses it)"
     },
     "can_fly_badge": "can fly (required)",
     "checking": "Checking…",
     "checks": "Checks",
+    "checks_empty": "No checks yet.",
+    "checks_hint": "Each check is a bit of code (Edit opens it in the IDE on the right): dice, target, and the conditions for critical success / critical failure / success; otherwise it's a failure. The keeper decides who checks what against which difficulty (or opponent); the engine rolls. Skills whose settings name a check make it automatically.",
     "cls": {
       "player": "Player-defined",
       "runtime": "Runtime"
@@ -697,6 +753,7 @@
       "placements": "Entries may be placed objects (traps, wards… left on the map)",
       "presets": "Fixed entries: rows filled in by the rules",
       "presets_hint": "Rows filled in from the header above, so players don't write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn't appear. Conditions may only use this sheet's fields; text values need quotes, e.g. class == \"warrior\", class != \"warrior\" or class == \"warrior\" and str >= 3. Fixed entries don't count toward the min/max above.",
+      "reactions": "Entries can be reactions (used when attacked; instant ones only)",
       "settings": "More settings: switches and area shapes",
       "shapes": "Area shapes entries may have (for area attacks, beams…; leave all unticked if unused)",
       "timing": "Entries have a casting time and a cooldown (skills)",
@@ -781,6 +838,7 @@
       "cast_time": "Cast time",
       "checks": "Check",
       "condition": "Condition",
+      "config": "Code",
       "cooldown": "Cooldown",
       "derived": "Derived value",
       "dice": "Dice",
@@ -805,6 +863,7 @@
     },
     "ph": {
       "appearance_label": "e.g. Appearance",
+      "check_name": "e.g. perception",
       "choices": "e.g. red, blue, green (comma-separated; leave empty for free text)",
       "derived_label": "e.g. Max HP",
       "derived_name": "e.g. hp_max",

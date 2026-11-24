@@ -57,6 +57,14 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
       body = t("event.submitted");
       cls += " sys";
       break;
+    case "reaction_requested": {
+      const entry = String(e.payload.entry ?? "");
+      const by = e.payload.who;
+      body = typeof by === "string" && by ? t("react.by", { who: by, entry, defender: "" }) : t("react.by_unknown", { entry, defender: "" });
+      who = t("event.react");
+      cls += " feedback";
+      break;
+    }
     case "entry_noticed": {
       const entry = String(e.payload.entry ?? "");
       const by = e.payload.who;

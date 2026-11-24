@@ -247,18 +247,7 @@
     "checks": [
       {
         "name": "assault",
-        "dice": "1d20",
-        "target": "mod_might",
-        "levels": [
-          {
-            "name": "hit",
-            "condition": "roll + target >= difficulty"
-          },
-          {
-            "name": "miss",
-            "condition": "1"
-          }
-        ]
+        "config": "dice = 1d20\ntarget = mod_might\ncritical_success = False\ncritical_failure = False\nsuccess = roll + target >= difficulty"
       }
     ],
     "rules_text": "Companions act on their leader's instruction. Tokens are spent to call on a companion's ability.",

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, call, type Schemas } from "../../api/client";
 import { useI18n } from "../../i18n";
-import { ErrorBox, FormulaInput, Mover, moved } from "../../ui/components";
+import { ErrorBox, FormulaInput, Mover } from "../../ui/components";
 import { useAction } from "../../ui/hooks";
 import { FieldCard, blankField, useListEdit, type Validate } from "../fieldCard";
 import { GroupTable } from "../GroupTable";
-import { useWorkbench } from "./ctx";
+import { hasProblem, useWorkbench } from "./ctx";
 import { FLY_FIELD, HP_FIELD, REQUIRED_DERIVED, type Field, type Group, type Pack, type Template } from "./model";
 
 const SHAPES = ["capsule", "box", "sphere", "cone"] as const;
@@ -153,7 +153,7 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
   const { t } = useI18n();
   const allowed = g.shapes?.allowed ?? [];
   const [settings, setSettings] = useState(false);
-  const flag = (key: "effects" | "hidden" | "placements" | "timing", def: boolean, label: string) => (
+  const flag = (key: "effects" | "hidden" | "placements" | "timing" | "reactions", def: boolean, label: string) => (
     <label className="sk-inline">
       <input type="checkbox" checked={g[key] ?? def} onChange={(e) => onChange({ ...g, [key]: e.target.checked })} /> {label}
     </label>
@@ -200,6 +200,7 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
               {flag("effects", true, t("rules.g.effects"))}
               {flag("placements", true, t("rules.g.placements"))}
               {flag("timing", true, t("rules.g.timing"))}
+              {flag("reactions", true, t("rules.g.reactions"))}
               {flag("hidden", false, t("rules.g.hidden"))}
             </div>
             <div className="wb-shapes">
@@ -348,55 +349,44 @@ export function TablesSection({ pack, onChange }: { pack: Pack; onChange: (p: Pa
   );
 }
 
-export function ChecksSection({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pack) => void; validate: Validate }) {
+export function blankCheck(): Pack["checks"][number] {
+  return { name: "", config: "" };
+}
+
+/** 检定：每个一行，名字和“编辑”（在 IDE 里写它的代码：骰子、目标值、四种结果的条件、对抗时对方掷什么）。 */
+export function ChecksSection({ pack, onChange }: { pack: Pack; onChange: (p: Pack) => void }) {
   const { t } = useI18n();
   const wb = useWorkbench();
   const ced = useListEdit(pack.checks ?? [], (x) => onChange({ ...pack, checks: x }));
-  const vNone = useCallback((f: string) => validate(f, null), [validate]);
-  const vEntity = useCallback((f: string) => validate(f, null, undefined, "any_entity"), [validate]);
-  const vDice = useCallback((f: string) => validate(f, null, undefined, "dice"), [validate]);
+  const checks = pack.checks ?? [];
   return (
     <>
-      <SectionHead title={t("rules.checks")} hint={t("rules.levels_hint")} />
-      {(pack.checks ?? []).map((c, i) => (
-        <div key={i} className="wb-panel">
-          <div className="wb-form wb-form-check">
-            <label>
-              {t("rules.c.name")}
-              <input value={c.name} onChange={(e) => ced.update(i, { ...c, name: e.target.value })} />
-            </label>
-            <label>
-              {t("rules.c.dice")}
-              <FormulaInput value={c.dice} validate={vDice} placeholder={t("rules.ph.dice")} onChange={(x) => ced.update(i, { ...c, dice: x })} onExpand={() => wb.open(`checks[${i}].dice`)} />
-            </label>
-            <label>
-              {t("rules.c.target")}
-              <FormulaInput value={c.target ?? "0"} validate={vEntity} onChange={(x) => ced.update(i, { ...c, target: x })} onExpand={() => wb.open(`checks[${i}].target`)} />
-            </label>
-            <span className="sk-side-actions">
-              <Mover index={i} count={(pack.checks ?? []).length} onMove={ced.move} />
-              <button className="sk-link" onClick={() => ced.remove(i)}>
-                {t("common.remove")}
+      <SectionHead title={t("rules.checks")} hint={t("rules.checks_hint")} />
+      <div className="wb-panel wb-check-list">
+        {checks.length === 0 && <p className="sk-hint">{t("rules.checks_empty")}</p>}
+        {checks.map((c, i) => {
+          const path = `checks[${i}].config`;
+          const label = /^\s*label\s*=\s*["'](.*)["']/m.exec(c.config ?? "")?.[1] ?? "";
+          const bad = hasProblem(wb.problems, `checks[${i}]`);
+          return (
+            <div key={i} className={wb.active === path ? "wb-check-row active" : "wb-check-row"}>
+              <input value={c.name} placeholder={t("rules.ph.check_name")} onChange={(e) => ced.update(i, { ...c, name: e.target.value })} />
+              <span className="wb-check-label">{label}</span>
+              <button type="button" className={`wb-script-btn ${bad ? "bad" : c.config?.trim() ? "ok" : "empty"}`} onClick={() => wb.open(path)}>
+                <span className="wb-dot" />
+                {t("rules.gt.edit")}
               </button>
-            </span>
-          </div>
-          <h4 className="wb-sub">{t("rules.path.levels")}</h4>
-          {c.levels.map((lv, j) => (
-            <div key={j} className="wb-formula-row">
-              <input value={lv.name} onChange={(e) => ced.update(i, { ...c, levels: c.levels.map((x, k) => (k === j ? { ...x, name: e.target.value } : x)) })} />
-              <FormulaInput value={lv.condition} validate={vNone} onChange={(x) => ced.update(i, { ...c, levels: c.levels.map((y, k) => (k === j ? { ...y, condition: x } : y)) })} onExpand={() => wb.open(`checks[${i}].levels[${j}].condition`)} />
               <span className="sk-side-actions">
-                <Mover index={j} count={c.levels.length} onMove={(from, to) => ced.update(i, { ...c, levels: moved(c.levels, from, to) })} />
-                <button className="sk-link" onClick={() => ced.update(i, { ...c, levels: c.levels.filter((_, k) => k !== j) })}>
+                <Mover index={i} count={checks.length} onMove={ced.move} />
+                <button className="sk-link" onClick={() => ced.remove(i)}>
                   {t("common.remove")}
                 </button>
               </span>
             </div>
-          ))}
-          <button onClick={() => ced.update(i, { ...c, levels: [...c.levels, { name: "", condition: "" }] })}>{t("rules.add_level")}</button>
-        </div>
-      ))}
-      <button onClick={() => ced.add({ name: "", label: "", dice: "1d100", target: "0", levels: [] })}>{t("common.add")}</button>
+          );
+        })}
+        <button onClick={() => ced.add(blankCheck())}>{t("common.add")}</button>
+      </div>
     </>
   );
 }

@@ -12,7 +12,7 @@ from typing import Literal
 from smartkeeper import lang as f
 from smartkeeper.contracts import PlacementSpec, Shape, SkillConfig
 
-type Kind = Literal["choice", "bool", "formula", "shape", "placement"]
+type Kind = Literal["choice", "bool", "formula", "shape", "placement", "check", "checks"]
 
 TARGETS = ("single", "self", "none")
 # 名字 -> 值的类型。顺序就是编辑器里预先填好的顺序
@@ -24,6 +24,9 @@ KEYS: dict[str, Kind] = {
     "noise": "formula",
     "cast_time": "formula",
     "cooldown": "formula",
+    "check": "check",
+    "difficulty": "formula",
+    "reactions": "checks",
     "shape": "shape",
     "placement": "placement",
 }
@@ -111,7 +114,9 @@ def settings(text: str, script: str = "") -> tuple[f.Setting, ...]:
             args = tuple((a, link(v)) for a, v in s.args)
         except f.FormulaError as e:
             raise f.FormulaError(e.code, **{"line": s.line, **e.params}) from None
-        out.append(f.Setting(line=s.line, name=s.name, value=value, call=s.call, args=args))
+        out.append(
+            f.Setting(line=s.line, name=s.name, value=value, call=s.call, args=args, items=s.items)
+        )
     return tuple(out)
 
 
@@ -161,6 +166,27 @@ def read_config(text: str, script: str = "") -> SkillConfig:
                     duration=f"({dur}) * 60" if dur else "",  # 设置里按分钟，设置物按秒
                     notify_owner=_bool(s, args["notify"]) if "notify" in args else True,
                 )
+            continue
+        if kind == "checks":
+            if s.items is not None:
+                out[s.name] = s.items
+                continue
+            node = _literal(s)
+            if node is None:
+                continue
+            if not isinstance(node, f.Str):
+                raise _err("config.bad_value", s, expected='["dodge", "block"]')
+            out[s.name] = (node.value,)
+            continue
+        if s.items is not None:
+            raise _err("config.bad_value", s, expected=kind)
+        if kind == "check":
+            node = _literal(s)
+            if node is None or (isinstance(node, f.Num) and node.value in (0.0, 1.0)):
+                continue  # None / True：不掷骰，必中
+            if not isinstance(node, f.Str):
+                raise _err("config.bad_value", s, expected='"check_name"')
+            out[s.name] = node.value
             continue
         if s.call is not None:
             raise _err("config.bad_value", s, expected=kind)

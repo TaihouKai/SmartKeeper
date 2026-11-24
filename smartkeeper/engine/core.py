@@ -64,6 +64,10 @@ from smartkeeper.contracts import (
     PresenceEntry,
     Problem,
     QueryResult,
+    ReactionChoice,
+    ReactionParam,
+    ReactionPrompt,
+    ReactionSkill,
     Round,
     RoundMachine,
     RulePack,
@@ -1544,18 +1548,51 @@ class Engine:
                     "use.requires", entity=source, entry=parsed.name, formula=cfg.requires
                 )
             heard = self._reach_checks(game_id, state, pack, source, target, cfg, roll, parsed.name)
+            # 打没打中由引擎判：没有检定的必中；有检定的掷骰。对象是玩家、技能可以被应对时，
+            # 先只掷使用者的骰子，等对象选怎么应对（react）再判，技能脚本也到那时再算
+            waiting = (
+                self._owner(state, target)
+                if target is not None and target != source and cfg.reactions
+                else None
+            )
+            hit: bool | None = True
+            checked: JsonValue = None
+            attack_roll: JsonValue = None
+            result = ""
+            if waiting is not None:
+                hit = None
+                if cfg.check:
+                    dice = self._rules.check_spec(pack, cfg.check).dice
+                    attack_roll = cast(
+                        JsonValue,
+                        self._rules.roll(
+                            pack, dice, self._dice.faces, template, sheet, None, peers
+                        ).model_dump(mode="json"),
+                    )
+            elif cfg.check:
+                res = self._skill_check(
+                    state, pack, source, template, sheet, peers, target, cfg, roll
+                )
+                result = res.level
+                hit = res.level in ("success", "critical_success")
+                checked = cast(JsonValue, res.model_dump(mode="json"))
 
             # 技能脚本：现在就掷骰算好；每一步记下落在哪个实体身上
-            steps = self._rules.plan_script(
-                pack,
-                parsed.script,
-                self._dice.faces,
-                template,
-                sheet,
-                fields,
-                peers,
-                tgt,
-                parsed.config,
+            steps = (
+                ()
+                if hit is not True
+                else self._rules.plan_script(
+                    pack,
+                    parsed.script,
+                    self._dice.faces,
+                    template,
+                    sheet,
+                    fields,
+                    peers,
+                    tgt,
+                    parsed.config,
+                    result,
+                )
             )
             actions: list[JsonValue] = [
                 {"entity": source if st.who == "self" else target, **st.model_dump(mode="json")}
@@ -1574,10 +1611,37 @@ class Engine:
                     "actions": actions,
                     "cooldown": int(roll(cfg.cooldown).total * 60) if cfg.cooldown.strip() else 0,
                     "heard_by": cast(JsonValue, heard),
+                    # 命中由引擎定，裁定里的 hit 不用；None 表示在等对象应对
+                    "hit": hit,
+                    "check": checked,
+                    "waiting_for": waiting,
+                    "attack_roll": attack_roll,
                     "reason": reason,
                 },
             )
-            return self._events.append(game_id, r.no, [ev])[0]
+            used = self._events.append(game_id, r.no, [ev])[0]
+            if waiting is not None and target is not None:
+                # 只告诉被攻击的玩家（看得见攻击者的话也告诉他是谁）；技能的动静另按 noise 通知
+                space = self._space_for(self._map(game_id), state, pack)
+                seen = source in space.player_perceived(waiting)
+                self._events.append(
+                    game_id,
+                    r.no,
+                    [
+                        NewEvent(
+                            type="reaction_requested",
+                            actor=ENGINE,
+                            visibility=Visibility.to(waiting),
+                            payload={
+                                "use_seq": used.seq,
+                                "entry": str(parsed.name),
+                                "defender": target,
+                                "who": self._appearance(state, pack, source) if seen else None,
+                            },
+                        )
+                    ],
+                )
+            return used
 
     def _cfg(self, row: dict[str, JsonValue]) -> SkillConfig:
         """角色卡上一个条目的技能设置；写错的（校验会报）当作默认设置。"""
@@ -1630,6 +1694,66 @@ class Engine:
             return []
         return self._heard(space, source, roll(cfg.noise).total)
 
+    def _skill_check(
+        self,
+        state: State,
+        pack: RulePack,
+        source: str,
+        template: str,
+        sheet: JsonValue,
+        peers: dict[str, JsonValue | None],
+        target: str | None,
+        cfg: SkillConfig,
+        roll: Callable[[str], DiceResult],
+    ) -> CheckResult:
+        """使用者做 cfg.check；有对象时对象把 reactions 里的检定都掷一遍，取对使用者最不利的结果；
+        没有能对抗的（没列、对象的卡算不了），按 cfg.difficulty。"""
+        cdef = self._rules.check_spec(pack, cfg.check)
+        faces = self._dice.faces
+        mine = self._rules.roll(pack, cdef.dice, faces, template, sheet, None, peers)
+        options: list[CheckResult] = []
+        if target is not None and target != source and cfg.reactions:
+            tent = self._entity(state, target)
+            t_tpl = str(tent.get("template", ""))
+            t_peers = peers_of(state, target)
+            t_sheet = self._rules.full_sheet(pack, t_tpl, tent.get("sheet"), t_peers)
+            for name in cfg.reactions:
+                try:
+                    rdef = self._rules.check_spec(pack, name)
+                    theirs = self._rules.roll(pack, rdef.dice, faces, t_tpl, t_sheet, None, t_peers)
+                    options.append(
+                        self._rules.resolve_check(
+                            pack,
+                            entity=source,
+                            template=template,
+                            sheet=sheet,
+                            check=cfg.check,
+                            roll=mine,
+                            opponent=(target, t_tpl, t_sheet, theirs),
+                            peers=peers,
+                            opp_check=name,
+                        ).model_copy(update={"reason": name})
+                    )
+                except (ValidationFailed, NotFound):
+                    continue  # 没有这个检定，或对象的卡上没有它要的字段：不能用它对抗
+        if options:
+            rank = {"critical_failure": 0, "failure": 1, "success": 2, "critical_success": 3}
+            return min(
+                options,
+                key=lambda r: (rank.get(r.level, 1), -(r.opp_roll.total if r.opp_roll else 0)),
+            )
+        diff = roll(cfg.difficulty).total if cfg.difficulty.strip() else 0.0
+        return self._rules.resolve_check(
+            pack,
+            entity=source,
+            template=template,
+            sheet=sheet,
+            check=cfg.check,
+            roll=mine,
+            difficulty=diff,
+            peers=peers,
+        )
+
     def _heard(self, space: Space, source: str, radius: float) -> list[str]:
         """动静范围内有实体的其他玩家（不含使用者自己的玩家）。"""
         me = space.bodies.get(source)
@@ -1644,6 +1768,381 @@ class Engine:
             if self._spatial.distance(me.pos, body.pos) <= radius:
                 out.add(pid)
         return sorted(out)
+
+    # ================= 应对：被攻击的玩家选怎么应对 =================
+
+    def _owner(self, state: State, entity_id: str | None) -> str | None:
+        """控制这个实体的玩家；NPC 是 None。"""
+        for pid, ents in _obj(state.get("controls")).items():
+            if isinstance(ents, list) and entity_id in ents:
+                return str(pid)
+        return None
+
+    def mark_plan_done(self, game_id: str) -> None:
+        """这一次规划的声明（检定、掷骰、技能使用、查询）都做完了。等应对之后接着裁定时不再重新规划。"""
+        with self._lock:
+            r = self._require(game_id, "roll")
+            ev = NewEvent(
+                type="plan_done", actor=ENGINE, visibility=Visibility.kp_only(), payload={}
+            )
+            self._events.append(game_id, r.no, [ev])
+
+    def plan_done(self, game_id: str) -> bool:
+        r = self.round(game_id)
+        return r.status == "adjudicating" and any(
+            e.type == "plan_done" for e in self.current_attempt(game_id, r.no)
+        )
+
+    def pending_reactions(self, game_id: str) -> list[Event]:
+        """这一次规划里还在等对象应对的技能使用（entry_used 事件）。"""
+        r = self.round(game_id)
+        if r.status != "adjudicating":
+            return []
+        attempt = self.current_attempt(game_id, r.no)
+        done = {
+            int(cast(int, e.payload.get("use_seq")))
+            for e in attempt
+            if e.type == "reaction_resolved"
+        }
+        return [
+            e
+            for e in attempt
+            if e.type == "entry_used"
+            and e.payload.get("waiting_for") is not None
+            and e.seq not in done
+        ]
+
+    def _entry_on(
+        self, state: State, pack: RulePack, eid: str, entry: str
+    ) -> (
+        tuple[str, dict[str, JsonValue], dict[str, JsonValue | None], str, dict[str, JsonValue]]
+        | None
+    ):
+        """实体卡上的一个条目：模板、完整角色卡、同伴、分组名、这一条。"""
+        ent = self._entity(state, eid)
+        template = str(ent.get("template", ""))
+        peers = peers_of(state, eid)
+        sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
+        for gname, entries in _obj(sheet.get("groups")).items():
+            for e in _list(entries):
+                row = _obj(e)
+                if entry in (row.get("name"), row.get("id")):
+                    return template, sheet, peers, str(gname), row
+        return None
+
+    def _reaction_skills(
+        self, state: State, pack: RulePack, defender: str
+    ) -> list[tuple[str, dict[str, JsonValue], GroupDef]]:
+        """能当反应的技能：所在分组打开了“可以当反应”、瞬发（施放时间不到 1 分钟）、不在冷却。"""
+        ent = self._entity(state, defender)
+        template = str(ent.get("template", ""))
+        tpl = pack.template(template)
+        if tpl is None:
+            return []
+        tags = {str(_obj(s).get("tag")) for s in _list(_obj(ent.get("sheet")).get("statuses"))}
+        if DEAD_TAG in tags:
+            return []
+        peers = peers_of(state, defender)
+        sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
+        out: list[tuple[str, dict[str, JsonValue], GroupDef]] = []
+        for g in tpl.groups:
+            if not g.reactions:
+                continue
+            for e in _list(_obj(sheet.get("groups")).get(g.name)):
+                row = _obj(e)
+                name = str(row.get("name", ""))
+                if not name or COOLDOWN_TAG + name in tags:
+                    continue
+                cast_text = self._cfg(row).cast_time
+                if cast_text.strip():
+                    try:
+                        minutes = self._rules.roll(
+                            pack,
+                            cast_text,
+                            self._dice.faces,
+                            template,
+                            sheet,
+                            _obj(row.get("fields")),
+                            peers,
+                        ).total
+                    except ValidationFailed:
+                        continue
+                    if minutes >= 1:
+                        continue
+                out.append((name, row, g))
+        return out
+
+    def reaction_prompts(self, game_id: str, player_id: str) -> list[ReactionPrompt]:
+        """给被攻击的玩家：本轮等他应对的攻击，和每次能选的应对。"""
+        state = self._state(game_id)
+        pack = self.rulepack(game_id)
+        attempt = self.current_attempt(game_id, self.round(game_id).no)
+        who = {
+            e.payload.get("use_seq"): e.payload.get("who")
+            for e in attempt
+            if e.type == "reaction_requested"
+        }
+        out: list[ReactionPrompt] = []
+        for ev in self.pending_reactions(game_id):
+            p = ev.payload
+            if p.get("waiting_for") != player_id:
+                continue
+            source, defender = str(p.get("source")), str(p.get("target"))
+            found = self._entry_on(state, pack, source, str(p.get("entry")))
+            cfg = self._cfg(found[4]) if found else SkillConfig()
+            skills: list[ReactionSkill] = []
+            for name, row, g in self._reaction_skills(state, pack, defender):
+                params = tuple(
+                    ReactionParam(name=f.name, label=f.label or "")
+                    for f in g.fields
+                    if f.kind == "param"
+                )
+                skills.append(
+                    ReactionSkill(
+                        entry=name, description=str(row.get("description", "")), params=params
+                    )
+                )
+            w = who.get(ev.seq)
+            out.append(
+                ReactionPrompt(
+                    seq=ev.seq,
+                    entry=str(p.get("entry")),
+                    defender=defender,
+                    who=w if isinstance(w, str) else None,
+                    checks=cfg.reactions if cfg.check else (),
+                    labels={c: self._check_label(pack, c) for c in cfg.reactions},
+                    skills=tuple(skills),
+                )
+            )
+        return out
+
+    def _check_label(self, pack: RulePack, name: str) -> str:
+        try:
+            return self._rules.check_spec(pack, name).label or name
+        except (NotFound, ValidationFailed):
+            return name
+
+    def react(self, game_id: str, player_id: str, choices: list[ReactionChoice]) -> list[Event]:
+        """被攻击的玩家一次交齐本轮对每次攻击的应对。引擎按顺序结算：先应对的技能，再判攻击打没打中、算攻击的效果。
+        结果记在 reaction_resolved 事件里，发布时照着执行。"""
+        with self._lock:
+            r = self._require(game_id, "roll")
+            state = self._state(game_id)
+            pack = self.rulepack(game_id)
+            waiting = {
+                e.seq: e
+                for e in self.pending_reactions(game_id)
+                if e.payload.get("waiting_for") == player_id
+            }
+            if not waiting:
+                raise IllegalState("react.nothing_pending")
+            by_seq = {c.seq: c for c in choices}
+            missing = sorted(s for s in waiting if s not in by_seq)
+            unknown = sorted(s for s in by_seq if s not in waiting)
+            if missing or unknown:
+                raise ValidationFailed(
+                    "react.choices_mismatch",
+                    missing=cast(JsonValue, missing),
+                    unknown=cast(JsonValue, unknown),
+                )
+            new = [
+                self._resolve_reaction(state, pack, waiting[seq], by_seq[seq])
+                for seq in sorted(waiting)
+            ]
+            return self._events.append(game_id, r.no, new)
+
+    def _resolve_reaction(
+        self, state: State, pack: RulePack, ev: Event, choice: ReactionChoice
+    ) -> NewEvent:
+        p = ev.payload
+        source, defender, entry = str(p.get("source")), str(p.get("target")), str(p.get("entry"))
+        faces = self._dice.faces
+        found = self._entry_on(state, pack, source, entry)
+        if found is None:
+            raise NotFound("roll.unknown_entry", entity=source, entry=entry)
+        s_tpl, s_sheet, s_peers, _g, row = found
+        cfg = self._cfg(row)
+        fields = {**_obj(row.get("fields")), **_obj(p.get("params"))}
+        d_ent = self._entity(state, defender)
+        d_tpl = str(d_ent.get("template", ""))
+        d_peers = peers_of(state, defender)
+        d_sheet = _obj(self._rules.full_sheet(pack, d_tpl, d_ent.get("sheet"), d_peers))
+        raw_roll = p.get("attack_roll")
+        attack_roll = DiceResult.model_validate(raw_roll) if isinstance(raw_roll, dict) else None
+        d_roll: DiceResult | None = None
+        d_check: str | None = None
+        reaction: dict[str, JsonValue] = {}
+        negated = False
+        if choice.kind == "check":
+            if not cfg.check or choice.check not in cfg.reactions:
+                raise ValidationFailed("react.bad_check", check=choice.check, entry=entry)
+            d_check = choice.check
+            d_roll = self._rules.roll(
+                pack,
+                self._rules.check_spec(pack, d_check).dice,
+                faces,
+                d_tpl,
+                d_sheet,
+                None,
+                d_peers,
+            )
+        elif choice.kind == "skill":
+            skills = {
+                name: (rrow, g) for name, rrow, g in self._reaction_skills(state, pack, defender)
+            }
+            rname = next(
+                (n for n, (rrow, _x) in skills.items() if choice.entry in (n, rrow.get("id"))), None
+            )
+            if rname is None:
+                raise ValidationFailed("react.bad_skill", entry=choice.entry)
+            rrow, g = skills[rname]
+            rcfg = self._cfg(rrow)
+            rfields = dict(_obj(rrow.get("fields")))
+            spends = self._use_params(
+                pack, d_tpl, d_sheet, g, rfields, dict(choice.params), rname, d_peers
+            )
+
+            def droll(text: str) -> DiceResult:
+                return self._rules.roll(pack, text, faces, d_tpl, d_sheet, rfields, d_peers)
+
+            r_level = ""
+            r_checked: JsonValue = None
+            if rcfg.check:
+                d_check = rcfg.check
+                d_roll = self._rules.roll(
+                    pack,
+                    self._rules.check_spec(pack, d_check).dice,
+                    faces,
+                    d_tpl,
+                    d_sheet,
+                    None,
+                    d_peers,
+                )
+                # 应对技能自己的结果：和攻击者掷出的点数比（攻击不掷骰时按它自己设置的难度）
+                diff = (
+                    attack_roll.total
+                    if attack_roll is not None
+                    else (droll(rcfg.difficulty).total if rcfg.difficulty.strip() else 0.0)
+                )
+                rres = self._rules.resolve_check(
+                    pack,
+                    entity=defender,
+                    template=d_tpl,
+                    sheet=d_sheet,
+                    check=d_check,
+                    roll=d_roll,
+                    difficulty=diff,
+                    peers=d_peers,
+                )
+                r_level = rres.level
+                r_checked = cast(JsonValue, rres.model_dump(mode="json"))
+            rsteps = self._rules.plan_script(
+                pack,
+                str(rrow.get("script") or ""),
+                faces,
+                d_tpl,
+                d_sheet,
+                rfields,
+                d_peers,
+                (s_tpl, s_sheet, s_peers),
+                str(rrow.get("config") or ""),
+                r_level,
+                True,
+            )
+            negated = any(st.op == "negate" and st.who == "self" for st in rsteps)
+            reaction = {
+                "entry": rname,
+                "params": cast(JsonValue, dict(choice.params)),
+                "spends": spends,
+                "cooldown": int(droll(rcfg.cooldown).total * 60) if rcfg.cooldown.strip() else 0,
+                "check": r_checked,
+                "negated": negated,
+                "actions": [
+                    {
+                        "entity": defender if st.who == "self" else source,
+                        **st.model_dump(mode="json"),
+                    }
+                    for st in rsteps
+                ],
+            }
+        # 攻击的结果
+        hit = True
+        result = ""
+        checked: JsonValue = None
+        if negated:
+            hit = False
+        elif cfg.check and attack_roll is not None:
+            if d_roll is not None:
+                res = self._rules.resolve_check(
+                    pack,
+                    entity=source,
+                    template=s_tpl,
+                    sheet=s_sheet,
+                    check=cfg.check,
+                    roll=attack_roll,
+                    opponent=(defender, d_tpl, d_sheet, d_roll),
+                    peers=s_peers,
+                    opp_check=d_check,
+                )
+            else:
+                diff = (
+                    self._rules.roll(
+                        pack, cfg.difficulty, faces, s_tpl, s_sheet, fields, s_peers
+                    ).total
+                    if cfg.difficulty.strip()
+                    else 0.0
+                )
+                res = self._rules.resolve_check(
+                    pack,
+                    entity=source,
+                    template=s_tpl,
+                    sheet=s_sheet,
+                    check=cfg.check,
+                    roll=attack_roll,
+                    difficulty=diff,
+                    peers=s_peers,
+                )
+            result = res.level
+            hit = res.level in ("success", "critical_success")
+            checked = cast(JsonValue, res.model_dump(mode="json"))
+        steps = (
+            self._rules.plan_script(
+                pack,
+                str(row.get("script") or ""),
+                faces,
+                s_tpl,
+                s_sheet,
+                fields,
+                s_peers,
+                (d_tpl, d_sheet, d_peers),
+                str(row.get("config") or ""),
+                result,
+            )
+            if hit
+            else ()
+        )
+        return NewEvent(
+            type="reaction_resolved",
+            actor=ENGINE,
+            visibility=Visibility.kp_only(),
+            payload={
+                "use_seq": ev.seq,
+                "attacker": source,
+                "defender": defender,
+                "entry": entry,
+                "choice": cast(JsonValue, choice.model_dump(mode="json")),
+                "hit": hit,
+                "check": checked,
+                "reaction": cast(JsonValue, reaction) if reaction else None,
+                "actions": [
+                    {
+                        "entity": source if st.who == "self" else defender,
+                        **st.model_dump(mode="json"),
+                    }
+                    for st in steps
+                ],
+            },
+        )
 
     def cast_seconds(self, game_id: str, entity_id: str, entry: str) -> int:
         """技能的施放时间（秒）：施放时间列按分钟算，不到 1 分钟算瞬发（0）。没有这个技能也是 0。"""
@@ -1721,9 +2220,16 @@ class Engine:
     def _use_ops(
         self, game_id: str, round_no: int, cur: State, adj: Adjudication, end: int
     ) -> tuple[State, list[PatchOp], list[Problem]]:
-        """执行裁定里列出的技能使用：先扣消耗；生效的再执行技能脚本算好的每一步。"""
+        """执行裁定里列出的技能使用：先扣消耗、开始冷却；命中的再执行技能脚本算好的每一步。
+        被应对过的使用：先结算应对的技能（消耗、冷却、效果），再按应对之后的结果结算攻击。"""
         pack = self.rulepack(game_id)
-        used = {e.seq: e for e in self.current_attempt(game_id, round_no) if e.type == "entry_used"}
+        attempt = self.current_attempt(game_id, round_no)
+        used = {e.seq: e for e in attempt if e.type == "entry_used"}
+        resolved = {
+            int(cast(int, e.payload.get("use_seq"))): e.payload
+            for e in attempt
+            if e.type == "reaction_resolved"
+        }
         ops: list[PatchOp] = []
         problems: list[Problem] = []
         seen: set[int] = set()
@@ -1765,6 +2271,97 @@ class Engine:
             v = fields_of(state, eid).get(name)
             return float(v) if isinstance(v, int | float) and not isinstance(v, bool) else None
 
+        def add_status(state: State, who: str, status: Status) -> State:
+            sop = PatchOp(
+                op="add",
+                path=f"/entities/{who}/sheet/statuses/-",
+                value=status.model_dump(mode="json"),
+            )
+            ops.append(sop)
+            return self._world.apply(state, [sop])
+
+        def spend_and_cool(
+            state: State, who: str, spends: JsonValue, entry: str, cd: JsonValue
+        ) -> State:
+            for res, amount in sorted(_obj(spends).items()):
+                have = num(state, who, res)
+                if have is not None and isinstance(amount, int | float):
+                    state = put(state, who, res, have - float(amount))
+            if isinstance(cd, int) and cd > 0 and who in _obj(state.get("entities")):
+                state = add_status(
+                    state, who, Status(tag=COOLDOWN_TAG + entry, source=who, expires_at=end + cd)
+                )
+            return state
+
+        def apply_actions(
+            state: State, listed: JsonValue, source: str, entry: str, path: str
+        ) -> State:
+            for raw in cast(list[JsonValue], listed) if isinstance(listed, list) else []:
+                a = _obj(raw)
+                who = a.get("entity")
+                op = a.get("op")
+                if (
+                    not isinstance(who, str)
+                    or who not in _obj(state.get("entities"))
+                    or op == "negate"
+                ):
+                    continue
+                amount = float(cast(float, a.get("amount", 0)))
+                dur = a.get("seconds")
+                if op == "modify":
+                    state = add_status(
+                        state,
+                        who,
+                        Status(
+                            tag=entry,
+                            source=source,
+                            expires_at=end + dur if isinstance(dur, int) else None,
+                            modifier=Effect(
+                                description=entry,
+                                target=str(a.get("field")),
+                                formula=str(a.get("formula")),
+                            ),
+                        ),
+                    )
+                    continue
+                if op == "damage":
+                    left = max(0.0, amount)
+                    shield = num(state, who, SHIELD_FIELD)
+                    if shield is not None and shield > 0 and left > 0:
+                        take = min(shield, left)
+                        state = put(state, who, SHIELD_FIELD, shield - take)
+                        left -= take
+                    hp = num(state, who, HP_FIELD)
+                    if hp is not None and left > 0:
+                        state = put(state, who, HP_FIELD, hp - left)
+                    continue
+                name = str(a.get("field"))
+                have = num(state, who, name)
+                if have is None:
+                    problems.append(
+                        Problem(code="adj.use_bad_field", path=path, params={"name": name})
+                    )
+                    continue
+                if op == "set":
+                    state = put(state, who, name, amount)
+                elif op == "subtract":
+                    state = put(state, who, name, have - amount)
+                else:
+                    state = put(state, who, name, have + amount)
+                    gained = (num(state, who, name) or have) - have
+                    if isinstance(dur, int) and gained > 0:
+                        state = add_status(
+                            state,
+                            who,
+                            Status(
+                                tag=entry,
+                                source=source,
+                                expires_at=end + dur,
+                                grant=Grant(field=name, amount=gained),
+                            ),
+                        )
+            return state
+
         for i, u in enumerate(adj.uses):
             path = f"uses[{i}]"
             ev = used.get(u.seq)
@@ -1774,90 +2371,30 @@ class Engine:
             seen.add(u.seq)
             p = ev.payload
             source = str(p.get("source"))
-            for res, amount in sorted(_obj(p.get("spends")).items()):
-                have = num(cur, source, res)
-                if have is not None and isinstance(amount, int | float):
-                    cur = put(cur, source, res, have - float(amount))
-            cd = p.get("cooldown")
-            if isinstance(cd, int) and cd > 0 and source in _obj(cur.get("entities")):
-                cop = PatchOp(
-                    op="add",
-                    path=f"/entities/{source}/sheet/statuses/-",
-                    value=Status(
-                        tag=COOLDOWN_TAG + str(p.get("entry")), source=source, expires_at=end + cd
-                    ).model_dump(mode="json"),
+            entry = str(p.get("entry"))
+            answer = resolved.get(u.seq)
+            if p.get("waiting_for") is not None and answer is None:
+                problems.append(
+                    Problem(code="adj.reaction_pending", path=path, params={"seq": u.seq})
                 )
-                ops.append(cop)
-                cur = self._world.apply(cur, [cop])
-            if not u.hit:
                 continue
-            listed = p.get("actions")
-            for raw in cast(list[JsonValue], listed) if isinstance(listed, list) else []:
-                a = _obj(raw)
-                who = a.get("entity")
-                if not isinstance(who, str) or who not in _obj(cur.get("entities")):
-                    continue
-                amount = float(cast(float, a.get("amount", 0)))
-                op = a.get("op")
-                dur = a.get("seconds")
-                if op == "modify":
-                    status = Status(
-                        tag=str(p.get("entry")),
-                        source=source,
-                        expires_at=end + dur if isinstance(dur, int) else None,
-                        modifier=Effect(
-                            description=str(p.get("entry")),
-                            target=str(a.get("field")),
-                            formula=str(a.get("formula")),
-                        ),
+            listed: JsonValue = p.get("actions")
+            hit = p.get("hit")
+            if answer is not None:
+                rx = _obj(answer.get("reaction"))
+                if rx:
+                    defender = str(answer.get("defender"))
+                    rentry = str(rx.get("entry"))
+                    cur = spend_and_cool(
+                        cur, defender, rx.get("spends"), rentry, rx.get("cooldown")
                     )
-                    sop = PatchOp(
-                        op="add",
-                        path=f"/entities/{who}/sheet/statuses/-",
-                        value=status.model_dump(mode="json"),
-                    )
-                    ops.append(sop)
-                    cur = self._world.apply(cur, [sop])
-                    continue
-                if op == "damage":
-                    left = max(0.0, amount)
-                    shield = num(cur, who, SHIELD_FIELD)
-                    if shield is not None and shield > 0 and left > 0:
-                        take = min(shield, left)
-                        cur = put(cur, who, SHIELD_FIELD, shield - take)
-                        left -= take
-                    hp = num(cur, who, HP_FIELD)
-                    if hp is not None and left > 0:
-                        cur = put(cur, who, HP_FIELD, hp - left)
-                    continue
-                name = str(a.get("field"))
-                have = num(cur, who, name)
-                if have is None:
-                    problems.append(
-                        Problem(code="adj.use_bad_field", path=path, params={"name": name})
-                    )
-                    continue
-                if op == "set":
-                    cur = put(cur, who, name, amount)
-                elif op == "subtract":
-                    cur = put(cur, who, name, have - amount)
-                else:
-                    cur = put(cur, who, name, have + amount)
-                    gained = (num(cur, who, name) or have) - have
-                    if isinstance(dur, int) and gained > 0:
-                        status = Status(
-                            tag=str(p.get("entry")),
-                            source=source,
-                            expires_at=end + dur,
-                            grant=Grant(field=name, amount=gained),
-                        )
-                        sop = PatchOp(
-                            op="add",
-                            path=f"/entities/{who}/sheet/statuses/-",
-                            value=status.model_dump(mode="json"),
-                        )
-                        ops.append(sop)
-                        cur = self._world.apply(cur, [sop])
+                    cur = apply_actions(cur, rx.get("actions"), defender, rentry, path)
+                listed = answer.get("actions")
+                hit = answer.get("hit")
+            cur = spend_and_cool(cur, source, p.get("spends"), entry, p.get("cooldown"))
+            # 旧数据（引擎还没判命中的）按裁定里的 hit
+            if hit is True or (hit is None and p.get("waiting_for") is None and u.hit):
+                cur = apply_actions(cur, listed, source, entry, path)
         return cur, ops, problems
 
     def _grant_expiry_ops(self, pack: RulePack, state: State, end: int) -> list[PatchOp]:
@@ -1889,11 +2426,29 @@ class Engine:
     def planned_uses(self, game_id: str) -> list[JsonValue]:
         """给 KP：本轮（最近一次规划里）声明的技能使用和引擎算好的数值，按 seq 在裁定的 uses 里处理。"""
         r = self.round(game_id)
-        return [
-            {"seq": e.seq, **e.payload}
-            for e in self.current_attempt(game_id, r.no)
-            if e.type == "entry_used"
-        ]
+        attempt = self.current_attempt(game_id, r.no)
+        answers = {
+            e.payload.get("use_seq"): e.payload for e in attempt if e.type == "reaction_resolved"
+        }
+        out: list[JsonValue] = []
+        for e in attempt:
+            if e.type != "entry_used":
+                continue
+            item: dict[str, JsonValue] = {"seq": e.seq, **e.payload}
+            answer = answers.get(e.seq)
+            if answer is not None:
+                # 对象应对过：命中、检定、效果以应对之后的为准
+                item.update(
+                    {
+                        "hit": answer.get("hit"),
+                        "check": answer.get("check"),
+                        "actions": answer.get("actions"),
+                        "reaction": answer.get("reaction"),
+                        "choice": answer.get("choice"),
+                    }
+                )
+            out.append(item)
+        return out
 
     def _spend_ops(self, game_id: str, round_no: int, state: State) -> list[PatchOp]:
         """本轮（最近一次规划里）掷骰时用掉的资源：从角色卡上扣掉。"""
@@ -1952,8 +2507,7 @@ class Engine:
             opp_roll = None
             if isinstance(against, str):
                 opp = self._entity(state, against)
-                cdef = pack.check(check)
-                assert cdef is not None
+                cdef = self._rules.check_spec(pack, check)
                 opp_expr = self._rules.check_dice(pack, cdef.opposed_by or check)
                 opp_roll = self._rules.roll(
                     pack,

@@ -35,6 +35,9 @@ EventType = Literal[
     "plan_started",
     "entry_used",
     "entry_noticed",
+    "plan_done",
+    "reaction_requested",
+    "reaction_resolved",
 ]
 
 KP = "kp"

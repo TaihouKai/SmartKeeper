@@ -783,6 +783,7 @@ T: dict[str, tuple[str, str]] = {
         "Fix the problems before saving a version (drafts can always be saved)",
     ),
     "rules.path.script": ("技能脚本", "Skill script"),
+    "rules.path.config": ("代码", "Code"),
     "rules.path.cast_time": ("施放时间", "Cast time"),
     "rules.path.cooldown": ("冷却时间", "Cooldown"),
     "rules.path.formula": ("公式", "Formula"),
@@ -870,7 +871,131 @@ T: dict[str, tuple[str, str]] = {
         "骰子（可以用字段，例如 1d100、1d str）",
         "Dice (may use fields, e.g. 1d100, 1d str)",
     ),
-    "rules.c.target": ("目标值公式", "Target formula"),
+    "rules.ph.check_name": ("例如 perception", "e.g. perception"),
+    "check.level.critical_success": ("大成功", "Critical success"),
+    "check.level.success": ("成功", "Success"),
+    "check.level.failure": ("失败", "Failure"),
+    "check.level.critical_failure": ("大失败", "Critical failure"),
+    "rules.checks_hint": (
+        "每个检定是一段代码（点“编辑”在右边的 IDE 里写）：骰子、目标值、大成功 / 大失败 / 成功的条件，都不成立就是失败。KP 判断谁要做哪个检定、难度多少（或和谁对抗），引擎掷骰得出结果；技能设置里写了 check 的技能，用技能时引擎自动做这个检定。",
+        "Each check is a bit of code (Edit opens it in the IDE on the right): dice, target, and the conditions for critical success / critical failure / success; otherwise it's a failure. The keeper decides who checks what against which difficulty (or opponent); the engine rolls. Skills whose settings name a check make it automatically.",
+    ),
+    "codes.pack.check_needs_success": (
+        "检定要写 success（成功的条件）",
+        "A check needs a success condition",
+    ),
+    "codes.pack.check_needs_dice": ("检定要写 dice（掷什么骰子）", "A check needs dice"),
+    "codes.adj.reaction_pending": (
+        "这次使用还在等对象应对",
+        "This use is still waiting for the target's reaction",
+    ),
+    "codes.react.nothing_pending": (
+        "现在没有要你应对的攻击",
+        "Nothing is waiting for your reaction",
+    ),
+    "codes.react.choices_mismatch": (
+        "要对每次攻击都选一个应对，一次交齐",
+        "Choose a reaction for every attack and send them together",
+    ),
+    "codes.react.bad_check": (
+        "{check} 不能用来应对 {entry}",
+        "{check} can't be used against {entry}",
+    ),
+    "codes.react.bad_skill": (
+        "{entry} 现在不能当反应（不是瞬发、在冷却，或分组没打开“可以当反应”）",
+        "{entry} can't be used as a reaction now (not instant, cooling down, or its group doesn't allow reactions)",
+    ),
+    "rules.checks_empty": ("还没有检定。", "No checks yet."),
+    "check.vars": ("结果条件里能用的", "In the result conditions"),
+    "check.c.label": ("显示名", "display name"),
+    "check.c.dice": (
+        "掷什么骰子，例如 1d20 + per（在做检定的角色身上算）",
+        "the dice, e.g. 1d20 + per (on the checking character)",
+    ),
+    "check.c.target": (
+        "目标值（用不到就是 0），例如 COC 的技能值",
+        "target value (0 if unused), e.g. a skill value",
+    ),
+    "check.c.critical_success": (
+        "大成功的条件；用不到写 False",
+        "critical success condition; False if unused",
+    ),
+    "check.c.critical_failure": (
+        "大失败的条件；用不到写 False",
+        "critical failure condition; False if unused",
+    ),
+    "check.c.success": ("成功的条件；都不成立是失败", "success condition; otherwise failure"),
+    "check.c.opposed_by": (
+        "对抗时对方掷的检定；None 是同一个",
+        "the check the opponent rolls; None = the same",
+    ),
+    "check.v.roll": ("这次掷出的总点数", "the total rolled"),
+    "check.v.natural": (
+        "骰子本身的点数（不含加值），大成功常用 natural == 20",
+        "the dice alone without modifiers, e.g. natural == 20",
+    ),
+    "check.v.difficulty": (
+        "难度：KP 给的；对抗时是对方掷出的点数",
+        "difficulty from the keeper; when opposed, the opponent's roll",
+    ),
+    "check.v.opp_roll": ("对抗时对方的点数", "the opponent's roll"),
+    "check.v.opp_target": ("对抗时对方的目标值", "the opponent's target"),
+    "doc.verb.negate": (
+        "当反应时：让打在自己身上的这次攻击无效（平时没有效果）",
+        "As a reaction: void the attack on you (does nothing otherwise)",
+    ),
+    "doc.kw.reacting": (
+        "这次是被攻击时当反应用的（True），还是平时用（False）",
+        "True when used as a reaction, False otherwise",
+    ),
+    "rules.g.reactions": (
+        "条目可以当反应（被攻击时用；只有瞬发的才行）",
+        "Entries can be reactions (used when attacked; instant ones only)",
+    ),
+    "react.title": ("你遭到攻击，选择应对", "You're under attack: choose how to react"),
+    "react.hint": (
+        "每次攻击选一个，一次交齐。本轮会等你交了再结算，不着急。",
+        "Pick one for each attack and send them together. The round waits for you.",
+    ),
+    "react.by": (
+        "{who} 对你的 {defender} 施展了「{entry}」",
+        "{who} used “{entry}” on your {defender}",
+    ),
+    "react.by_unknown": (
+        "有人对你的 {defender} 施展了「{entry}」",
+        "Someone used “{entry}” on your {defender}",
+    ),
+    "react.none": ("不抵抗", "Don't resist"),
+    "react.check": ("用检定 {name} 对抗", "Resist with the check {name}"),
+    "react.skill": ("用技能「{name}」应对", "React with “{name}”"),
+    "react.submit": ("提交应对", "Send"),
+    "react.admin_title": ("本轮在等玩家应对", "Waiting for players' reactions"),
+    "react.admin_waiting": (
+        "{player}：{n} 次攻击（可以替他选）",
+        "{player}: {n} attacks (you can choose for them)",
+    ),
+    "event.react": ("遭到攻击", "Attacked"),
+    "codes.config.unknown_check": (
+        "没有叫 {name} 的检定（在“检定”里加）",
+        "No check named {name} (add it under Checks)",
+    ),
+    "codes.config.list_of_text": (
+        '{name} 要写成文字列表，例如 ["dodge", "block"]',
+        '{name} must be a list of names, e.g. ["dodge", "block"]',
+    ),
+    "config.c.check": (
+        "施法者做的检定（检定名）；None / True 是不掷骰、必中",
+        "the user's check (a check name); None / True means it always hits",
+    ),
+    "config.c.difficulty": ("没有对抗时的难度", "difficulty when nobody resists"),
+    "config.c.reactions": (
+        "写了就可以被应对：对象是玩家时由他选（这里的检定、自己的瞬发技能、不抵抗），NPC 由引擎挑最有利的检定",
+        "if set, the target may react: a player chooses (these checks, an instant skill of theirs, or nothing); an NPC gets the best check",
+    ),
+    "doc.kw.result": (
+        "技能检定的结果：critical_success、success、failure、critical_failure（没有检定时是空）",
+        "The skill check's result: critical_success, success, failure, critical_failure (empty without a check)",
+    ),
     "rules.missing_template": (
         "{name}（没有这个模板，请重新选）",
         "{name} (no such template; choose again)",

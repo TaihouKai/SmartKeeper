@@ -254,3 +254,77 @@ def test_npc_reply_in_talk_mode() -> None:
     assert [m.text for m in t.messages][-1] == "往西去了。" and t.status == "ended"
     call = next(c for c in g.llm.calls if c.purpose == "npc_talk")
     assert "背黑包" in call.prompt and "<player_text" in call.prompt
+
+
+def test_round_waits_for_reactions_then_goes_on_without_planning_again() -> None:
+    import json as _json
+
+    from smartkeeper.contracts import CheckDef, GroupPreset, ReactionChoice
+    from smartkeeper.llm import FakeCall
+    from tests.fixtures import load_pack
+
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    g0 = tpl.groups[0]
+    blast = GroupPreset.model_validate(
+        {
+            "name": "blast",
+            "fields": {"level": 1},
+            "config": 'check = "zap"\nreactions = ["zap"]',
+            "script": "target.damage(1)",
+        }
+    )
+    g0 = g0.model_copy(update={"presets": (*g0.presets, blast)})
+    pack = pack.model_copy(
+        update={
+            "checks": (
+                *pack.checks,
+                CheckDef(name="zap", config="dice = 1d20\nsuccess = roll > difficulty"),
+            ),
+            "templates": (
+                tpl.model_copy(update={"groups": (g0, *tpl.groups[1:])}),
+                *pack.templates[1:],
+            ),
+        }
+    )
+    g = new_game(2, pack=pack)
+    e = g.engine
+    p0, p1 = g.players
+    a, b = g.ents(p0)[0], g.ents(p1)[0]
+    g.llm.on(
+        "plan",
+        lambda c: _json.dumps(
+            {
+                "checks": [],
+                "uses": [
+                    {"source": a, "entry": "blast", "target": b, "params": {}, "reason": "zap"}
+                ],
+            }
+        ),
+    )
+    first = g.llm.handlers["adjudicate"]
+
+    def adjudicate(call: FakeCall) -> str:
+        body = _json.loads(first(call))
+        body["uses"] = [{"seq": u["seq"]} for u in e.planned_uses(g.game_id)]  # type: ignore[index]
+        return _json.dumps(body, ensure_ascii=False)
+
+    g.llm.on("adjudicate", adjudicate)
+    g.play_round()
+    # 规划完了，在等 p1 应对：没有裁定
+    assert e.round(g.game_id).status == "adjudicating"
+    assert count(g, "adjudication") == 0
+    [prompt] = e.reaction_prompts(g.game_id, p1)
+    assert prompt.checks == ("zap",)
+    assert [x.type for x in e.view_for(g.game_id, p1) if x.type == "reaction_requested"] == [
+        "reaction_requested"
+    ]
+    assert not [x for x in e.view_for(g.game_id, p0) if x.type == "reaction_requested"]
+    # 重启也不会重新规划
+    g.kp.recover()
+    assert len(g.llm.by_purpose("plan")) == 1
+    e.react(g.game_id, p1, [ReactionChoice(seq=prompt.seq, kind="check", check="zap")])
+    g.kp.on_reaction(g.game_id)
+    assert count(g, "adjudication") == 1
+    assert e.rounds(g.game_id)[0].status == "published"
+    assert len(g.llm.by_purpose("plan")) == 1

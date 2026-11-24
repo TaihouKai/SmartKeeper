@@ -164,37 +164,11 @@
     "checks": [
       {
         "name": "spot",
-        "dice": "1d100",
-        "target": "per",
-        "levels": [
-          {
-            "name": "critical",
-            "condition": "roll <= target / 5"
-          },
-          {
-            "name": "success",
-            "condition": "roll <= target"
-          },
-          {
-            "name": "failure",
-            "condition": "1"
-          }
-        ]
+        "config": "dice = 1d100\ntarget = per\ncritical_success = roll <= target / 5\ncritical_failure = False\nsuccess = roll <= target"
       },
       {
         "name": "struggle",
-        "dice": "1d100",
-        "target": "str",
-        "levels": [
-          {
-            "name": "win",
-            "condition": "target - roll > opp_target - opp_roll"
-          },
-          {
-            "name": "lose",
-            "condition": "1"
-          }
-        ]
+        "config": "dice = 1d100\ntarget = str\ncritical_success = False\ncritical_failure = False\nsuccess = target - roll > opp_target - opp_roll"
       }
     ],
     "rules_text": "Combat proceeds in order of dex. Narrate failures honestly.",

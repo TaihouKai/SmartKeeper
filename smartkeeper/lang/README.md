@@ -190,6 +190,40 @@ placement = placement(radius=3, perceive=0.5, charges=1, duration=60, notify=Tru
 
 ---
 
+### 检定和应对
+
+技能设置里和“打没打中”有关的三项：
+
+```
+check = "magic_attack"        # 施法者做的检定；None / True 是不掷骰、必中（默认）
+reactions = ["dodge"]          # 写了就可以被应对
+difficulty = 10                # 没人对抗时的难度
+```
+
+- 打没打中全由引擎决定，KP 不判。成功或大成功算命中，没命中只扣消耗、开始冷却，不执行效果。
+- `reactions` 写了、对象是玩家：KP 声明使用后回合停下等他（没有时限），他从这些里选一个：`reactions` 里的检定（和施法者的检定对抗）、自己能当反应的技能（所在分组打开了“可以当反应”、瞬发、不在冷却；消耗、冷却照算）、不抵抗。同一轮里打在他身上的攻击攒成一次问。对象是 NPC：引擎替它挑最有利的检定。
+- 选了技能当反应：先算这个技能（它的 `check` 和施法者的点数比，它的效果先执行），效果里写了 `self.negate()` 的话这次攻击作废；否则再按对抗判命中、执行攻击的效果。
+- 技能脚本里：`result` 是这次检定的结果（`critical_success`、`success`、`failure`、`critical_failure`，没有检定时是空）；`reacting` 是这次是不是当反应用的。
+
+### 检定的代码
+
+规则包的每个检定也是一段 `名字 = 值`（`rules/checkconfig.py`）：
+
+```
+label = "感知检定"
+dice = 1d20 + per              # 在做检定的角色身上算
+target = 0                     # 目标值，用不到就是 0
+critical_success = natural == 20
+critical_failure = natural == 1
+success = roll > difficulty
+opposed_by = "perception"      # 对抗时对方掷什么；None 是同一个检定
+```
+
+- 结果固定四个，按顺序判断：大成功、大失败、成功，第一条成立的就是结果，都不成立是失败。
+- 条件里能用：`roll`（总点数）、`natural`（骰子本身的点数）、`target`、`difficulty`（KP 给的难度；对抗时是对方掷出的点数，所以 `roll > difficulty` 两种情况都能用）、`opp_roll`、`opp_target`。
+
+---
+
 ## 四、名字指什么
 
 名字的写法是 `字母或下划线开头，后面跟字母、数字、下划线`，可以用 `.` 连起来。中文也算字母，但规则包里建议用英文。名字的含义由 `rules` 决定：

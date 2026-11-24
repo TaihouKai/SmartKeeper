@@ -46,6 +46,9 @@ const CONFIG: [string, string][] = [
   ["requires = not silenced", "config.c.requires"],
   ["noise = 20", "config.c.noise"],
   ["cast_time = 0.5    cooldown = 60", "config.c.cooldown"],
+  ['check = "magic_attack"', "config.c.check"],
+  ['reactions = ["dodge", "block"]', "config.c.reactions"],
+  ["difficulty = 10", "config.c.difficulty"],
   ["shape = cone(length=10, angle=60)", "config.c.shape"],
   ["placement = placement(radius=3, charges=1)", "config.c.placement"],
 ];

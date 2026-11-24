@@ -8,7 +8,7 @@ import { EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutt
 import { tags } from "@lezer/highlight";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useI18n } from "../i18n";
-import { builtinDoc } from "./codeDocs";
+import { builtinDoc, type Doc } from "./codeDocs";
 import { suggest } from "./complete";
 import { translateCode } from "./errors";
 
@@ -83,15 +83,17 @@ export const CodeEditor = forwardRef<
     onProblems?: (messages: string[]) => void;
     /** 内置说明里没有的名字（字段、推导值……）的说明，悬停时显示 */
     describe?: (word: string) => NameInfo | null;
+    /** 这种文档特有的说明（例如检定代码的各项），比内置的优先 */
+    extraDocs?: Record<string, Doc>;
     className?: string;
   }
->(function CodeEditor({ value, onChange, check, placeholder, minLines, onProblems, describe, className }, ref) {
+>(function CodeEditor({ value, onChange, check, placeholder, minLines, onProblems, describe, extraDocs, className }, ref) {
   const { t, lang } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   // 回调和数据放在 ref 里：编辑器只建一次，扩展里读最新的
-  const latest = useRef({ onChange, check, onProblems, describe, lang, t });
-  latest.current = { onChange, check, onProblems, describe, lang, t };
+  const latest = useRef({ onChange, check, onProblems, describe, extraDocs, lang, t });
+  latest.current = { onChange, check, onProblems, describe, extraDocs, lang, t };
   const names = useRef<string[]>([]);
 
   useEffect(() => {
@@ -156,9 +158,10 @@ export const CodeEditor = forwardRef<
       if (!word || /^\d/.test(word) || inComment(text, a)) return null;
       const keyword = /^\s*=(?!=)/.test(text.slice(b));
       const call = enclosingCall(v.state.doc.toString(), line.from + a);
-      const { t: tr, describe: more } = latest.current;
-      // 构造的参数名（placement(notify=…)）用内置说明；别的名字先看规则包和这一条里有没有（字段、变量、设置的值），再看内置的
-      const hit = builtinDoc(word, call, keyword);
+      const { t: tr, describe: more, extraDocs: extra } = latest.current;
+      // 这种文档特有的说明最先；构造的参数名（placement(notify=…)）用内置说明；别的名字先看规则包和这一条里有没有，再看内置的
+      const own = extra?.[word];
+      const hit = own ? { doc: own, param: undefined } : builtinDoc(word, call, keyword);
       // 后面紧跟着括号的是调用（函数、动作、构造），用内置说明
       const isCall = /^\s*\(/.test(text.slice(b));
       const info = hit?.param || (isCall && hit) ? null : more?.(word);

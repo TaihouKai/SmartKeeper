@@ -20,6 +20,8 @@ from smartkeeper.contracts import (
     Player,
     Point,
     Problem,
+    ReactionChoice,
+    ReactionSkill,
     RulePack,
     Rules,
     SheetSubmission,
@@ -170,6 +172,22 @@ class LangIn(BaseModel):
 class ProjectOut(BaseModel):
     x: float
     y: float
+
+
+class ReactionOut(BaseModel):
+    """一次等我应对的攻击：哪个技能、打的是我的哪个角色、谁打的（看不见是空）、能选的应对。"""
+
+    seq: int
+    entry: str
+    defender: str
+    who: str | None = None
+    checks: list[str]
+    labels: dict[str, str] = {}
+    skills: list[ReactionSkill]
+
+
+class ReactIn(BaseModel):
+    choices: list[ReactionChoice]
 
 
 class OkOut(BaseModel):
@@ -404,6 +422,34 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         parsed.pop(p.id, None)
         bg.add_task(background(s.kp.on_action, p.game_id))
         return event_for_player(e, p.id, ev, names(p.game_id))
+
+    def my_reactions(p: Player) -> list[ReactionOut]:
+        return [
+            ReactionOut(
+                seq=x.seq,
+                entry=x.entry,
+                defender=e.entity_name(p.game_id, x.defender),
+                who=x.who,
+                checks=list(x.checks),
+                labels=x.labels,
+                skills=list(x.skills),
+            )
+            for x in e.reaction_prompts(p.game_id, p.id)
+        ]
+
+    @r.get("/reactions")
+    def reactions(p: Annotated[Player, Depends(require_player)]) -> list[ReactionOut]:
+        """本轮有人攻击我、等我选怎么应对的（没有时限）。"""
+        return my_reactions(p)
+
+    @r.post("/reactions")
+    def react(
+        p: Annotated[Player, Depends(require_player)], body: ReactIn, bg: BackgroundTasks
+    ) -> list[ReactionOut]:
+        """一次交齐对每次攻击的应对。全都交齐了，本轮接着裁定。"""
+        e.react(p.game_id, p.id, body.choices)
+        bg.add_task(background(s.kp.on_reaction, p.game_id))
+        return my_reactions(p)
 
     @r.get("/travel")
     def travel(

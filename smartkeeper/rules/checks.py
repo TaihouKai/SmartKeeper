@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from pydantic import JsonValue
 
 from smartkeeper import lang as f
 from smartkeeper.contracts import (
+    CheckLevel,
     CheckResult,
+    CheckSpec,
     DiceResult,
     NotFound,
     Peers,
@@ -14,6 +18,7 @@ from smartkeeper.contracts import (
     Sheet,
     ValidationFailed,
 )
+from smartkeeper.rules import checkconfig
 from smartkeeper.rules.evaluator import EntityContext, table_lookup
 
 
@@ -37,14 +42,15 @@ def resolve_check(
     difficulty: float | None,
     opponent: tuple[str, str, JsonValue, DiceResult] | None,
     peers: Peers | None = None,
+    opp_check: str | None = None,
 ) -> CheckResult:
-    cdef = pack.check(check)
-    if cdef is None:
-        raise NotFound("rules.unknown_check", name=check)
+    cdef = spec(pack, check)
     try:
         target = context(pack, template, sheet, peers).eval_num(cdef.target)
         variables: dict[str, f.Value] = {
             "roll": float(roll.total),
+            # 骰子本身掷出的点数（不含加值），大成功、大失败常用：natural == 20
+            "natural": float(sum(roll.rolls)),
             "target": target,
             "difficulty": float(difficulty) if difficulty is not None else 0.0,
             "opp_roll": 0.0,
@@ -54,16 +60,21 @@ def resolve_check(
         if opponent is not None:
             opp_id, opp_tpl, opp_sheet, opp_roll = opponent
             del opp_id
-            opp_check = pack.check(cdef.opposed_by or cdef.name)
-            assert opp_check is not None
-            opp_target = context(pack, opp_tpl, opp_sheet).eval_num(opp_check.target)
+            odef = spec(pack, opp_check or cdef.opposed_by or check)
+            opp_target = context(pack, opp_tpl, opp_sheet).eval_num(odef.target)
             variables["opp_roll"] = float(opp_roll.total)
             variables["opp_target"] = opp_target
-        level = None
-        for lv in cdef.levels:
-            v = f.evaluate(f.parse(lv.condition), _vars(variables), _no_tables)
-            if v != 0 and v != 0.0 and v != "":
-                level = lv.name
+            if difficulty is None:
+                # 对抗：难度就是对方的点数，同一条 roll > difficulty 两种情况都能用
+                variables["difficulty"] = float(opp_roll.total)
+        level: CheckLevel = "failure"
+        for name, cond in (
+            ("critical_success", cdef.critical_success),
+            ("critical_failure", cdef.critical_failure),
+            ("success", cdef.success),
+        ):
+            if cond.strip() and f.truthy(f.evaluate(f.parse(cond), _vars(variables), _no_tables)):
+                level = cast(CheckLevel, name)
                 break
     except f.FormulaError as e:
         raise ValidationFailed(e.code, **e.params) from e
@@ -76,7 +87,7 @@ def resolve_check(
         opponent=opponent[0] if opponent else None,
         opp_roll=opponent[3] if opponent else None,
         opp_target=opp_target,
-        level=level or cdef.levels[-1].name,
+        level=level,
     )
 
 
@@ -130,8 +141,16 @@ def roll(
     return DiceResult(expr=expr.strip(), rolls=tuple(rolls), total=v)
 
 
-def check_dice(pack: RulePack, check: str) -> str:
+def spec(pack: RulePack, check: str) -> CheckSpec:
+    """规则包里一个检定的内容。没有这个检定抛 NotFound；代码写错抛 ValidationFailed。"""
     cdef = pack.check(check)
     if cdef is None:
         raise NotFound("rules.unknown_check", name=check)
-    return cdef.dice
+    try:
+        return checkconfig.read_check(cdef.config)
+    except f.FormulaError as e:
+        raise ValidationFailed(e.code, **e.params) from e
+
+
+def check_dice(pack: RulePack, check: str) -> str:
+    return spec(pack, check).dice

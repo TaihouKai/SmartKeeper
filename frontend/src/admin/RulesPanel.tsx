@@ -8,7 +8,7 @@ import type { Validate } from "./fieldCard";
 import { WorkbenchProvider } from "./rules/ctx";
 import { Ide } from "./rules/ide/Ide";
 import { blankGroup, blankPack, blankTemplate, describePath, docFor, getAt, openPath, renameTemplate, selForPath, selKey, setAt, withEngineDefaults, type Pack, type Sel } from "./rules/model";
-import { fillConfig } from "../ui/skillConfig";
+import { fillCheck, fillConfig } from "../ui/skillConfig";
 import { Outline } from "./rules/Outline";
 import { ChecksSection, DerivedSection, FieldsSection, FormulasSection, GroupSection, PlayersSection, SamplesSection, TablesSection, TextSection, WorldSection } from "./rules/sections";
 import "./rules/workbench.css";
@@ -192,6 +192,12 @@ export function RulesPanel() {
       // 条目的技能设置：这个分组用得上的项预先填好（已有的不动）
       setPack((p) => {
         const d = docFor(p, path);
+        if (d?.kind === "check") {
+          // 检定的代码：没写的项预先填好
+          const cur = String(getAt(p, path) ?? "");
+          const next = fillCheck(cur, t);
+          return next === cur ? p : setAt(p, path, next);
+        }
         if (d?.kind !== "entry" || !d.entry) return p;
         const cur = String(getAt(p, `${path}.config`) ?? "");
         const next = fillConfig(cur, p.templates[d.entry.t]?.groups?.[d.entry.g] ?? {}, t);
@@ -287,7 +293,7 @@ export function RulesPanel() {
     if (s.k === "players") return <PlayersSection pack={pack} onChange={setPack} />;
     if (s.k === "formulas") return <FormulasSection pack={pack} onChange={setPack} validate={validate} />;
     if (s.k === "tables") return <TablesSection pack={pack} onChange={setPack} />;
-    if (s.k === "checks") return <ChecksSection pack={pack} onChange={setPack} validate={validate} />;
+    if (s.k === "checks") return <ChecksSection pack={pack} onChange={setPack} />;
     if (s.k === "text") return <TextSection pack={pack} onChange={setPack} />;
     return <SamplesSection pack={pack} onChange={setPack} />;
   })();

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from smartkeeper.contracts import Intent, Outcome, SheetSubmission
+from smartkeeper.contracts import Intent, Outcome, RulePack, SheetSubmission
 from smartkeeper.engine import Engine
 from smartkeeper.kp import KP, KPConfig
 from smartkeeper.llm import FakeCall, FakeLLM
@@ -139,17 +139,17 @@ def new_game(
     config: KPConfig | None = None,
     llm: FakeLLM | None = None,
     engine: Engine | None = None,
+    pack: RulePack | None = None,
 ) -> Game:
     from smartkeeper.contracts import GameConfig
 
+    pack = pack or load_pack("single")
     if engine is None:
         engine, packs = make_engine(seed=7)
-        pack = load_pack("single")
         pack_id = packs.create_pack(pack.world.name)
         packs.save_version(pack_id, pack)
     else:
         pack_id = engine.list_games()[0].rulepack_id if engine.list_games() else ""
-    pack = load_pack("single")
     llm = llm or FakeLLM()
     kp = KP(
         engine, llm, llm, config or KPConfig(judge_model="fake-judge", writer_model="fake-writer")

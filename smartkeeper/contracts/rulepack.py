@@ -105,6 +105,7 @@ class GroupDef(Frozen):
     shapes: ShapeDef = ShapeDef()
     placements: bool = True  # 条目是否可以是设置物（陷阱、结界等）
     timing: bool = True  # 条目是否有施放时间和冷却时间（技能）
+    reactions: bool = True  # 条目可以当反应（被攻击时用来应对；只有瞬发的才行）
     hidden: bool = False
 
 
@@ -149,20 +150,35 @@ class Formula(Frozen):
     label: str = ""
 
 
-class ResultLevel(Frozen):
-    """检定的一个结果等级。按顺序判断，第一个条件为真的等级就是结果。"""
-
-    name: str
-    condition: str  # 公式；可用变量 roll、target、difficulty、opp_roll、opp_target
+# 检定的结果等级：固定四个
+type CheckLevel = Literal["critical_success", "success", "failure", "critical_failure"]
+CHECK_LEVELS: tuple[CheckLevel, ...] = (
+    "critical_success",
+    "success",
+    "failure",
+    "critical_failure",
+)
 
 
 class CheckDef(Frozen):
+    """一个检定：名字和它的代码（一串 名字 = 值，见 rules/checkconfig.py；解析成 CheckSpec）。"""
+
     name: str
+    config: str = ""
+
+
+class CheckSpec(Frozen):
+    """检定的代码解析出来的内容。结果按顺序判断：大成功、大失败、成功的条件，第一个成立的就是结果；都不成立是失败。
+    条件是公式，可用变量 roll（这次掷的点数）、natural（骰子本身的点数，不含加值）、target（目标值）、
+    difficulty（难度；对抗时是对方的点数）、opp_roll、opp_target（对抗时对方的点数和目标值）。"""
+
     label: str = ""
-    dice: str  # 骰子公式，在执行检定的实体上求值，例如 1d100、3d6+2、1d str
+    dice: str = ""  # 骰子公式，在执行检定的实体上求值，例如 1d100、3d6+2、1d20 + per
     target: str = "0"  # 公式，在执行检定的实体上求值
-    levels: tuple[ResultLevel, ...]
-    opposed_by: str | None = None  # 对抗检定时对手做的检定，默认同名检定
+    critical_success: str = "False"
+    success: str = ""
+    critical_failure: str = "False"
+    opposed_by: str = ""  # 对抗检定时对手做的检定；空是同一个检定
 
 
 class SampleSheet(Frozen):

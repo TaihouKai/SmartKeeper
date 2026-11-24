@@ -176,6 +176,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/games/{game_id}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Waiting Reactions
+         * @description 本轮还在等应对的玩家。
+         */
+        get: operations["waiting_reactions_api_admin_games__game_id__reactions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/games/{game_id}/reactions/{player_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * React For
+         * @description 管理员替一直没上线的玩家选应对（不是规则，只是不让整局停住的后门）。
+         */
+        post: operations["react_for_api_admin_games__game_id__reactions__player_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/games/{game_id}/round/close": {
         parameters: {
             query?: never;
@@ -834,6 +874,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reactions
+         * @description 本轮有人攻击我、等我选怎么应对的（没有时限）。
+         */
+        get: operations["reactions_api_reactions_get"];
+        put?: never;
+        /**
+         * React
+         * @description 一次交齐对每次攻击的应对。全都交齐了，本轮接着裁定。
+         */
+        post: operations["react_api_reactions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/rules": {
         parameters: {
             query?: never;
@@ -1109,6 +1173,11 @@ export interface components {
             /** Enabled */
             enabled: boolean;
         };
+        /** AdminReactIn */
+        AdminReactIn: {
+            /** Choices */
+            choices: components["schemas"]["ReactionChoice"][];
+        };
         /** AreaEffect */
         AreaEffect: {
             /** Affected */
@@ -1165,26 +1234,18 @@ export interface components {
             /** Text */
             text: string;
         };
-        /** CheckDef */
+        /**
+         * CheckDef
+         * @description 一个检定：名字和它的代码（一串 名字 = 值，见 rules/checkconfig.py；解析成 CheckSpec）。
+         */
         CheckDef: {
-            /** Dice */
-            dice: string;
             /**
-             * Label
+             * Config
              * @default
              */
-            label: string;
-            /** Levels */
-            levels: components["schemas"]["ResultLevel"][];
+            config: string;
             /** Name */
             name: string;
-            /** Opposed By */
-            opposed_by?: string | null;
-            /**
-             * Target
-             * @default 0
-             */
-            target: string;
         };
         /** DerivedDef */
         DerivedDef: {
@@ -1424,7 +1485,7 @@ export interface components {
             problems: components["schemas"]["Problem"][];
         };
         /** @enum {string} */
-        FormulaScope: "any_entity" | "dice" | "script" | "config";
+        FormulaScope: "any_entity" | "dice" | "script" | "config" | "check";
         /** Game */
         Game: {
             /** Current Round */
@@ -1542,6 +1603,11 @@ export interface components {
              * @default []
              */
             presets: components["schemas"]["GroupPreset"][];
+            /**
+             * Reactions
+             * @default true
+             */
+            reactions: boolean;
             /** @default {
              *       "allowed": []
              *     } */
@@ -2057,15 +2123,126 @@ export interface components {
             /** Y */
             y: number;
         };
+        /** ReactIn */
+        ReactIn: {
+            /** Choices */
+            choices: components["schemas"]["ReactionChoice"][];
+        };
         /**
-         * ResultLevel
-         * @description 检定的一个结果等级。按顺序判断，第一个条件为真的等级就是结果。
+         * ReactionChoice
+         * @description 被攻击的玩家对一次攻击的应对：不抵抗、用一个检定对抗、或者用一个能当反应的瞬发技能。
          */
-        ResultLevel: {
-            /** Condition */
-            condition: string;
+        ReactionChoice: {
+            /**
+             * Check
+             * @default
+             */
+            check: string;
+            /**
+             * Entry
+             * @default
+             */
+            entry: string;
+            /**
+             * Kind
+             * @default none
+             * @enum {string}
+             */
+            kind: "none" | "check" | "skill";
+            /**
+             * Params
+             * @default {}
+             */
+            params: {
+                [key: string]: number;
+            };
+            /** Seq */
+            seq: number;
+        };
+        /**
+         * ReactionOut
+         * @description 一次等我应对的攻击：哪个技能、打的是我的哪个角色、谁打的（看不见是空）、能选的应对。
+         */
+        ReactionOut: {
+            /** Checks */
+            checks: string[];
+            /** Defender */
+            defender: string;
+            /** Entry */
+            entry: string;
+            /**
+             * Labels
+             * @default {}
+             */
+            labels: {
+                [key: string]: string;
+            };
+            /** Seq */
+            seq: number;
+            /** Skills */
+            skills: components["schemas"]["ReactionSkill"][];
+            /** Who */
+            who?: string | null;
+        };
+        /** ReactionParam */
+        ReactionParam: {
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min?: number | null;
             /** Name */
             name: string;
+        };
+        /**
+         * ReactionPrompt
+         * @description 给被攻击的玩家：一次等他应对的攻击，和他能选的应对。
+         */
+        ReactionPrompt: {
+            /**
+             * Checks
+             * @default []
+             */
+            checks: string[];
+            /** Defender */
+            defender: string;
+            /** Entry */
+            entry: string;
+            /**
+             * Labels
+             * @default {}
+             */
+            labels: {
+                [key: string]: string;
+            };
+            /** Seq */
+            seq: number;
+            /**
+             * Skills
+             * @default []
+             */
+            skills: components["schemas"]["ReactionSkill"][];
+            /** Who */
+            who?: string | null;
+        };
+        /** ReactionSkill */
+        ReactionSkill: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Entry */
+            entry: string;
+            /**
+             * Params
+             * @default []
+             */
+            params: components["schemas"]["ReactionParam"][];
         };
         /** ReviewIn */
         ReviewIn: {
@@ -2284,7 +2461,7 @@ export interface components {
              * Op
              * @enum {string}
              */
-            op: "damage" | "add" | "subtract" | "set" | "modify";
+            op: "damage" | "add" | "subtract" | "set" | "modify" | "negate";
             /**
              * Rolls
              * @default []
@@ -2602,9 +2779,9 @@ export interface components {
         };
         /**
          * UseResult
-         * @description 裁定里对一次“使用”（规划时引擎已经算好的 entry_used 事件）的处理：生效了没有。
+         * @description 裁定里列出本轮实际发生了的“使用”（规划时引擎已经算好的 entry_used 事件）。没列出的当作没发生。
          *
-         *     hit=true：技能脚本全部执行；hit=false：没生效（没打中、被挡住），只扣使用时的消耗。没列出的使用当作没发生。
+         *     打没打中由引擎按技能设置判（检定、对象的应对），hit 只为兼容旧数据保留，不起作用。
          */
         UseResult: {
             /**
@@ -2632,6 +2809,18 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * WaitingOut
+         * @description 一个还没交应对的玩家和他要应对的攻击。
+         */
+        WaitingOut: {
+            /** Player */
+            player: string;
+            /** Player Id */
+            player_id: string;
+            /** Prompts */
+            prompts: components["schemas"]["ReactionPrompt"][];
         };
         /** WorldInfo */
         WorldInfo: {
@@ -3065,6 +3254,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LLMCallRecord"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    waiting_reactions_api_admin_games__game_id__reactions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    react_for_api_admin_games__game_id__reactions__player_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+                player_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
                 };
             };
             /** @description Validation Error */
@@ -4511,6 +4767,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeOut"];
+                };
+            };
+        };
+    };
+    reactions_api_reactions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactionOut"][];
+                };
+            };
+        };
+    };
+    react_api_reactions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

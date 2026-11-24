@@ -9,6 +9,7 @@ from smartkeeper import lang as f
 from smartkeeper.contracts import (
     AdHocCheck,
     CheckResult,
+    CheckSpec,
     DerivedValue,
     DiceResult,
     EntityTemplate,
@@ -23,7 +24,7 @@ from smartkeeper.contracts import (
     SkillConfig,
     ValidationFailed,
 )
-from smartkeeper.rules import checks, scripts, sheets, skillconfig, validation
+from smartkeeper.rules import checkconfig, checks, scripts, sheets, skillconfig, validation
 from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.render import render as render_markdown
 
@@ -50,6 +51,8 @@ class RulesService:
             return validation.check_script(
                 pack, tpl, formula, "script", [x.name for x in grp.fields] if grp else [], other
             )
+        if scope == "check":
+            return validation.check_check(pack, formula, "check")
         if scope == "config":
             tpl = pack.template(template) if template else None
             if tpl is None:
@@ -113,9 +116,11 @@ class RulesService:
         peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
         config: str = "",
+        result: str = "",
+        reacting: bool = False,
     ) -> tuple[ScriptStep, ...]:
         return scripts.plan_script(
-            pack, script, faces, template, sheet, entry, peers, target, config
+            pack, script, faces, template, sheet, entry, peers, target, config, result, reacting
         )
 
     def skill_config(self, config: str, script: str = "") -> SkillConfig:
@@ -143,6 +148,11 @@ class RulesService:
         if scope == "script":
             names |= {f"{who}.{verb}" for who in f.RECEIVERS for verb in f.VERBS}
             names |= {"elif", "pass"}
+        if scope == "check":
+            names |= (
+                set(checkconfig.KEYS) | set(checkconfig.VARS) | validation.all_field_names(pack)
+            )
+            names |= {"True", "False", "None"}
         if scope == "config":
             names |= (
                 set(skillconfig.KEYS)
@@ -234,6 +244,9 @@ class RulesService:
     def check_dice(self, pack: RulePack, check: str) -> str:
         return checks.check_dice(pack, check)
 
+    def check_spec(self, pack: RulePack, name: str) -> CheckSpec:
+        return checks.spec(pack, name)
+
     def resolve_check(
         self,
         pack: RulePack,
@@ -246,6 +259,7 @@ class RulesService:
         difficulty: float | None = None,
         opponent: tuple[str, str, JsonValue, DiceResult] | None = None,
         peers: Peers | None = None,
+        opp_check: str | None = None,
     ) -> CheckResult:
         return checks.resolve_check(
             pack,
@@ -257,6 +271,7 @@ class RulesService:
             difficulty=difficulty,
             opponent=opponent,
             peers=peers,
+            opp_check=opp_check,
         )
 
     def resolve_adhoc(self, entity: str, spec: AdHocCheck, roll: DiceResult) -> CheckResult:

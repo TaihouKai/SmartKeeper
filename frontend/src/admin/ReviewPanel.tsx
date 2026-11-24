@@ -3,8 +3,38 @@ import { api, call } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, Section } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
+import { ReactionForm } from "../play/ReactionPanel";
 
 /** “审核”面板：裁定 JSON、骰子和空间查询结果、各玩家反馈草稿；可编辑、单份重写、发布。 */
+/** 本轮在等谁应对；一直不上线的玩家，管理员可以替他选（不是规则，只是不让整局停住）。 */
+function WaitingReactions({ gameId }: { gameId: string }) {
+  const { t } = useI18n();
+  const list = usePoll(() => call(api.GET("/api/admin/games/{game_id}/reactions", { params: { path: { game_id: gameId } } })), 15_000, [gameId]);
+  const act = useAction();
+  if (!list.data?.length) return null;
+  return (
+    <div className="sk-card sk-warn">
+      <h3>{t("react.admin_title")}</h3>
+      {list.data.map((w) => (
+        <details key={w.player_id}>
+          <summary>{t("react.admin_waiting", { player: w.player, n: String(w.prompts.length) })}</summary>
+          <ReactionForm
+            prompts={w.prompts}
+            busy={act.busy}
+            onSubmit={(choices) =>
+              void act.run(async () => {
+                await call(api.POST("/api/admin/games/{game_id}/reactions/{player_id}", { params: { path: { game_id: gameId, player_id: w.player_id } }, body: { choices } }));
+                void list.refresh();
+              })
+            }
+          />
+        </details>
+      ))}
+      <ErrorBox error={act.error} />
+    </div>
+  );
+}
+
 export function ReviewPanel({ gameId }: { gameId: string }) {
   const { t } = useI18n();
   const rev = usePoll(() => call(api.GET("/api/admin/games/{game_id}/round/review", { params: { path: { game_id: gameId } } })), 15_000, [gameId]);
@@ -32,6 +62,7 @@ export function ReviewPanel({ gameId }: { gameId: string }) {
     });
   return (
     <Section title={t("admin.panel.review")}>
+      <WaitingReactions gameId={gameId} />
       <p>{t("status.round", { round: String(rev.data.round.no) })} · {t(`status.phase.${rev.data.round.status}`)}</p>
       {!inReview && <p className="sk-hint">{t("review.not_in_review")}</p>}
       {draft?.error ? <pre className="sk-error">{JSON.stringify(draft.error, null, 1)}</pre> : null}

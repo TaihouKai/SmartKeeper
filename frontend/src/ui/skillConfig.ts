@@ -10,6 +10,9 @@ const DEFAULTS: [string, string][] = [
   ["noise", "None"],
   ["cast_time", "None"],
   ["cooldown", "None"],
+  ["check", "None"],
+  ["difficulty", "None"],
+  ["reactions", "[]"],
   ["shape", "None"],
   ["placement", "None"],
 ];
@@ -33,6 +36,27 @@ export function fillConfig(text: string, group: GroupLike, t: (k: string) => str
     const line = `${k} = ${DEFAULTS.find(([x]) => x === k)![1]}`;
     return `${line.padEnd(width)}  # ${t(`config.c.${k}`)}`;
   });
+  const head = text.trimEnd();
+  return head ? `${head}\n${lines.join("\n")}` : lines.join("\n");
+}
+
+/** 检定的代码：没写的项补上（带说明）。和后端 rules/checkconfig.py 的 KEYS 对应。 */
+const CHECK_DEFAULTS: [string, string][] = [
+  ["label", '""'],
+  ["dice", "1d20"],
+  ["target", "0"],
+  ["critical_success", "False"],
+  ["critical_failure", "False"],
+  ["success", "roll > difficulty"],
+  ["opposed_by", "None"],
+];
+
+export function fillCheck(text: string, t: (k: string) => string): string {
+  const have = new Set([...text.matchAll(/^\s*([A-Za-z_]\w*)\s*=/gm)].map((m) => m[1]));
+  const missing = CHECK_DEFAULTS.filter(([k]) => !have.has(k));
+  if (!missing.length) return text;
+  const width = Math.max(...missing.map(([k, v]) => `${k} = ${v}`.length));
+  const lines = missing.map(([k, v]) => `${`${k} = ${v}`.padEnd(width)}  # ${t(`check.c.${k}`)}`);
   const head = text.trimEnd();
   return head ? `${head}\n${lines.join("\n")}` : lines.join("\n");
 }

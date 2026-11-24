@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 
 from smartkeeper.contracts import (
@@ -689,12 +691,11 @@ def test_damage_goes_through_shield_and_timed_shield_runs_out() -> None:
     ward = e.use_entry(g, e0, "ward", e1, {}, "shields p1")
     bolt1 = e.use_entry(g, e0, "bolt", e1, {}, "zap")
     bolt2 = e.use_entry(g, e0, "bolt", e1, {}, "zap again")
-    miss = e.use_entry(g, e0, "bolt", e1, {}, "misses")
-    uses = [UseResult(seq=x.seq) for x in (ward, bolt1, bolt2)] + [
-        UseResult(seq=miss.seq, hit=False)
-    ]
+    # 声明了但裁定里没列出来：当作没发生（没写检定的技能必中，KP 写 hit=false 也不算）
+    e.use_entry(g, e0, "bolt", e1, {}, "never happened")
+    uses = [UseResult(seq=x.seq) for x in (ward, bolt1, bolt2)]
     publish(t, only=t.players, uses=uses)
-    # 护盾 8：第一下 5 全吸收，第二下吸收 3、扣血 2；没打中的那一下不算
+    # 护盾 8：第一下 5 全吸收，第二下吸收 3、扣血 2；没列出的那一下不算
     assert fields_of(t, e1)["shield"] == 0
     assert fields_of(t, e1)["hp"] == hp - 2  # type: ignore[operator]
     # 再来一次：只加护盾，60 秒后到期，扣回剩下的
@@ -1031,3 +1032,128 @@ def test_cast_time_may_use_chosen_on_use_columns() -> None:
     e0 = t.entities(t.players[0])[0]
     # 解析行动时还不知道这次填多少：按下限 2 算，6 分钟
     assert t.engine.cast_seconds(t.game_id, e0, "trap") == 360
+
+
+def test_reactions_are_chosen_by_the_target() -> None:
+    from smartkeeper.contracts import CheckDef, ReactionChoice, UseResult
+
+    pack = magic_pack()
+    checks = (
+        CheckDef(name="zap", config="dice = 1d6\nsuccess = roll > difficulty"),
+        CheckDef(name="wall", config="dice = 1000\nsuccess = True"),
+        CheckDef(name="limp", config="dice = 0\nsuccess = True"),
+    )
+    tpl = pack.templates[0]
+    g0 = tpl.groups[0]
+    extra = [
+        {
+            "name": "blast",
+            "fields": {"level": 1},
+            "config": 'check = "zap"\nreactions = ["limp", "wall"]',
+            "script": "target.damage(5)",
+        },
+        {
+            "name": "jab",
+            "fields": {"level": 1},
+            "config": 'check = "zap"\nreactions = ["limp"]',
+            "script": "target.damage(2 if result == 'critical_success' else 3)",
+        },
+        {
+            "name": "aimed",
+            "fields": {"level": 1},
+            "config": 'check = "zap"\ndifficulty = 100',
+            "script": "target.damage(5)",
+        },
+        {
+            "name": "sure",
+            "fields": {"level": 1},
+            "config": "check = True",
+            "script": "target.damage(1)",
+        },
+        # 当反应时让这次攻击无效，并给自己加 1 点护盾
+        {
+            "name": "parry",
+            "fields": {"level": 1},
+            "config": 'target = "self"',
+            "script": "if reacting:\n    self.negate()\nself.add(shield, 1, 1)",
+        },
+        {
+            "name": "slowward",
+            "fields": {"level": 1},
+            "config": 'target = "self"\ncast_time = 5',
+            "script": "self.negate()",
+        },
+    ]
+    g0 = g0.model_copy(
+        update={
+            "timing": True,
+            "presets": (*g0.presets, *(GroupPreset.model_validate(p) for p in extra)),
+        }
+    )
+    pack = pack.model_copy(
+        update={
+            "checks": (*pack.checks, *checks),
+            "templates": (
+                tpl.model_copy(update={"groups": (g0, *tpl.groups[1:])}),
+                *pack.templates[1:],
+            ),
+        }
+    )
+    t = setup_table("single", 2, pack=pack)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    hp = fields_of(t, e1)["hp"]
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+    # 不掷骰的必中；没有对抗、难度 100 的打不中
+    assert e.use_entry(g, e0, "sure", e1, {}, "x").payload["hit"] is True
+    assert e.use_entry(g, e0, "aimed", e1, {}, "x").payload["hit"] is False
+    # 对象是玩家、技能可以被应对：先不判，等 p1 选
+    blast = e.use_entry(g, e0, "blast", e1, {}, "x")
+    jab = e.use_entry(g, e0, "jab", e1, {}, "x")
+    assert blast.payload["hit"] is None and blast.payload["waiting_for"] == p1
+    assert {x.seq for x in e.pending_reactions(g)} == {blast.seq, jab.seq}
+    prompts = {x.seq: x for x in e.reaction_prompts(g, p1)}
+    assert prompts[blast.seq].checks == ("limp", "wall")
+    skills = {s.entry for s in prompts[blast.seq].skills}
+    assert "parry" in skills and "slowward" not in skills  # 有施放时间的不能当反应
+    assert e.reaction_prompts(g, p0) == []
+    # 还没应对完，KP 不能裁定这次使用
+    with pytest.raises(ValidationFailed) as err:
+        e.apply_adjudication(g, t.simple_adjudication(uses=[UseResult(seq=blast.seq)]))
+    assert "adj.reaction_pending" in {p.code for p in err.value.problems}
+    # 要一次交齐
+    with pytest.raises(ValidationFailed):
+        e.react(g, p1, [ReactionChoice(seq=blast.seq, kind="check", check="wall")])
+    with pytest.raises(ValidationFailed):
+        e.react(
+            g,
+            p1,
+            [
+                ReactionChoice(seq=blast.seq, kind="check", check="nope"),
+                ReactionChoice(seq=jab.seq),
+            ],
+        )
+    # blast 用技能 parry 挡掉；jab 不抵抗（攻击方按难度 0 判，1d6 > 0 打中）
+    e.react(
+        g,
+        p1,
+        [
+            ReactionChoice(seq=blast.seq, kind="skill", entry="parry"),
+            ReactionChoice(seq=jab.seq, kind="none"),
+        ],
+    )
+    assert e.pending_reactions(g) == []
+    planned: dict[object, Any] = {cast(dict[str, Any], x)["seq"]: x for x in e.planned_uses(g)}
+    assert planned[blast.seq]["hit"] is False and planned[blast.seq]["reaction"]["negated"] is True
+    assert planned[jab.seq]["hit"] is True
+    publish(t, only=t.players, uses=[UseResult(seq=blast.seq), UseResult(seq=jab.seq)])
+    # blast 被挡、parry 给 p1 加了 1 点护盾，jab 打中 3：护盾吸收 1，扣血 2
+    assert fields_of(t, e1)["hp"] == hp - 2  # type: ignore[operator]
+    statuses = cast(
+        list[dict[str, Any]], cast(Any, e.world_state(g))["entities"][e1]["sheet"]["statuses"]
+    )
+    assert not any(s["tag"] == "cooldown:parry" for s in statuses)  # parry 没有冷却

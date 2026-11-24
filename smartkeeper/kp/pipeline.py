@@ -328,6 +328,11 @@ class KP:
         self.run_round(game_id)
         return True
 
+    def on_reaction(self, game_id: str) -> None:
+        """有人交了应对之后调用：本轮没有在等的应对了，就接着裁定（不重新规划）。"""
+        if not self.engine.pending_reactions(game_id):
+            self.run_round(game_id)
+
     def force_close(self, game_id: str) -> None:
         """管理员强制结算：未提交的玩家本轮视为没有行动。"""
         with self._lock(game_id):
@@ -346,8 +351,13 @@ class KP:
             if self.engine.round(game_id).status != "adjudicating":
                 return
             try:
-                self._check_claims(game_id)
-                self._run_plan(game_id)
+                # 规划做完了（例如在等应对、或者等完了接着来）就不再重新规划
+                if not self.engine.plan_done(game_id):
+                    self._check_claims(game_id)
+                    self._run_plan(game_id)
+                    self.engine.mark_plan_done(game_id)
+                if self.engine.pending_reactions(game_id):
+                    return  # 有人被攻击、还没选怎么应对：等他交了再接着裁定（没有时限）
                 adj = self._adjudicate(game_id)
             except (LLMError, OutputError, SmartKeeperError) as e:
                 self._fail(game_id, e)

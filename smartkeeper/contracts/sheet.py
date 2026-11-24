@@ -50,7 +50,7 @@ class ScriptStep(Frozen):
     """
 
     who: Literal["self", "target"]
-    op: Literal["damage", "add", "subtract", "set", "modify"]
+    op: Literal["damage", "add", "subtract", "set", "modify", "negate"]
     field: str | None = None
     amount: float = 0
     rolls: tuple[int, ...] = ()
@@ -114,6 +114,12 @@ class SkillConfig(Frozen):
     cooldown: str = ""  # 冷却时间（分钟）：用过之后这么久之内不能再用
     shape: Shape | None = None  # 范围形状
     placement: PlacementSpec | None = None  # 是设置物（陷阱、结界）时的参数
+    # 打没打中由引擎判：使用者做 check 这个检定（空 = 不掷骰，必中），成功或大成功算命中。
+    # reactions 不空时这个技能可以被应对：对象是玩家的，由他从 reactions 里的检定和自己能当反应的技能里选
+    # （或者不抵抗）；对象是 NPC 的，引擎替它挑最有利的检定。没有对抗时按 difficulty（公式）
+    check: str = ""
+    difficulty: str = ""
+    reactions: tuple[str, ...] = ()
 
 
 class Status(Frozen):

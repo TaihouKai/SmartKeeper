@@ -12,7 +12,13 @@ from smartkeeper.contracts.errors import Problem
 from smartkeeper.contracts.events import Audience, Event, EventType, NewEvent
 from smartkeeper.contracts.game import RoundStatus
 from smartkeeper.contracts.geometry import Point
-from smartkeeper.contracts.rulepack import RulePack, RulePackDraft, RulePackInfo, RulePackVersion
+from smartkeeper.contracts.rulepack import (
+    CheckSpec,
+    RulePack,
+    RulePackDraft,
+    RulePackInfo,
+    RulePackVersion,
+)
 from smartkeeper.contracts.sheet import DerivedValue, ScriptStep, SkillConfig
 from smartkeeper.contracts.spatial import (
     Body,
@@ -169,10 +175,16 @@ class Rules(Protocol):
         peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
         config: str = "",
+        result: str = "",
+        reacting: bool = False,
     ) -> tuple[ScriptStep, ...]:
         """技能脚本（config 是同一条目的技能设置，脚本里可以用它的各项）：在使用者的角色卡和这个条目（entry 是它的列，含这次使用时填写的数）上，
         掷骰算好每一句的数值；modify 的公式除了被修正的推导值自己，其余名字都换成此刻的值。
         没有对象（target 为 None）时跳过作用在 target 上的句子。出错抛 ValidationFailed。"""
+        ...
+
+    def check_spec(self, pack: RulePack, name: str) -> CheckSpec:
+        """规则包里一个检定的内容（解析它的代码）。没有这个检定抛 NotFound，代码写错抛 ValidationFailed。"""
         ...
 
     def skill_config(self, config: str, script: str = "") -> SkillConfig:
@@ -192,8 +204,10 @@ class Rules(Protocol):
         difficulty: float | None = None,
         opponent: tuple[str, str, JsonValue, DiceResult] | None = None,
         peers: Peers | None = None,
+        opp_check: str | None = None,
     ) -> CheckResult:
-        """按成功条件算出结果等级。opponent = (实体 id, 模板, 角色卡, 对手的骰子)。"""
+        """按成功条件算出结果等级。opponent = (实体 id, 模板, 角色卡, 对手的骰子)；
+        opp_check 是对手做的检定（默认是这个检定的 opposed_by，再默认同名检定）。对抗时没给难度，难度就是对手的点数。"""
         ...
 
     def resolve_adhoc(self, entity: str, spec: AdHocCheck, roll: DiceResult) -> CheckResult:
@@ -242,7 +256,7 @@ type Faces = Callable[[int, int], tuple[int, ...]]
 
 # 同一个玩家控制的其他实体：模板名 -> 角色卡；同一个模板有不止一个时为 None（引用它会报错）
 type Peers = Mapping[str, JsonValue | None]
-type FormulaScope = Literal["any_entity", "dice", "script", "config"]
+type FormulaScope = Literal["any_entity", "dice", "script", "config", "check"]
 
 
 class Dice(Protocol):

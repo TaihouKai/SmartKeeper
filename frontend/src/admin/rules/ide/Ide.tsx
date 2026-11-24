@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../../i18n";
 import { CodeEditor, type CodeEditorHandle } from "../../../ui/CodeEditor";
+import { CHECK_DOCS } from "../../../ui/codeDocs";
 import { FormulaHelpBody } from "../../../ui/FormulaHelp";
 import type { Validate } from "../../fieldCard";
 import { describeName, describePath, docFor, getAt, setAt, shortTitle, type Pack } from "../model";
@@ -140,6 +141,7 @@ export function Ide({
                   onChange={(v) => setPack((p) => setAt(p, mainPath!, v))}
                   onProblems={setProblems}
                   describe={describe}
+                  extraDocs={doc.kind === "check" ? CHECK_DOCS : undefined}
                 />
               </div>
               {allProblems.length > 0 && (

@@ -39,6 +39,7 @@ VERBS: dict[str, tuple[str, ...]] = {
     "sub": ("field", "amount"),
     "set": ("field", "amount"),
     "modify": ("field", "formula", "minutes"),
+    "negate": (),  # 当反应时：让打在自己身上的这次攻击无效
 }
 
 
@@ -160,7 +161,7 @@ def _body(stmts: list[ast.stmt], src: str) -> tuple[ScriptNode, ...]:
             isinstance(s, ast.Assign) and len(s.targets) == 1 and isinstance(s.targets[0], ast.Name)
         ):
             name = s.targets[0].id
-            if name in (*RECEIVERS, "this"):
+            if name in (*RECEIVERS, "this", "result", "reacting"):
                 raise FormulaError("script.bad_variable", line=s.lineno, name=name)
             out.append(Let(line=s.lineno, name=name, value=_arg(s.value, s.lineno)))
         elif isinstance(s, ast.Expr) and isinstance(s.value, ast.Call):

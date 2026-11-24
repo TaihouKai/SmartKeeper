@@ -4,6 +4,7 @@ import { useI18n } from "../i18n";
 import { MapView, type DisplayMap, type MarkerView, type Pick } from "../map";
 import { ErrorBox, LangSwitch, Tabs, formatDuration, formatGameTime } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
+import { ReactionPanel } from "./ReactionPanel";
 import { EventRow, type Ev } from "./events";
 import { KpTab, type Mentionable } from "./KpTab";
 import { TalkTab } from "./TalkTab";
@@ -375,6 +376,7 @@ export function PlayPage() {
   return (
     <main className="sk-page sk-play">
       <StatusBar status={status.data} />
+      <ReactionPanel onDone={refresh} />
       <Tabs
         tabs={[
           { key: "map", label: t("play.tab.map") },

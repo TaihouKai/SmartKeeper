@@ -14,6 +14,10 @@ from smartkeeper.contracts.adjudication import (
     Outcome,
     PatchOp,
     PlaceIn,
+    ReactionChoice,
+    ReactionParam,
+    ReactionPrompt,
+    ReactionSkill,
     UseResult,
 )
 from smartkeeper.contracts.base import Frozen, JsonDict, JsonValue
@@ -77,6 +81,7 @@ from smartkeeper.contracts.llm import (
     SearchRecord,
 )
 from smartkeeper.contracts.rulepack import (
+    CHECK_LEVELS,
     COOLDOWN_TAG,
     DEAD_TAG,
     FLY_FIELD,
@@ -84,6 +89,8 @@ from smartkeeper.contracts.rulepack import (
     REQUIRED_DERIVED,
     SHIELD_FIELD,
     CheckDef,
+    CheckLevel,
+    CheckSpec,
     DerivedDef,
     EntityTemplate,
     FieldDef,
@@ -91,7 +98,6 @@ from smartkeeper.contracts.rulepack import (
     GroupDef,
     GroupPreset,
     PlayerEntities,
-    ResultLevel,
     RulePack,
     RulePackDraft,
     RulePackInfo,
@@ -141,6 +147,7 @@ from smartkeeper.contracts.talk import Talk, TalkMessage, TalkStatus
 
 __all__ = [
     "ADMIN",
+    "CHECK_LEVELS",
     "COOLDOWN_TAG",
     "DEAD_TAG",
     "ENGINE",
@@ -161,7 +168,9 @@ __all__ = [
     "ChatMessage",
     "ChatStore",
     "CheckDef",
+    "CheckLevel",
     "CheckResult",
+    "CheckSpec",
     "ClaimRef",
     "DerivedDef",
     "DerivedValue",
@@ -233,7 +242,10 @@ __all__ = [
     "Problem",
     "QueryResult",
     "RandomSource",
-    "ResultLevel",
+    "ReactionChoice",
+    "ReactionParam",
+    "ReactionPrompt",
+    "ReactionSkill",
     "Round",
     "RoundMachine",
     "RoundStatus",

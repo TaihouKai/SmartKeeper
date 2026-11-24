@@ -57,6 +57,31 @@
     "pick_peer": "选择一名玩家……",
     "send": "发送"
   },
+  "check": {
+    "c": {
+      "critical_failure": "大失败的条件；用不到写 False",
+      "critical_success": "大成功的条件；用不到写 False",
+      "dice": "掷什么骰子，例如 1d20 + per（在做检定的角色身上算）",
+      "label": "显示名",
+      "opposed_by": "对抗时对方掷的检定；None 是同一个",
+      "success": "成功的条件；都不成立是失败",
+      "target": "目标值（用不到就是 0），例如 COC 的技能值"
+    },
+    "level": {
+      "critical_failure": "大失败",
+      "critical_success": "大成功",
+      "failure": "失败",
+      "success": "成功"
+    },
+    "v": {
+      "difficulty": "难度：KP 给的；对抗时是对方掷出的点数",
+      "natural": "骰子本身的点数（不含加值），大成功常用 natural == 20",
+      "opp_roll": "对抗时对方的点数",
+      "opp_target": "对抗时对方的目标值",
+      "roll": "这次掷出的总点数"
+    },
+    "vars": "结果条件里能用的"
+  },
   "codes": {
     "action": {
       "busy": "你的行动还没做完，不能改变",
@@ -65,6 +90,7 @@
       "unresolved_reference": "有对应不上的指代"
     },
     "adj": {
+      "reaction_pending": "这次使用还在等对象应对",
       "unknown_use": "裁定引用了不存在的技能使用 {seq}",
       "use_bad_field": "作用对象没有运行值 {name}"
     },
@@ -83,7 +109,9 @@
       "bad_value": "{name} 的值不对，应该是 {expected}",
       "call_keywords": "{name}(…) 的参数要写成 参数=值",
       "duplicate": "{name} 写了两次",
+      "list_of_text": "{name} 要写成文字列表，例如 [\"dodge\", \"block\"]",
       "missing_arg": "{name} 少了参数 {arg}",
+      "unknown_check": "没有叫 {name} 的检定（在“检定”里加）",
       "unknown_key": "没有 {name} 这一项设置（见 IDE 的“速查”）"
     },
     "formula": {
@@ -131,7 +159,9 @@
     "pack": {
       "bad_count": "最少、最多的数量不对（最多不能小于最少）",
       "boolean_initial": "是/否字段的初值要写 True / False（或 1 / 0、一个条件），现在是 {value}",
+      "check_needs_dice": "检定要写 dice（掷什么骰子）",
       "check_needs_levels": "检定至少要有一个结果等级",
+      "check_needs_success": "检定要写 success（成功的条件）",
       "choices_need_text": "只有文字字段能设可选值",
       "duplicate_name": "名字 {name} 重复了",
       "group_field_must_be_player": "分组里的字段只能是玩家填写的",
@@ -153,6 +183,12 @@
     "rate": {
       "kp_chat": "发得太快了，请稍等一分钟",
       "login": "尝试太多次，请稍后再试"
+    },
+    "react": {
+      "bad_check": "{check} 不能用来应对 {entry}",
+      "bad_skill": "{entry} 现在不能当反应（不是瞬发、在冷却，或分组没打开“可以当反应”）",
+      "choices_mismatch": "要对每次攻击都选一个应对，一次交齐",
+      "nothing_pending": "现在没有要你应对的攻击"
     },
     "round": {
       "illegal_transition": "当前阶段不能这样做（{status}）",
@@ -228,10 +264,13 @@
   "config": {
     "c": {
       "cast_time": "施放时间（分钟），不到 1 算瞬发",
+      "check": "施法者做的检定（检定名）；None / True 是不掷骰、必中",
       "cooldown": "冷却（分钟）",
+      "difficulty": "没有对抗时的难度",
       "noise": "动静范围（米），None 表示悄无声息",
       "placement": "设置物，例如 placement(radius=3, charges=1)",
       "range": "射程（米），None 表示不限；设置物是放置点离施法者的距离",
+      "reactions": "写了就可以被应对：对象是玩家时由他选（这里的检定、自己的瞬发技能、不抵抗），NPC 由引擎挑最有利的检定",
       "requires": "使用条件，例如 not silenced",
       "shape": "范围形状，例如 sphere(radius=5)",
       "target": "single 要选对象 / self 只能对自己 / none 没有对象",
@@ -263,6 +302,8 @@
       "not": "不成立得 1，成立得 0",
       "or": "有一个成立得 1，否则 0；前面成立就不算后面",
       "pass": "什么都不做（空着的分支）",
+      "reacting": "这次是被攻击时当反应用的（True），还是平时用（False）",
+      "result": "技能检定的结果：critical_success、success、failure、critical_failure（没有检定时是空）",
       "self": "使用者自己：self.hp 是自己的值，self.add(…) 作用在自己身上",
       "target": "使用时选的对象：target.hp 是对象的值，target.damage(…) 作用在对象身上",
       "this": "这一条（技能）：this.列 是这一条的列，包括使用时填写的数"
@@ -296,6 +337,7 @@
       "add": "增加一个运行值；写了分钟就是限时的，到期扣回加上去还剩下的部分。结果不超过上下限",
       "damage": "受到伤害：先扣护盾 shield，剩下的扣生命值 hp",
       "modify": "限时修正一个推导值，到期消失",
+      "negate": "当反应时：让打在自己身上的这次攻击无效（平时没有效果）",
       "set": "把一个运行值设为某个数，结果在上下限之内",
       "sub": "减少一个运行值，结果不低于下限"
     }
@@ -312,6 +354,7 @@
     "noticed_who": "你察觉到{who}施展了「{entry}」",
     "opening": "开场",
     "quote": "引用",
+    "react": "遭到攻击",
     "rejected": "角色卡需要修改",
     "round_closed": "—— 第 {round} 轮结束 ——",
     "round_opened": "—— 第 {round} 轮开始 ——",
@@ -591,6 +634,18 @@
     "travel_walk": "走过去 {time}",
     "use_destination": "设为目的地"
   },
+  "react": {
+    "admin_title": "本轮在等玩家应对",
+    "admin_waiting": "{player}：{n} 次攻击（可以替他选）",
+    "by": "{who} 对你的 {defender} 施展了「{entry}」",
+    "by_unknown": "有人对你的 {defender} 施展了「{entry}」",
+    "check": "用检定 {name} 对抗",
+    "hint": "每次攻击选一个，一次交齐。本轮会等你交了再结算，不着急。",
+    "none": "不抵抗",
+    "skill": "用技能「{name}」应对",
+    "submit": "提交应对",
+    "title": "你遭到攻击，选择应对"
+  },
   "review": {
     "adjudication": "裁定 JSON",
     "broadcast": "广播草稿",
@@ -614,12 +669,13 @@
     "appearance_badge": "外观描述（必需）",
     "c": {
       "dice": "骰子（可以用字段，例如 1d100、1d str）",
-      "name": "检定名（英文代号，KP 用它调用）",
-      "target": "目标值公式"
+      "name": "检定名（英文代号，KP 用它调用）"
     },
     "can_fly_badge": "能否飞行（必需）",
     "checking": "正在校验……",
     "checks": "检定",
+    "checks_empty": "还没有检定。",
+    "checks_hint": "每个检定是一段代码（点“编辑”在右边的 IDE 里写）：骰子、目标值、大成功 / 大失败 / 成功的条件，都不成立就是失败。KP 判断谁要做哪个检定、难度多少（或和谁对抗），引擎掷骰得出结果；技能设置里写了 check 的技能，用技能时引擎自动做这个检定。",
     "cls": {
       "player": "玩家填写",
       "runtime": "运行值"
@@ -697,6 +753,7 @@
       "placements": "条目可以是设置物（陷阱、结界等，放在地图上）",
       "presets": "固定条目：规则预先填好的行",
       "presets_hint": "按上面的表头预先填好的行，玩家不用自己填；玩家建角时自己写的条目是另外加的行。生效条件为真时，这一条自动出现在角色卡上、修正也生效；条件不满足就不会出现。条件只能引用这张卡的字段，文字值要加引号，例如 class == \"warrior\"；也可以写 class != \"warrior\"、class == \"warrior\" and str >= 3。固定条目不算进上面的“最少/最多”。",
+      "reactions": "条目可以当反应（被攻击时用；只有瞬发的才行）",
       "settings": "更多设置：开关和范围形状",
       "shapes": "条目可以带的范围形状（用于范围攻击、光束等，不需要就都不勾）",
       "timing": "条目有施放时间和冷却时间（技能）",
@@ -781,6 +838,7 @@
       "cast_time": "施放时间",
       "checks": "检定",
       "condition": "条件",
+      "config": "代码",
       "cooldown": "冷却时间",
       "derived": "推导值",
       "dice": "骰子",
@@ -805,6 +863,7 @@
     },
     "ph": {
       "appearance_label": "例如 外观",
+      "check_name": "例如 perception",
       "choices": "例如 红、蓝、绿（用顿号或逗号分隔；留空表示自由填写）",
       "derived_label": "例如 生命值上限",
       "derived_name": "例如 hp_max",

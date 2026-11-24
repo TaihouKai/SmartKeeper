@@ -508,3 +508,16 @@ def test_settings_and_script_see_each_other(rules: RulesService) -> None:
         config,
     )
     assert [(x.op, x.amount) for x in steps] == [("damage", 12)]
+
+
+def test_skill_config_checks_must_exist(rules: RulesService) -> None:
+    pack = load_pack("single")
+
+    def codes(text: str) -> list[tuple[str, object]]:
+        got = rules.validate_formula(pack, "person", text, in_entry="skills", scope="config")
+        return [(p.code, p.params.get("line")) for p in got]
+
+    assert codes('check = "spot"\nreactions = ["struggle"]\ndifficulty = 10 + this.level') == []
+    assert codes('check = "nope"') == [("config.unknown_check", 1)]
+    assert codes('\nreactions = ["spot", "nope"]') == [("config.unknown_check", 2)]
+    assert codes("reactions = [1]") == [("config.list_of_text", 1)]

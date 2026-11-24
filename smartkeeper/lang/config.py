@@ -13,19 +13,22 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
+from typing import cast
 
 from smartkeeper.lang.formula import FormulaError, convert, desugar, syntax_error, to_text
 
 
 @dataclass(frozen=True, slots=True)
 class Setting:
-    """一项设置。value 是公式文本（None 写成空）；构造时 call 是构造的名字，args 是各参数的公式文本。"""
+    """一项设置。value 是公式文本（None 写成空）；构造时 call 是构造的名字，args 是各参数的公式文本；
+    文字列表（["dodge", "block"]）时 items 是这些文字。"""
 
     line: int
     name: str
     value: str = ""
     call: str | None = None
     args: tuple[tuple[str, str], ...] = ()
+    items: tuple[str, ...] | None = None
 
 
 def _formula(node: ast.expr, line: int) -> str:
@@ -61,6 +64,12 @@ def parse_config(text: str) -> tuple[Setting, ...]:
             raise FormulaError("config.duplicate", line=s.lineno, name=name)
         seen.add(name)
         v = s.value
+        if isinstance(v, ast.List | ast.Tuple):
+            if not all(isinstance(x, ast.Constant) and isinstance(x.value, str) for x in v.elts):
+                raise FormulaError("config.list_of_text", line=s.lineno, name=name)
+            items = tuple(str(cast(ast.Constant, x).value) for x in v.elts)
+            out.append(Setting(line=s.lineno, name=name, items=items))
+            continue
         if isinstance(v, ast.Call) and isinstance(v.func, ast.Name) and v.keywords:
             if v.args or any(k.arg is None for k in v.keywords):
                 raise FormulaError("config.call_keywords", line=s.lineno, name=v.func.id)

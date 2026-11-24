@@ -53,13 +53,48 @@ class PlaceIn(Frozen):
 
 
 class UseResult(Frozen):
-    """裁定里对一次“使用”（规划时引擎已经算好的 entry_used 事件）的处理：生效了没有。
+    """裁定里列出本轮实际发生了的“使用”（规划时引擎已经算好的 entry_used 事件）。没列出的当作没发生。
 
-    hit=true：技能脚本全部执行；hit=false：没生效（没打中、被挡住），只扣使用时的消耗。没列出的使用当作没发生。
+    打没打中由引擎按技能设置判（检定、对象的应对），hit 只为兼容旧数据保留，不起作用。
     """
 
     seq: int
     hit: bool = True
+
+
+class ReactionChoice(Frozen):
+    """被攻击的玩家对一次攻击的应对：不抵抗、用一个检定对抗、或者用一个能当反应的瞬发技能。"""
+
+    seq: int  # 那次攻击（entry_used 事件）的 seq
+    kind: Literal["none", "check", "skill"] = "none"
+    check: str = ""  # kind=check：攻击技能设置里 reactions 列出的检定
+    entry: str = ""  # kind=skill：自己的技能（名字或 ID）
+    params: dict[str, float] = {}  # 技能“使用时填写”的列
+
+
+class ReactionParam(Frozen):
+    name: str
+    label: str = ""
+    min: float | None = None
+    max: float | None = None
+
+
+class ReactionSkill(Frozen):
+    entry: str
+    description: str = ""
+    params: tuple[ReactionParam, ...] = ()
+
+
+class ReactionPrompt(Frozen):
+    """给被攻击的玩家：一次等他应对的攻击，和他能选的应对。"""
+
+    seq: int
+    entry: str  # 攻击技能的名字
+    defender: str  # 被攻击的是他的哪个实体
+    who: str | None = None  # 攻击者的外貌；感知不到攻击者时是 None
+    checks: tuple[str, ...] = ()  # 能用来对抗的检定
+    labels: dict[str, str] = {}  # 检定名 -> 显示名
+    skills: tuple[ReactionSkill, ...] = ()  # 能当反应的技能
 
 
 class AreaEffect(Frozen):

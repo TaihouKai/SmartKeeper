@@ -25,6 +25,8 @@ from smartkeeper.contracts import (
     NotFound,
     PatchOp,
     Problem,
+    ReactionChoice,
+    ReactionPrompt,
     Round,
     RulePack,
     RulePackDraft,
@@ -45,6 +47,18 @@ _NAME = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")
 
 class LoginIn(BaseModel):
     password: str
+
+
+class WaitingOut(BaseModel):
+    """一个还没交应对的玩家和他要应对的攻击。"""
+
+    player_id: str
+    player: str
+    prompts: list[ReactionPrompt]
+
+
+class AdminReactIn(BaseModel):
+    choices: list[ReactionChoice]
 
 
 class OkOut(BaseModel):
@@ -486,6 +500,23 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
         return OkOut()
 
     # ---------------- 回合与审核 ----------------
+
+    @guarded.get("/games/{game_id}/reactions")
+    def waiting_reactions(game_id: str) -> list[WaitingOut]:
+        """本轮还在等应对的玩家。"""
+        out: list[WaitingOut] = []
+        for pl in e.players(game_id):
+            prompts = e.reaction_prompts(game_id, pl.id)
+            if prompts:
+                out.append(WaitingOut(player_id=pl.id, player=pl.display_name, prompts=prompts))
+        return out
+
+    @guarded.post("/games/{game_id}/reactions/{player_id}")
+    def react_for(game_id: str, player_id: str, body: AdminReactIn, bg: BackgroundTasks) -> OkOut:
+        """管理员替一直没上线的玩家选应对（不是规则，只是不让整局停住的后门）。"""
+        e.react(game_id, player_id, body.choices)
+        bg.add_task(background(kp.on_reaction, game_id))
+        return OkOut()
 
     @guarded.post("/games/{game_id}/round/close")
     def force_close(game_id: str, bg: BackgroundTasks) -> OkOut:

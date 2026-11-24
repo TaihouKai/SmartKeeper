@@ -17,6 +17,7 @@ const VERBS: Record<string, Doc> = {
   },
   sub: { sig: "sub(field, amount)", desc: "doc.verb.sub", params: [["field", "doc.p.runtime_field"], ["amount", "doc.p.amount_dice"]] },
   set: { sig: "set(field, amount)", desc: "doc.verb.set", params: [["field", "doc.p.runtime_field"], ["amount", "doc.p.amount_dice"]] },
+  negate: { sig: "negate()", desc: "doc.verb.negate" },
   modify: {
     sig: "modify(derived, formula, minutes)",
     desc: "doc.verb.modify",
@@ -49,7 +50,7 @@ const CALLS: Record<string, Doc> = {
 
 /** 技能设置的项。 */
 const SETTINGS: Record<string, Doc> = Object.fromEntries(
-  ["target", "range", "visible", "requires", "noise", "cast_time", "cooldown", "shape", "placement"].map((k) => [k, { sig: `${k} = …`, desc: `config.c.${k}` }]),
+  ["target", "range", "visible", "requires", "noise", "cast_time", "cooldown", "check", "difficulty", "reactions", "shape", "placement"].map((k) => [k, { sig: `${k} = …`, desc: `config.c.${k}` }]),
 );
 
 const KEYWORDS: Record<string, Doc> = {
@@ -64,7 +65,15 @@ const KEYWORDS: Record<string, Doc> = {
   self: { sig: "self", desc: "doc.kw.self" },
   target: { sig: "target", desc: "doc.kw.target" },
   this: { sig: "this", desc: "doc.kw.this" },
+  result: { sig: 'result == "critical_success"', desc: "doc.kw.result" },
+  reacting: { sig: "if reacting:", desc: "doc.kw.reacting" },
 };
+
+/** 检定的代码：各项和结果条件里能用的变量（只在编辑检定时用）。 */
+export const CHECK_DOCS: Record<string, Doc> = Object.fromEntries([
+  ...["label", "dice", "target", "critical_success", "critical_failure", "success", "opposed_by"].map((k) => [k, { sig: `${k} = …`, desc: `check.c.${k}` }]),
+  ...["roll", "natural", "difficulty", "opp_roll", "opp_target"].map((k) => [k, { sig: k, desc: `check.v.${k}` }]),
+]);
 
 const FUNCS: Record<string, Doc> = Object.fromEntries(FUNCTION_SIGNATURES.map(([name, sig]) => [name, { sig, desc: `fh.fn.${name}` }]));
 

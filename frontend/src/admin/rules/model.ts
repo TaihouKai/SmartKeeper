@@ -54,7 +54,7 @@ export function blankTemplate(name: string, t: T): Template {
 }
 
 export function blankGroup(): Group {
-  return { name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: true, timing: true };
+  return { name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: true, timing: true, reactions: true };
 }
 
 /** 以前存的规则包可能缺少后来新增的引擎必需项（能否飞行字段、飞行速度等推导值）：打开时补上默认的；必需项的显示名空着就填默认的。 */
@@ -182,7 +182,7 @@ export function selForPath(path: string): Sel {
 export type Doc = {
   path: string;
   /** entry：一个条目（上面是技能设置，下面是技能脚本）；script / config 只用于查找，打开时换成它们所在的条目 */
-  kind: "entry" | "script" | "config" | "formula";
+  kind: "entry" | "script" | "config" | "check" | "formula";
   /** 校验和补全用：在哪个模板、哪个分组的条目里，什么范围 */
   template: string | null;
   inEntry?: string;
@@ -198,10 +198,7 @@ export function docFor(pack: Pack, path: string): Doc | null {
   const s = parsePath(path);
   if (s[0] === "formulas" && typeof s[1] === "number" && s[2] === "formula") return { path, kind: "formula", template: null, scope: "any_entity" };
   if (s[0] === "checks" && typeof s[1] === "number") {
-    if (s[2] === "dice") return { path, kind: "formula", template: null, scope: "dice" };
-    if (s[2] === "target") return { path, kind: "formula", template: null, scope: "any_entity" };
-    if (s[2] === "levels" && s[4] === "condition") return { path, kind: "formula", template: null };
-    return null;
+    return s[2] === "config" ? { path, kind: "check", template: null, scope: "check" } : null;
   }
   if (s[0] !== "templates" || typeof s[1] !== "number") return null;
   const tpl = pack.templates[s[1]];
