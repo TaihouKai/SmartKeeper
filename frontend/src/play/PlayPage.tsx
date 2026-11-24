@@ -5,6 +5,7 @@ import { MapView, type DisplayMap, type MarkerView, type Pick } from "../map";
 import { ErrorBox, LangSwitch, Tabs, formatDuration, formatGameTime } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { ReactionPanel } from "./ReactionPanel";
+import { showNumber } from "../ui/choices";
 import { EventRow, type Ev } from "./events";
 import { KpTab, type Mentionable } from "./KpTab";
 import { TalkTab } from "./TalkTab";
@@ -258,7 +259,7 @@ function SheetTab() {
                   <tr key={k}>
                     <th>{fdef(k)?.label || k}</th>
                     <td>
-                      {typeof v === "boolean" ? t(v ? "sheet.yes" : "sheet.no") : String(v)}
+                      {typeof v === "boolean" ? t(v ? "sheet.yes" : "sheet.no") : typeof v === "number" ? showNumber(fdef(k)?.choices, v) : String(v)}
                       {fdef(k)?.description && <div className="sk-hint">{fdef(k)?.description}</div>}
                     </td>
                   </tr>

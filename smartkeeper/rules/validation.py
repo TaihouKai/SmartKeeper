@@ -24,7 +24,7 @@ from smartkeeper.contracts import (
     RulePack,
     Sheet,
 )
-from smartkeeper.rules import checkconfig, skillconfig
+from smartkeeper.rules import checkconfig, choices, skillconfig
 from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.sheets import init_sheet
 
@@ -339,8 +339,15 @@ def _check_field_def(
     problems: list[Problem] = []
     if fd.kind == "param" and entry_fields is None:
         problems.append(Problem(code="pack.param_only_in_group", path=path))
-    if fd.choices and fd.kind != "text":
+    if fd.choices and fd.kind not in ("text", "number"):
         problems.append(Problem(code="pack.choices_need_text", path=path))
+    if fd.choices and fd.kind == "number":
+        try:
+            choices.parse(fd.choices)
+        except ValueError as e:
+            problems.append(
+                Problem(code="pack.bad_number_choice", path=path, params={"item": str(e)})
+            )
     if (
         fd.cls == "runtime"
         and fd.kind not in ("text", "boolean", "formula", "param")
@@ -654,6 +661,13 @@ def _check_value(
         return []
     if isinstance(value, bool) or not isinstance(value, int | float):
         return [Problem(code="sheet.type", path=path, params={"expected": "number"})]
+    if fd.choices and fd.kind == "number":
+        try:
+            ok = choices.allowed(fd.choices, float(value))
+        except ValueError:
+            ok = True  # 可选值本身写错了：规则包校验会报
+        if not ok:
+            return [Problem(code="sheet.choice", path=path, params={"value": value})]
     if ctx is None:
         return []
     problems: list[Problem] = []

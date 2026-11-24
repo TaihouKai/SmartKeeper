@@ -4,6 +4,7 @@ import { useI18n } from "../i18n";
 import type { ReactNode } from "react";
 import { FormulaInput, Mover, moved } from "./components";
 import { CodeEditor } from "./CodeEditor";
+import { numberOptions } from "./choices";
 import { fillConfig } from "./skillConfig";
 
 type FieldDef = Schemas["FieldDef"];
@@ -46,6 +47,19 @@ export function FieldInput({ def, value, onChange, validateFormula, onExpand }: 
       );
     }
     return <textarea rows={2} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;
+  }
+  if (def.choices && def.choices.length) {
+    // 数值的可选值（例如 E=1 … EX=10）：下拉选，存的是数
+    return (
+      <select value={value === undefined || value === "" ? "" : String(value)} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}>
+        <option value="" />
+        {numberOptions(def.choices).map((o) => (
+          <option key={o.value} value={String(o.value)}>
+            {o.label ? `${o.label}（${o.value}）` : o.value}
+          </option>
+        ))}
+      </select>
+    );
   }
   return (
     <input

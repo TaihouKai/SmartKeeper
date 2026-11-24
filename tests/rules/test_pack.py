@@ -521,3 +521,33 @@ def test_skill_config_checks_must_exist(rules: RulesService) -> None:
     assert codes('check = "nope"') == [("config.unknown_check", 1)]
     assert codes('\nreactions = ["spot", "nope"]') == [("config.unknown_check", 2)]
     assert codes("reactions = [1]") == [("config.list_of_text", 1)]
+
+
+def test_number_choices(rules: RulesService) -> None:
+    from smartkeeper.contracts import FieldDef
+
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+
+    def with_field(choices: tuple[str, ...]) -> RulePack:
+        fd = FieldDef(name="rank", kind="number", choices=choices)
+        return pack.model_copy(
+            update={"templates": (tpl.model_copy(update={"fields": (*tpl.fields, fd)}),)}
+        )
+
+    bad = with_field(("E=1", "D=", "1~x"))
+    assert [
+        p.params["item"] for p in rules.validate_pack(bad) if p.code == "pack.bad_number_choice"
+    ] == ["D="]
+    good = with_field(("E=1", "D=2", "C=3", "B=4", "A=5", "EX=10"))
+    sheet = pack.samples[0].sheet
+
+    def codes(value: object) -> list[str]:
+        s = {**sheet, "fields": {**sheet["fields"], "rank": value}}  # type: ignore[dict-item]
+        return [p.code for p in rules.validate_sheet(good, "person", s)]
+
+    assert "sheet.choice" not in codes(10) and "sheet.choice" not in codes(3)
+    assert "sheet.choice" in codes(7)
+    ranged = with_field(("1~5", "10"))
+    s = {**sheet, "fields": {**sheet["fields"], "rank": 6}}  # type: ignore[dict-item]
+    assert "sheet.choice" in [p.code for p in rules.validate_sheet(ranged, "person", s)]

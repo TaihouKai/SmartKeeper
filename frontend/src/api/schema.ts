@@ -1394,7 +1394,8 @@ export interface components {
          * FieldDef
          * @description 角色卡上的一个字段。
          *
-         *     - kind=number：数值（属性、技能、玩家自定义的尺寸等）；可带 unit、min、max。
+         *     - kind=number：数值（属性、技能、玩家自定义的尺寸等）；可带 unit、min、max。choices 非空时只能取
+         *       其中的值：名字=数（E=1）、数（10）、范围（1~5），见 rules/choices.py；存的是数。
          *     - kind=text：文字；choices 非空时只能取其中之一。
          *     - kind=resource：有上下限的数值。上下限可以是公式（例如引用某个推导值）。
          *     - kind=boolean：是/否。公式里是 1/0。没填时按“否”。

@@ -1228,7 +1228,18 @@ T: dict[str, tuple[str, str]] = {
         "检定至少要有一个结果等级",
         "A check needs at least one result level",
     ),
-    "codes.pack.choices_need_text": ("只有文字字段能设可选值", "Only text fields can have choices"),
+    "codes.pack.choices_need_text": (
+        "只有文字和数值字段能设可选值",
+        "Only text and number fields can have choices",
+    ),
+    "codes.pack.bad_number_choice": (
+        "可选值“{item}”看不懂：写成 名字=数（E=1）、数（10）或范围（1~5）",
+        "Can't read the choice “{item}”: write label=number (E=1), a number (10) or a range (1~5)",
+    ),
+    "rules.ph.choices_number": (
+        "例如 E=1, D=2, C=3, B=4, A=5, EX=10，或 1~5, 10（留空表示随便填）",
+        "e.g. E=1, D=2, C=3, B=4, A=5, EX=10, or 1~5, 10 (empty for any number)",
+    ),
     "codes.pack.duplicate_name": ("名字 {name} 重复了", "The name {name} is used twice"),
     "codes.pack.group_field_must_be_player": (
         "分组里的字段只能是玩家填写的",

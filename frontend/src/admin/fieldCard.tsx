@@ -30,7 +30,7 @@ function badBool(text: string | null | undefined): boolean {
 
 function parseChoices(text: string): string[] {
   return text
-    .split(/[|,，、]/)
+    .split(/[|,，、;；]/)
     .map((x) => x.trim())
     .filter(Boolean);
 }
@@ -188,12 +188,12 @@ export function FieldCard({
               {f.kind === "boolean" && badBool(f.initial) && <small className="sk-invalid">{t("codes.pack.boolean_initial", { value: f.initial ?? "" })}</small>}
             </label>
           )}
-          {f.kind === "text" && cls === "player" && (
+          {(f.kind === "text" || f.kind === "number") && cls === "player" && (
             <label className="sk-wide">
               {t("rules.f.choices")}
               <input
                 value={choicesText}
-                placeholder={t("rules.ph.choices")}
+                placeholder={t(f.kind === "number" ? "rules.ph.choices_number" : "rules.ph.choices")}
                 onChange={(e) => {
                   setChoicesText(e.target.value);
                   onChange({ ...f, choices: parseChoices(e.target.value) });
