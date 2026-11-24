@@ -79,22 +79,22 @@ T: dict[str, tuple[str, str]] = {
         "One row of the table, i.e. one concrete entry (e.g. one skill). Name and description come with every row; each box further down is one column you added in the header above.",
     ),
     "character.entry_description": ("描述", "Description"),
-    "character.effects": ("效果", "Effects"),
-    "character.effect_description": ("效果描述", "Effect description"),
+    "character.effects": ("修正（一直生效）", "Modifiers (always on)"),
+    "character.effect_description": ("修正描述", "Modifier description"),
     "character.effect_conceptual": (
         "（只有描述，由 KP 理解）",
         "(description only, interpreted by the keeper)",
     ),
-    "character.add_effect": ("添加效果", "Add effect"),
+    "character.add_effect": ("添加修正", "Add modifier"),
     "character.effect_formula": ("新值的公式，例如 {name} * 1.2", "New value, e.g. {name} * 1.2"),
     "character.effect_priority": ("顺序", "Order"),
     "character.effect_hint": (
-        "公式算出这个值的新值，和规则里的公式一样什么都能引用；写它自己的名字表示原来的值（例如 move_speed * 1.2），也可以完全换掉（例如 str + agi）。同一个值上有好几个效果时接力计算：先算规则里的固定条目，再按“顺序”从小到大算你写的（0 最先），最后算状态。“顺序”必填，同一张卡上不能重复。",
-        "The formula gives the new value and can use anything a rule formula can; its own name means the value so far (e.g. move_speed * 1.2), or replace it outright (e.g. str + agi). Several effects on one value run in turn: fixed entries first, then yours by Order (smallest first, 0 = first), then statuses. Order is required and must be unique on the sheet.",
+        "公式算出这个值的新值，和规则里的公式一样什么都能引用；写它自己的名字表示原来的值（例如 move_speed * 1.2），也可以完全换掉（例如 str + agi）。同一个值上有好几条修正时接力计算：先算规则里的固定条目，再按“顺序”从小到大算你写的（0 最先），最后算状态。“顺序”必填，同一张卡上不能重复。",
+        "The formula gives the new value and can use anything a rule formula can; its own name means the value so far (e.g. move_speed * 1.2), or replace it outright (e.g. str + agi). Several modifiers on one value run in turn: fixed entries first, then yours by Order (smallest first, 0 = first), then statuses. Order is required and must be unique on the sheet.",
     ),
     "character.effect_hint_fixed": (
-        "公式算出这个值的新值，和规则里的公式一样什么都能引用；写它自己的名字表示原来的值（例如 move_speed * 1.2），也可以完全换掉（例如 str + agi）。固定条目的效果最先算，按定义顺序；之后是玩家写的效果（按他们填的顺序），最后是状态。",
-        "The formula gives the new value and can use anything a rule formula can; its own name means the value so far. Fixed entries run first, in the order defined; then players' effects (by their Order), then statuses.",
+        "公式算出这个值的新值，和规则里的公式一样什么都能引用；写它自己的名字表示原来的值（例如 move_speed * 1.2），也可以完全换掉（例如 str + agi）。固定条目的修正最先算，按定义顺序；之后是玩家写的修正（按他们填的顺序），最后是状态。",
+        "The formula gives the new value and can use anything a rule formula can; its own name means the value so far. Fixed entries run first, in the order defined; then players' modifiers (by their Order), then statuses.",
     ),
     "character.shape": ("范围形状", "Area shape"),
     "character.shape_none": ("无", "None"),
@@ -375,7 +375,7 @@ T: dict[str, tuple[str, str]] = {
     "rules.path.target": ("目标值", "Target"),
     "rules.path.presets": ("固定条目", "Fixed entry"),
     "rules.path.when": ("生效条件", "Condition"),
-    "rules.path.effects": ("效果", "Effect"),
+    "rules.path.effects": ("修正", "Modifier"),
     "rules.world": ("世界观", "World"),
     "rules.w.name": ("名称", "Name"),
     "rules.w.canon": ("以哪部作品或哪个版本为准", "Canon / edition"),
@@ -411,8 +411,8 @@ T: dict[str, tuple[str, str]] = {
     "rules.kind.formula": ("掷骰公式", "Dice formula"),
     "rules.kind.param": ("使用时填写", "Chosen on use"),
     "rules.kind_help.param": (
-        "使用时填写：每次用这个技能时由玩家决定的数，例如这次消耗多少魔力。建角时不填；玩家在行动里说（例如“用 20 魔力放攻击魔术”），KP 掷骰时把这个数交给引擎。下限、上限是公式，可以用角色的字段和 self.<列名>（这个技能自己的列），例如下限 5、上限 max(30, mp_max)。选了“从哪个资源扣”时，引擎还会检查够不够，并在这一轮结算时自动扣掉。掷骰公式里用 self.<这一列的名字> 引用这次填的数，例如 (1d4 + int) * floor(30 / self.mp_spent)。",
-        "Chosen on use: a number the player picks each time the skill is used, e.g. how much mana to spend. Not filled at character creation; the player says it in the action and the keeper passes it to the engine when rolling. Min and max are formulas that may use the character's fields and self.<column>. With a resource to spend from, the engine checks there is enough and deducts it when the round resolves. Dice formulas refer to it as self.<column name>, e.g. (1d4 + int) * floor(30 / self.mp_spent).",
+        "使用时填写：每次用这个技能时由玩家决定的数，例如这次消耗多少魔力。建角时不填；玩家在行动里说（例如“用 20 魔力放攻击魔术”），KP 掷骰时把这个数交给引擎。下限、上限是公式，可以用角色的字段和 this.<列名>（这个技能自己的列），例如下限 5、上限 max(30, mp_max)。选了“从哪个资源扣”时，引擎还会检查够不够，并在这一轮结算时自动扣掉。掷骰公式里用 this.<这一列的名字> 引用这次填的数，例如 (1d4 + int) * floor(30 / this.mp_spent)。",
+        "Chosen on use: a number the player picks each time the skill is used, e.g. how much mana to spend. Not filled at character creation; the player says it in the action and the keeper passes it to the engine when rolling. Min and max are formulas that may use the character's fields and this.<column>. With a resource to spend from, the engine checks there is enough and deducts it when the round resolves. Dice formulas refer to it as this.<column name>, e.g. (1d4 + int) * floor(30 / this.mp_spent).",
     ),
     "rules.f.spends": ("从哪个资源扣", "Spend from"),
     "rules.f.per_minute": (
@@ -430,8 +430,8 @@ T: dict[str, tuple[str, str]] = {
         "Say it in your action when used ({min} to {max})",
     ),
     "rules.kind_help.formula": (
-        "掷骰公式：一条可以带骰子的公式，例如技能的伤害 1d str，或 self.level d lookup(某表, self.level)。平时不算，KP 裁定时要求引擎掷一次才算（骰子由引擎掷，记进日志），KP 再按规则说明决定怎么用这个结果（例如扣 HP）。放在分组的字段里时，每个条目各填各的，可以用 self.<字段> 引用这个条目的字段。",
-        "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or self.level d lookup(table, self.level). Not computed until the keeper asks the engine to roll it during a ruling (the engine rolls and logs it); the keeper then applies the result per the rules text (e.g. lowers HP). In a group, each entry fills its own and may use self.<field>.",
+        "掷骰公式：一条可以带骰子的公式，例如技能的伤害 1d str，或 this.level d lookup(某表, this.level)。放在分组里时每个条目各填各的，可以用 this.<列> 引用这个条目的其他列。技能脚本和这一条的其他公式里写 this.<这一列> 就是用这条公式（当场掷骰），例如脚本 target.damage(this.damage)。",
+        "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or this.level d lookup(table, this.level). In a group each entry fills its own and may use this.<column>. In the skill script and this entry's other formulas, this.<that column> uses the formula (rolled then), e.g. the script target.damage(this.damage).",
     ),
     "rules.kind_help.boolean": (
         "是/否：一个勾选框，例如“能否飞行”。公式里是 1 或 0。",
@@ -451,7 +451,7 @@ T: dict[str, tuple[str, str]] = {
         "Metres per minute when flying; default fly_multiplier * move_speed. Only matters for characters who can fly.",
     ),
     "rules.help.hear_multiplier": (
-        "听力系数：默认 1，可以直接保留。技能和状态的效果可以修改它（例如“顺风耳 ×2”），在听力范围的公式里用它。",
+        "听力系数：默认 1，可以直接保留。技能和状态的修正可以修改它（例如“顺风耳 ×2”），在听力范围的公式里用它。",
         "Hearing multiplier, default 1. Skills and statuses can modify it (e.g. keen ears ×2); use it in the hearing range formula.",
     ),
     "rules.help.hear_distance": (
@@ -604,8 +604,8 @@ T: dict[str, tuple[str, str]] = {
     "rules.g.max": ("玩家最多写几条", "Max entries a player writes"),
     "rules.ph.group_max": ("不限", "no limit"),
     "rules.g.effects": (
-        "条目可以带效果（修改推导值）",
-        "Entries may carry effects (modify derived values)",
+        "条目可以带修正和技能脚本",
+        "Entries may carry modifiers and a skill script",
     ),
     "rules.g.hidden": ("整个分组对玩家隐藏", "Hide the whole group from players"),
     "rules.g.shapes": (
@@ -622,7 +622,7 @@ T: dict[str, tuple[str, str]] = {
     ),
     "rules.g.presets": ("固定条目：规则预先填好的行", "Fixed entries: rows filled in by the rules"),
     "rules.g.presets_hint": (
-        '按上面的表头预先填好的行，玩家不用自己填；玩家建角时自己写的条目是另外加的行。生效条件为真时，这一条自动出现在角色卡上、效果也生效；条件不满足就不会出现。条件只能引用这张卡的字段，文字值要加英文引号，例如 class = "warrior"；也可以写 class != "warrior"、and(class = "warrior", str >= 3)。固定条目不算进上面的“最少/最多”。',
+        '按上面的表头预先填好的行，玩家不用自己填；玩家建角时自己写的条目是另外加的行。生效条件为真时，这一条自动出现在角色卡上、修正也生效；条件不满足就不会出现。条件只能引用这张卡的字段，文字值要加英文引号，例如 class = "warrior"；也可以写 class != "warrior"、and(class = "warrior", str >= 3)。固定条目不算进上面的“最少/最多”。',
         'Rows filled in from the header above, so players don\'t write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn\'t appear. Conditions may only use this sheet\'s fields; text values need double quotes, e.g. class = "warrior", class != "warrior" or and(class = "warrior", str >= 3). Fixed entries don\'t count toward the min/max above.',
     ),
     "rules.gt.title": ("条目表", "Entry table"),
@@ -653,7 +653,7 @@ T: dict[str, tuple[str, str]] = {
     "placement.charges": ("可触发次数", "Charges"),
     "placement.duration": ("持续时间（秒）", "Lasts (seconds)"),
     "placement.notify": ("被触发时通知设置者", "Tell the owner when triggered"),
-    "placement.ph.radius": ("例如 5 或 self.level * 2", "e.g. 5 or self.level * 2"),
+    "placement.ph.radius": ("例如 5 或 this.level * 2", "e.g. 5 or this.level * 2"),
     "placement.ph.perceive": (
         "例如 0.2（越小越难发现，0 发现不了）",
         "e.g. 0.2 (smaller is harder to spot; 0 never)",
@@ -661,37 +661,25 @@ T: dict[str, tuple[str, str]] = {
     "placement.ph.unlimited": ("留空表示无限", "empty means unlimited"),
     "placement.ph.forever": ("留空表示一直存在", "empty means until removed"),
     "placement.hint": (
-        "设置时由 KP 在裁定里放到地图上，参数按这里的公式算（可以用 self.<列名> 和设置者的字段）。有人从范围外走进范围就触发一次，由引擎按移动路线判断；次数用完、到期由引擎移除。别人发现它的距离 = 那人的感知半径 × 感知距离系数；设置者自己总能看到。",
-        "When set, the keeper places it on the map and these formulas give its values (they may use self.<column> and the owner's fields). Anyone walking into the radius triggers it once, as the engine works out from movement; the engine removes it when charges run out or it expires. Others spot it within their perception radius × the detection multiplier; the owner always sees it.",
+        "设置时由 KP 在裁定里放到地图上，参数按这里的公式算（可以用 this.<列名> 和设置者的字段）。有人从范围外走进范围就触发一次，由引擎按移动路线判断；次数用完、到期由引擎移除。别人发现它的距离 = 那人的感知半径 × 感知距离系数；设置者自己总能看到。",
+        "When set, the keeper places it on the map and these formulas give its values (they may use this.<column> and the owner's fields). Anyone walking into the radius triggers it once, as the engine works out from movement; the engine removes it when charges run out or it expires. Others spot it within their perception radius × the detection multiplier; the owner always sees it.",
     ),
     "play.placements": ("察觉到的设置物：", "Placed objects you notice:"),
     "play.placement_unknown": ("不明的设置物", "unknown placed object"),
     "rules.gt.hint": (
-        '这一类条目是一张表：每一行是一个规则写好的条目（例如一个技能），每一列是每个条目都要填的一项。“生效条件”“名称”“描述”三列每行自带；点“+ 列”加一列（例如 等级、魔力消耗、伤害），点列名可以改这一列的名字和类型。效果和范围形状点这一行的“更多”。生效条件只能用这张卡的字段，文字要加英文引号，例如 class = "warrior"，留空表示总是生效。行的顺序会影响计算：同一个值上的效果从上到下接力。玩家建角时也按这些列填自己的条目。',
-        "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Effects and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: effects on one value run top to bottom. Players fill the same columns for their own entries.",
+        '这一类条目是一张表：每一行是一个规则写好的条目（例如一个技能），每一列是每个条目都要填的一项。“生效条件”“名称”“描述”三列每行自带；点“+ 列”加一列（例如 等级、魔力消耗、伤害），点列名可以改这一列的名字和类型。修正、技能脚本和范围形状点这一行的“更多”。生效条件只能用这张卡的字段，文字要加英文引号，例如 class = "warrior"，留空表示总是生效。行的顺序会影响计算：同一个值上的修正从上到下接力。玩家建角时也按这些列填自己的条目。',
+        "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Modifiers, the skill script and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: modifiers on one value run top to bottom. Players fill the same columns for their own entries.",
     ),
     "rules.gt.when": ("生效条件", "Condition"),
-    "character.effect_duration": ("持续（秒）", "Lasts (s)"),
-    "character.effect_duration_ph": ("空 = 常驻", "empty = always"),
-    "character.effect_duration_hint": (
-        "不填：条目在就一直生效（被动）。填了：只有使用这个技能时才加到作用对象身上，持续这么多秒后消失；公式里这个推导值自己的名字指对象的值，其余名字取施法者施法那一刻的值，target.x 是对象的值。",
-        "Empty: always active while the entry exists (passive). Filled: applied to the target only when the skill is used, for this many seconds; in the formula the derived value's own name is the target's value, other names are the source's values at cast time, target.x is the target's.",
+    "script.title": ("技能脚本（使用时）", "Skill script (on use)"),
+    "script.ph": (
+        "例如\ntarget.damage(this.damage)\nself.add(hp, 5)",
+        "e.g.\ntarget.damage(this.damage)\nself.add(hp, 5)",
     ),
-    "action.title": ("作用效果（使用时）", "On-use effects"),
-    "action.add": ("+ 作用效果", "+ On-use effect"),
-    "action.op.damage": ("受到伤害", "takes damage"),
-    "action.op.add": ("增加", "add to"),
-    "action.op.subtract": ("减少", "subtract from"),
-    "action.op.set": ("设为", "set"),
-    "action.amount_ph": ("数量，例如 1d6 + self.level", "amount, e.g. 1d6 + self.level"),
-    "action.duration_ph": ("空 = 永久", "empty = permanent"),
-    "action.duration_hint": (
-        "限时增加（例如护盾）：到期时把加上去还剩下的部分扣回。",
-        "Timed increase (e.g. a shield): when it ends, whatever is left of the added amount is taken back.",
-    ),
-    "action.hint": (
-        "作用在使用时选的对象身上，对象可以是任何人（包括自己）。KP 声明使用这个技能后，引擎掷骰算好数值；KP 判定生效（打中）时引擎执行，没生效只扣消耗。受到伤害时先扣护盾（shield）再扣生命值（hp）。数量公式里的名字取施法者，self.列 是这一条的列，target.x 是对象的值。",
-        "Applies to whoever the skill is used on, which can be anyone (yourself included). When the KP declares this skill used, the engine rolls the numbers; if the KP rules it took effect (hit), the engine applies them, otherwise only the cost is paid. Damage comes off shield first, then hp. Names in the amount are the source's; self.column is this entry's column; target.x is the target's value.",
+    "script.line": ("第 {n} 行", "line {n}"),
+    "script.hint": (
+        "用这个技能、KP 判定生效（打中）时，引擎一行一行执行；没生效只扣消耗。self 是使用者自己，target 是使用时选的对象（对谁用由玩家决定，也可以是自己）；没有对象时只执行 self 的句子。动作：damage(数量) 受到伤害，先扣护盾 shield 再扣生命值 hp；add(字段, 数量[, 分钟]) 增加，写了分钟就是限时的，到期扣回剩下的部分；sub(字段, 数量) 减少；set(字段, 数量) 设为；modify(推导值, 新值公式, 分钟) 限时修正，公式里这个推导值自己的名字指带着这条修正的角色的值，其余名字取使用那一刻的值。数量是公式，可以掷骰；this.列 是这一条的列（掷骰公式列会当场掷），self.x 和不带前缀的名字是使用者的，target.x 是对象的。# 后面是注释。",
+        "When the skill is used and the keeper rules it took effect (hit), the engine runs it line by line; otherwise only the cost is paid. self is the user, target is whoever it's used on (the player chooses, may be themselves); with no target only the self lines run. Actions: damage(amount) – shield first, then hp; add(field, amount[, minutes]) – with minutes it's timed and the rest is taken back when it ends; sub(field, amount); set(field, amount); modify(derived, new-value formula, minutes) – a timed modifier: the derived value's own name is the bearer's value, other names are the user's at the time of use. Amounts are formulas and may roll dice; this.column is this entry's column (dice-formula columns roll), self.x and bare names are the user's, target.x the target's. # starts a comment.",
     ),
     "rules.gt.id": ("ID（引用用，可不填）", "ID (for references, optional)"),
     "rules.gt.id_ph": ("例如 fireball", "e.g. fireball"),
@@ -702,7 +690,7 @@ T: dict[str, tuple[str, str]] = {
     "rules.gt.always": ("总是生效", "always"),
     "rules.gt.add_column": ("+ 列", "+ Column"),
     "rules.gt.add_row": ("+ 行（规则写好的条目）", "+ Row (entry written by the rules)"),
-    "rules.gt.more": ("更多（效果 {n}）", "More (effects {n})"),
+    "rules.gt.more": ("更多（{n}）", "More ({n})"),
     "rules.gt.empty": (
         "还没有规则写好的条目。点下面的“+ 行”加一个。",
         "No entries yet. Use “+ Row” below.",
@@ -738,7 +726,7 @@ T: dict[str, tuple[str, str]] = {
     "common.move_up": ("上移", "Move up"),
     "common.move_down": ("下移", "Move down"),
     "rules.order_matters_presets": (
-        "注意：固定条目的顺序会影响计算，同一个值上的效果按这里从上到下接力。",
+        "注意：固定条目的顺序会影响计算，同一个值上的修正按这里从上到下接力。",
         "Note: the order of fixed entries matters; effects on the same value run top to bottom.",
     ),
     "rules.add_level": ("添加结果等级", "Add result level"),
@@ -867,9 +855,37 @@ T: dict[str, tuple[str, str]] = {
         "{name} 算不出结果（例如负数开平方）",
         "{name} has no result for these inputs (e.g. sqrt of a negative)",
     ),
-    "codes.formula.self_outside_entry": (
-        "{name} 只能在条目的效果里用",
-        "{name} can only be used inside an entry's effects",
+    "codes.formula.this_outside_entry": (
+        "{name} 只能在条目里用（指这一条的列）",
+        "{name} can only be used inside an entry (it means that entry's column)",
+    ),
+    "codes.script.bad_statement": (
+        "看不懂这一句：{text}。每句写成 对象.动作(参数)，例如 target.damage(5)",
+        "Can't read: {text}. Write object.action(arguments), e.g. target.damage(5)",
+    ),
+    "codes.script.unknown_receiver": (
+        "{name} 不是对象：只能写 self（自己）或 target（对象）",
+        "{name} isn't an object: use self or target",
+    ),
+    "codes.script.unknown_verb": (
+        "没有 {name} 这个动作：可以用 damage、add、sub、set、modify",
+        "No action {name}: use damage, add, sub, set or modify",
+    ),
+    "codes.script.arity": (
+        "{name} 的参数个数不对（写了 {count} 个）",
+        "Wrong number of arguments for {name} ({count})",
+    ),
+    "codes.script.field_arg": (
+        "{name} 的第一个参数要写字段名，例如 hp",
+        "The first argument of {name} must be a field name, e.g. hp",
+    ),
+    "codes.script.not_runtime": (
+        "{name} 不是运行值（数值或资源），不能在脚本里改",
+        "{name} isn't a runtime value (number or resource) and can't be changed by a script",
+    ),
+    "codes.script.not_derived": (
+        "{name} 不是推导值，modify 只能修正推导值",
+        "{name} isn't a derived value; modify only works on derived values",
     ),
     "codes.formula.text_in_arithmetic": (
         "文字“{value}”不能参与计算",
@@ -910,11 +926,6 @@ T: dict[str, tuple[str, str]] = {
         "缺少外观描述字段 {name}（必须是文字）",
         "Missing the appearance field {name} (must be text)",
     ),
-    "codes.sheet.action_field": (
-        "作用效果要改的运行值 {name} 不存在",
-        "On-use effect: runtime value {name} doesn't exist",
-    ),
-    "codes.sheet.action_duration_needs_add": ("只有“增加”能限时", "Only an “add” can be timed"),
     "codes.adj.unknown_use": (
         "裁定引用了不存在的技能使用 {seq}",
         "The ruling refers to an unknown skill use {seq}",
@@ -1006,12 +1017,33 @@ T: dict[str, tuple[str, str]] = {
         "<template>.<entry ID>.<column>: a column of that entry (not chosen-on-use columns); 0 if the entry is missing",
     ),
     "fh.b.target": (
-        "target.字段：技能作用的对象（作用效果里用）",
-        "target.field: the target of a skill (in on-use effects)",
+        "target.字段：技能作用的对象（技能脚本里用）",
+        "target.field: the target of a skill (in skill scripts)",
     ),
     "fh.b.self": (
-        "在条目的效果里引用这个条目自己的字段",
-        "Inside an entry's effects, a field of that entry",
+        "self.字段：自己的，和直接写名字一样",
+        "self.field: your own value, same as the bare name",
+    ),
+    "fh.b.this": (
+        "this.列：条目里（修正、技能脚本、施放时间……）指这一条自己的列；掷骰公式列会展开成那条公式",
+        "this.column: inside an entry (modifiers, skill script, cast time…) a column of that entry; dice-formula columns expand to their formula",
+    ),
+    "fh.script": ("技能脚本", "Skill scripts"),
+    "fh.s.damage": (
+        "对象受到伤害：先扣护盾 shield，再扣生命值 hp",
+        "The target takes damage: shield first, then hp",
+    ),
+    "fh.s.add": (
+        "自己的 hp 加 5；第三个参数写分钟就是限时的，到期扣回剩下的",
+        "Add 5 to your hp; a third argument (minutes) makes it timed",
+    ),
+    "fh.s.sub": (
+        "对象的 mp 减 10；set(字段, 值) 是设为",
+        "Subtract 10 from the target's mp; set(field, value) sets it",
+    ),
+    "fh.s.modify": (
+        "限时修正：对象的移动速度减半，持续 10 分钟",
+        "Timed modifier: halve the target's move speed for 10 minutes",
     ),
     "fh.d.basic": ("掷 3 颗 6 面骰，求和", "Roll three six-sided dice and add them"),
     "fh.d.one": ("省略个数就是 1 颗；d% 就是 d100", "No count means one die; d% is d100"),

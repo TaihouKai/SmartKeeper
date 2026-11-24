@@ -259,7 +259,7 @@
                   {
                     "description": "a little extra",
                     "target": "perception_radius",
-                    "formula": "perception_radius + self.level / 5",
+                    "formula": "perception_radius + this.level / 5",
                     "priority": 0
                   },
                   {

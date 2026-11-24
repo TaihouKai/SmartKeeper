@@ -8,12 +8,10 @@ type FieldDef = Schemas["FieldDef"];
 type GroupDef = Schemas["GroupDef"];
 
 // formula 算出 target 的新值；写 target 自己的名字表示到这一步为止的值。priority 只有玩家写的效果才有
-export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null; duration?: string };
-// 作用效果：使用时（KP 判定生效）由引擎执行。damage 先扣护盾再扣生命值；add/subtract/set 改一个运行值
-export type OnUse = { description: string; op: "damage" | "add" | "subtract" | "set"; field?: string | null; amount: string; duration?: string };
+export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null };
 export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
 export type PlacementSpec = { radius: string; perceive_multiplier?: string; charges?: string; duration?: string; notify_owner?: boolean };
-export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null; actions?: OnUse[]; cast_time?: string; cooldown?: string };
+export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null; script?: string; cast_time?: string; cooldown?: string };
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
@@ -63,7 +61,7 @@ export function fieldLabel(f: { name: string; label?: string; unit?: string | nu
   return `${f.label || f.name || unnamed}${f.unit ? ` (${f.unit})` : ""}`;
 }
 
-/** 分组里的一个条目：名字、说明、字段、效果、范围形状。建角和规则包的固定条目共用。 */
+/** 分组里的一个条目：名字、说明、字段、修正、技能脚本、范围形状。建角和规则包的固定条目共用。 */
 export function EntryEditor({
   group,
   derived,
@@ -73,25 +71,23 @@ export function EntryEditor({
   validate,
   withPriority = true,
   mover,
-  runtime = [],
 }: {
   group: GroupDef;
   derived: string[];
   entry: Entry;
   onChange: (e: Entry) => void;
   onRemove?: () => void;
-  validate: (f: string, inEntry: string, dice?: boolean) => Promise<{ problems: { code: string }[]; names: string[] }>;
+  validate: (f: string, inEntry: string, scope?: "dice" | "script") => Promise<{ problems: { code: string }[]; names: string[] }>;
   /** 玩家写的条目要给效果填计算顺序；规则包的固定条目按定义顺序，不用填 */
   withPriority?: boolean;
   mover?: ReactNode;
-  /** 作用效果能改的运行值 */
-  runtime?: string[];
 }) {
   const { t } = useI18n();
   const fields = group.fields ?? [];
   const shapes = group.shapes?.allowed ?? [];
   const v = useCallback((f: string) => validate(f, group.name), [validate, group.name]);
-  const vDice = useCallback((f: string) => validate(f, group.name, true), [validate, group.name]);
+  const vDice = useCallback((f: string) => validate(f, group.name, "dice"), [validate, group.name]);
+  const vScript = useCallback((f: string) => validate(f, group.name, "script"), [validate, group.name]);
   return (
     <div className="sk-entry">
       {mover && <div className="sk-row sk-row-end">{mover}</div>}
@@ -129,7 +125,7 @@ export function EntryEditor({
         </label>
       ))}
       {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} onChange={(effects) => onChange({ ...entry, effects })} />}
-      {group.effects !== false && <ActionsEditor actions={entry.actions ?? []} runtime={runtime} validate={vDice} onChange={(actions) => onChange({ ...entry, actions })} />}
+      {group.effects !== false && <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />}
       {shapes.length > 0 && <ShapeEditor allowed={shapes} shape={entry.shape} onChange={(shape) => onChange({ ...entry, shape })} />}
       {group.placements && <PlacementEditor spec={entry.placement ?? null} validate={v} onChange={(placement) => onChange({ ...entry, placement })} />}
       {onRemove && (
@@ -141,7 +137,7 @@ export function EntryEditor({
   );
 }
 
-/** 一个条目的效果列表：描述、作用于哪个推导值、新值的公式；玩家写的还要填计算顺序。 */
+/** 一个条目的修正列表（一直生效）：描述、作用于哪个推导值、新值的公式；玩家写的还要填计算顺序。 */
 export function EffectsEditor({
   effects,
   derived,
@@ -175,10 +171,6 @@ export function EffectsEditor({
             <>
               <span className="sk-hint sk-eq">=</span>
               <FormulaInput value={ef.formula ?? ""} validate={validate} placeholder={t("character.effect_formula", { name: ef.target })} onChange={(val) => set(i, { formula: val })} />
-              <label className="sk-inline sk-priority" title={t("character.effect_duration_hint")}>
-                {t("character.effect_duration")}
-                <FormulaInput value={ef.duration ?? ""} validate={validate} placeholder={t("character.effect_duration_ph")} onChange={(val) => set(i, { duration: val })} />
-              </label>
               {withPriority && (
                 <label className="sk-inline sk-priority">
                   {t("character.effect_priority")}
@@ -201,50 +193,14 @@ export function EffectsEditor({
   );
 }
 
-/** 作用效果：使用时对玩家选的对象造成伤害、增减或设定一个运行值；增加可以限时（到期扣回剩下的）。 */
-export function ActionsEditor({ actions, runtime, validate, onChange }: { actions: OnUse[]; runtime: string[]; validate: Check; onChange: (a: OnUse[]) => void }) {
+/** 技能脚本：用这个条目（并且 KP 判定生效）时引擎执行的语句，一行一句。 */
+export function ScriptEditor({ script, validate, onChange }: { script: string; validate: Check; onChange: (s: string) => void }) {
   const { t } = useI18n();
-  const set = (i: number, patch: Partial<OnUse>) => onChange(actions.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   return (
-    <div className="sk-effects">
-      <strong>{t("action.title")}</strong>
-      {actions.map((a, i) => (
-        <div key={i} className="sk-effect">
-          <input placeholder={t("character.effect_description")} value={a.description} onChange={(e) => set(i, { description: e.target.value })} />
-          <select value={a.op} onChange={(e) => { const op = e.target.value as OnUse["op"]; set(i, { op, field: op === "damage" ? null : (a.field ?? runtime[0] ?? null), duration: op === "add" ? a.duration : "" }); }}>
-            {(["damage", "add", "subtract", "set"] as const).map((o) => (
-              <option key={o} value={o}>
-                {t(`action.op.${o}`)}
-              </option>
-            ))}
-          </select>
-          {a.op !== "damage" && (
-            <select value={a.field ?? ""} onChange={(e) => set(i, { field: e.target.value || null })}>
-              <option value="" />
-              {runtime.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          )}
-          <FormulaInput value={a.amount} validate={validate} placeholder={t("action.amount_ph")} onChange={(val) => set(i, { amount: val })} />
-          {a.op === "add" && (
-            <label className="sk-inline sk-priority" title={t("action.duration_hint")}>
-              {t("character.effect_duration")}
-              <FormulaInput value={a.duration ?? ""} validate={validate} placeholder={t("action.duration_ph")} onChange={(val) => set(i, { duration: val })} />
-            </label>
-          )}
-          <Mover index={i} count={actions.length} onMove={(from, to) => onChange(moved(actions, from, to))} />
-          <button type="button" className="sk-link" onClick={() => onChange(actions.filter((_, j) => j !== i))}>
-            {t("common.remove")}
-          </button>
-        </div>
-      ))}
-      <button type="button" onClick={() => onChange([...actions, { description: "", op: "damage", field: null, amount: "", duration: "" }])}>
-        {t("action.add")}
-      </button>
-      {actions.length > 0 && <p className="sk-hint">{t("action.hint")}</p>}
+    <div className="sk-effects sk-script">
+      <strong>{t("script.title")}</strong>
+      <FormulaInput multiline value={script} validate={validate} placeholder={t("script.ph")} onChange={onChange} />
+      <p className="sk-hint">{t("script.hint")}</p>
     </div>
   );
 }

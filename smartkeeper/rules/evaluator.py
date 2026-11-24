@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 
 from pydantic import JsonValue
 
+from smartkeeper import lang as f
 from smartkeeper.contracts import DerivedValue, Effect, EntityTemplate, GroupEntry, RulePack, Sheet
-from smartkeeper.rules import formula as f
 
 
 def table_lookup(pack: RulePack) -> f.TableLookup:
@@ -70,6 +70,10 @@ class EntityContext:
         self._derived = {d.name: d for d in self.template.derived}
         self._formulas = {x.name: x for x in self.pack.formulas}
         self._groups: dict[str, tuple[GroupEntry, ...]] | None = None
+        # 掷骰公式列：this.<这种列> 展开成那一列里写的公式
+        self._formula_cols = {
+            x.name for g in self.template.groups for x in g.fields if x.kind == "formula"
+        }
 
     # ---- 条目：玩家写的加上生效的固定条目 ----
 
@@ -113,9 +117,9 @@ class EntityContext:
         def resolve(name: str) -> f.Value:
             if overrides is not None and name in overrides:
                 return overrides[name]
-            if name.startswith("self."):
+            if name.startswith("this."):
                 if entry is None:
-                    raise f.FormulaError("formula.self_outside_entry", name=name)
+                    raise f.FormulaError("formula.this_outside_entry", name=name)
                 key = name[5:]
                 if key not in entry:
                     raise f.FormulaError("formula.unknown_name", name=name)
@@ -123,6 +127,8 @@ class EntityContext:
                 if v is None:
                     raise f.FormulaError("formula.bad_value", name=name)
                 return v
+            if name.startswith("self."):
+                return self.member(name[5:].split("."), name)
             if "." in name:
                 return self.dotted(name)
             return self.value_of(name)
@@ -160,7 +166,7 @@ class EntityContext:
         return None
 
     def dotted(self, name: str) -> f.Value:
-        """<模板>.x、target.x：自己这边的实体、作用对象的字段、推导值和条目。"""
+        """<模板>.x、target.x：自己这边的实体、作用对象的字段、推导值和条目（self.x 见 resolver）。"""
         head, *rest = name.split(".")
         if head == "target":
             if self.target is None:
@@ -243,6 +249,26 @@ class EntityContext:
             return self._guarded(key, lambda: self.eval(self._formulas[name].formula))
         raise f.FormulaError("formula.unknown_name", name=name)
 
+    def prepare(self, text: str, entry: Mapping[str, JsonValue] | None = None) -> f.Node:
+        """解析公式，并把 this.<掷骰公式列> 换成那一列里写的公式（可以层层引用，成环报错）。"""
+        node = f.parse(text)
+        if entry is None:
+            return node
+
+        def expand(n: f.Node, seen: tuple[str, ...]) -> f.Node:
+            def fn(name: str) -> f.Node | None:
+                key = name[5:] if name.startswith("this.") else ""
+                v = entry.get(key) if key in self._formula_cols else None
+                if not isinstance(v, str) or not v.strip():
+                    return None
+                if key in seen:
+                    raise f.FormulaError("formula.cycle", name=" -> ".join([*seen, key]))
+                return expand(f.parse(v), (*seen, key))
+
+            return f.substitute(n, fn)
+
+        return expand(node, ())
+
     def eval(
         self,
         text: str,
@@ -251,7 +277,11 @@ class EntityContext:
         overrides: Mapping[str, f.Value] | None = None,
     ) -> f.Value:
         return f.evaluate(
-            f.parse(text), self.resolver(entry, overrides), self._lookup, faces, self.collect
+            self.prepare(text, entry),
+            self.resolver(entry, overrides),
+            self._lookup,
+            faces,
+            self.collect,
         )
 
     def eval_num(
@@ -286,13 +316,13 @@ class EntityContext:
         for g in self.template.groups:
             for entry in presets.get(g.name, ()):
                 for eff in entry.effects:
-                    if eff.is_mechanical and eff.target == name and not eff.duration.strip():
+                    if eff.is_mechanical and eff.target == name:
                         out.append((eff, entry.fields, f"{g.name}:{entry.name}"))
         own: list[tuple[int, int, Effect, Mapping[str, JsonValue], str]] = []
         for group, entries in sorted(self.sheet.groups.items()):
             for entry in entries:
                 for eff in entry.effects:
-                    if eff.is_mechanical and eff.target == name and not eff.duration.strip():
+                    if eff.is_mechanical and eff.target == name:
                         prio = eff.priority if eff.priority is not None else 1 << 30
                         own.append((prio, len(own), eff, entry.fields, f"{group}:{entry.name}"))
         out += [(eff, fields, src) for _, _, eff, fields, src in sorted(own, key=lambda x: x[:2])]

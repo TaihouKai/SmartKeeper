@@ -8,6 +8,29 @@ name = contracts 只依赖 无
 type = forbidden
 source_modules = smartkeeper.contracts
 forbidden_modules =
+    smartkeeper.lang
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
+
+[importlinter:contract:lang]
+name = lang 只依赖 无
+type = forbidden
+source_modules = smartkeeper.lang
+forbidden_modules =
+    smartkeeper.contracts
     smartkeeper.eventlog
     smartkeeper.rules
     smartkeeper.world

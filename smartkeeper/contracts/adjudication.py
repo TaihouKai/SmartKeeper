@@ -55,7 +55,7 @@ class PlaceIn(Frozen):
 class UseResult(Frozen):
     """裁定里对一次“使用”（规划时引擎已经算好的 entry_used 事件）的处理：生效了没有。
 
-    hit=true：作用效果全部执行；hit=false：没生效（没打中、被挡住），只扣使用时的消耗。没列出的使用当作没发生。
+    hit=true：技能脚本全部执行；hit=false：没生效（没打中、被挡住），只扣使用时的消耗。没列出的使用当作没发生。
     """
 
     seq: int

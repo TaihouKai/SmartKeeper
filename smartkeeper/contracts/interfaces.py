@@ -13,7 +13,7 @@ from smartkeeper.contracts.events import Audience, Event, EventType, NewEvent
 from smartkeeper.contracts.game import RoundStatus
 from smartkeeper.contracts.geometry import Point
 from smartkeeper.contracts.rulepack import RulePack, RulePackDraft, RulePackInfo, RulePackVersion
-from smartkeeper.contracts.sheet import DerivedValue
+from smartkeeper.contracts.sheet import DerivedValue, ScriptStep
 from smartkeeper.contracts.spatial import (
     Body,
     Handle,
@@ -89,16 +89,19 @@ class Rules(Protocol):
         in_entry: str | None = None,
         scope: FormulaScope | None = None,
     ) -> list[Problem]:
-        """校验一条公式：语法、函数白名单、引用的名字是否存在。in_entry 为分组名时允许 self.<字段>。
+        """校验一条公式：语法、函数白名单、引用的名字是否存在。in_entry 为分组名时允许 this.<列>。
 
         scope 不给时：有 template 按模板校验，没有按检定结果条件校验（可用 roll、target 等）。
         any_entity：任何模板的名字都可以（检定目标值、命名公式）；dice：同上并允许掷骰；
-        dice 且给了 template：掷骰公式字段，按这个模板（和条目）校验并允许掷骰。
+        dice 且给了 template：掷骰公式字段，按这个模板（和条目）校验并允许掷骰；
+        script：技能脚本（按这个模板和条目校验）。
         """
         ...
 
-    def complete_names(self, pack: RulePack, template: str | None) -> list[str]:
-        """公式输入框可补全的名字。"""
+    def complete_names(
+        self, pack: RulePack, template: str | None, scope: FormulaScope | None = None
+    ) -> list[str]:
+        """公式输入框可补全的名字（scope=script 时加上脚本的语句开头）。"""
         ...
 
     def validate_sheet(
@@ -150,23 +153,25 @@ class Rules(Protocol):
     ) -> DiceResult:
         """求值一条可以掷骰的公式（例如 1d100、1d str、highest(4, 6, 3)）。
 
-        给了 template 和 sheet 时公式可以引用这张卡上的名字；再给 entry（条目的字段）时可以用 self.<字段>。
+        给了 template 和 sheet 时公式可以引用这张卡上的名字；再给 entry（条目的字段）时可以用 this.<字段>。
         faces 由 engine 提供，是唯一的随机来源。
         """
         ...
 
-    def freeze(
+    def plan_script(
         self,
         pack: RulePack,
-        formula: str,
+        script: str,
+        faces: Faces,
         template: str,
         sheet: JsonValue,
-        entry: dict[str, JsonValue] | None,
-        peers: Peers | None,
-        keep: str,
+        entry: dict[str, JsonValue],
+        peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
-    ) -> str:
-        """持续性效果的公式：keep（作用的推导值）和 target.x 留着，其余名字换成施法者此刻的值。"""
+    ) -> tuple[ScriptStep, ...]:
+        """技能脚本：在使用者的角色卡和这个条目（entry 是它的列，含这次使用时填写的数）上，
+        掷骰算好每一句的数值；modify 的公式除了被修正的推导值自己，其余名字都换成此刻的值。
+        没有对象（target 为 None）时跳过作用在 target 上的句子。出错抛 ValidationFailed。"""
         ...
 
     def resolve_check(
@@ -231,7 +236,7 @@ type Faces = Callable[[int, int], tuple[int, ...]]
 
 # 同一个玩家控制的其他实体：模板名 -> 角色卡；同一个模板有不止一个时为 None（引用它会报错）
 type Peers = Mapping[str, JsonValue | None]
-type FormulaScope = Literal["any_entity", "dice"]
+type FormulaScope = Literal["any_entity", "dice", "script"]
 
 
 class Dice(Protocol):

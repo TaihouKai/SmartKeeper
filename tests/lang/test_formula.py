@@ -2,8 +2,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from smartkeeper.rules import FormulaError
-from smartkeeper.rules.formula import evaluate, parse  # 模块内部测试可以导入自己的子模块
+from smartkeeper.lang import FormulaError, evaluate, parse
 
 
 def ev(text: str, **names: float | str) -> float | str:

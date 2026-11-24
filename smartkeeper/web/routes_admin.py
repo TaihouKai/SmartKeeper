@@ -338,7 +338,7 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
             problems=s.rules.validate_formula(
                 body.pack, body.template, body.formula, body.in_entry, body.scope
             ),
-            names=s.rules.complete_names(body.pack, body.template),
+            names=s.rules.complete_names(body.pack, body.template, body.scope),
         )
 
     @guarded.post("/rulepacks/import")

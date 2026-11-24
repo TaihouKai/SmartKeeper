@@ -344,7 +344,7 @@ def damage_pack() -> RulePack:
             "fields": (*g.fields, FieldDef(name="damage", kind="formula", required=False)),
             "presets": (
                 GroupPreset.model_validate(
-                    {"name": "punch", "fields": {"level": 2, "damage": "self.level d 6 + 1"}}
+                    {"name": "punch", "fields": {"level": 2, "damage": "this.level d 6 + 1"}}
                 ),
             ),
         }
@@ -371,7 +371,7 @@ def test_roll_a_formula_field_of_a_fixed_entry() -> None:
 
 
 def spend_pack() -> RulePack:
-    """skills 分组：使用时填写的 cost（1..hp，从 hp 里扣），伤害 = (1d4 + 1) * floor(12 / self.cost)。"""
+    """skills 分组：使用时填写的 cost（1..hp，从 hp 里扣），伤害 = (1d4 + 1) * floor(12 / this.cost)。"""
     pack = load_pack("single")
     tpl = pack.templates[0]
     g = tpl.groups[0]
@@ -386,7 +386,7 @@ def spend_pack() -> RulePack:
                 GroupPreset.model_validate(
                     {
                         "name": "bolt",
-                        "fields": {"level": 1, "damage": "(1d4 + 1) * floor(12 / self.cost)"},
+                        "fields": {"level": 1, "damage": "(1d4 + 1) * floor(12 / this.cost)"},
                     }
                 ),
             ),
@@ -556,7 +556,7 @@ def test_placement_formulas_use_chosen_on_use_columns_and_spend() -> None:
     spec = preset.placement
     assert spec is not None
     ward = preset.model_copy(
-        update={"placement": spec.model_copy(update={"radius": "self.cost * 2"})}
+        update={"placement": spec.model_copy(update={"radius": "this.cost * 2"})}
     )
     cost = FieldDef(name="cost", kind="param", min="1", max="hp", spends="hp")
     g = g.model_copy(update={"fields": (*g.fields, cost), "presets": (ward,)})
@@ -615,8 +615,9 @@ def test_runtime_fields_change_per_minute_without_notifying() -> None:
 
 
 def magic_pack() -> RulePack:
-    """single 规则包加一个护盾（运行值，无上限）和三个固定条目：
-    bolt：对象受到 5 点伤害；ward：对象护盾 + level×4，持续 60 秒；haste：对象移动速度 + 施法者的 str，持续 30 秒。"""
+    """single 规则包加一个护盾（运行值，无上限）和四个带技能脚本的固定条目：
+    bolt：对象受到 5 点伤害；ward：对象护盾 + level×4，持续 1 分钟；haste：对象移动速度 + 施法者的 str，持续半分钟；
+    drain：对象受到 damage 列（level×3）的伤害，自己回 2 点生命。"""
     pack = load_pack("single")
     tpl = pack.templates[0]
     shield = FieldDef(name="shield", kind="resource", cls="runtime", min="0", initial="0")
@@ -626,22 +627,31 @@ def magic_pack() -> RulePack:
             "name": "bolt",
             "id": "bolt",
             "fields": {"level": 1},
-            "actions": [{"op": "damage", "amount": "5"}],
+            "script": "target.damage(5)",
         },
         {
             "name": "ward",
             "fields": {"level": 2},
-            "actions": [
-                {"op": "add", "field": "shield", "amount": "self.level * 4", "duration": "60"}
-            ],
+            "script": "target.add(shield, this.level * 4, 1)  # 一分钟",
         },
         {
             "name": "haste",
             "fields": {"level": 1},
-            "effects": [{"target": "move_speed", "formula": "move_speed + str", "duration": "30"}],
+            "script": "target.modify(move_speed, move_speed + str, 0.5)",
+        },
+        {
+            "name": "drain",
+            "fields": {"level": 2, "damage": "this.level * 3"},
+            "script": "target.damage(this.damage); self.add(hp, 2)",
         },
     ]
-    g = g.model_copy(update={"presets": tuple(GroupPreset.model_validate(p) for p in presets)})
+    damage = FieldDef(name="damage", kind="formula", required=False)
+    g = g.model_copy(
+        update={
+            "fields": (*g.fields, damage),
+            "presets": tuple(GroupPreset.model_validate(p) for p in presets),
+        }
+    )
     tpl = tpl.model_copy(update={"fields": (*tpl.fields, shield), "groups": (g, *tpl.groups[1:])})
     return pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
 
@@ -712,6 +722,34 @@ def test_timed_effect_freezes_the_users_values() -> None:
     assert e.derived_all(g)[e1]["move_speed"] == before + source_str  # type: ignore[operator]
 
 
+def test_script_hits_both_sides_and_can_target_yourself() -> None:
+    from smartkeeper.contracts import UseResult
+
+    t = setup_table("single", 2, pack=magic_pack())
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    hp0, hp1 = fields_of(t, e0)["hp"], fields_of(t, e1)["hp"]
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+    drain = e.use_entry(g, e0, "drain", e1, {}, "drains p1")
+    assert [a["entity"] for a in drain.payload["actions"]] == [e1, e0]  # type: ignore[index,union-attr]
+    publish(t, only=t.players, uses=[UseResult(seq=drain.seq)])
+    assert fields_of(t, e1)["hp"] == hp1 - 6  # type: ignore[operator]  # this.damage = level × 3
+    assert fields_of(t, e0)["hp"] == hp0  # type: ignore[comparison-overlap]  # 满血，加不上去
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+    own = e.use_entry(g, e0, "bolt", e0, {}, "zaps itself")
+    nobody = e.use_entry(g, e0, "drain", None, {}, "no target: only the self part")
+    assert [a["entity"] for a in nobody.payload["actions"]] == [e0]  # type: ignore[index,union-attr]
+    publish(t, only=t.players, uses=[UseResult(seq=own.seq)])
+    assert fields_of(t, e0)["hp"] == hp0 - 5  # type: ignore[operator]
+
+
 def test_unknown_use_is_rejected() -> None:
     from smartkeeper.contracts import UseResult
 
@@ -748,7 +786,7 @@ def timing_pack() -> RulePack:
             "name": "nuke",
             "fields": {"level": 1},
             "cooldown": "1",
-            "actions": [{"op": "damage", "amount": "1000"}],
+            "script": "target.damage(1000)",
         }
     )
     g = g.model_copy(update={"timing": True, "presets": (*presets, nuke)})

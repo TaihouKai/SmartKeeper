@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode, type SyntheticEvent } from "react";
 import { useI18n } from "../i18n";
 import { describeError, translateCode } from "./errors";
 
@@ -100,16 +100,18 @@ export function Section({ title, children, actions }: { title: string; children:
   );
 }
 
-/** 公式输入框：实时校验，补全字段名。不合法的公式标红。 */
+/** 公式输入框：实时校验，补全字段名。不合法的公式标红。multiline 时是多行文本框（技能脚本）。 */
 export function FormulaInput({
   value,
   onChange,
   validate,
   placeholder,
+  multiline = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  multiline?: boolean;
   validate: (formula: string) => Promise<{ problems: { code: string; params?: Record<string, unknown> }[]; names: string[] }>;
 }) {
   const { t, lang } = useI18n();
@@ -126,7 +128,13 @@ export function FormulaInput({
     timer.current = window.setTimeout(() => {
       validate(value)
         .then((r) => {
-          setProblems(r.problems.map((p) => translateCode(lang, p.code, p.params)));
+          setProblems(
+            r.problems.map((p) => {
+              const msg = translateCode(lang, p.code, p.params);
+              const line = p.params?.line;
+              return typeof line === "number" ? `${t("script.line", { n: String(line) })}: ${msg}` : msg;
+            }),
+          );
           setNames(r.names);
         })
         .catch(() => setProblems([]));
@@ -134,7 +142,7 @@ export function FormulaInput({
     return () => window.clearTimeout(timer.current);
   }, [value, validate]);
   // 补全光标前的那个词：Tab 或回车填入选中的一项，上下键切换，Esc 收起
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const [caret, setCaret] = useState<number | null>(null);
   const [active, setActive] = useState(0);
   const [closed, setClosed] = useState(false);
@@ -149,39 +157,40 @@ export function FormulaInput({
     window.setTimeout(() => input.current?.setSelectionRange(at, at), 0);
   };
   const sel = suggestions.length ? Math.min(active, suggestions.length - 1) : 0;
+  const props = {
+    ref: input,
+    className: problems.length ? "invalid" : "",
+    value,
+    placeholder,
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      onChange(e.target.value);
+      setCaret(e.target.selectionStart);
+      setActive(0);
+      setClosed(false);
+    },
+    onSelect: (e: SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => setCaret(e.currentTarget.selectionStart),
+    onKeyDown: (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (!suggestions.length) return;
+      if (e.key === "Tab" || e.key === "Enter") {
+        e.preventDefault();
+        pick(suggestions[sel] ?? word);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActive((sel + 1) % suggestions.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActive((sel - 1 + suggestions.length) % suggestions.length);
+      } else if (e.key === "Escape") {
+        setClosed(true);
+      }
+    },
+    onFocus: () => setFocus(true),
+    onBlur: () => window.setTimeout(() => setFocus(false), 150),
+    spellCheck: false,
+  };
   return (
-    <span className="sk-formula">
-      <input
-        ref={input}
-        className={problems.length ? "invalid" : ""}
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setCaret(e.target.selectionStart);
-          setActive(0);
-          setClosed(false);
-        }}
-        onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
-        onKeyDown={(e) => {
-          if (!suggestions.length) return;
-          if (e.key === "Tab" || e.key === "Enter") {
-            e.preventDefault();
-            pick(suggestions[sel] ?? word);
-          } else if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setActive((sel + 1) % suggestions.length);
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setActive((sel - 1 + suggestions.length) % suggestions.length);
-          } else if (e.key === "Escape") {
-            setClosed(true);
-          }
-        }}
-        onFocus={() => setFocus(true)}
-        onBlur={() => window.setTimeout(() => setFocus(false), 150)}
-        spellCheck={false}
-      />
+    <span className={multiline ? "sk-formula sk-formula-multi" : "sk-formula"}>
+      {multiline ? <textarea rows={Math.max(3, value.split("\n").length + 1)} {...props} /> : <input {...props} />}
       {suggestions.length > 0 && (
         <span className="sk-suggest">
           {suggestions.map((s, i) => (

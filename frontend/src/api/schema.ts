@@ -1231,7 +1231,8 @@ export interface components {
         };
         /**
          * Effect
-         * @description 一个效果。带 target 和 formula 的由引擎执行；只有描述的是概念性效果，由 KP 理解。
+         * @description 一条修正（界面上叫“修正”）：条目在角色身上时一直生效。带 target 和 formula 的由引擎执行；
+         *     只有描述的是概念性的，由 KP 理解。限时的修正由技能脚本的 modify 加成状态。
          *
          *     formula 算出 target 的新值，和规则包里的公式一样什么都能引用；写 target 自己的名字表示
          *     “到这一步为止的值”（例如 move_speed * 1.2），也可以完全不管原值（例如 str + agi）。
@@ -1243,11 +1244,6 @@ export interface components {
              * @default
              */
             description: string;
-            /**
-             * Duration
-             * @default
-             */
-            duration: string;
             /** Formula */
             formula?: string | null;
             /** Priority */
@@ -1322,10 +1318,10 @@ export interface components {
          *     - kind=resource：有上下限的数值。上下限可以是公式（例如引用某个推导值）。
          *     - kind=boolean：是/否。公式里是 1/0。没填时按“否”。
          *     - kind=formula：掷骰公式（例如技能的伤害 1d str）。平时不算，KP 裁定时要求引擎掷一次才算；
-         *       在分组的条目里可以用 self.<字段> 引用这个条目的字段。
+         *       在分组的条目里可以用 this.<字段> 引用这个条目的字段。
          *     - kind=param：使用时填写的数（只在分组里），例如这次消耗多少魔力。不存进角色卡；KP 按玩家的行动
-         *       在掷骰时给出，引擎检查 min..max（公式，可以用 self.<字段>），spends 给了资源字段名时还检查够不够，
-         *       并在这一轮结算时从那个资源里扣掉。掷骰公式里用 self.<字段> 引用这次填的数。
+         *       在掷骰时给出，引擎检查 min..max（公式，可以用 this.<字段>），spends 给了资源字段名时还检查够不够，
+         *       并在这一轮结算时从那个资源里扣掉。掷骰公式里用 this.<字段> 引用这次填的数。
          *     - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定修改，初值由 initial 公式给出。
          */
         FieldDef: {
@@ -1408,7 +1404,7 @@ export interface components {
             problems: components["schemas"]["Problem"][];
         };
         /** @enum {string} */
-        FormulaScope: "any_entity" | "dice";
+        FormulaScope: "any_entity" | "dice" | "script";
         /** Game */
         Game: {
             /** Current Round */
@@ -1539,11 +1535,6 @@ export interface components {
         /** GroupEntry */
         GroupEntry: {
             /**
-             * Actions
-             * @default []
-             */
-            actions: components["schemas"]["OnUse"][];
-            /**
              * Cast Time
              * @default
              */
@@ -1578,6 +1569,11 @@ export interface components {
             /** Name */
             name: string;
             placement?: components["schemas"]["PlacementSpec"] | null;
+            /**
+             * Script
+             * @default
+             */
+            script: string;
             shape?: components["schemas"]["Shape"] | null;
         };
         /**
@@ -1587,11 +1583,6 @@ export interface components {
          */
         GroupPreset: {
             /**
-             * Actions
-             * @default []
-             */
-            actions: components["schemas"]["OnUse"][];
-            /**
              * Cast Time
              * @default
              */
@@ -1626,6 +1617,11 @@ export interface components {
             /** Name */
             name: string;
             placement?: components["schemas"]["PlacementSpec"] | null;
+            /**
+             * Script
+             * @default
+             */
+            script: string;
             shape?: components["schemas"]["Shape"] | null;
             /**
              * When
@@ -1848,37 +1844,6 @@ export interface components {
              * @default true
              */
             ok: boolean;
-        };
-        /**
-         * OnUse
-         * @description 作用效果：条目被使用（并且 KP 判定生效）时由引擎执行的一项状态改变。
-         *
-         *     - 作用在使用时选的对象身上（可以是任何人，包括使用者自己）；没有对象就不执行
-         *     - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值
-         *     - amount：数量公式，可以掷骰；名字取施法者这边，self.<列> 是这一条的列，target.x 是对象的
-         *     - duration：只对 add 有意义，秒（公式）；到期时把加上去还剩下的部分扣回
-         */
-        OnUse: {
-            /** Amount */
-            amount: string;
-            /**
-             * Description
-             * @default
-             */
-            description: string;
-            /**
-             * Duration
-             * @default
-             */
-            duration: string;
-            /** Field */
-            field?: string | null;
-            /**
-             * Op
-             * @default damage
-             * @enum {string}
-             */
-            op: "damage" | "add" | "subtract" | "set";
         };
         /** Outcome */
         Outcome: {
@@ -2596,7 +2561,7 @@ export interface components {
          * UseResult
          * @description 裁定里对一次“使用”（规划时引擎已经算好的 entry_used 事件）的处理：生效了没有。
          *
-         *     hit=true：作用效果全部执行；hit=false：没生效（没打中、被挡住），只扣使用时的消耗。没列出的使用当作没发生。
+         *     hit=true：技能脚本全部执行；hit=false：没生效（没打中、被挡住），只扣使用时的消耗。没列出的使用当作没发生。
          */
         UseResult: {
             /**
@@ -2667,6 +2632,11 @@ export interface components {
             formula: string;
             /** In Entry */
             in_entry?: string | null;
+            /**
+             * Script
+             * @default false
+             */
+            script: boolean;
             /** Template */
             template?: string | null;
         };

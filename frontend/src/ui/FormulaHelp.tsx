@@ -1,12 +1,13 @@
 import { useI18n } from "../i18n";
 
-// 例子是公式代码，不翻译；说明文字走翻译表。函数表要和后端 smartkeeper/rules/formula.py 的 FUNCTIONS 一致（有测试检查）。
+// 例子是公式代码，不翻译；说明文字走翻译表。函数表要和后端 smartkeeper/lang/formula.py 的 FUNCTIONS 一致（有测试检查）。
 const BASICS: [string, string][] = [
   ["str * 2 + (dex - 10) / 2", "fh.b.arith"],
   ["str >= 50", "fh.b.compare"],
   ['occupation == "doctor"', "fh.b.text"],
   ["hp_max", "fh.b.names"],
-  ["self.level", "fh.b.self"],
+  ["self.hp", "fh.b.self"],
+  ["this.level", "fh.b.this"],
   ["companion.str", "fh.b.peer"],
   ["hero.fireball", "fh.b.entry"],
   ["hero.fireball.level", "fh.b.entry_col"],
@@ -22,6 +23,13 @@ const DICE: [string, string][] = [
   ["level d luck", "fh.d.names"],
   ["2d6 * 5", "fh.d.order"],
   ["highest(4, 6, 3)", "fh.d.keep"],
+];
+
+const SCRIPT: [string, string][] = [
+  ["target.damage(this.damage)", "fh.s.damage"],
+  ["self.add(hp, 5)", "fh.s.add"],
+  ["target.sub(mp, 10)", "fh.s.sub"],
+  ["target.modify(move_speed, move_speed * 0.5, 10)", "fh.s.modify"],
 ];
 
 export const FUNCTION_SIGNATURES: [string, string][] = [
@@ -80,6 +88,9 @@ export function FormulaHelp({ onClose }: { onClose: () => void }) {
       <h4>{t("fh.dice")}</h4>
       <Rows rows={DICE} />
       <p className="sk-hint">{t("fh.where")}</p>
+      <h4>{t("fh.script")}</h4>
+      <Rows rows={SCRIPT} />
+      <p className="sk-hint">{t("script.hint")}</p>
       <h4>{t("fh.functions")}</h4>
       <Rows rows={FUNCTION_SIGNATURES.map(([name, sig]) => [sig, `fh.fn.${name}`])} />
     </aside>

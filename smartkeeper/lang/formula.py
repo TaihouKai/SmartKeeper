@@ -1,7 +1,8 @@
 """受限的公式语言。引擎不执行任何外部代码，这里是自己的解析器和求值器。
 
 - 数字、"字符串"、+ - * /、比较（< <= > >= == !=，结果是 1 或 0；单个 = 等同 ==）、括号
-- 名字：字段、推导值、命名公式；条目里可用 self.x；<模板>.x 引用自己这边（自己，或同一玩家控制的那个模板的角色），
+- 名字：字段、推导值、命名公式；self.x 是自己的（和直接写 x 一样）；条目里 this.x 是这一条的列；
+  <模板>.x 引用自己这边（自己，或同一玩家控制的那个模板的角色），
   <模板>.<条目ID> 是有没有这一条（1/0），<模板>.<条目ID>.<列> 是那一条的列；target.x 是作用对象的
 - 掷骰：NdM。数字后面紧跟 d 就是掷骰（3d6、1dstr、2d(str+1)）；名字和名字之间要加空格
   （np_level d luck）；d20 等于 1d20，d% 等于 1d100。掷骰比乘除先算：2d6*5 是 (2d6)*5。
@@ -71,7 +72,7 @@ class Str:
 
 @dataclass(frozen=True, slots=True)
 class Name:
-    name: str  # "x" 或 "self.x"
+    name: str  # "x"、"this.x"、"target.x" ……
 
 
 @dataclass(frozen=True, slots=True)
@@ -329,13 +330,36 @@ def tables(node: Node) -> set[str]:
     return out
 
 
+def substitute(node: Node, fn: Callable[[str], Node | None]) -> Node:
+    """把名字换成别的公式树（fn 返回 None 的名字不换）。lookup 的表名和 count/sum 的分组引用不算名字。"""
+
+    def go(n: Node) -> Node:
+        match n:
+            case Name(name=x):
+                hit = fn(x)
+                return n if hit is None else hit
+            case Unary(op=op, operand=o):
+                return Unary(op, go(o))
+            case Binary(op=op, left=a, right=b):
+                return Binary(op, go(a), go(b))
+            case Dice(count=c, sides=s):
+                return Dice(go(c), go(s))
+            case Call(func=fn_name, args=args):
+                keep = 1 if fn_name in ("lookup", *LIST_FUNCTIONS) else 0
+                return Call(fn_name, args[:keep] + tuple(go(a) for a in args[keep:]))
+            case _:
+                return n
+
+    return go(node)
+
+
 def is_die_name(name: str) -> bool:
     """d、d6 这样的名字会被当成掷骰，不能用作字段名。"""
     return _DIE_NAME.fullmatch(name) is not None
 
 
 def to_text(node: Node, values: dict[str, Value] | None = None) -> str:
-    """把公式树写回文本。values 里的名字换成那个值；target.x 写成 x（在对象身上求值）。"""
+    """把公式树写回文本，values 里的名字换成那个值。"""
     vals = values or {}
 
     def lit(v: Value) -> str:
@@ -351,7 +375,7 @@ def to_text(node: Node, values: dict[str, Value] | None = None) -> str:
         if isinstance(n, Name):
             if n.name in vals:
                 return lit(vals[n.name])
-            return n.name[7:] if n.name.startswith("target.") else n.name
+            return n.name
         if isinstance(n, Unary):
             return f"({n.op}{go(n.operand)})"
         if isinstance(n, Binary):

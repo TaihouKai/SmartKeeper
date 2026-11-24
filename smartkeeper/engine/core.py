@@ -1097,7 +1097,7 @@ class Engine:
 
         entry 是条目名（在分组里找，含生效的固定条目）；不给时是模板本身的字段。
         params 是这个条目的“使用时填写”的列这次填的数（例如消耗多少魔力）：检查范围和资源够不够，
-        掷骰公式里用 self.<列名> 引用；要扣的资源在这一轮结算时扣掉。
+        掷骰公式里用 this.<列名> 引用；要扣的资源在这一轮结算时扣掉。
         """
         params = params or {}
         with self._lock:
@@ -1328,7 +1328,7 @@ class Engine:
         entry: str,
         peers: dict[str, JsonValue | None] | None = None,
     ) -> dict[str, JsonValue]:
-        """条目的“使用时填写”的列：检查这次填的数在范围内、资源够，写进 fields（公式里 self.<列>）。
+        """条目的“使用时填写”的列：检查这次填的数在范围内、资源够，写进 fields（公式里 this.<列>）。
         返回要扣的资源：资源字段名 -> 数量。"""
         spends: dict[str, JsonValue] = {}
         for pf in gdef.fields if gdef else ():
@@ -1411,7 +1411,7 @@ class Engine:
                     )
         return ops
 
-    # ================= 技能的使用：作用效果和持续性效果 =================
+    # ================= 技能的使用：技能脚本 =================
 
     def use_entry(
         self,
@@ -1471,41 +1471,14 @@ class Engine:
                     pack, text, self._dice.faces, template, sheet, fields, peers, tgt
                 )
 
-            actions: list[JsonValue] = []
-            for act in parsed.actions:
-                if target is None:
-                    break
-                amount = roll(act.amount)
-                dur = int(roll(act.duration).total) if act.duration.strip() else None
-                actions.append(
-                    {
-                        "op": act.op,
-                        "field": act.field,
-                        "amount": amount.total,
-                        "rolls": list(amount.rolls),
-                        "duration": dur,
-                        "description": act.description,
-                    }
-                )
-            statuses: list[JsonValue] = []
-            for eff in parsed.effects:
-                if not eff.duration.strip() or not eff.is_mechanical:
-                    continue
-                assert eff.target is not None and eff.formula is not None
-                frozen = self._rules.freeze(
-                    pack, eff.formula, template, sheet, fields, peers, eff.target, tgt
-                )
-                statuses.append(
-                    {
-                        "on": target or source,
-                        "duration": int(roll(eff.duration).total),
-                        "modifier": {
-                            "description": eff.description,
-                            "target": eff.target,
-                            "formula": frozen,
-                        },
-                    }
-                )
+            # 技能脚本：现在就掷骰算好；每一步记下落在哪个实体身上
+            steps = self._rules.plan_script(
+                pack, parsed.script, self._dice.faces, template, sheet, fields, peers, tgt
+            )
+            actions: list[JsonValue] = [
+                {"entity": source if st.who == "self" else target, **st.model_dump(mode="json")}
+                for st in steps
+            ]
             ev = NewEvent(
                 type="entry_used",
                 actor=ENGINE,
@@ -1517,7 +1490,6 @@ class Engine:
                     "params": cast(JsonValue, dict(params)),
                     "spends": spends,
                     "actions": actions,
-                    "statuses": statuses,
                     "cooldown": int(roll(parsed.cooldown).total * 60)
                     if parsed.cooldown.strip()
                     else 0,
@@ -1579,7 +1551,7 @@ class Engine:
     def _use_ops(
         self, game_id: str, round_no: int, cur: State, adj: Adjudication, end: int
     ) -> tuple[State, list[PatchOp], list[Problem]]:
-        """执行裁定里列出的技能使用：先扣消耗；生效的再执行作用效果、加限时状态。"""
+        """执行裁定里列出的技能使用：先扣消耗；生效的再执行技能脚本算好的每一步。"""
         pack = self.rulepack(game_id)
         used = {e.seq: e for e in self.current_attempt(game_id, round_no) if e.type == "entry_used"}
         ops: list[PatchOp] = []
@@ -1632,7 +1604,6 @@ class Engine:
             seen.add(u.seq)
             p = ev.payload
             source = str(p.get("source"))
-            target = p.get("target")
             for res, amount in sorted(_obj(p.get("spends")).items()):
                 have = num(cur, source, res)
                 if have is not None and isinstance(amount, int | float):
@@ -1653,11 +1624,31 @@ class Engine:
             listed = p.get("actions")
             for raw in cast(list[JsonValue], listed) if isinstance(listed, list) else []:
                 a = _obj(raw)
-                who = target
+                who = a.get("entity")
                 if not isinstance(who, str) or who not in _obj(cur.get("entities")):
                     continue
                 amount = float(cast(float, a.get("amount", 0)))
                 op = a.get("op")
+                dur = a.get("seconds")
+                if op == "modify":
+                    status = Status(
+                        tag=str(p.get("entry")),
+                        source=source,
+                        expires_at=end + dur if isinstance(dur, int) else None,
+                        modifier=Effect(
+                            description=str(p.get("entry")),
+                            target=str(a.get("field")),
+                            formula=str(a.get("formula")),
+                        ),
+                    )
+                    sop = PatchOp(
+                        op="add",
+                        path=f"/entities/{who}/sheet/statuses/-",
+                        value=status.model_dump(mode="json"),
+                    )
+                    ops.append(sop)
+                    cur = self._world.apply(cur, [sop])
+                    continue
                 if op == "damage":
                     left = max(0.0, amount)
                     shield = num(cur, who, SHIELD_FIELD)
@@ -1683,7 +1674,6 @@ class Engine:
                 else:
                     cur = put(cur, who, name, have + amount)
                     gained = (num(cur, who, name) or have) - have
-                    dur = a.get("duration")
                     if isinstance(dur, int) and gained > 0:
                         status = Status(
                             tag=str(p.get("entry")),
@@ -1698,30 +1688,6 @@ class Engine:
                         )
                         ops.append(sop)
                         cur = self._world.apply(cur, [sop])
-            listed = p.get("statuses")
-            for raw in cast(list[JsonValue], listed) if isinstance(listed, list) else []:
-                s = _obj(raw)
-                on = s.get("on")
-                dur = s.get("duration")
-                if (
-                    not isinstance(on, str)
-                    or on not in _obj(cur.get("entities"))
-                    or not isinstance(dur, int)
-                ):
-                    continue
-                status = Status(
-                    tag=str(p.get("entry")),
-                    source=source,
-                    expires_at=end + dur,
-                    modifier=Effect.model_validate(s.get("modifier")),
-                )
-                sop = PatchOp(
-                    op="add",
-                    path=f"/entities/{on}/sheet/statuses/-",
-                    value=status.model_dump(mode="json"),
-                )
-                ops.append(sop)
-                cur = self._world.apply(cur, [sop])
         return cur, ops, problems
 
     def _grant_expiry_ops(self, pack: RulePack, state: State, end: int) -> list[PatchOp]:

@@ -1,22 +1,4 @@
 {
-  "action": {
-    "add": "+ On-use effect",
-    "amount_ph": "amount, e.g. 1d6 + self.level",
-    "duration_hint": "Timed increase (e.g. a shield): when it ends, whatever is left of the added amount is taken back.",
-    "duration_ph": "empty = permanent",
-    "hint": "When the KP declares this skill used, the engine rolls the numbers; if the KP rules it took effect (hit), the engine applies them, otherwise only the cost is paid. Damage comes off shield first, then hp. Names in the amount are the source's; self.column is this entry's column; target.x is the target's value.",
-    "op": {
-      "add": "add to",
-      "damage": "takes damage",
-      "set": "set",
-      "subtract": "subtract from"
-    },
-    "title": "On-use effects",
-    "who": {
-      "self": "Self",
-      "target": "Target"
-    }
-  },
   "admin": {
     "disabled": "No admin password is configured; the console is disabled.",
     "login": "Log in",
@@ -46,21 +28,18 @@
     "send": "Send"
   },
   "character": {
-    "add_effect": "Add effect",
+    "add_effect": "Add modifier",
     "add_entity": "Add another",
     "add_entry": "Add entry",
     "appearance_hint": "(others will refer to you by this description)",
     "derived": "Derived values (preview)",
     "effect_conceptual": "(description only, interpreted by the keeper)",
-    "effect_description": "Effect description",
-    "effect_duration": "Lasts (s)",
-    "effect_duration_hint": "Empty: always active while the entry exists (passive). Filled: applied to the target only when the skill is used, for this many seconds; in the formula the derived value's own name is the target's value, other names are the source's values at cast time, target.x is the target's.",
-    "effect_duration_ph": "empty = always",
+    "effect_description": "Modifier description",
     "effect_formula": "New value, e.g. {name} * 1.2",
-    "effect_hint": "The formula gives the new value and can use anything a rule formula can; its own name means the value so far (e.g. move_speed * 1.2), or replace it outright (e.g. str + agi). Several effects on one value run in turn: fixed entries first, then yours by Order (smallest first, 0 = first), then statuses. Order is required and must be unique on the sheet.",
-    "effect_hint_fixed": "The formula gives the new value and can use anything a rule formula can; its own name means the value so far. Fixed entries run first, in the order defined; then players' effects (by their Order), then statuses.",
+    "effect_hint": "The formula gives the new value and can use anything a rule formula can; its own name means the value so far (e.g. move_speed * 1.2), or replace it outright (e.g. str + agi). Several modifiers on one value run in turn: fixed entries first, then yours by Order (smallest first, 0 = first), then statuses. Order is required and must be unique on the sheet.",
+    "effect_hint_fixed": "The formula gives the new value and can use anything a rule formula can; its own name means the value so far. Fixed entries run first, in the order defined; then players' modifiers (by their Order), then statuses.",
     "effect_priority": "Order",
-    "effects": "Effects",
+    "effects": "Modifiers (always on)",
     "entry_description": "Description",
     "entry_name": "Name",
     "fixed_entries": "From what you've filled in, you automatically get: {names}",
@@ -113,9 +92,9 @@
       "lookup_miss": "Table {table} has no row for {key}",
       "lookup_table_name": "lookup's first argument must be a table name",
       "math_domain": "{name} has no result for these inputs (e.g. sqrt of a negative)",
-      "self_outside_entry": "{name} can only be used inside an entry's effects",
       "text_in_arithmetic": "Text '{value}' can't be used in arithmetic",
       "text_result": "The result is text ('{value}'); a number is needed",
+      "this_outside_entry": "{name} can only be used inside an entry (it means that entry's column)",
       "trailing": "Unexpected extra text at position {pos}; an operator may be missing",
       "unexpected": "'{token}' isn't expected here",
       "unexpected_end": "The formula ends too early",
@@ -171,10 +150,17 @@
       "invalid": "The rule pack is invalid",
       "version_in_use": "This version is used by a game and can't be deleted"
     },
+    "script": {
+      "arity": "Wrong number of arguments for {name} ({count})",
+      "bad_statement": "Can't read: {text}. Write object.action(arguments), e.g. target.damage(5)",
+      "field_arg": "The first argument of {name} must be a field name, e.g. hp",
+      "not_derived": "{name} isn't a derived value; modify only works on derived values",
+      "not_runtime": "{name} isn't a runtime value (number or resource) and can't be changed by a script",
+      "unknown_receiver": "{name} isn't an object: use self or target",
+      "unknown_verb": "No action {name}: use damage, add, sub, set or modify"
+    },
     "sheet": {
       "above_max": "{value} is above the maximum {max}",
-      "action_duration_needs_add": "Only an “add” can be timed",
-      "action_field": "On-use effect: runtime value {name} doesn't exist",
       "below_min": "{value} is below the minimum {min}",
       "choice": "'{value}' isn't one of the choices",
       "derived_not_writable": "Derived values can't be entered",
@@ -243,10 +229,11 @@
       "entry_col": "<template>.<entry ID>.<column>: a column of that entry (not chosen-on-use columns); 0 if the entry is missing",
       "names": "Refer to fields, derived values and named formulas by name",
       "peer": "<template>.field: a character on your side. Your own template name is you; another template name is the character of that template controlled by the same player. 0 if there is none",
-      "self": "Inside an entry's effects, a field of that entry",
+      "self": "self.field: your own value, same as the bare name",
       "sum": "Total of the cost column in your talents group",
-      "target": "target.field: the target of a skill (in on-use effects)",
-      "text": "Text goes in double quotes"
+      "target": "target.field: the target of a skill (in skill scripts)",
+      "text": "Text goes in double quotes",
+      "this": "this.column: inside an entry (modifiers, skill script, cast time…) a column of that entry; dice-formula columns expand to their formula"
     },
     "basic": "Basics",
     "close": "Close",
@@ -284,6 +271,13 @@
     },
     "functions": "Functions",
     "open": "Formula reference",
+    "s": {
+      "add": "Add 5 to your hp; a third argument (minutes) makes it timed",
+      "damage": "The target takes damage: shield first, then hp",
+      "modify": "Timed modifier: halve the target's move speed for 10 minutes",
+      "sub": "Subtract 10 from the target's mp; set(field, value) sets it"
+    },
+    "script": "Skill scripts",
     "where": "Dice work in a check's dice and in the keeper's ad-hoc checks and free rolls. Derived values, limits, initial values, targets and result conditions are recomputed every time, so they can't roll."
   },
   "formula": {
@@ -402,14 +396,14 @@
   "placement": {
     "charges": "Charges",
     "duration": "Lasts (seconds)",
-    "hint": "When set, the keeper places it on the map and these formulas give its values (they may use self.<column> and the owner's fields). Anyone walking into the radius triggers it once, as the engine works out from movement; the engine removes it when charges run out or it expires. Others spot it within their perception radius × the detection multiplier; the owner always sees it.",
+    "hint": "When set, the keeper places it on the map and these formulas give its values (they may use this.<column> and the owner's fields). Anyone walking into the radius triggers it once, as the engine works out from movement; the engine removes it when charges run out or it expires. Others spot it within their perception radius × the detection multiplier; the owner always sees it.",
     "is": "This entry is a placed object (trap, ward…)",
     "notify": "Tell the owner when triggered",
     "perceive": "Detection multiplier",
     "ph": {
       "forever": "empty means until removed",
       "perceive": "e.g. 0.2 (smaller is harder to spot; 0 never)",
-      "radius": "e.g. 5 or self.level * 2",
+      "radius": "e.g. 5 or this.level * 2",
       "unlimited": "empty means unlimited"
     },
     "radius": "Trigger radius (m)",
@@ -534,7 +528,7 @@
     "fields_hint": "Values and text on the sheet. The appearance field is required: other players' handles for this character are generated from it.",
     "formulas": "Named formulas",
     "g": {
-      "effects": "Entries may carry effects (modify derived values)",
+      "effects": "Entries may carry modifiers and a skill script",
       "fields": "Header: columns every entry fills besides name and description",
       "fields_hint": "Think of a group as a table: each row is an entry (one skill) and already has Name and Description columns. Add extra columns here, e.g. rank (number), mana cost (number), damage (dice formula). Fixed entries below and players' own entries fill in these columns. Leave empty if you need none.",
       "hidden": "Hide the whole group from players",
@@ -559,12 +553,12 @@
       "column": "Column: {name}",
       "cooldown": "Cooldown (min)",
       "empty": "No entries yet. Use “+ Row” below.",
-      "hint": "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Effects and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: effects on one value run top to bottom. Players fill the same columns for their own entries.",
+      "hint": "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Modifiers, the skill script and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: modifiers on one value run top to bottom. Players fill the same columns for their own entries.",
       "id": "ID (for references, optional)",
       "id_hint": "English ID, needed to refer to this entry in formulas: hero.fireball is whether it exists (1 or 0), hero.fireball.level is its level column. Must be unique on a sheet.",
       "id_ph": "e.g. fireball",
       "instant": "instant",
-      "more": "More (effects {n})",
+      "more": "More ({n})",
       "no_cd": "none",
       "param_cell": "chosen on use",
       "timing_hint": "Cast time and cooldown are in minutes and may be formulas (24*60 is a day). Under 1 minute is instant; an action using the skill takes at least the cast time. Cooldown: after a use (hit or not) the skill can't be used again for this long.",
@@ -595,9 +589,9 @@
     },
     "kind_help": {
       "boolean": "Yes/no: a checkbox, e.g. can fly. It's 1 or 0 in formulas.",
-      "formula": "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or self.level d lookup(table, self.level). Not computed until the keeper asks the engine to roll it during a ruling (the engine rolls and logs it); the keeper then applies the result per the rules text (e.g. lowers HP). In a group, each entry fills its own and may use self.<field>.",
+      "formula": "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or this.level d lookup(table, this.level). In a group each entry fills its own and may use this.<column>. In the skill script and this entry's other formulas, this.<that column> uses the formula (rolled then), e.g. the script target.damage(this.damage).",
       "number": "Number: attributes, skill levels, sizes.",
-      "param": "Chosen on use: a number the player picks each time the skill is used, e.g. how much mana to spend. Not filled at character creation; the player says it in the action and the keeper passes it to the engine when rolling. Min and max are formulas that may use the character's fields and self.<column>. With a resource to spend from, the engine checks there is enough and deducts it when the round resolves. Dice formulas refer to it as self.<column name>, e.g. (1d4 + int) * floor(30 / self.mp_spent).",
+      "param": "Chosen on use: a number the player picks each time the skill is used, e.g. how much mana to spend. Not filled at character creation; the player says it in the action and the keeper passes it to the engine when rolling. Min and max are formulas that may use the character's fields and this.<column>. With a resource to spend from, the engine checks there is enough and deducts it when the round resolves. Dice formulas refer to it as this.<column name>, e.g. (1d4 + int) * floor(30 / this.mp_spent).",
       "resource": "Resource: a value that gets spent or restored (HP, mana, shield, uses left). The maximum may be a formula such as hp_max; empty means no limit.",
       "text": "Text: descriptions such as background; with choices, the player picks one of them."
     },
@@ -616,7 +610,7 @@
       "checks": "Check",
       "derived": "Derived value",
       "dice": "Dice",
-      "effects": "Effect",
+      "effects": "Modifier",
       "fields": "Field",
       "formulas": "Named formula",
       "groups": "Group",
@@ -712,6 +706,12 @@
       "sites": "Reference sites (one per line)"
     },
     "world": "World"
+  },
+  "script": {
+    "hint": "When the skill is used and the keeper rules it took effect (hit), the engine runs it line by line; otherwise only the cost is paid. self is the user, target is whoever it's used on (the player chooses, may be themselves); with no target only the self lines run. Actions: damage(amount) – shield first, then hp; add(field, amount[, minutes]) – with minutes it's timed and the rest is taken back when it ends; sub(field, amount); set(field, amount); modify(derived, new-value formula, minutes) – a timed modifier: the derived value's own name is the bearer's value, other names are the user's at the time of use. Amounts are formulas and may roll dice; this.column is this entry's column (dice-formula columns roll), self.x and bare names are the user's, target.x the target's. # starts a comment.",
+    "line": "line {n}",
+    "ph": "e.g.\ntarget.damage(this.damage)\nself.add(hp, 5)",
+    "title": "Skill script (on use)"
   },
   "shape": {
     "angle": "Half-angle (°)",

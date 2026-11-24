@@ -10,7 +10,8 @@ from smartkeeper.contracts.base import Frozen
 
 
 class Effect(Frozen):
-    """一个效果。带 target 和 formula 的由引擎执行；只有描述的是概念性效果，由 KP 理解。
+    """一条修正（界面上叫“修正”）：条目在角色身上时一直生效。带 target 和 formula 的由引擎执行；
+    只有描述的是概念性的，由 KP 理解。限时的修正由技能脚本的 modify 加成状态。
 
     formula 算出 target 的新值，和规则包里的公式一样什么都能引用；写 target 自己的名字表示
     “到这一步为止的值”（例如 move_speed * 1.2），也可以完全不管原值（例如 str + agi）。
@@ -21,9 +22,6 @@ class Effect(Frozen):
     target: str | None = None  # 作用于哪个推导值
     formula: str | None = None
     priority: int | None = Field(default=None, ge=0)  # 玩家写的效果必填，同一张卡上不能重复
-    # 持续时间（秒，公式）：空表示被动常驻（条目在就生效）；填了就只在使用时加到作用对象身上，到期消失。
-    # 这时公式里这个推导值自己的名字指对象的值，其余名字取施法者施法那一刻的值。
-    duration: str = ""
 
     @model_validator(mode="before")
     @classmethod
@@ -42,20 +40,22 @@ class Effect(Frozen):
         return self.target is not None and self.formula is not None
 
 
-class OnUse(Frozen):
-    """作用效果：条目被使用（并且 KP 判定生效）时由引擎执行的一项状态改变。
+class ScriptStep(Frozen):
+    """技能脚本的一句，数值已经算好（规划时掷骰、冻结使用者的值），生效时由引擎执行。
 
-    - 作用在使用时选的对象身上（可以是任何人，包括使用者自己）；没有对象就不执行
-    - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值
-    - amount：数量公式，可以掷骰；名字取施法者这边，self.<列> 是这一条的列，target.x 是对象的
-    - duration：只对 add 有意义，秒（公式）；到期时把加上去还剩下的部分扣回
+    - who：self 使用者，target 使用时选的对象
+    - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值；
+      modify 给 field 这个推导值加一条限时修正（formula 是冻结好的新值公式）
+    - seconds：add 的限时（到期扣回加上去还剩下的部分）或 modify 的持续时间；None 表示永久
     """
 
-    description: str = ""
-    op: Literal["damage", "add", "subtract", "set"] = "damage"
+    who: Literal["self", "target"]
+    op: Literal["damage", "add", "subtract", "set", "modify"]
     field: str | None = None
-    amount: str
-    duration: str = ""
+    amount: float = 0
+    rolls: tuple[int, ...] = ()
+    seconds: int | None = None
+    formula: str | None = None
 
 
 class Grant(Frozen):
@@ -96,7 +96,8 @@ class GroupEntry(Frozen):
     effects: tuple[Effect, ...] = ()
     shape: Shape | None = None
     placement: PlacementSpec | None = None
-    actions: tuple[OnUse, ...] = ()  # 作用效果
+    # 技能脚本：用这个条目（并且 KP 判定生效）时执行的语句，见 smartkeeper.lang.script
+    script: str = ""
     # 施放时间（分钟，公式）：不到 1 分钟算瞬发。用这个技能的行动至少要这么久
     cast_time: str = ""
     # 冷却时间（分钟，公式）：用过之后这么久之内不能再用

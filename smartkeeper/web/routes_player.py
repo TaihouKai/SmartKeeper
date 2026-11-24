@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, JsonValue
 
 from smartkeeper.contracts import (
     DerivedValue,
+    FormulaScope,
     IdentityRules,
     Intent,
     Player,
@@ -107,6 +108,7 @@ class FormulaIn(BaseModel):
     template: str | None = None
     in_entry: str | None = None
     dice: bool = False  # 掷骰公式字段：允许掷骰
+    script: bool = False  # 技能脚本
 
 
 class FormulaOut(BaseModel):
@@ -314,11 +316,12 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
     @r.post("/formula/validate")
     def formula(p: Annotated[Player, Depends(require_player)], body: FormulaIn) -> FormulaOut:
         pack = e.rulepack(p.game_id)
+        scope: FormulaScope | None = "script" if body.script else "dice" if body.dice else None
         return FormulaOut(
             problems=s.rules.validate_formula(
-                pack, body.template, body.formula, body.in_entry, "dice" if body.dice else None
+                pack, body.template, body.formula, body.in_entry, scope
             ),
-            names=s.rules.complete_names(pack, body.template),
+            names=s.rules.complete_names(pack, body.template, scope),
         )
 
     @r.get("/map")

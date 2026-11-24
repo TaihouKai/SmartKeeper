@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from pydantic import JsonValue
 from pydantic import ValidationError as PydanticError
 
+from smartkeeper import lang as f
 from smartkeeper.contracts import (
     FLY_FIELD,
     HP_FIELD,
@@ -22,13 +23,12 @@ from smartkeeper.contracts import (
     RulePack,
     Sheet,
 )
-from smartkeeper.rules import formula as f
 from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.sheets import init_sheet
 
 CHECK_VARS = ("roll", "target", "difficulty", "opp_roll", "opp_target")
 _ID = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-RESERVED_IDS = {"self", "target", "template"}
+RESERVED_IDS = {"self", "this", "target", "template"}
 
 
 def known_names(pack: RulePack, template: EntityTemplate | None) -> set[str]:
@@ -59,12 +59,15 @@ def check_formula(
     allowed = known_names(pack, template) | set(extra)
     entry = set(entry_fields) if entry_fields is not None else None
     for name in sorted(f.names(node)):
-        if "." in name and not name.startswith("self."):
-            bad = _check_dotted(pack, name, set(extra))
+        ref = name
+        if name.startswith("self.") and template is not None:
+            ref = f"{template.name}.{name[5:]}"  # self.x：自己的，和写自己的模板名一样
+        if "." in name and not name.startswith("this."):
+            bad = _check_dotted(pack, ref, set(extra))
             if bad:
                 problems.append(Problem(code=bad, path=path, params={"name": name}))
             continue
-        if name.startswith("self."):
+        if name.startswith("this."):
             if entry is None or name[5:] not in entry:
                 problems.append(
                     Problem(code="formula.unknown_name", path=path, params={"name": name})
@@ -79,6 +82,46 @@ def check_formula(
     for t in sorted(f.tables(node)):
         if t not in table_names:
             problems.append(Problem(code="formula.unknown_table", path=path, params={"name": t}))
+    return problems
+
+
+def check_script(
+    pack: RulePack, template: EntityTemplate, text: str, path: str, entry_fields: list[str]
+) -> list[Problem]:
+    """技能脚本：语法，每句的字段是不是能改的值，参数公式里的名字。问题的 params 里带 line。"""
+    try:
+        statements = f.parse_script(text)
+    except f.FormulaError as e:
+        return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
+    # 对象可以是任何模板的角色，所以字段在任何一个模板里有就行
+    runtime = {
+        x.name
+        for t in pack.templates
+        for x in t.fields
+        if x.cls == "runtime" and x.kind in ("number", "resource")
+    }
+    derived = {d.name for t in pack.templates for d in t.derived}
+    problems: list[Problem] = []
+    for st in statements:
+        found: list[Problem] = []
+        if st.verb in ("add", "sub", "set") and st.field not in runtime:
+            found.append(Problem(code="script.not_runtime", path=path, params={"name": st.field}))
+        if st.verb == "modify" and st.field not in derived:
+            found.append(Problem(code="script.not_derived", path=path, params={"name": st.field}))
+        if st.amount is not None:
+            found += check_formula(
+                pack, template, st.amount, path, entry_fields=entry_fields, dice=True
+            )
+        if st.minutes is not None:
+            found += check_formula(
+                pack, template, st.minutes, path, entry_fields=entry_fields, dice=True
+            )
+        if st.formula is not None and st.field is not None:
+            # 被修正的推导值自己的名字指带着这条修正的角色的值，其余名字取使用者
+            found += check_formula(
+                pack, template, st.formula, path, entry_fields=entry_fields, extra=[st.field]
+            )
+        problems += [p.model_copy(update={"params": {**p.params, "line": st.line}}) for p in found]
     return problems
 
 
@@ -564,7 +607,7 @@ def _check_formula_fields(
     *,
     in_entry: bool,
 ) -> list[Problem]:
-    """掷骰公式字段的值：语法、引用的名字（条目里可以用 self.<字段>），允许掷骰。"""
+    """掷骰公式字段的值：语法、引用的名字（条目里可以用 this.<字段>），允许掷骰。"""
     defs = list(defs)
     entry_fields = [x.name for x in defs] if in_entry else None
     problems: list[Problem] = []
@@ -636,34 +679,12 @@ def _check_entry(
     problems += _check_formula_fields(pack, tpl, g.fields, entry.fields, ep, in_entry=True)
     if entry.effects and not g.effects:
         problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
-    runtime = {
-        x.name
-        for t in pack.templates
-        for x in t.fields
-        if x.cls == "runtime" and x.kind in ("number", "resource")
-    }
-    for j, act in enumerate(entry.actions):
-        ap = f"{ep}.actions[{j}]"
-        if act.op != "damage" and (act.field is None or act.field not in runtime):
-            problems.append(Problem(code="sheet.action_field", path=ap, params={"name": act.field}))
-        problems += check_formula(
-            pack, tpl, act.amount, f"{ap}.amount", entry_fields=list(fdefs), dice=True
-        )
-        if act.duration.strip():
-            if act.op != "add":
-                problems.append(Problem(code="sheet.action_duration_needs_add", path=ap))
-            problems += check_formula(
-                pack, tpl, act.duration, f"{ap}.duration", entry_fields=list(fdefs)
-            )
+    if entry.script.strip():
+        problems += check_script(pack, tpl, entry.script, f"{ep}.script", list(fdefs))
     for key in ("cast_time", "cooldown"):
         text = str(getattr(entry, key))
         if text.strip():
             problems += check_formula(pack, tpl, text, f"{ep}.{key}", entry_fields=list(fdefs))
-    for j, eff in enumerate(entry.effects):
-        if eff.duration.strip():
-            problems += check_formula(
-                pack, tpl, eff.duration, f"{ep}.effects[{j}].duration", entry_fields=list(fdefs)
-            )
     for j, eff in enumerate(entry.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
     if entry.placement is not None:

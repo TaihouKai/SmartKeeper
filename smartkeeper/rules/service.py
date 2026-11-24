@@ -5,6 +5,7 @@ from __future__ import annotations
 from pydantic import JsonValue
 from pydantic import ValidationError as PydanticError
 
+from smartkeeper import lang as f
 from smartkeeper.contracts import (
     AdHocCheck,
     CheckResult,
@@ -17,11 +18,11 @@ from smartkeeper.contracts import (
     Peers,
     Problem,
     RulePack,
+    ScriptStep,
     Sheet,
     ValidationFailed,
 )
-from smartkeeper.rules import checks, sheets, validation
-from smartkeeper.rules import formula as f
+from smartkeeper.rules import checks, scripts, sheets, validation
 from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.render import render as render_markdown
 
@@ -38,6 +39,14 @@ class RulesService:
         in_entry: str | None = None,
         scope: FormulaScope | None = None,
     ) -> list[Problem]:
+        if scope == "script":
+            tpl = pack.template(template) if template else None
+            if tpl is None:
+                return []
+            grp = next((g for g in tpl.groups if g.name == in_entry), None)
+            return validation.check_script(
+                pack, tpl, formula, "script", [x.name for x in grp.fields] if grp else []
+            )
         if scope == "dice" and template is not None:
             # 掷骰公式字段：在这个模板（和条目）上求值，可以掷骰
             tpl = pack.template(template)
@@ -76,22 +85,30 @@ class RulesService:
     ) -> DiceResult:
         return checks.roll(pack, expr, faces, template, sheet, entry, peers, target)
 
-    def freeze(
+    def plan_script(
         self,
         pack: RulePack,
-        formula: str,
+        script: str,
+        faces: Faces,
         template: str,
         sheet: JsonValue,
-        entry: dict[str, JsonValue] | None,
-        peers: Peers | None,
-        keep: str,
+        entry: dict[str, JsonValue],
+        peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
-    ) -> str:
-        return checks.freeze(pack, formula, template, sheet, entry, peers, keep, target)
+    ) -> tuple[ScriptStep, ...]:
+        return scripts.plan_script(pack, script, faces, template, sheet, entry, peers, target)
 
-    def complete_names(self, pack: RulePack, template: str | None) -> list[str]:
+    def complete_names(
+        self, pack: RulePack, template: str | None, scope: FormulaScope | None = None
+    ) -> list[str]:
         tpl = pack.template(template) if template else None
         names = validation.known_names(pack, tpl) | set(f.FUNCTIONS)
+        if tpl is not None:
+            mine = validation.known_names(pack, tpl) - {x.name for x in pack.formulas}
+            names |= {f"self.{n}" for n in mine}
+            names |= {f"this.{x.name}" for g in tpl.groups for x in g.fields}
+        if scope == "script":
+            names |= {f"{who}.{verb}" for who in f.RECEIVERS for verb in f.VERBS}
         names |= {t.name for t in pack.tables}
         # 引用写法：<模板>.字段/推导值、<模板>.<固定条目ID>、<模板>.<固定条目ID>.<列>、target.x
         for t in pack.templates:

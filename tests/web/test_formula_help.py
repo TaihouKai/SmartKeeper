@@ -4,7 +4,7 @@ import json
 import re
 from pathlib import Path
 
-from smartkeeper.rules import FUNCTIONS
+from smartkeeper.lang import FUNCTIONS
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend" / "src"
 

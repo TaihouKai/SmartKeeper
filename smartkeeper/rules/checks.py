@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import JsonValue
 
+from smartkeeper import lang as f
 from smartkeeper.contracts import (
     CheckResult,
     DiceResult,
@@ -13,11 +14,10 @@ from smartkeeper.contracts import (
     Sheet,
     ValidationFailed,
 )
-from smartkeeper.rules import formula as f
 from smartkeeper.rules.evaluator import EntityContext, table_lookup
 
 
-def _ctx(
+def context(
     pack: RulePack, template: str, sheet: JsonValue, peers: Peers | None = None
 ) -> EntityContext:
     tpl = pack.template(template)
@@ -42,7 +42,7 @@ def resolve_check(
     if cdef is None:
         raise NotFound("rules.unknown_check", name=check)
     try:
-        target = _ctx(pack, template, sheet, peers).eval_num(cdef.target)
+        target = context(pack, template, sheet, peers).eval_num(cdef.target)
         variables: dict[str, f.Value] = {
             "roll": float(roll.total),
             "target": target,
@@ -56,7 +56,7 @@ def resolve_check(
             del opp_id
             opp_check = pack.check(cdef.opposed_by or cdef.name)
             assert opp_check is not None
-            opp_target = _ctx(pack, opp_tpl, opp_sheet).eval_num(opp_check.target)
+            opp_target = context(pack, opp_tpl, opp_sheet).eval_num(opp_check.target)
             variables["opp_roll"] = float(opp_roll.total)
             variables["opp_target"] = opp_target
         level = None
@@ -111,14 +111,15 @@ def roll(
         return got
 
     try:
-        node = f.parse(expr)
         if template is not None:
-            ctx = _ctx(pack, template, sheet, peers)
+            ctx = context(pack, template, sheet, peers)
             if target is not None:
-                ctx.target = _ctx(pack, target[0], target[1], target[2])
+                ctx.target = context(pack, target[0], target[1], target[2])
+            node = ctx.prepare(expr, entry)
             resolve = ctx.resolver(entry)
             collect: f.Collect | None = ctx.collect
         else:
+            node = f.parse(expr)
             resolve = _vars({})
             collect = None
         v = f.evaluate(node, resolve, table_lookup(pack), record, collect)
@@ -127,31 +128,6 @@ def roll(
     except f.FormulaError as e:
         raise ValidationFailed(e.code, formula=expr, **e.params) from e
     return DiceResult(expr=expr.strip(), rolls=tuple(rolls), total=v)
-
-
-def freeze(
-    pack: RulePack,
-    formula: str,
-    template: str,
-    sheet: JsonValue,
-    entry: dict[str, JsonValue] | None,
-    peers: Peers | None,
-    keep: str,
-    target: tuple[str, JsonValue, Peers | None] | None = None,
-) -> str:
-    """持续性效果：除了 keep（作用的推导值自己的名字）和 target.x，其余名字都换成施法者此刻的值。"""
-    try:
-        node = f.parse(formula)
-        ctx = _ctx(pack, template, sheet, peers)
-        if target is not None:
-            ctx.target = _ctx(pack, target[0], target[1], target[2])
-        resolve = ctx.resolver(entry)
-        values: dict[str, f.Value] = {
-            n: resolve(n) for n in f.names(node) if n != keep and not n.startswith("target.")
-        }
-        return f.to_text(node, values)
-    except f.FormulaError as e:
-        raise ValidationFailed(e.code, formula=formula, **e.params) from e
 
 
 def check_dice(pack: RulePack, check: str) -> str:

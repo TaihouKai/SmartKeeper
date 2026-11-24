@@ -3,8 +3,8 @@
 import pytest
 
 from smartkeeper.contracts import ValidationFailed
-from smartkeeper.rules import FormulaError, RulesService
-from smartkeeper.rules.formula import evaluate, has_dice, parse
+from smartkeeper.lang import FormulaError, evaluate, has_dice, parse
+from smartkeeper.rules import RulesService
 from tests.fixtures import FakeDice, load_pack
 
 

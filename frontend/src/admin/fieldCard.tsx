@@ -9,7 +9,7 @@ export function blankField(): Field {
   return { name: "", label: "", description: "", kind: "number", cls: "player", required: true, hidden: false, choices: [], vital: false };
 }
 
-export type Scope = "any_entity" | "dice";
+export type Scope = "any_entity" | "dice" | "script";
 export type Validate = (formula: string, template: string | null, inEntry?: string, scope?: Scope) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
 export function useListEdit<T>(list: T[], set: (l: T[]) => void) {

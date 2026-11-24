@@ -57,8 +57,8 @@ def test_unknown_name_in_formula(rules: RulesService) -> None:
     codes = [p.code for p in rules.validate_formula(pack, "person", "str + nope")]
     assert codes == ["formula.unknown_name"]
     assert rules.validate_formula(pack, "person", "str + per * 2") == []
-    assert rules.validate_formula(pack, "person", "self.level * 2", in_entry="skills") == []
-    assert rules.validate_formula(pack, "person", "self.level * 2") != []
+    assert rules.validate_formula(pack, "person", "this.level * 2", in_entry="skills") == []
+    assert rules.validate_formula(pack, "person", "this.level * 2") != []
 
 
 def test_derived_cycle_rejected(rules: RulesService) -> None:
@@ -332,10 +332,10 @@ def test_formula_field_values_are_checked_and_may_roll(rules: RulesService) -> N
         return {p.code for p in rules.validate_sheet(pack, "person", sheet)}
 
     assert codes("1d str") == set()
-    assert codes("self.level d 6 + floor(str / 10)") == set()
+    assert codes("this.level d 6 + floor(str / 10)") == set()
     assert "formula.unknown_name" in codes("1d nope")
     assert (
-        rules.validate_formula(pack, "person", "self.level d 6", in_entry="skills", scope="dice")
+        rules.validate_formula(pack, "person", "this.level d 6", in_entry="skills", scope="dice")
         == []
     )
 
@@ -350,7 +350,7 @@ def test_param_columns_only_in_groups_and_spend_a_number(rules: RulesService) ->
         update={
             "fields": (
                 *g.fields,
-                FieldDef(name="cost", kind="param", min="1", max="self.level", spends="hp"),
+                FieldDef(name="cost", kind="param", min="1", max="this.level", spends="hp"),
             )
         }
     )
@@ -366,3 +366,27 @@ def test_param_columns_only_in_groups_and_spend_a_number(rules: RulesService) ->
     top = tpl.model_copy(update={"fields": (*tpl.fields, FieldDef(name="cost", kind="param"))})
     pack3 = pack.model_copy(update={"templates": (top,)})
     assert "pack.param_only_in_group" in {p.code for p in rules.validate_pack(pack3)}
+
+
+def test_self_is_your_own_value(rules: RulesService) -> None:
+    pack = load_pack("single")
+    assert rules.validate_formula(pack, "person", "self.str + str") == []
+    assert [p.code for p in rules.validate_formula(pack, "person", "self.nope")] == [
+        "formula.unknown_name"
+    ]
+
+
+def test_script_validation(rules: RulesService) -> None:
+    pack = load_pack("single")
+
+    def codes(text: str) -> list[tuple[str, object]]:
+        got = rules.validate_formula(pack, "person", text, in_entry="skills", scope="script")
+        return [(p.code, p.params.get("line")) for p in got]
+
+    assert codes("target.damage(this.level d 6)\nself.add(hp, 1, 10)") == []
+    assert codes("target.modify(move_speed, move_speed * 0.5, 1)") == []
+    assert codes("self.add(str, 1)") == [("script.not_runtime", 1)]
+    assert codes("\ntarget.modify(hp, 1, 1)") == [("script.not_derived", 2)]
+    assert codes("target.damage(nope)") == [("formula.unknown_name", 1)]
+    assert codes("target.modify(move_speed, 1d6, 1)") == [("formula.dice_not_allowed", 1)]
+    assert codes("self.fly(1)") == [("script.unknown_verb", 1)]

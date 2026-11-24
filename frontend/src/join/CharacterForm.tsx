@@ -24,12 +24,12 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
   const fields = (template.fields ?? []).filter((f) => f.cls !== "runtime");
   const derived = (template.derived ?? []).map((d) => d.name);
   const validate = useCallback(
-    (formula: string, inEntry: string, dice?: boolean) =>
-      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: dice ?? false } })),
+    (formula: string, inEntry: string, scope?: "dice" | "script") =>
+      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script" } })),
     [template.name],
   );
   const topDice = useCallback(
-    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true } })),
+    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true, script: false } })),
     [template.name],
   );
   const body = useMemo(() => JSON.stringify(value), [value]);
@@ -69,7 +69,6 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
                 key={i}
                 group={g}
                 derived={derived}
-                runtime={(template.fields ?? []).filter((f) => f.cls === "runtime" && (f.kind === "number" || f.kind === "resource")).map((f) => f.name)}
                 entry={en}
                 validate={validate}
                 onChange={(e) => setEntries(entries.map((x, j) => (j === i ? e : x)))}
