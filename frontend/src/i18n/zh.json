@@ -59,12 +59,12 @@
   },
   "check": {
     "c": {
-      "critical_failure": "大失败的条件；用不到写 False",
-      "critical_success": "大成功的条件；用不到写 False",
       "dice": "掷什么骰子，例如 1d20 + per（在做检定的角色身上算）",
       "label": "显示名",
+      "level": "分档时写这个：算出等级的公式，0 及以下失败，1 起成功，越大越好；例如 0 if roll <= 10 else 1 if roll <= 15 else 2",
+      "levels": "各等级的名字，下标就是等级，例如 [\"失败\", \"成功\", \"困难成功\"]",
       "opposed_by": "对抗时对方掷的检定；None 是同一个",
-      "success": "成功的条件；都不成立是失败",
+      "success": "成功的条件（只分成功、失败时写这个）；成立是等级 1，不成立是 0",
       "target": "目标值（用不到就是 0），例如 COC 的技能值"
     },
     "level": {
@@ -74,7 +74,8 @@
       "success": "成功"
     },
     "v": {
-      "difficulty": "难度：KP 给的；对抗时是对方掷出的点数",
+      "difficulty": "难度：技能设置的 difficulty 或 KP 给的，没有是 0（对抗时也一样，对方的点数是 opp_roll）",
+      "distance": "到对象的距离（米），没有对象是 0；远程按距离加难度时用",
       "natural": "骰子本身的点数（不含加值），大成功常用 natural == 20",
       "opp_roll": "对抗时对方的点数",
       "opp_target": "对抗时对方的目标值",
@@ -269,16 +270,20 @@
     "working": "处理中……"
   },
   "config": {
+    "best": "几个检定都掷，取等级最高的",
     "c": {
+      "auto_level": "不掷骰、直接定下的等级（公式），例如必定困难成功的大招写 2",
       "cast_time": "施放时间（分钟），不到 1 算瞬发",
-      "check": "施法者做的检定（检定名）；None / True 是不掷骰、必中",
+      "check": "使用者做的检定（检定名）；几个时写 best(\"a\", \"b\")，都掷、取等级高的；None / True 是不掷骰、必中",
       "cooldown": "冷却（分钟）",
-      "difficulty": "没有对抗时的难度",
+      "difficulty": "使用者这一方的难度（公式，可以用 distance）",
+      "hit": "命中条件（公式，可用 level、opp_level、opposed）；None 是：成功，被对抗时等级高过对方",
       "noise": "动静范围（米），None 表示悄无声息",
       "placement": "设置物，例如 placement(radius=3, charges=1)",
       "range": "射程（米），None 表示不限；设置物是放置点离施法者的距离",
-      "reactions": "写了就可以被应对：对象是玩家时由他选（这里的检定、自己的瞬发技能、不抵抗），NPC 由引擎挑最有利的检定",
+      "reactions": "写了就可以被应对：列检定和应对技能（ID 或名字），True 是任何应对技能都行；玩家自己选，NPC 由引擎挑最有利的；没发现使用者的不能应对",
       "requires": "使用条件，例如 not silenced",
+      "save": "命中后对象做的豁免检定（检定名，对 difficulty）；脚本里 saved 是结果",
       "shape": "范围形状，例如 sphere(radius=5)",
       "target": "single 要选对象 / self 只能对自己 / none 没有对象",
       "visible": "对象必须在施法者的感知里；设置物要放在施法者看得见的地方"
@@ -304,16 +309,21 @@
     },
     "kw": {
       "and": "都成立得 1，否则 0；前面不成立就不算后面",
+      "distance": "使用者到对象的距离（米）",
       "if": "条件分支（脚本里写 if 条件: 换行缩进），或数值二选一（a if 条件 else b）",
+      "level": "使用者检定的等级（1 起是成功）；当反应用时是自己应对的等级",
       "none": "不设（这一项用默认）",
       "not": "不成立得 1，成立得 0",
+      "opp_level": "对方的等级（没对抗是 0）",
+      "opposed": "这次被对抗了（对方掷了检定）",
       "or": "有一个成立得 1，否则 0；前面成立就不算后面",
       "pass": "什么都不做（空着的分支）",
       "reacting": "这次是被攻击时当反应用的（True），还是平时用（False）",
-      "result": "技能检定的结果：critical_success、success、failure、critical_failure（没有检定时是空）",
+      "saved": "对象的豁免成功了（技能设置了 save）",
       "self": "使用者自己：self.hp 是自己的值，self.add(…) 作用在自己身上",
       "target": "使用时选的对象：target.hp 是对象的值，target.damage(…) 作用在对象身上",
-      "this": "这一条（技能）：this.列 是这一条的列，包括使用时填写的数"
+      "this": "这一条（技能）：this.列 是这一条的列，包括使用时填写的数",
+      "unseen": "对象没发现使用者（看不见、被隐匿）：True。这时对象不能应对"
     },
     "p": {
       "amount_dice": "数量，公式，可以掷骰，例如 2d6 + this.level",

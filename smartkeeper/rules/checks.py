@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import cast
+import math
+from collections.abc import Mapping
 
 from pydantic import JsonValue
 
 from smartkeeper import lang as f
 from smartkeeper.contracts import (
-    CheckLevel,
     CheckResult,
     CheckSpec,
     DiceResult,
@@ -43,42 +43,48 @@ def resolve_check(
     opponent: tuple[str, str, JsonValue, DiceResult] | None,
     peers: Peers | None = None,
     opp_check: str | None = None,
+    distance: float = 0.0,
+    vs_template: str = "",
 ) -> CheckResult:
+    """算这次检定的等级。对抗时（opponent）对方按自己的检定（opp_check，默认 opposed_by，再默认同一个）
+    另算一个等级 opp_level，难度只算在发起的一方。vs_template 是没有对抗时对象的模板（opponent.template）。"""
     cdef = spec(pack, check)
     try:
         target = context(pack, template, sheet, peers).eval_num(cdef.target)
         variables: dict[str, f.Value] = {
             "roll": float(roll.total),
-            # 骰子本身掷出的点数（不含加值），大成功、大失败常用：natural == 20
+            # 骰子本身掷出的点数（不含加值）：natural == 20
             "natural": float(sum(roll.rolls)),
             "target": target,
             "difficulty": float(difficulty) if difficulty is not None else 0.0,
+            "distance": float(distance),
             "opp_roll": 0.0,
             "opp_target": 0.0,
             "self.template": template,
-            "opponent.template": "",
+            "opponent.template": vs_template,
         }
         opp_target: float | None = None
+        opp_level: int | None = None
         if opponent is not None:
-            opp_id, opp_tpl, opp_sheet, opp_roll = opponent
-            del opp_id
+            _opp_id, opp_tpl, opp_sheet, opp_roll = opponent
             odef = spec(pack, opp_check or cdef.opposed_by or check)
             opp_target = context(pack, opp_tpl, opp_sheet).eval_num(odef.target)
             variables["opp_roll"] = float(opp_roll.total)
             variables["opp_target"] = opp_target
             variables["opponent.template"] = opp_tpl
-            if difficulty is None:
-                # 对抗：难度就是对方的点数，同一条 roll > difficulty 两种情况都能用
-                variables["difficulty"] = float(opp_roll.total)
-        level: CheckLevel = "failure"
-        for name, cond in (
-            ("critical_success", cdef.critical_success),
-            ("critical_failure", cdef.critical_failure),
-            ("success", cdef.success),
-        ):
-            if cond.strip() and f.truthy(f.evaluate(f.parse(cond), _vars(variables), _no_tables)):
-                level = cast(CheckLevel, name)
-                break
+            theirs: dict[str, f.Value] = {
+                **variables,
+                "roll": float(opp_roll.total),
+                "natural": float(sum(opp_roll.rolls)),
+                "target": opp_target,
+                "difficulty": 0.0,
+                "opp_roll": float(roll.total),
+                "opp_target": target,
+                "self.template": opp_tpl,
+                "opponent.template": template,
+            }
+            opp_level = _level(odef, theirs)
+        level = _level(cdef, variables)
     except f.FormulaError as e:
         raise ValidationFailed(e.code, **e.params) from e
     return CheckResult(
@@ -91,7 +97,25 @@ def resolve_check(
         opp_roll=opponent[3] if opponent else None,
         opp_target=opp_target,
         level=level,
+        level_name=level_name(cdef, level),
+        opp_level=opp_level,
     )
+
+
+def _level(cdef: CheckSpec, variables: dict[str, f.Value]) -> int:
+    """检定代码的等级：写了 level 用它（取整），否则 success 成立是 1、不成立是 0。"""
+    if cdef.level.strip():
+        v = f.evaluate(f.parse(cdef.level), _vars(variables), _no_tables)
+        if isinstance(v, str):
+            raise f.FormulaError("formula.text_result", value=v)
+        return math.floor(v)
+    return 1 if f.truthy(f.evaluate(f.parse(cdef.success), _vars(variables), _no_tables)) else 0
+
+
+def level_name(cdef: CheckSpec, level: int) -> str:
+    if not cdef.levels:
+        return ""
+    return cdef.levels[max(0, min(level, len(cdef.levels) - 1))]
 
 
 def _vars(variables: dict[str, f.Value]) -> f.Resolver:
@@ -116,6 +140,7 @@ def roll(
     entry: dict[str, JsonValue] | None = None,
     peers: Peers | None = None,
     target: tuple[str, JsonValue, Peers | None] | None = None,
+    extra: Mapping[str, float] | None = None,
 ) -> DiceResult:
     rolls: list[int] = []
 
@@ -130,11 +155,11 @@ def roll(
             if target is not None:
                 ctx.target = context(pack, target[0], target[1], target[2])
             node = ctx.prepare(expr, entry)
-            resolve = ctx.resolver(entry)
+            resolve = ctx.resolver(entry, extra)
             collect: f.Collect | None = ctx.collect
         else:
             node = f.parse(expr)
-            resolve = _vars({})
+            resolve = _vars(dict(extra or {}))
             collect = None
         v = f.evaluate(node, resolve, table_lookup(pack), record, collect)
         if isinstance(v, str):

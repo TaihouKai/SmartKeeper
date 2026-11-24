@@ -74,6 +74,7 @@ from smartkeeper.contracts import (
     RulePackStore,
     Rules,
     Scene,
+    ScriptStep,
     SeenEntry,
     SheetSubmission,
     SheetView,
@@ -93,6 +94,8 @@ from smartkeeper.contracts import (
 )
 from smartkeeper.engine import adjudication as adjv
 from smartkeeper.engine import scenario
+from smartkeeper.engine.duel import Duel, Side, Strike
+from smartkeeper.engine.duel import Result as DuelResult
 from smartkeeper.engine.mentions import find_mentions, replace_mentions
 from smartkeeper.engine.placements import perceived_placements, placements_of, triggers
 from smartkeeper.engine.repo import Repo
@@ -1548,58 +1551,43 @@ class Engine:
                     "use.requires", entity=source, entry=parsed.name, formula=cfg.requires
                 )
             heard = self._reach_checks(game_id, state, pack, source, target, cfg, roll, parsed.name)
-            # 打没打中由引擎判：没有检定的必中；有检定的掷骰。对象是玩家、技能可以被应对时，
-            # 先只掷使用者的骰子，等对象选怎么应对（react）再判，技能脚本也到那时再算
-            waiting = (
-                self._owner(state, target)
-                if target is not None and target != source and cfg.reactions
-                else None
+            me = Side(source, template, sheet, peers)
+            them: Side | None = None
+            distance, unseen = 0.0, False
+            if target is not None and tgt is not None:
+                them = Side(target, tgt[0], _obj(tgt[1]), dict(tgt[2] or {}))
+                if target != source:
+                    space = self._space_for(self._map(game_id), state, pack)
+                    a, b = space.bodies.get(source), space.bodies.get(target)
+                    if a is not None and b is not None:
+                        distance = self._spatial.distance(a.pos, b.pos)
+                        # 对象没发现使用者（看不见、被隐匿）：躲不开，也不能应对
+                        unseen = source not in space.perceived_by(target)
+            duel = Duel(self._rules, pack, self._dice.faces)
+            strike = duel.strike(me, cfg, fields, them, distance, unseen)
+            # 打没打中由引擎判。对象能应对时（玩家选、NPC 由引擎挑最有利的），等应对之后再判、再算脚本
+            defends = (
+                them is not None
+                and target != source
+                and cfg.reactable
+                and not unseen
+                and not self._dead(state, them.entity)
             )
-            hit: bool | None = True
+            waiting = self._owner(state, target) if defends else None
+            hit: bool | None = None
             checked: JsonValue = None
-            attack_roll: JsonValue = None
-            result = ""
-            if waiting is not None:
-                hit = None
-                if cfg.check:
-                    dice = self._rules.check_spec(pack, cfg.check).dice
-                    attack_roll = cast(
-                        JsonValue,
-                        self._rules.roll(
-                            pack, dice, self._dice.faces, template, sheet, None, peers
-                        ).model_dump(mode="json"),
+            saved: JsonValue = None
+            actions: list[JsonValue] = []
+            if not defends:
+                res = duel.settle(me, cfg, fields, strike, them, None)
+                hit = res.hit
+                checked = (
+                    cast(JsonValue, res.attack.model_dump(mode="json")) if res.attack else None
+                )
+                if hit:
+                    saved, actions = self._strike_effects(
+                        duel, me, them, parsed, cfg, fields, res, strike, gdef
                     )
-            elif cfg.check:
-                res = self._skill_check(
-                    state, pack, source, template, sheet, peers, target, cfg, roll
-                )
-                result = res.level
-                hit = res.level in ("success", "critical_success")
-                checked = cast(JsonValue, res.model_dump(mode="json"))
-
-            # 技能脚本：现在就掷骰算好；每一步记下落在哪个实体身上
-            steps = (
-                ()
-                if hit is not True
-                else self._rules.plan_script(
-                    pack,
-                    parsed.script,
-                    self._dice.faces,
-                    template,
-                    sheet,
-                    fields,
-                    peers,
-                    tgt,
-                    parsed.config,
-                    result,
-                    False,
-                    gdef.damage_kind if gdef else "",
-                )
-            )
-            actions: list[JsonValue] = [
-                {"entity": source if st.who == "self" else target, **st.model_dump(mode="json")}
-                for st in steps
-            ]
             ev = NewEvent(
                 type="entry_used",
                 actor=ENGINE,
@@ -1616,13 +1604,17 @@ class Engine:
                     # 命中由引擎定，裁定里的 hit 不用；None 表示在等对象应对
                     "hit": hit,
                     "check": checked,
+                    "save": saved,
                     "waiting_for": waiting,
-                    "attack_roll": attack_roll,
+                    **strike.dump(),
                     "reason": reason,
                 },
             )
             used = self._events.append(game_id, r.no, [ev])[0]
-            if waiting is not None and target is not None:
+            if defends and waiting is None:
+                # NPC 对象：引擎替它挑最有利的应对，和玩家选的一样结算
+                self._events.append(game_id, r.no, [self._npc_reaction(state, pack, used)])
+            elif waiting is not None and target is not None:
                 # 只告诉被攻击的玩家（看得见攻击者的话也告诉他是谁）；技能的动静另按 noise 通知
                 space = self._space_for(self._map(game_id), state, pack)
                 seen = source in space.player_perceived(waiting)
@@ -1644,6 +1636,59 @@ class Engine:
                     ],
                 )
             return used
+
+    def _dead(self, state: State, eid: str) -> bool:
+        tags = {
+            str(_obj(x).get("tag"))
+            for x in _list(_obj(self._entity(state, eid).get("sheet")).get("statuses"))
+        }
+        return DEAD_TAG in tags
+
+    def _strike_effects(
+        self,
+        duel: Duel,
+        me: Side,
+        them: Side | None,
+        row: GroupEntry,
+        cfg: SkillConfig,
+        fields: dict[str, JsonValue],
+        res: DuelResult,
+        strike: Strike,
+        gdef: GroupDef | None,
+    ) -> tuple[JsonValue, list[JsonValue]]:
+        """命中之后：对象做豁免（技能设置了 save 时），再算技能脚本的每一步。返回 (豁免结果, 每一步)。"""
+        outcome = res.outcome(strike)
+        saved: JsonValue = None
+        if cfg.save and them is not None:
+            sres = duel.save(them, cfg.save, me, strike)
+            if sres is not None:
+                outcome["saved"] = 1.0 if sres.success else 0.0
+                saved = cast(JsonValue, sres.model_dump(mode="json"))
+        steps = self._rules.plan_script(
+            duel.pack,
+            row.script,
+            duel.faces,
+            me.template,
+            me.sheet,
+            fields,
+            me.peers,
+            them.as_target() if them else None,
+            row.config,
+            outcome,
+            gdef.damage_kind if gdef else "",
+        )
+        return saved, self._step_actions(me, them, steps)
+
+    @staticmethod
+    def _step_actions(me: Side, them: Side | None, steps: Sequence[ScriptStep]) -> list[JsonValue]:
+        """脚本的每一步落在哪个实体身上。"""
+        return [
+            {
+                "entity": me.entity if st.who == "self" else (them.entity if them else None),
+                **st.model_dump(mode="json"),
+            }
+            for st in steps
+        ]
 
     def _cfg(self, row: dict[str, JsonValue]) -> SkillConfig:
         """角色卡上一个条目的技能设置；写错的（校验会报）当作默认设置。"""
@@ -1695,66 +1740,6 @@ class Engine:
         if not cfg.noise.strip() or me is None:
             return []
         return self._heard(space, source, roll(cfg.noise).total)
-
-    def _skill_check(
-        self,
-        state: State,
-        pack: RulePack,
-        source: str,
-        template: str,
-        sheet: JsonValue,
-        peers: dict[str, JsonValue | None],
-        target: str | None,
-        cfg: SkillConfig,
-        roll: Callable[[str], DiceResult],
-    ) -> CheckResult:
-        """使用者做 cfg.check；有对象时对象把 reactions 里的检定都掷一遍，取对使用者最不利的结果；
-        没有能对抗的（没列、对象的卡算不了），按 cfg.difficulty。"""
-        cdef = self._rules.check_spec(pack, cfg.check)
-        faces = self._dice.faces
-        mine = self._rules.roll(pack, cdef.dice, faces, template, sheet, None, peers)
-        options: list[CheckResult] = []
-        if target is not None and target != source and cfg.reactions:
-            tent = self._entity(state, target)
-            t_tpl = str(tent.get("template", ""))
-            t_peers = peers_of(state, target)
-            t_sheet = self._rules.full_sheet(pack, t_tpl, tent.get("sheet"), t_peers)
-            for name in cfg.reactions:
-                try:
-                    rdef = self._rules.check_spec(pack, name)
-                    theirs = self._rules.roll(pack, rdef.dice, faces, t_tpl, t_sheet, None, t_peers)
-                    options.append(
-                        self._rules.resolve_check(
-                            pack,
-                            entity=source,
-                            template=template,
-                            sheet=sheet,
-                            check=cfg.check,
-                            roll=mine,
-                            opponent=(target, t_tpl, t_sheet, theirs),
-                            peers=peers,
-                            opp_check=name,
-                        ).model_copy(update={"reason": name})
-                    )
-                except (ValidationFailed, NotFound):
-                    continue  # 没有这个检定，或对象的卡上没有它要的字段：不能用它对抗
-        if options:
-            rank = {"critical_failure": 0, "failure": 1, "success": 2, "critical_success": 3}
-            return min(
-                options,
-                key=lambda r: (rank.get(r.level, 1), -(r.opp_roll.total if r.opp_roll else 0)),
-            )
-        diff = roll(cfg.difficulty).total if cfg.difficulty.strip() else 0.0
-        return self._rules.resolve_check(
-            pack,
-            entity=source,
-            template=template,
-            sheet=sheet,
-            check=cfg.check,
-            roll=mine,
-            difficulty=diff,
-            peers=peers,
-        )
 
     def _heard(self, space: Space, source: str, radius: float) -> list[str]:
         """动静范围内有实体的其他玩家（不含使用者自己的玩家）。"""
@@ -1832,6 +1817,21 @@ class Engine:
                     return template, sheet, peers, str(gname), row
         return None
 
+    def _allowed(
+        self,
+        pack: RulePack,
+        cfg: SkillConfig,
+        skills: list[tuple[str, dict[str, JsonValue], GroupDef]],
+    ) -> tuple[list[str], list[tuple[str, dict[str, JsonValue], GroupDef]]]:
+        """这次攻击允许的应对：reactions 里的检定（攻击要掷骰才有意义），和列出来的（或 True 时全部）应对技能。"""
+        checks = [x for x in cfg.reactions if pack.check(x) is not None] if cfg.rolls else []
+        ok = [
+            (n, row, g)
+            for n, row, g in skills
+            if cfg.reactions_any or n in cfg.reactions or row.get("id") in cfg.reactions
+        ]
+        return checks, ok
+
     def _reaction_skills(
         self, state: State, pack: RulePack, defender: str
     ) -> list[tuple[str, dict[str, JsonValue], GroupDef]]:
@@ -1892,8 +1892,9 @@ class Engine:
             source, defender = str(p.get("source")), str(p.get("target"))
             found = self._entry_on(state, pack, source, str(p.get("entry")))
             cfg = self._cfg(found[4]) if found else SkillConfig()
+            checks, allowed = self._allowed(pack, cfg, self._reaction_skills(state, pack, defender))
             skills: list[ReactionSkill] = []
-            for name, row, g in self._reaction_skills(state, pack, defender):
+            for name, row, g in allowed:
                 params = tuple(
                     ReactionParam(name=f.name, label=f.label or "")
                     for f in g.fields
@@ -1911,19 +1912,12 @@ class Engine:
                     entry=str(p.get("entry")),
                     defender=defender,
                     who=w if isinstance(w, str) else None,
-                    checks=cfg.reactions if cfg.check else (),
-                    labels={c: self._check_label(pack, c) for c in cfg.reactions},
+                    checks=tuple(checks),
+                    labels={c: self._check_label(pack, c) for c in checks},
                     skills=tuple(skills),
                 )
             )
         return out
-
-    @staticmethod
-    def _group_kind(pack: RulePack, template: str, group: str) -> str:
-        """分组的伤害类型（damage 不写类型时用它）。"""
-        tpl = pack.template(template)
-        g = next((x for x in tpl.groups if x.name == group), None) if tpl else None
-        return g.damage_kind if g else ""
 
     def _check_label(self, pack: RulePack, name: str) -> str:
         try:
@@ -1960,179 +1954,125 @@ class Engine:
             ]
             return self._events.append(game_id, r.no, new)
 
+    def _npc_reaction(self, state: State, pack: RulePack, ev: Event) -> NewEvent:
+        """NPC 被攻击：把能选的应对（不抵抗、检定、不用填数的应对技能）都试一遍，取对它最有利的：
+        没被打中优先，其次自己的等级高。"""
+        p = ev.payload
+        source, defender = str(p.get("source")), str(p.get("target"))
+        found = self._entry_on(state, pack, source, str(p.get("entry")))
+        cfg = self._cfg(found[4]) if found else SkillConfig()
+        checks, skills = self._allowed(pack, cfg, self._reaction_skills(state, pack, defender))
+        options = [ReactionChoice(seq=ev.seq)]
+        options += [ReactionChoice(seq=ev.seq, kind="check", check=c) for c in checks]
+        options += [
+            ReactionChoice(seq=ev.seq, kind="skill", entry=n)
+            for n, _row, g in skills
+            if not any(x.kind == "param" for x in g.fields)
+        ]
+        best: tuple[tuple[int, int], NewEvent] | None = None
+        for choice in options:
+            try:
+                out = self._resolve_reaction(state, pack, ev, choice)
+            except (ValidationFailed, NotFound):
+                continue  # 对象的卡上缺这个检定要的字段之类：这个应对用不了
+            q = out.payload
+            mine = _obj(q.get("defense")).get("level")
+            key = (0 if q.get("hit") else 1, int(mine) if isinstance(mine, int | float) else -99)
+            if best is None or key > best[0]:
+                best = (key, out)
+        assert best is not None  # 不抵抗总是可以
+        return best[1]
+
     def _resolve_reaction(
         self, state: State, pack: RulePack, ev: Event, choice: ReactionChoice
     ) -> NewEvent:
+        """对象的应对定了之后：先结算应对技能（它的检定、脚本，可以作废这次使用），再判攻击命中、算攻击的脚本。"""
         p = ev.payload
         source, defender, entry = str(p.get("source")), str(p.get("target")), str(p.get("entry"))
-        faces = self._dice.faces
         found = self._entry_on(state, pack, source, entry)
         if found is None:
             raise NotFound("roll.unknown_entry", entity=source, entry=entry)
         s_tpl, s_sheet, s_peers, s_group, row = found
         cfg = self._cfg(row)
+        parsed = GroupEntry.model_validate(row)
         fields = {**_obj(row.get("fields")), **_obj(p.get("params"))}
+        me = Side(source, s_tpl, s_sheet, s_peers)
         d_ent = self._entity(state, defender)
         d_tpl = str(d_ent.get("template", ""))
         d_peers = peers_of(state, defender)
-        d_sheet = _obj(self._rules.full_sheet(pack, d_tpl, d_ent.get("sheet"), d_peers))
-        raw_roll = p.get("attack_roll")
-        attack_roll = DiceResult.model_validate(raw_roll) if isinstance(raw_roll, dict) else None
-        d_roll: DiceResult | None = None
-        d_check: str | None = None
+        them = Side(
+            defender,
+            d_tpl,
+            _obj(self._rules.full_sheet(pack, d_tpl, d_ent.get("sheet"), d_peers)),
+            d_peers,
+        )
+        duel = Duel(self._rules, pack, self._dice.faces)
+        strike = Strike.load(p)
+        checks, skills = self._allowed(pack, cfg, self._reaction_skills(state, pack, defender))
+        defense: tuple[str, DiceResult] | None = None
         reaction: dict[str, JsonValue] = {}
         negated = False
         if choice.kind == "check":
-            if not cfg.check or choice.check not in cfg.reactions:
+            if choice.check not in checks:
                 raise ValidationFailed("react.bad_check", check=choice.check, entry=entry)
-            d_check = choice.check
-            d_roll = self._rules.roll(
-                pack,
-                self._rules.check_spec(pack, d_check).dice,
-                faces,
-                d_tpl,
-                d_sheet,
-                None,
-                d_peers,
-            )
+            defense = (choice.check, duel.roll_check(them, choice.check))
         elif choice.kind == "skill":
-            skills = {
-                name: (rrow, g) for name, rrow, g in self._reaction_skills(state, pack, defender)
-            }
-            rname = next(
-                (n for n, (rrow, _x) in skills.items() if choice.entry in (n, rrow.get("id"))), None
+            pick = next(
+                ((n, rrow, g) for n, rrow, g in skills if choice.entry in (n, rrow.get("id"))),
+                None,
             )
-            if rname is None:
+            if pick is None:
                 raise ValidationFailed("react.bad_skill", entry=choice.entry)
-            rrow, g = skills[rname]
+            rname, rrow, g = pick
             rcfg = self._cfg(rrow)
+            rparsed = GroupEntry.model_validate(rrow)
             rfields = dict(_obj(rrow.get("fields")))
             spends = self._use_params(
-                pack, d_tpl, d_sheet, g, rfields, dict(choice.params), rname, d_peers
+                pack, d_tpl, them.sheet, g, rfields, dict(choice.params), rname, d_peers
             )
-
-            def droll(text: str) -> DiceResult:
-                return self._rules.roll(pack, text, faces, d_tpl, d_sheet, rfields, d_peers)
-
-            r_level = ""
-            r_checked: JsonValue = None
             if rcfg.check:
-                d_check = rcfg.check
-                d_roll = self._rules.roll(
-                    pack,
-                    self._rules.check_spec(pack, d_check).dice,
-                    faces,
-                    d_tpl,
-                    d_sheet,
-                    None,
-                    d_peers,
+                # 应对技能自己的检定（几个时取自己等级最高的）
+                tries = [(c, duel.roll_check(them, c)) for c in rcfg.check]
+                defense = max(
+                    tries,
+                    key=lambda t: (duel.defend(them, t[0], t[1], me, strike).level, t[1].total),
                 )
-                # 应对技能自己的结果：和攻击者掷出的点数比（攻击不掷骰时按它自己设置的难度）
-                diff = (
-                    attack_roll.total
-                    if attack_roll is not None
-                    else (droll(rcfg.difficulty).total if rcfg.difficulty.strip() else 0.0)
-                )
-                rres = self._rules.resolve_check(
-                    pack,
-                    entity=defender,
-                    template=d_tpl,
-                    sheet=d_sheet,
-                    check=d_check,
-                    roll=d_roll,
-                    difficulty=diff,
-                    peers=d_peers,
-                )
-                r_level = rres.level
-                r_checked = cast(JsonValue, rres.model_dump(mode="json"))
+            pre = duel.settle(me, cfg, fields, strike, them, defense)
             rsteps = self._rules.plan_script(
                 pack,
-                str(rrow.get("script") or ""),
-                faces,
+                rparsed.script,
+                duel.faces,
                 d_tpl,
-                d_sheet,
+                them.sheet,
                 rfields,
                 d_peers,
-                (s_tpl, s_sheet, s_peers),
-                str(rrow.get("config") or ""),
-                r_level,
-                True,
+                me.as_target(),
+                rparsed.config,
+                pre.flipped(strike),
                 g.damage_kind,
             )
             negated = any(st.op == "negate" and st.who == "self" for st in rsteps)
+            cd = rcfg.cooldown
             reaction = {
                 "entry": rname,
                 "params": cast(JsonValue, dict(choice.params)),
                 "spends": spends,
-                "cooldown": int(droll(rcfg.cooldown).total * 60) if rcfg.cooldown.strip() else 0,
-                "check": r_checked,
+                "cooldown": int(duel.evaluate(them, cd, rfields, me, {}) * 60) if cd.strip() else 0,
+                "check": cast(JsonValue, pre.defense.model_dump(mode="json"))
+                if pre.defense
+                else None,
                 "negated": negated,
-                "actions": [
-                    {
-                        "entity": defender if st.who == "self" else source,
-                        **st.model_dump(mode="json"),
-                    }
-                    for st in rsteps
-                ],
+                "actions": self._step_actions(them, me, rsteps),
             }
-        # 攻击的结果
-        hit = True
-        result = ""
-        checked: JsonValue = None
-        if negated:
-            hit = False
-        elif cfg.check and attack_roll is not None:
-            if d_roll is not None:
-                res = self._rules.resolve_check(
-                    pack,
-                    entity=source,
-                    template=s_tpl,
-                    sheet=s_sheet,
-                    check=cfg.check,
-                    roll=attack_roll,
-                    opponent=(defender, d_tpl, d_sheet, d_roll),
-                    peers=s_peers,
-                    opp_check=d_check,
-                )
-            else:
-                diff = (
-                    self._rules.roll(
-                        pack, cfg.difficulty, faces, s_tpl, s_sheet, fields, s_peers
-                    ).total
-                    if cfg.difficulty.strip()
-                    else 0.0
-                )
-                res = self._rules.resolve_check(
-                    pack,
-                    entity=source,
-                    template=s_tpl,
-                    sheet=s_sheet,
-                    check=cfg.check,
-                    roll=attack_roll,
-                    difficulty=diff,
-                    peers=s_peers,
-                )
-            result = res.level
-            hit = res.level in ("success", "critical_success")
-            checked = cast(JsonValue, res.model_dump(mode="json"))
-        steps = (
-            self._rules.plan_script(
-                pack,
-                str(row.get("script") or ""),
-                faces,
-                s_tpl,
-                s_sheet,
-                fields,
-                s_peers,
-                (d_tpl, d_sheet, d_peers),
-                str(row.get("config") or ""),
-                result,
-                False,
-                self._group_kind(pack, s_tpl, s_group),
+        res = duel.settle(me, cfg, fields, strike, them, defense, negated)
+        s_def = pack.template(s_tpl)
+        gdef = next((x for x in s_def.groups if x.name == s_group), None) if s_def else None
+        saved: JsonValue = None
+        actions: list[JsonValue] = []
+        if res.hit:
+            saved, actions = self._strike_effects(
+                duel, me, them, parsed, cfg, fields, res, strike, gdef
             )
-            if hit
-            else ()
-        )
         return NewEvent(
             type="reaction_resolved",
             actor=ENGINE,
@@ -2143,16 +2083,16 @@ class Engine:
                 "defender": defender,
                 "entry": entry,
                 "choice": cast(JsonValue, choice.model_dump(mode="json")),
-                "hit": hit,
-                "check": checked,
+                "hit": res.hit,
+                "check": cast(JsonValue, res.attack.model_dump(mode="json"))
+                if res.attack
+                else None,
+                "defense": cast(JsonValue, res.defense.model_dump(mode="json"))
+                if res.defense
+                else None,
+                "save": saved,
                 "reaction": cast(JsonValue, reaction) if reaction else None,
-                "actions": [
-                    {
-                        "entity": source if st.who == "self" else defender,
-                        **st.model_dump(mode="json"),
-                    }
-                    for st in steps
-                ],
+                "actions": actions,
             },
         )
 
@@ -2454,6 +2394,8 @@ class Engine:
                     {
                         "hit": answer.get("hit"),
                         "check": answer.get("check"),
+                        "defense": answer.get("defense"),
+                        "save": answer.get("save"),
                         "actions": answer.get("actions"),
                         "reaction": answer.get("reaction"),
                         "choice": answer.get("choice"),
@@ -2550,6 +2492,8 @@ class Engine:
                 "check": check,
                 "entity": entity_id,
                 "level": res.level,
+                "level_name": res.level_name,
+                "opp_level": res.opp_level,
                 "target": res.target,
                 "difficulty": res.difficulty,
                 "opponent": res.opponent,

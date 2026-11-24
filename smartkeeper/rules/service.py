@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from pydantic import JsonValue
 from pydantic import ValidationError as PydanticError
 
@@ -110,8 +112,9 @@ class RulesService:
         entry: dict[str, JsonValue] | None = None,
         peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
+        extra: Mapping[str, float] | None = None,
     ) -> DiceResult:
-        return checks.roll(pack, expr, faces, template, sheet, entry, peers, target)
+        return checks.roll(pack, expr, faces, template, sheet, entry, peers, target, extra)
 
     def plan_script(
         self,
@@ -124,8 +127,7 @@ class RulesService:
         peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
         config: str = "",
-        result: str = "",
-        reacting: bool = False,
+        outcome: Mapping[str, float] | None = None,
         damage_kind: str = "",
     ) -> tuple[ScriptStep, ...]:
         return scripts.plan_script(
@@ -138,8 +140,7 @@ class RulesService:
             peers,
             target,
             config,
-            result,
-            reacting,
+            outcome,
             damage_kind,
         )
 
@@ -282,6 +283,8 @@ class RulesService:
         opponent: tuple[str, str, JsonValue, DiceResult] | None = None,
         peers: Peers | None = None,
         opp_check: str | None = None,
+        distance: float = 0.0,
+        vs_template: str = "",
     ) -> CheckResult:
         return checks.resolve_check(
             pack,
@@ -294,6 +297,8 @@ class RulesService:
             opponent=opponent,
             peers=peers,
             opp_check=opp_check,
+            distance=distance,
+            vs_template=vs_template,
         )
 
     def resolve_adhoc(self, entity: str, spec: AdHocCheck, roll: DiceResult) -> CheckResult:
@@ -306,7 +311,7 @@ class RulesService:
             check="adhoc",
             roll=roll,
             target=spec.target,
-            level="success" if ok else "failure",
+            level=1 if ok else 0,
         )
 
     def render(self, pack: RulePack) -> str:

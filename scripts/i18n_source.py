@@ -929,15 +929,22 @@ T: dict[str, tuple[str, str]] = {
         "目标值（用不到就是 0），例如 COC 的技能值",
         "target value (0 if unused), e.g. a skill value",
     ),
-    "check.c.critical_success": (
-        "大成功的条件；用不到写 False",
-        "critical success condition; False if unused",
+    "check.c.success": (
+        "成功的条件（只分成功、失败时写这个）；成立是等级 1，不成立是 0",
+        "success condition (when there are only two results): level 1 if true, else 0",
     ),
-    "check.c.critical_failure": (
-        "大失败的条件；用不到写 False",
-        "critical failure condition; False if unused",
+    "check.c.level": (
+        "分档时写这个：算出等级的公式，0 及以下失败，1 起成功，越大越好；例如 0 if roll <= 10 else 1 if roll <= 15 else 2",
+        "for graded results: the level, 0 or below fails, 1+ succeeds, higher is better; e.g. 0 if roll <= 10 else 1 if roll <= 15 else 2",
     ),
-    "check.c.success": ("成功的条件；都不成立是失败", "success condition; otherwise failure"),
+    "check.c.levels": (
+        '各等级的名字，下标就是等级，例如 ["失败", "成功", "困难成功"]',
+        'names of the levels by index, e.g. ["failure", "success", "hard success"]',
+    ),
+    "check.v.distance": (
+        "到对象的距离（米），没有对象是 0；远程按距离加难度时用",
+        "distance to the target in metres (0 without one); for range penalties",
+    ),
     "check.c.opposed_by": (
         "对抗时对方掷的检定；None 是同一个",
         "the check the opponent rolls; None = the same",
@@ -948,8 +955,8 @@ T: dict[str, tuple[str, str]] = {
         "the dice alone without modifiers, e.g. natural == 20",
     ),
     "check.v.difficulty": (
-        "难度：KP 给的；对抗时是对方掷出的点数",
-        "difficulty from the keeper; when opposed, the opponent's roll",
+        "难度：技能设置的 difficulty 或 KP 给的，没有是 0（对抗时也一样，对方的点数是 opp_roll）",
+        "difficulty from the skill or the keeper, 0 if none (also when opposed; the opponent's roll is opp_roll)",
     ),
     "check.v.opp_roll": ("对抗时对方的点数", "the opponent's roll"),
     "check.v.opp_target": ("对抗时对方的目标值", "the opponent's target"),
@@ -964,10 +971,6 @@ T: dict[str, tuple[str, str]] = {
     "doc.verb.negate": (
         "当反应时：让打在自己身上的这次攻击无效（平时没有效果）",
         "As a reaction: void the attack on you (does nothing otherwise)",
-    ),
-    "doc.kw.reacting": (
-        "这次是被攻击时当反应用的（True），还是平时用（False）",
-        "True when used as a reaction, False otherwise",
     ),
     "rules.g.reactions": (
         "条目可以当反应（被攻击时用；只有瞬发的才行）",
@@ -1005,17 +1008,45 @@ T: dict[str, tuple[str, str]] = {
         '{name} must be a list of names, e.g. ["dodge", "block"]',
     ),
     "config.c.check": (
-        "施法者做的检定（检定名）；None / True 是不掷骰、必中",
-        "the user's check (a check name); None / True means it always hits",
+        '使用者做的检定（检定名）；几个时写 best("a", "b")，都掷、取等级高的；None / True 是不掷骰、必中',
+        'the user\'s check (a check name); best("a", "b") rolls several and keeps the best; None / True always hits',
     ),
-    "config.c.difficulty": ("没有对抗时的难度", "difficulty when nobody resists"),
+    "config.c.difficulty": (
+        "使用者这一方的难度（公式，可以用 distance）",
+        "the user's difficulty (a formula; distance is available)",
+    ),
     "config.c.reactions": (
-        "写了就可以被应对：对象是玩家时由他选（这里的检定、自己的瞬发技能、不抵抗），NPC 由引擎挑最有利的检定",
-        "if set, the target may react: a player chooses (these checks, an instant skill of theirs, or nothing); an NPC gets the best check",
+        "写了就可以被应对：列检定和应对技能（ID 或名字），True 是任何应对技能都行；玩家自己选，NPC 由引擎挑最有利的；没发现使用者的不能应对",
+        "if set the target may react: list checks and reaction skills (ID or name), or True for any reaction skill; players choose, NPCs get the best; a target who hasn't noticed the user can't react",
     ),
-    "doc.kw.result": (
-        "技能检定的结果：critical_success、success、failure、critical_failure（没有检定时是空）",
-        "The skill check's result: critical_success, success, failure, critical_failure (empty without a check)",
+    "config.c.hit": (
+        "命中条件（公式，可用 level、opp_level、opposed）；None 是：成功，被对抗时等级高过对方",
+        "hit condition (level, opp_level, opposed); None: success, and above the opponent when opposed",
+    ),
+    "config.c.auto_level": (
+        "不掷骰、直接定下的等级（公式），例如必定困难成功的大招写 2",
+        "a fixed level instead of a roll (a formula), e.g. 2 for an automatic hard success",
+    ),
+    "config.c.save": (
+        "命中后对象做的豁免检定（检定名，对 difficulty）；脚本里 saved 是结果",
+        "a save the target makes after a hit (a check name, against difficulty); saved in the script",
+    ),
+    "config.best": ("几个检定都掷，取等级最高的", "roll several checks, keep the best level"),
+    "doc.kw.distance": ("使用者到对象的距离（米）", "distance from the user to the target, metres"),
+    "doc.kw.unseen": (
+        "对象没发现使用者（看不见、被隐匿）：True。这时对象不能应对",
+        "True when the target hasn't noticed the user (unseen or hidden); it can't react then",
+    ),
+    "doc.kw.level": (
+        "使用者检定的等级（1 起是成功）；当反应用时是自己应对的等级",
+        "the user's check level (1+ is success); for a reaction, your own level",
+    ),
+    "doc.kw.opp_level": ("对方的等级（没对抗是 0）", "the other side's level (0 if unopposed)"),
+    "doc.kw.opposed": ("这次被对抗了（对方掷了检定）", "True when the other side rolled a check"),
+    "doc.kw.saved": ("对象的豁免成功了（技能设置了 save）", "True when the target made its save"),
+    "doc.kw.reacting": (
+        "这次是被攻击时当反应用的（True），还是平时用（False）",
+        "True when used as a reaction, False otherwise",
     ),
     "rules.missing_template": (
         "{name}（没有这个模板，请重新选）",

@@ -117,12 +117,28 @@ class SkillConfig(Frozen):
     cooldown: str = ""  # 冷却时间（分钟）：用过之后这么久之内不能再用
     shape: Shape | None = None  # 范围形状
     placement: PlacementSpec | None = None  # 是设置物（陷阱、结界）时的参数
-    # 打没打中由引擎判：使用者做 check 这个检定（空 = 不掷骰，必中），成功或大成功算命中。
-    # reactions 不空时这个技能可以被应对：对象是玩家的，由他从 reactions 里的检定和自己能当反应的技能里选
-    # （或者不抵抗）；对象是 NPC 的，引擎替它挑最有利的检定。没有对抗时按 difficulty（公式）
-    check: str = ""
+    # 打没打中由引擎判：使用者做 check 里的检定（几个时都掷，取等级高的；空 = 不掷骰）。
+    # auto_level 是不掷骰、直接定下的等级（公式）。等级见 CheckSpec：1 起是成功。
+    # 能被应对时（reactions 列了检定或应对技能的 ID / 名字，或 reactions_any），对象是玩家的由他从中选
+    # （或者不抵抗），对象是 NPC 的引擎替它挑最有利的；没发现使用者的对象不能应对。
+    # hit 是命中条件（公式，可用 level、opp_level、opposed……）；不写时：成功，并且被对抗时等级高过对方。
+    # difficulty 是使用者这一方的难度（公式）。save 是对象做的豁免检定（对 difficulty），脚本里 saved 是结果
+    check: tuple[str, ...] = ()
+    auto_level: str = ""
     difficulty: str = ""
+    hit: str = ""
     reactions: tuple[str, ...] = ()
+    reactions_any: bool = False
+    save: str = ""
+
+    @property
+    def reactable(self) -> bool:
+        return bool(self.reactions) or self.reactions_any
+
+    @property
+    def rolls(self) -> bool:
+        """要不要判命中（有检定或定好的等级）。"""
+        return bool(self.check) or bool(self.auto_level.strip())
 
 
 class Status(Frozen):

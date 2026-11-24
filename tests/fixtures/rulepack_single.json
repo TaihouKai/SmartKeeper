@@ -164,11 +164,11 @@
     "checks": [
       {
         "name": "spot",
-        "config": "dice = 1d100\ntarget = per\ncritical_success = roll <= target / 5\ncritical_failure = False\nsuccess = roll <= target"
+        "config": "dice = 1d100\ntarget = per\nlevel = 2 if roll <= target / 5 else 1 if roll <= target else 0\nlevels = [\"failure\", \"success\", \"extreme\"]"
       },
       {
         "name": "struggle",
-        "config": "dice = 1d100\ntarget = str\ncritical_success = False\ncritical_failure = False\nsuccess = target - roll > opp_target - opp_roll"
+        "config": "dice = 1d100\ntarget = str\nsuccess = target - roll > opp_target - opp_roll"
       }
     ],
     "rules_text": "Combat proceeds in order of dex. Narrate failures honestly.",

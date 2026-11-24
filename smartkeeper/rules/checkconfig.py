@@ -3,9 +3,9 @@
     label = "感知检定"
     dice = 1d20 + per
     target = 0
-    critical_success = natural == 20
-    critical_failure = natural == 1
-    success = roll > difficulty
+    success = roll > 10 + difficulty          # 只分成功、失败时写这个
+    level = 0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2   # 分档时写这个
+    levels = ["失败", "成功", "困难成功"]      # 各档的名字
     opposed_by = "perception"
 
 出错抛 lang.FormulaError（带 line）：config.unknown_key、config.bad_value、config.duplicate……
@@ -18,16 +18,16 @@ from typing import Literal
 from smartkeeper import lang as f
 from smartkeeper.contracts import CheckSpec
 
-type Kind = Literal["text", "formula", "check"]
+type Kind = Literal["text", "formula", "check", "texts"]
 
 # 名字 -> 类型。顺序就是编辑器里预先填好的顺序
 KEYS: dict[str, Kind] = {
     "label": "text",
     "dice": "formula",
     "target": "formula",
-    "critical_success": "formula",
-    "critical_failure": "formula",
     "success": "formula",
+    "level": "formula",
+    "levels": "texts",
     "opposed_by": "check",
 }
 # 结果条件里能用的变量。self.template 是做检定的人的模板，opponent.template 是对抗时对方的模板（没有对手是空文字）
@@ -36,6 +36,7 @@ VARS = (
     "natural",
     "target",
     "difficulty",
+    "distance",
     "opp_roll",
     "opp_target",
     "self.template",
@@ -51,6 +52,13 @@ def read_check(text: str) -> CheckSpec:
         kind = KEYS.get(s.name)
         if kind is None:
             raise f.FormulaError("config.unknown_key", line=s.line, name=s.name)
+        if kind == "texts":
+            if s.items is None:
+                raise f.FormulaError(
+                    "config.bad_value", line=s.line, name=s.name, expected='["…", "…"]'
+                )
+            out[s.name] = s.items
+            continue
         if s.call is not None or s.items is not None:
             raise f.FormulaError("config.bad_value", line=s.line, name=s.name, expected=kind)
         if kind == "formula":

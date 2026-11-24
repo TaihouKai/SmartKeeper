@@ -59,12 +59,12 @@
   },
   "check": {
     "c": {
-      "critical_failure": "critical failure condition; False if unused",
-      "critical_success": "critical success condition; False if unused",
       "dice": "the dice, e.g. 1d20 + per (on the checking character)",
       "label": "display name",
+      "level": "for graded results: the level, 0 or below fails, 1+ succeeds, higher is better; e.g. 0 if roll <= 10 else 1 if roll <= 15 else 2",
+      "levels": "names of the levels by index, e.g. [\"failure\", \"success\", \"hard success\"]",
       "opposed_by": "the check the opponent rolls; None = the same",
-      "success": "success condition; otherwise failure",
+      "success": "success condition (when there are only two results): level 1 if true, else 0",
       "target": "target value (0 if unused), e.g. a skill value"
     },
     "level": {
@@ -74,7 +74,8 @@
       "success": "Success"
     },
     "v": {
-      "difficulty": "difficulty from the keeper; when opposed, the opponent's roll",
+      "difficulty": "difficulty from the skill or the keeper, 0 if none (also when opposed; the opponent's roll is opp_roll)",
+      "distance": "distance to the target in metres (0 without one); for range penalties",
       "natural": "the dice alone without modifiers, e.g. natural == 20",
       "opp_roll": "the opponent's roll",
       "opp_target": "the opponent's target",
@@ -269,16 +270,20 @@
     "working": "Working…"
   },
   "config": {
+    "best": "roll several checks, keep the best level",
     "c": {
+      "auto_level": "a fixed level instead of a roll (a formula), e.g. 2 for an automatic hard success",
       "cast_time": "cast time in minutes; under 1 is instant",
-      "check": "the user's check (a check name); None / True means it always hits",
+      "check": "the user's check (a check name); best(\"a\", \"b\") rolls several and keeps the best; None / True always hits",
       "cooldown": "cooldown in minutes",
-      "difficulty": "difficulty when nobody resists",
+      "difficulty": "the user's difficulty (a formula; distance is available)",
+      "hit": "hit condition (level, opp_level, opposed); None: success, and above the opponent when opposed",
       "noise": "noise radius in metres; None = silent",
       "placement": "placement, e.g. placement(radius=3, charges=1)",
       "range": "range in metres; None = unlimited; for a placement, how far from the user it may be put",
-      "reactions": "if set, the target may react: a player chooses (these checks, an instant skill of theirs, or nothing); an NPC gets the best check",
+      "reactions": "if set the target may react: list checks and reaction skills (ID or name), or True for any reaction skill; players choose, NPCs get the best; a target who hasn't noticed the user can't react",
       "requires": "condition to use, e.g. not silenced",
+      "save": "a save the target makes after a hit (a check name, against difficulty); saved in the script",
       "shape": "area shape, e.g. sphere(radius=5)",
       "target": "single needs a target / self only / none",
       "visible": "the target must be perceived; a placement must be put within line of sight"
@@ -304,16 +309,21 @@
     },
     "kw": {
       "and": "1 if both hold; stops at the first that doesn't",
+      "distance": "distance from the user to the target, metres",
       "if": "A branch (if cond: with an indented block) or a choice of value (a if cond else b)",
+      "level": "the user's check level (1+ is success); for a reaction, your own level",
       "none": "Unset (the default is used)",
       "not": "1 if it doesn't hold, 0 if it does",
+      "opp_level": "the other side's level (0 if unopposed)",
+      "opposed": "True when the other side rolled a check",
       "or": "1 if either holds; stops at the first that does",
       "pass": "Do nothing (an empty branch)",
       "reacting": "True when used as a reaction, False otherwise",
-      "result": "The skill check's result: critical_success, success, failure, critical_failure (empty without a check)",
+      "saved": "True when the target made its save",
       "self": "The user: self.hp is your value, self.add(…) acts on you",
       "target": "The chosen target: target.hp is its value, target.damage(…) acts on it",
-      "this": "This entry: this.column is one of its columns, including chosen-on-use ones"
+      "this": "This entry: this.column is one of its columns, including chosen-on-use ones",
+      "unseen": "True when the target hasn't noticed the user (unseen or hidden); it can't react then"
     },
     "p": {
       "amount_dice": "Amount: a formula, may roll dice, e.g. 2d6 + this.level",

@@ -4,7 +4,7 @@ import { useI18n } from "../../../i18n";
 import { ErrorBox } from "../../../ui/components";
 import { translateCode } from "../../../ui/errors";
 import { FUNCTION_SIGNATURES } from "../../../ui/FormulaHelp";
-import { configKeys } from "../../../ui/skillConfig";
+import { CHECK_KEYS, CHECK_VARS, EXTRA_CONFIG_KEYS, OUTCOME_VARS, configKeys } from "../../../ui/skillConfig";
 import { useAction } from "../../../ui/hooks";
 import { allFormulas, describePath, getAt, type Doc, type Pack } from "../model";
 
@@ -38,13 +38,13 @@ export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; d
       <div className="wb-names">
         <section>
           <h5>{t("rules.checks")}</h5>
-          {["label", "dice", "target", "critical_success", "critical_failure", "success", "opposed_by"].map((k) => (
+          {CHECK_KEYS.map((k) => (
             <Item key={k} code={`${k} = …`} note={t(`check.c.${k}`)} onClick={() => insert(`${k} = `)} />
           ))}
         </section>
         <section>
           <h5>{t("check.vars")}</h5>
-          {["roll", "natural", "target", "difficulty", "opp_roll", "opp_target", "self.template", "opponent.template"].map((k) => (
+          {CHECK_VARS.map((k) => (
             <Item key={k} code={k} note={t(k === "target" ? "check.c.target" : `check.v.${k}`)} onClick={() => insert(k)} />
           ))}
           {(pack.checks ?? [])
@@ -60,8 +60,12 @@ export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; d
       {doc.kind === "entry" && part === "config" && group && (
         <section>
           <h5>{t("config.title")}</h5>
-          {configKeys(group).map((k) => (
+          {[...configKeys(group), ...EXTRA_CONFIG_KEYS].map((k) => (
             <Item key={k} code={`${k} = …`} note={t(`config.c.${k}`)} onClick={() => insert(`${k} = `)} />
+          ))}
+          <Item code='best("a", "b")' note={t("config.best")} onClick={() => insert('best("')} />
+          {OUTCOME_VARS.slice(0, 5).map((k) => (
+            <Item key={k} code={k} note={t(`doc.kw.${k}`)} onClick={() => insert(k)} />
           ))}
           {(pack.checks ?? [])
             .filter((c) => c.name)
@@ -86,8 +90,9 @@ export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; d
             <Item key={code} code={`${code!}…)`} note={t(key!)} onClick={() => insert(code!)} />
           ))}
           <Item code="if …:" note={t("fh.s.if")} onClick={() => insert("if ")} />
-          <Item key="result" code="result" note={t("doc.kw.result")} onClick={() => insert("result")} />
-          <Item key="reacting" code="if reacting:" note={t("doc.kw.reacting")} onClick={() => insert("if reacting:")} />
+          {OUTCOME_VARS.map((k) => (
+            <Item key={k} code={k} note={t(`doc.kw.${k}`)} onClick={() => insert(k)} />
+          ))}
           <Item key="negate" code="self.negate()" note={t("doc.verb.negate")} onClick={() => insert("self.negate()")} />
         </section>
       )}

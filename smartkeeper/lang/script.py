@@ -43,6 +43,19 @@ VERBS: dict[str, tuple[str, ...]] = {
 }
 
 
+# 引擎在用技能时给的名字（距离、双方等级、豁免……），脚本里不能拿来当变量名
+RESERVED = (
+    "this",
+    "distance",
+    "unseen",
+    "level",
+    "opp_level",
+    "opposed",
+    "saved",
+    "reacting",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class Statement:
     """一句动作。"""
@@ -163,7 +176,7 @@ def _body(stmts: list[ast.stmt], src: str) -> tuple[ScriptNode, ...]:
             isinstance(s, ast.Assign) and len(s.targets) == 1 and isinstance(s.targets[0], ast.Name)
         ):
             name = s.targets[0].id
-            if name in (*RECEIVERS, "this", "result", "reacting"):
+            if name in (*RECEIVERS, *RESERVED):
                 raise FormulaError("script.bad_variable", line=s.lineno, name=name)
             out.append(Let(line=s.lineno, name=name, value=_arg(s.value, s.lineno)))
         elif isinstance(s, ast.Expr) and isinstance(s.value, ast.Call):

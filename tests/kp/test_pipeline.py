@@ -275,14 +275,29 @@ def test_round_waits_for_reactions_then_goes_on_without_planning_again() -> None
         }
     )
     g0 = g0.model_copy(update={"presets": (*g0.presets, blast)})
+    # 看得见攻击者才能应对：感知半径放大到能看见彼此
+    derived = tuple(
+        d.model_copy(update={"formula": "1000"}) if d.name == "perception_radius" else d
+        for d in tpl.derived
+    )
     pack = pack.model_copy(
         update={
             "checks": (
                 *pack.checks,
                 CheckDef(name="zap", config="dice = 1d20\nsuccess = roll > difficulty"),
             ),
+            "samples": tuple(
+                sm.model_copy(
+                    update={
+                        "expected": {
+                            k: v for k, v in sm.expected.items() if k != "perception_radius"
+                        }
+                    }
+                )
+                for sm in pack.samples
+            ),
             "templates": (
-                tpl.model_copy(update={"groups": (g0, *tpl.groups[1:])}),
+                tpl.model_copy(update={"groups": (g0, *tpl.groups[1:]), "derived": derived}),
                 *pack.templates[1:],
             ),
         }
@@ -291,6 +306,15 @@ def test_round_waits_for_reactions_then_goes_on_without_planning_again() -> None
     e = g.engine
     p0, p1 = g.players
     a, b = g.ents(p0)[0], g.ents(p1)[0]
+    # 剧本里两人之间隔着楼：把 b 挪到 a 旁边，看得见攻击者才能应对
+    from smartkeeper.contracts import ENGINE, PatchOp
+
+    move = PatchOp(op="replace", path=f"/entities/{b}/pos", value={"x": -75, "y": 0, "z": 0})
+    e._events.append(  # pyright: ignore[reportPrivateUsage]
+        g.game_id,
+        e.round(g.game_id).no,
+        [e._patch_event([move], cause="test", actor=ENGINE)],  # pyright: ignore[reportPrivateUsage]
+    )
     g.llm.on(
         "plan",
         lambda c: _json.dumps(

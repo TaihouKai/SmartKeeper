@@ -156,10 +156,12 @@ class Rules(Protocol):
         entry: dict[str, JsonValue] | None = None,
         peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
+        extra: Mapping[str, float] | None = None,
     ) -> DiceResult:
         """求值一条可以掷骰的公式（例如 1d100、1d str、highest(4, 6, 3)）。
 
         给了 template 和 sheet 时公式可以引用这张卡上的名字；再给 entry（条目的字段）时可以用 this.<字段>。
+        extra 是引擎另外给的名字（例如 distance、level），优先于卡上的名字。
         faces 由 engine 提供，是唯一的随机来源。
         """
         ...
@@ -175,8 +177,7 @@ class Rules(Protocol):
         peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
         config: str = "",
-        result: str = "",
-        reacting: bool = False,
+        outcome: Mapping[str, float] | None = None,
         damage_kind: str = "",
     ) -> tuple[ScriptStep, ...]:
         """技能脚本（config 是同一条目的技能设置，脚本里可以用它的各项）：在使用者的角色卡和这个条目（entry 是它的列，含这次使用时填写的数）上，
@@ -206,13 +207,16 @@ class Rules(Protocol):
         opponent: tuple[str, str, JsonValue, DiceResult] | None = None,
         peers: Peers | None = None,
         opp_check: str | None = None,
+        distance: float = 0.0,
+        vs_template: str = "",
     ) -> CheckResult:
-        """按成功条件算出结果等级。opponent = (实体 id, 模板, 角色卡, 对手的骰子)；
-        opp_check 是对手做的检定（默认是这个检定的 opposed_by，再默认同名检定）。对抗时没给难度，难度就是对手的点数。"""
+        """按检定代码算出等级（数字，1 起是成功）。opponent = (实体 id, 模板, 角色卡, 对手的骰子)；
+        opp_check 是对手做的检定（默认是这个检定的 opposed_by，再默认同名检定），对手的等级另算（opp_level），
+        难度只算在发起的一方。distance 是到对象的距离；vs_template 是没有对抗时对象的模板。"""
         ...
 
     def resolve_adhoc(self, entity: str, spec: AdHocCheck, roll: DiceResult) -> CheckResult:
-        """临时检定：骰子公式加目标值，结果只有 success / failure。"""
+        """临时检定：骰子公式加目标值，结果只有成功（1）/ 失败（0）。"""
         ...
 
     def render(self, pack: RulePack) -> str:

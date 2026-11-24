@@ -81,7 +81,6 @@ from smartkeeper.contracts.llm import (
     SearchRecord,
 )
 from smartkeeper.contracts.rulepack import (
-    CHECK_LEVELS,
     COOLDOWN_TAG,
     DEAD_TAG,
     FLY_FIELD,
@@ -89,7 +88,6 @@ from smartkeeper.contracts.rulepack import (
     REQUIRED_DERIVED,
     SHIELD_FIELD,
     CheckDef,
-    CheckLevel,
     CheckSpec,
     DerivedDef,
     EntityTemplate,
@@ -147,7 +145,6 @@ from smartkeeper.contracts.talk import Talk, TalkMessage, TalkStatus
 
 __all__ = [
     "ADMIN",
-    "CHECK_LEVELS",
     "COOLDOWN_TAG",
     "DEAD_TAG",
     "ENGINE",
@@ -168,7 +165,6 @@ __all__ = [
     "ChatMessage",
     "ChatStore",
     "CheckDef",
-    "CheckLevel",
     "CheckResult",
     "CheckSpec",
     "ClaimRef",

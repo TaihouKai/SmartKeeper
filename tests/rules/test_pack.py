@@ -520,8 +520,16 @@ def test_skill_config_checks_must_exist(rules: RulesService) -> None:
 
     assert codes('check = "spot"\nreactions = ["struggle"]\ndifficulty = 10 + this.level') == []
     assert codes('check = "nope"') == [("config.unknown_check", 1)]
-    assert codes('\nreactions = ["spot", "nope"]') == [("config.unknown_check", 2)]
+    # reactions 里可以是检定或写好的应对技能
+    assert codes('\nreactions = ["spot", "nope"]') == [("config.unknown_reaction", 2)]
     assert codes("reactions = [1]") == [("config.list_of_text", 1)]
+    assert (
+        codes('check = best("spot", "struggle")\nreactions = True\nhit = level > opp_level') == []
+    )
+    assert codes('check = best("spot", "nope")') == [("config.unknown_check", 1)]
+    assert codes('save = "nope"') == [("config.unknown_check", 1)]
+    assert codes("difficulty = floor(distance / 500)\nauto_level = 2 if unseen else 1") == []
+    assert [c for c, _ in codes("difficulty = opp_level")] == ["formula.unknown_name"]
 
 
 def test_number_choices(rules: RulesService) -> None:
@@ -569,7 +577,7 @@ def test_damage_kinds_and_damage_taken(rules: RulesService) -> None:
 
     def plan(script: str, kind: str = "") -> list[tuple[float, str, float | None]]:
         steps = rules.plan_script(
-            pack, script, FakeDice().faces, "person", sheet, {}, None, tgt, "", "", False, kind
+            pack, script, FakeDice().faces, "person", sheet, {}, None, tgt, "", None, kind
         )
         return [(s.amount, s.kind, s.raw) for s in steps]
 

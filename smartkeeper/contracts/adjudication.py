@@ -141,8 +141,14 @@ class CheckResult(Frozen):
     opponent: str | None = None
     opp_roll: DiceResult | None = None
     opp_target: float | None = None
-    level: str
+    level: int  # 0 及以下失败，1 起成功，越大越好
+    level_name: str = ""  # 规则包给这个等级起的名字（检定的 levels）；没有是空
+    opp_level: int | None = None  # 对抗时对方按自己的检定算出的等级
     reason: str = ""
+
+    @property
+    def success(self) -> bool:
+        return self.level >= 1
 
 
 class AdHocCheck(Frozen):

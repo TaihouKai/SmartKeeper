@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Literal
 
 from pydantic import JsonValue
@@ -34,8 +34,7 @@ def plan_script(
     peers: Peers | None = None,
     target: tuple[str, JsonValue, Peers | None] | None = None,
     config: str = "",
-    result: str = "",
-    reacting: bool = False,
+    outcome: Mapping[str, float] | None = None,
     damage_kind: str = "",
 ) -> tuple[ScriptStep, ...]:
     try:
@@ -47,9 +46,10 @@ def plan_script(
         ctx.target = context(pack, target[0], target[1], target[2])
     lookup = table_lookup(pack)
     steps: list[ScriptStep] = []
-    # 局部变量：算一次，后面的句子按名字取。result 是技能检定的结果等级（没有检定时是空）
-    # reacting：这次是当反应用的（1）还是平时用（0）
-    local: dict[str, f.Value] = {"result": result, "reacting": 1.0 if reacting else 0.0}
+    # 局部变量：算一次，后面的句子按名字取。引擎给的数（距离、双方等级、豁免、是不是当反应用……）
+    # 见 skillconfig.SCRIPT_VARS，没给的是 0
+    local: dict[str, f.Value] = {k: 0.0 for k in skillconfig.SCRIPT_VARS}
+    local.update(outcome or {})
     # 设置的各项：在脚本的公式里换成它们的公式
     env = {k: v for k, v in skillconfig.names(config, script).items() if k in skillconfig.KEYS}
 

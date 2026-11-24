@@ -13,9 +13,18 @@ const DEFAULTS: [string, string][] = [
   ["check", "None"],
   ["difficulty", "None"],
   ["reactions", "[]"],
+  ["hit", "None"],
   ["shape", "None"],
   ["placement", "None"],
 ];
+
+/** 设置里还能写、但不预填的项（少用）。 */
+export const EXTRA_CONFIG_KEYS = ["auto_level", "save"];
+/** 用技能时引擎给的数：设置的公式里能用前两个，命中条件 hit 到 opposed，技能脚本全部（和后端 skillconfig 的 *_VARS 对应）。 */
+export const OUTCOME_VARS = ["distance", "unseen", "level", "opp_level", "opposed", "saved", "reacting"];
+/** 检定的代码能写的项、条件里能用的变量（和后端 checkconfig 的 KEYS、VARS 对应）。 */
+export const CHECK_KEYS = ["label", "dice", "target", "success", "level", "levels", "opposed_by"];
+export const CHECK_VARS = ["roll", "natural", "target", "difficulty", "distance", "opp_roll", "opp_target", "self.template", "opponent.template"];
 
 export function configKeys(group: GroupLike): string[] {
   return DEFAULTS.map(([k]) => k).filter((k) => {
@@ -45,9 +54,7 @@ const CHECK_DEFAULTS: [string, string][] = [
   ["label", '""'],
   ["dice", "1d20"],
   ["target", "0"],
-  ["critical_success", "False"],
-  ["critical_failure", "False"],
-  ["success", "roll > difficulty"],
+  ["success", "roll > 10 + difficulty"],
   ["opposed_by", "None"],
 ];
 

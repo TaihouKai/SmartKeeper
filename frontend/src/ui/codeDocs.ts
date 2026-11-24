@@ -1,4 +1,5 @@
 import { FUNCTION_SIGNATURES } from "./FormulaHelp";
+import { CHECK_KEYS, CHECK_VARS, EXTRA_CONFIG_KEYS, OUTCOME_VARS } from "./skillConfig";
 
 /** 悬停提示的一条：签名、说明、各参数（名字、说明）。文字都是翻译键，显示时再翻译。 */
 export type Doc = { sig: string; desc: string; params?: [string, string][] };
@@ -57,7 +58,7 @@ const CALLS: Record<string, Doc> = {
 
 /** 技能设置的项。 */
 const SETTINGS: Record<string, Doc> = Object.fromEntries(
-  ["target", "range", "visible", "requires", "noise", "cast_time", "cooldown", "check", "difficulty", "reactions", "shape", "placement"].map((k) => [k, { sig: `${k} = …`, desc: `config.c.${k}` }]),
+  ["target", "range", "visible", "requires", "noise", "cast_time", "cooldown", "check", "difficulty", "reactions", "hit", "shape", "placement", ...EXTRA_CONFIG_KEYS].map((k) => [k, { sig: `${k} = …`, desc: `config.c.${k}` }]),
 );
 
 const KEYWORDS: Record<string, Doc> = {
@@ -72,14 +73,13 @@ const KEYWORDS: Record<string, Doc> = {
   self: { sig: "self", desc: "doc.kw.self" },
   target: { sig: "target", desc: "doc.kw.target" },
   this: { sig: "this", desc: "doc.kw.this" },
-  result: { sig: 'result == "critical_success"', desc: "doc.kw.result" },
-  reacting: { sig: "if reacting:", desc: "doc.kw.reacting" },
+  ...Object.fromEntries(OUTCOME_VARS.map((k) => [k, { sig: k, desc: `doc.kw.${k}` }])),
 };
 
 /** 检定的代码：各项和结果条件里能用的变量（只在编辑检定时用）。 */
 export const CHECK_DOCS: Record<string, Doc> = Object.fromEntries([
-  ...["label", "dice", "target", "critical_success", "critical_failure", "success", "opposed_by"].map((k) => [k, { sig: `${k} = …`, desc: `check.c.${k}` }]),
-  ...["roll", "natural", "difficulty", "opp_roll", "opp_target", "self.template", "opponent.template"].map((k) => [k, { sig: k, desc: `check.v.${k}` }]),
+  ...CHECK_KEYS.map((k) => [k, { sig: `${k} = …`, desc: `check.c.${k}` }]),
+  ...CHECK_VARS.filter((k) => k !== "target").map((k) => [k, { sig: k, desc: `check.v.${k}` }]),
 ]);
 
 const FUNCS: Record<string, Doc> = Object.fromEntries(FUNCTION_SIGNATURES.map(([name, sig]) => [name, { sig, desc: `fh.fn.${name}` }]));

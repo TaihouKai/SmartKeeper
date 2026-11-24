@@ -23,14 +23,15 @@ def sheet(**fields: JsonValue) -> dict[str, JsonValue]:
 def test_levels(rules: RulesService) -> None:
     pack = load_pack("single")
 
-    def level(n: int) -> str:
-        return rules.resolve_check(
+    def level(n: int) -> tuple[int, str]:
+        r = rules.resolve_check(
             pack, entity="e", template="person", sheet=sheet(), check="spot", roll=roll(n)
-        ).level
+        )
+        return r.level, r.level_name
 
-    assert level(8) == "critical_success"
-    assert level(40) == "success"
-    assert level(41) == "failure"
+    assert level(8) == (2, "extreme")
+    assert level(40) == (1, "success")
+    assert level(41) == (0, "failure")
 
 
 def test_opposed(rules: RulesService) -> None:
@@ -44,37 +45,46 @@ def test_opposed(rules: RulesService) -> None:
         roll=roll(30),
         opponent=("b", "person", sheet(str=20), roll(10)),
     )
-    assert (r.level, r.opponent, r.opp_target) == ("success", "b", 20)
+    # 对方也按自己的检定算等级：20 - 10 = 10 不大于 50 - 30 = 20，失败
+    assert (r.level, r.opponent, r.opp_target, r.opp_level) == (1, "b", 20, 0)
 
 
 def test_difficulty(rules: RulesService) -> None:
     pack = load_pack("multi")
     s = pack.samples[0].sheet
     kw = {"entity": "a", "template": "leader", "sheet": s, "check": "assault", "difficulty": 15.0}
-    assert rules.resolve_check(pack, roll=roll(13), **kw).level == "success"  # type: ignore[arg-type]
-    assert rules.resolve_check(pack, roll=roll(12), **kw).level == "failure"  # type: ignore[arg-type]
+    assert rules.resolve_check(pack, roll=roll(13), **kw).level == 1  # type: ignore[arg-type]
+    assert rules.resolve_check(pack, roll=roll(12), **kw).level == 0  # type: ignore[arg-type]
 
 
 def test_adhoc(rules: RulesService) -> None:
     spec = AdHocCheck(dice="1d100", target=30)
-    assert rules.resolve_adhoc("e", spec, roll(30)).level == "success"
-    assert rules.resolve_adhoc("e", spec, roll(31)).level == "failure"
+    assert rules.resolve_adhoc("e", spec, roll(30)).level == 1
+    assert rules.resolve_adhoc("e", spec, roll(31)).level == 0
 
 
-def test_fixed_order_and_opposed_difficulty(rules: RulesService) -> None:
+def test_level_formula_difficulty_and_distance(rules: RulesService) -> None:
     from smartkeeper.contracts import CheckDef
 
     pack = load_pack("single")
     d20 = CheckDef(
         name="per20",
-        config="dice = 1d20 + per\ncritical_success = natural == 20\ncritical_failure = natural == 1\nsuccess = roll > difficulty",
+        config=(
+            "dice = 1d20 + per\n"
+            "level = 0 if roll - difficulty - floor(distance / 500) <= 50 "
+            "else 1 if roll - difficulty - floor(distance / 500) <= 55 else 2\n"
+            'levels = ["fail", "ok", "great"]'
+        ),
     )
     pack = pack.model_copy(update={"checks": (*pack.checks, d20)})
+    assert rules.validate_pack(pack) == []
 
-    def level(n: int, difficulty: float | None = 10, opp: int | None = None) -> str:
+    def level(
+        n: int, difficulty: float | None = None, opp: int | None = None, distance: float = 0
+    ) -> int:
         r = DiceResult(expr="1d20 + per", rolls=(n,), total=n + 40)
         o = (
-            ("b", "person", sheet(), DiceResult(expr="1d20", rolls=(opp,), total=opp))
+            ("b", "person", sheet(), DiceResult(expr="1d20", rolls=(opp,), total=opp + 40))
             if opp
             else None
         )
@@ -87,15 +97,16 @@ def test_fixed_order_and_opposed_difficulty(rules: RulesService) -> None:
             roll=r,
             difficulty=difficulty,
             opponent=o,
+            distance=distance,
         ).level
 
-    assert level(20) == "critical_success"
-    assert level(1) == "critical_failure"  # 先看大失败再看成功：41 > 10 也是大失败
-    assert level(5) == "success"
-    assert level(5, difficulty=50) == "failure"
-    # 对抗：难度就是对方的点数
-    assert level(5, difficulty=None, opp=44) == "success"
-    assert level(5, difficulty=None, opp=46) == "failure"
+    assert level(10) == 0
+    assert level(11) == 1
+    assert level(16) == 2
+    assert level(16, difficulty=3) == 1
+    assert level(16, distance=1200) == 1  # 每 500 米难度加 1
+    # 对抗时难度不再被对方的点数替换：两边各算各的等级
+    assert level(16, opp=20) == 2
 
 
 def test_checks_can_branch_on_templates(rules: RulesService) -> None:
@@ -116,6 +127,7 @@ def test_checks_can_branch_on_templates(rules: RulesService) -> None:
     r = DiceResult(expr="x", rolls=(10,), total=12)
     opp = DiceResult(expr="x", rolls=(5,), total=9)
     kw = {"entity": "a", "template": "person", "sheet": s, "check": "t", "roll": r}
-    # 对手是 person：难度 9 + 5，打不过
-    assert rules.resolve_check(pack, opponent=("b", "person", s, opp), **kw).level == "failure"  # type: ignore[arg-type]
-    assert rules.resolve_check(pack, difficulty=9, **kw).level == "success"  # type: ignore[arg-type]
+    # 对手是 person：12 > 0 + 5 成功；有难度 9 时 12 > 9 + 5 不成立
+    assert rules.resolve_check(pack, opponent=("b", "person", s, opp), **kw).level == 1  # type: ignore[arg-type]
+    assert rules.resolve_check(pack, difficulty=9, vs_template="person", **kw).level == 0  # type: ignore[arg-type]
+    assert rules.resolve_check(pack, difficulty=9, **kw).level == 1  # type: ignore[arg-type]

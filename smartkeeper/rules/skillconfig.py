@@ -7,12 +7,13 @@ config.unknown_key、config.bad_value（name、expected）、config.bad_call（n
 
 from __future__ import annotations
 
+import contextlib
 from typing import Literal
 
 from smartkeeper import lang as f
 from smartkeeper.contracts import PlacementSpec, Shape, SkillConfig
 
-type Kind = Literal["choice", "bool", "formula", "shape", "placement", "check", "checks"]
+type Kind = Literal["choice", "bool", "formula", "shape", "placement", "check", "best", "reactions"]
 
 TARGETS = ("single", "self", "none")
 # 名字 -> 值的类型。顺序就是编辑器里预先填好的顺序
@@ -24,9 +25,12 @@ KEYS: dict[str, Kind] = {
     "noise": "formula",
     "cast_time": "formula",
     "cooldown": "formula",
-    "check": "check",
+    "check": "best",
+    "auto_level": "formula",
     "difficulty": "formula",
-    "reactions": "checks",
+    "hit": "formula",
+    "reactions": "reactions",
+    "save": "check",
     "shape": "shape",
     "placement": "placement",
 }
@@ -37,6 +41,10 @@ SHAPES: dict[str, tuple[str, ...]] = {
     "sphere": ("radius",),
     "cone": ("length", "angle"),
 }
+# 用技能时引擎知道的数：设置的公式里能用 CONFIG_VARS；命中条件 hit 还能用双方的等级；技能脚本全都能用
+CONFIG_VARS = ("distance", "unseen")
+HIT_VARS = (*CONFIG_VARS, "level", "opp_level", "opposed")
+SCRIPT_VARS = (*HIT_VARS, "saved", "reacting")
 # 设置物的参数：radius 必填；perceive 是别人发现它的距离系数；duration 按分钟
 PLACEMENT_ARGS = ("radius", "perceive", "charges", "duration", "notify")
 
@@ -76,11 +84,13 @@ def names(config: str, script: str) -> dict[str, f.Node]:
     except f.FormulaError:
         pass
     try:
-        for s in f.parse_config(config):
-            if s.call is None and s.value.strip():
-                env[s.name] = f.parse(s.value)
+        found = f.parse_config(config)
     except f.FormulaError:
-        pass
+        found = ()
+    for s in found:
+        if s.call is None and s.value.strip():
+            with contextlib.suppress(f.FormulaError):
+                env[s.name] = f.parse(s.value)
     return env
 
 
@@ -167,17 +177,33 @@ def read_config(text: str, script: str = "") -> SkillConfig:
                     notify_owner=_bool(s, args["notify"]) if "notify" in args else True,
                 )
             continue
-        if kind == "checks":
-            if s.items is not None:
+        if kind == "reactions":
+            if s.items is not None and s.call is None:
                 out[s.name] = s.items
                 continue
             node = _literal(s)
-            if node is None:
+            if node is None or (isinstance(node, f.Num) and node.value == 0.0):
+                continue
+            if isinstance(node, f.Num) and node.value == 1.0:
+                out["reactions_any"] = True  # True：对象可以用任何应对技能
                 continue
             if not isinstance(node, f.Str):
-                raise _err("config.bad_value", s, expected='["dodge", "block"]')
+                raise _err("config.bad_value", s, expected='["dodge", "block"] / True')
             out[s.name] = (node.value,)
             continue
+        if kind == "best":
+            if s.call is not None:
+                if s.call != "best" or not s.items:
+                    raise _err("config.bad_call", s, call=s.call)
+                out[s.name] = s.items
+                continue
+            node = _literal(s)
+            if node is None or (isinstance(node, f.Num) and node.value in (0.0, 1.0)):
+                continue  # None / True：不掷骰，必中
+            if isinstance(node, f.Str):
+                out[s.name] = (node.value,)
+                continue
+            raise _err("config.bad_value", s, expected='"check_name" / best("a", "b")')
         if s.items is not None:
             raise _err("config.bad_value", s, expected=kind)
         if kind == "check":

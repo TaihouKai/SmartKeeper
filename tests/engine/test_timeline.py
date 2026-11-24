@@ -1049,14 +1049,14 @@ def test_reactions_are_chosen_by_the_target() -> None:
         {
             "name": "blast",
             "fields": {"level": 1},
-            "config": 'check = "zap"\nreactions = ["limp", "wall"]',
+            "config": 'check = "zap"\nreactions = ["limp", "wall", "parry", "slowward"]',
             "script": "target.damage(5)",
         },
         {
             "name": "jab",
             "fields": {"level": 1},
             "config": 'check = "zap"\nreactions = ["limp"]',
-            "script": "target.damage(2 if result == 'critical_success' else 3)",
+            "script": "target.damage(2 if level >= 2 else 3)",
         },
         {
             "name": "aimed",

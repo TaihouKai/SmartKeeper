@@ -70,6 +70,17 @@ def parse_config(text: str) -> tuple[Setting, ...]:
             items = tuple(str(cast(ast.Constant, x).value) for x in v.elts)
             out.append(Setting(line=s.lineno, name=name, items=items))
             continue
+        if (
+            isinstance(v, ast.Call)
+            and isinstance(v.func, ast.Name)
+            and v.args
+            and not v.keywords
+            and all(isinstance(x, ast.Constant) and isinstance(x.value, str) for x in v.args)
+        ):
+            # 名字("a", "b")：一串文字参数，例如 check = best("strength", "agility")
+            items = tuple(str(cast(ast.Constant, x).value) for x in v.args)
+            out.append(Setting(line=s.lineno, name=name, call=v.func.id, items=items))
+            continue
         if isinstance(v, ast.Call) and isinstance(v.func, ast.Name) and v.keywords:
             if v.args or any(k.arg is None for k in v.keywords):
                 raise FormulaError("config.call_keywords", line=s.lineno, name=v.func.id)

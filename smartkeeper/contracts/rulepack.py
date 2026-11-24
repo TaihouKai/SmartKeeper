@@ -157,16 +157,6 @@ class Formula(Frozen):
     label: str = ""
 
 
-# 检定的结果等级：固定四个
-type CheckLevel = Literal["critical_success", "success", "failure", "critical_failure"]
-CHECK_LEVELS: tuple[CheckLevel, ...] = (
-    "critical_success",
-    "success",
-    "failure",
-    "critical_failure",
-)
-
-
 class CheckDef(Frozen):
     """一个检定：名字和它的代码（一串 名字 = 值，见 rules/checkconfig.py；解析成 CheckSpec）。"""
 
@@ -175,16 +165,17 @@ class CheckDef(Frozen):
 
 
 class CheckSpec(Frozen):
-    """检定的代码解析出来的内容。结果按顺序判断：大成功、大失败、成功的条件，第一个成立的就是结果；都不成立是失败。
-    条件是公式，可用变量 roll（这次掷的点数）、natural（骰子本身的点数，不含加值）、target（目标值）、
-    difficulty（难度；对抗时是对方的点数）、opp_roll、opp_target（对抗时对方的点数和目标值）。"""
+    """检定的代码解析出来的内容。结果是一个数字等级：0 及以下是失败，1 起是成功，越大越好。
+    level 是算等级的公式；不写时按 success（条件）：成立是 1，不成立是 0。levels 是各等级的名字（下标就是等级）。
+    公式可用变量 roll（这次掷的点数）、natural（骰子本身的点数，不含加值）、target（目标值）、
+    difficulty（技能的难度，没有是 0）、distance（到对象的距离，米）、opp_roll、opp_target（对抗时对方的点数和目标值）。"""
 
     label: str = ""
     dice: str = ""  # 骰子公式，在执行检定的实体上求值，例如 1d100、3d6+2、1d20 + per
     target: str = "0"  # 公式，在执行检定的实体上求值
-    critical_success: str = "False"
     success: str = ""
-    critical_failure: str = "False"
+    level: str = ""
+    levels: tuple[str, ...] = ()
     opposed_by: str = ""  # 对抗检定时对手做的检定；空是同一个检定
 
 

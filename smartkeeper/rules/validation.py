@@ -124,7 +124,7 @@ def check_script(
 
     # 到这一句为止定义过的局部变量；设置的各项在哪里都能用
     settings = [n for n in skillconfig.names(config, "") if n in skillconfig.KEYS]
-    defined: list[str] = [*settings, "result", "reacting"]
+    defined: list[str] = [*settings, *skillconfig.SCRIPT_VARS]
     for n in nodes:
         if isinstance(n, f.Let) and n.name in skillconfig.KEYS:
             at(n.line, [Problem(code="script.setting_name", path=path, params={"name": n.name})])
@@ -214,8 +214,9 @@ def check_config(
     except f.FormulaError as e:
         return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
     problems: list[Problem] = []
-    for line, _name, formula in skillconfig.formulas(text, script):
-        found = check_formula(pack, template, formula, path, entry_fields=entry_fields)
+    for line, name, formula in skillconfig.formulas(text, script):
+        extra = skillconfig.HIT_VARS if name == "hit" else skillconfig.CONFIG_VARS
+        found = check_formula(pack, template, formula, path, entry_fields=entry_fields, extra=extra)
         problems += [p.model_copy(update={"params": {**p.params, "line": line}}) for p in found]
     if g is not None:
         settings = {s.name: s.line for s in skillconfig.settings(text, script)}
@@ -233,14 +234,26 @@ def check_config(
             off("shape", "sheet.shape_not_allowed")
         if cfg.placement is not None and not g.placements:
             off("placement", "sheet.placement_not_allowed")
-        for name in [x for x in (cfg.check, *cfg.reactions) if x]:
-            if pack.check(name) is None:
-                key = "check" if name == cfg.check else "reactions"
+        for key, name in [*(("check", x) for x in cfg.check), ("save", cfg.save)]:
+            if name and pack.check(name) is None:
                 problems.append(
                     Problem(
                         code="config.unknown_check",
                         path=path,
                         params={"name": name, "line": settings.get(key, 1)},
+                    )
+                )
+        # 可以应对的：检定，或者规则包里写好的应对技能（ID 或名字）
+        entries = {
+            x for t in pack.templates for g2 in t.groups for p in g2.presets for x in (p.id, p.name)
+        }
+        for name in cfg.reactions:
+            if pack.check(name) is None and name not in entries:
+                problems.append(
+                    Problem(
+                        code="config.unknown_reaction",
+                        path=path,
+                        params={"name": name, "line": settings.get("reactions", 1)},
                     )
                 )
         if (cfg.cast_time.strip() or cfg.cooldown.strip()) and not g.timing:
@@ -590,9 +603,9 @@ def check_check(pack: RulePack, text: str, path: str) -> list[Problem]:
     else:
         at("dice", check_formula(pack, None, spec.dice, path, extra=fields, dice=True))
     at("target", check_formula(pack, None, spec.target, path, extra=fields))
-    if not spec.success.strip():
+    if not spec.success.strip() and not spec.level.strip():
         at("success", [Problem(code="pack.check_needs_success", path=path)])
-    for key in ("critical_success", "success", "critical_failure"):
+    for key in ("success", "level"):
         cond = str(getattr(spec, key))
         if cond.strip():
             at(key, check_formula(pack, None, cond, path, extra=checkconfig.VARS))
