@@ -1473,13 +1473,12 @@ class Engine:
 
             actions: list[JsonValue] = []
             for act in parsed.actions:
-                if act.who == "target" and target is None:
-                    continue
+                if target is None:
+                    break
                 amount = roll(act.amount)
                 dur = int(roll(act.duration).total) if act.duration.strip() else None
                 actions.append(
                     {
-                        "who": act.who,
                         "op": act.op,
                         "field": act.field,
                         "amount": amount.total,
@@ -1654,7 +1653,7 @@ class Engine:
             listed = p.get("actions")
             for raw in cast(list[JsonValue], listed) if isinstance(listed, list) else []:
                 a = _obj(raw)
-                who = source if a.get("who") == "self" else target
+                who = target
                 if not isinstance(who, str) or who not in _obj(cur.get("entities")):
                     continue
                 amount = float(cast(float, a.get("amount", 0)))

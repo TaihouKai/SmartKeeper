@@ -10,7 +10,7 @@ type GroupDef = Schemas["GroupDef"];
 // formula 算出 target 的新值；写 target 自己的名字表示到这一步为止的值。priority 只有玩家写的效果才有
 export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null; duration?: string };
 // 作用效果：使用时（KP 判定生效）由引擎执行。damage 先扣护盾再扣生命值；add/subtract/set 改一个运行值
-export type OnUse = { description: string; who: "target" | "self"; op: "damage" | "add" | "subtract" | "set"; field?: string | null; amount: string; duration?: string };
+export type OnUse = { description: string; op: "damage" | "add" | "subtract" | "set"; field?: string | null; amount: string; duration?: string };
 export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
 export type PlacementSpec = { radius: string; perceive_multiplier?: string; charges?: string; duration?: string; notify_owner?: boolean };
 export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null; actions?: OnUse[]; cast_time?: string; cooldown?: string };
@@ -201,7 +201,7 @@ export function EffectsEditor({
   );
 }
 
-/** 作用效果：使用时对对象（或自己）造成伤害、增减或设定一个运行值；增加可以限时（到期扣回剩下的）。 */
+/** 作用效果：使用时对玩家选的对象造成伤害、增减或设定一个运行值；增加可以限时（到期扣回剩下的）。 */
 export function ActionsEditor({ actions, runtime, validate, onChange }: { actions: OnUse[]; runtime: string[]; validate: Check; onChange: (a: OnUse[]) => void }) {
   const { t } = useI18n();
   const set = (i: number, patch: Partial<OnUse>) => onChange(actions.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -211,10 +211,6 @@ export function ActionsEditor({ actions, runtime, validate, onChange }: { action
       {actions.map((a, i) => (
         <div key={i} className="sk-effect">
           <input placeholder={t("character.effect_description")} value={a.description} onChange={(e) => set(i, { description: e.target.value })} />
-          <select value={a.who} onChange={(e) => set(i, { who: e.target.value as OnUse["who"] })}>
-            <option value="target">{t("action.who.target")}</option>
-            <option value="self">{t("action.who.self")}</option>
-          </select>
           <select value={a.op} onChange={(e) => { const op = e.target.value as OnUse["op"]; set(i, { op, field: op === "damage" ? null : (a.field ?? runtime[0] ?? null), duration: op === "add" ? a.duration : "" }); }}>
             {(["damage", "add", "subtract", "set"] as const).map((o) => (
               <option key={o} value={o}>
@@ -245,7 +241,7 @@ export function ActionsEditor({ actions, runtime, validate, onChange }: { action
           </button>
         </div>
       ))}
-      <button type="button" onClick={() => onChange([...actions, { description: "", who: "target", op: "damage", field: null, amount: "", duration: "" }])}>
+      <button type="button" onClick={() => onChange([...actions, { description: "", op: "damage", field: null, amount: "", duration: "" }])}>
         {t("action.add")}
       </button>
       {actions.length > 0 && <p className="sk-hint">{t("action.hint")}</p>}

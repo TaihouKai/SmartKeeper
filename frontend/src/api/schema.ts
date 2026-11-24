@@ -1853,7 +1853,7 @@ export interface components {
          * OnUse
          * @description 作用效果：条目被使用（并且 KP 判定生效）时由引擎执行的一项状态改变。
          *
-         *     - who：作用在对象（target）还是自己（self）身上
+         *     - 作用在使用时选的对象身上（可以是任何人，包括使用者自己）；没有对象就不执行
          *     - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值
          *     - amount：数量公式，可以掷骰；名字取施法者这边，self.<列> 是这一条的列，target.x 是对象的
          *     - duration：只对 add 有意义，秒（公式）；到期时把加上去还剩下的部分扣回
@@ -1879,12 +1879,6 @@ export interface components {
              * @enum {string}
              */
             op: "damage" | "add" | "subtract" | "set";
-            /**
-             * Who
-             * @default target
-             * @enum {string}
-             */
-            who: "target" | "self";
         };
         /** Outcome */
         Outcome: {
