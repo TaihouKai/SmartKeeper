@@ -198,9 +198,9 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
           <div className="wb-settings">
             <div className="sk-field-flags">
               {flag("effects", true, t("rules.g.effects"))}
+              {flag("placements", true, t("rules.g.placements"))}
+              {flag("timing", true, t("rules.g.timing"))}
               {flag("hidden", false, t("rules.g.hidden"))}
-              {flag("placements", false, t("rules.g.placements"))}
-              {flag("timing", false, t("rules.g.timing"))}
             </div>
             <div className="wb-shapes">
               <span className="sk-hint">{t("rules.g.shapes")}</span>

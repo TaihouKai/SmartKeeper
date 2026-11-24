@@ -103,8 +103,8 @@ class GroupDef(Frozen):
     max_count: int | None = None
     effects: bool = True  # 条目是否可以带效果
     shapes: ShapeDef = ShapeDef()
-    placements: bool = False  # 条目是否可以是设置物（陷阱、结界等）
-    timing: bool = False  # 条目是否有施放时间和冷却时间（技能）
+    placements: bool = True  # 条目是否可以是设置物（陷阱、结界等）
+    timing: bool = True  # 条目是否有施放时间和冷却时间（技能）
     hidden: bool = False
 
 

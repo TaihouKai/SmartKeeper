@@ -1534,7 +1534,7 @@ export interface components {
             name: string;
             /**
              * Placements
-             * @default false
+             * @default true
              */
             placements: boolean;
             /**
@@ -1548,7 +1548,7 @@ export interface components {
             shapes: components["schemas"]["ShapeDef"];
             /**
              * Timing
-             * @default false
+             * @default true
              */
             timing: boolean;
         };

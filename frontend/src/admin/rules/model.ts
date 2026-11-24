@@ -54,7 +54,7 @@ export function blankTemplate(name: string, t: T): Template {
 }
 
 export function blankGroup(): Group {
-  return { name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: false, timing: false };
+  return { name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: true, timing: true };
 }
 
 /** 以前存的规则包可能缺少后来新增的引擎必需项（能否飞行字段、飞行速度等推导值）：打开时补上默认的；必需项的显示名空着就填默认的。 */
