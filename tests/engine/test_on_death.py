@@ -53,3 +53,30 @@ def test_unknown_receiver_is_reported() -> None:
     pack = pack.model_copy(update={"templates": (leader, *pack.templates[1:])})
     codes = [p.code for p in RulesService().validate_pack(pack)]
     assert codes == ["script.unknown_receiver"]
+
+
+def test_damage_to_zero_kills_before_regeneration() -> None:
+    """生命值打到 0 就死：不能先回复一点再判死亡。"""
+    from tests.engine.test_timeline import magic_pack
+
+    pack = magic_pack()
+    tpl = pack.templates[0]
+    fields = tuple(
+        f.model_copy(update={"vital": True, "per_minute": "60"}) if f.name == "hp" else f
+        for f in tpl.fields
+    )
+    pack = pack.model_copy(
+        update={"templates": (tpl.model_copy(update={"fields": fields}), *pack.templates[1:])}
+    )
+    t = setup_table("single", 2, pack=pack)
+    e, g = t.engine, t.game_id
+    a, b = t.entities(t.players[0])[0], t.entities(t.players[1])[0]
+    hp = fields_of(t, b)["hp"]
+    for p in t.players:
+        wait(t, p, 60)
+    e.close_round(g)
+    e.begin_plan(g)
+    uses = [e.use_entry(g, a, "bolt", b, {}, "x") for _ in range(int(hp) // 5 + 1)]  # type: ignore[call-overload]
+    publish(t, only=t.players, uses=[UseResult(seq=u.seq) for u in uses])
+    statuses = e.world_state(g)["entities"][b]["sheet"]["statuses"]  # type: ignore[index]
+    assert any(s["tag"] == "dead" for s in statuses)  # type: ignore[index,union-attr]

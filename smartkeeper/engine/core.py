@@ -2168,6 +2168,27 @@ class Engine:
                     break
         return ops
 
+    def _settle_deaths(
+        self,
+        pack: RulePack,
+        cur: State,
+        killers: dict[str, str],
+        end: int,
+        groups: list[tuple[str, list[PatchOp]]],
+    ) -> State:
+        """致命运行值到 0 的角色死亡，执行死亡时的脚本；脚本可能又害死别的角色，接着结算，最多几层。"""
+        death_ops = self._vital_ops(pack, cur)
+        for _ in range(5):
+            if not death_ops:
+                break
+            cur = self._world.apply(cur, death_ops)
+            groups.append(("death", death_ops))
+            cur, last = self._on_death(pack, cur, death_ops, killers, end)
+            if last:
+                groups.append(("on_death", last))
+            death_ops = self._vital_ops(pack, cur)
+        return cur
+
     def _on_death(
         self,
         pack: RulePack,
@@ -2561,23 +2582,17 @@ class Engine:
                     groups.append(("uses", use_ops))
             except ValidationFailed as e:
                 problems += e.problems or [Problem(code=e.code, params=dict(e.params))]
-        death_ops: list[PatchOp] = []
         if not problems:
+            # 先结算这一轮的伤害造成的死亡（死了的不再自然回复），再算时间流逝（回复、消耗），
+            # 时间流逝也可能致死（例如魔力耗尽），所以之后再结算一次
+            cur = self._settle_deaths(pack, cur, killers, end, groups)
             regen = self._regen_ops(pack, cur, end - now)
             if regen:
                 cur = self._world.apply(cur, regen)
                 groups.append(("regen", regen))
-            death_ops = self._vital_ops(pack, cur)
-            # 死亡时的脚本可能又害死别的角色：接着结算，最多几层
-            for _ in range(5):
-                if not death_ops:
-                    break
-                cur = self._world.apply(cur, death_ops)
-                groups.append(("death", death_ops))
-                cur, last = self._on_death(pack, cur, death_ops, killers, end)
-                if last:
-                    groups.append(("on_death", last))
-                death_ops = self._vital_ops(pack, cur)
+            cur = self._settle_deaths(pack, cur, killers, end, groups)
+        # 死亡和死亡时的脚本碰到的角色：它们的玩家要收到结果
+        death_ops = [op for name, ops in groups if name in ("death", "on_death") for op in ops]
         after_entities = set(_obj(cur.get("entities")))
         problems += adjv.check_memory_entities(adj, after_entities | entities)
         for i, mem in enumerate(adj.memory_entries):

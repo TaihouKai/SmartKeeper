@@ -1,0 +1,1826 @@
+{
+  "format": "smartkeeper.rulepack",
+  "format_version": 1,
+  "pack": {
+    "world": {
+      "name": "圣杯战争",
+      "description": "以 Fate 系列的圣杯战争为基础，设定以原作为准。\n基调：严肃、紧张的异能战斗，伴随阴谋与背叛。死亡是真实的，没有复活。",
+      "canon": "Type-Moon 圣杯战争",
+      "reference_sites": [
+        "https://www.tmdict.com/zh/"
+      ]
+    },
+    "templates": [
+      {
+        "name": "master",
+        "label": "御主",
+        "appearance_field": "appearance",
+        "fields": [
+          {
+            "name": "appearance",
+            "label": "外观",
+            "description": "角色的外观",
+            "kind": "text",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "can_fly",
+            "label": "飞行能力",
+            "description": "是否可以飞行",
+            "kind": "boolean",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "hp",
+            "label": "生命值",
+            "description": "生命值",
+            "kind": "resource",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": "hp_max",
+            "initial": "hp_max",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": "0.1 + con / 20",
+            "vital": true
+          },
+          {
+            "name": "mp",
+            "label": "魔力值",
+            "description": "魔力值",
+            "kind": "resource",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": "mp_max",
+            "initial": "mp_max",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": "0.1 + ap / 20",
+            "vital": false
+          },
+          {
+            "name": "shield",
+            "label": "护盾值",
+            "description": "护盾值",
+            "kind": "resource",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": null,
+            "initial": "0",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "str",
+            "label": "力量",
+            "description": "运动能力、近战格斗能力、力气",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": "-2",
+            "max": "5",
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "agi",
+            "label": "敏捷",
+            "description": "身体灵活性、回避攻击的能力、远程射击能力、隐藏技巧、小技巧等",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": "-2",
+            "max": "5",
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "con",
+            "label": "体质",
+            "description": "身体健康程度、直接关系HP和对毒素等的耐受能力",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": "-2",
+            "max": "5",
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "int",
+            "label": "智力",
+            "description": "记忆力、推理分析能力、魔力（符文、魔法道具等有明确技法传承的魔术）",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": "-2",
+            "max": "5",
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "per",
+            "label": "感知",
+            "description": "感官的敏锐度、对幻术的耐受能力、魔力（借助自然地脉或神灵力量的魔术）",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": "-2",
+            "max": "5",
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "cha",
+            "label": "魅力",
+            "description": "影响他人的能力、魔力（血缘性魔术、各种超能力）",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": "-2",
+            "max": "5",
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "weapon_db",
+            "label": "武器伤害骰",
+            "description": "近战武器的伤害骰面数（1d几），空手是 0；可以参考 COC，但不是越高越好",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": "0",
+            "max": "12",
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "is_muggle",
+            "label": "是否是普通人",
+            "description": "普通人（麻瓜）：没有魔力，不能用魔术",
+            "kind": "boolean",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "silenced",
+            "label": "沉默",
+            "description": "",
+            "kind": "boolean",
+            "cls": "runtime",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": "False",
+            "choices": [],
+            "required": true,
+            "hidden": true,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          }
+        ],
+        "groups": [
+          {
+            "name": "magic",
+            "label": "魔术",
+            "fields": [
+              {
+                "name": "mp_spent",
+                "label": "消耗魔力值",
+                "description": "这次投入多少魔力",
+                "kind": "param",
+                "cls": "player",
+                "unit": null,
+                "min": "1",
+                "max": "mp_max",
+                "initial": null,
+                "choices": [],
+                "required": true,
+                "hidden": false,
+                "spends": "mp",
+                "per_minute": null,
+                "vital": false
+              }
+            ],
+            "presets": [
+              {
+                "name": "攻击魔术",
+                "id": "attack_magic",
+                "description": "红色的闪电射向目标",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 100\nvisible = True\nrequires = not silenced\nnoise = range\ncheck = \"magecraft\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
+                "script": "# 5MP = 1d(4+魔术能力) 伤害；每满 5MP 多一颗\ntarget.damage(dice(\n    max(1, floor(this.mp_spent / 5)),\n    4 + ap\n))",
+                "when": "not is_muggle"
+              },
+              {
+                "name": "治疗魔术",
+                "id": "heal_magic",
+                "description": "绿色的光晕包裹对方",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 100\nvisible = True\nrequires = not silenced\nnoise = range / 10",
+                "script": "# 每 1MP 回复 2 + 魔术能力/2 点生命值\ntarget.add(hp, (2 + floor(ap / 2)) * this.mp_spent)",
+                "when": "not is_muggle"
+              },
+              {
+                "name": "防护魔术",
+                "id": "shield_magic",
+                "description": "半透明的防护罩罩住对方",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 100\nvisible = True\nrequires = not silenced\nnoise = range / 10",
+                "script": "# 每 1MP 加 5 + 魔术能力/2 点护盾，护盾持续的分钟数等于投入的 MP\ntarget.add(shield, (5 + floor(ap / 2)) * this.mp_spent, this.mp_spent)",
+                "when": "not is_muggle"
+              },
+              {
+                "name": "警戒结界",
+                "id": "alert_field",
+                "description": "看不见的结界：任何实体闯入都会通知施术者",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"none\"\nrange = 1\nvisible = False\nrequires = not silenced\nplacement = placement(radius=(50 + ap) * this.mp_spent, perceive=0, duration=this.mp_spent * 10, notify=True)",
+                "script": "# 被触发时什么都不做，只通知施术者\npass",
+                "when": "not is_muggle"
+              },
+              {
+                "name": "补魔魔术",
+                "id": "mp_regen_magic",
+                "description": "没有视觉效果的魔术，把自己的魔力分给对方",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = not silenced",
+                "script": "if target.template == \"servant\":\n    target.add(mp, 2 * this.mp_spent)\nelse:\n    target.add(mp, this.mp_spent)",
+                "when": "not is_muggle"
+              },
+              {
+                "name": "暗示",
+                "id": "suggestion",
+                "description": "对一个普通人下达命令。危险或复杂的命令由 KP 判定是否执行；检定失败时对方不受影响。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = not silenced and target.template == \"master\" and target.is_muggle\ncheck = \"charisma\"",
+                "script": "# 效果由 KP 按命令叙述；技能只判定成不成功\npass",
+                "when": "not is_muggle"
+              }
+            ],
+            "min_count": 0,
+            "max_count": null,
+            "effects": true,
+            "shapes": {
+              "allowed": []
+            },
+            "placements": true,
+            "timing": true,
+            "reactions": false,
+            "damage_kind": "magic",
+            "hidden": false
+          },
+          {
+            "name": "master_action",
+            "label": "御主行动",
+            "fields": [],
+            "presets": [
+              {
+                "name": "近战攻击",
+                "id": "master_melee",
+                "description": "徒手或用武器近身攻击",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = None\ncheck = best(\"strength\", \"agility\")    # 筋力（力量）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
+                "script": "# 平手（被反击时）只造成一半伤害\nhalf = opposed and level == opp_level\ntarget.damage(((dice(1, str) if str > 0 else 0) + (dice(1, weapon_db) if weapon_db > 0 else 0)) / (2 if half else 1))",
+                "when": ""
+              },
+              {
+                "name": "补魔",
+                "id": "mp_regen",
+                "description": "普通人可以通过身体层面的亲密接触恢复英灵一半的魔力（请铺垫好坚实的剧情基础）",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 1\nvisible = True\ncast_time = 120\ncooldown = 1440",
+                "script": "# 每天一次，花 2 小时，恢复对方魔力上限的一半\ntarget.add(mp, target.mp_max * 0.5)",
+                "when": "is_muggle"
+              },
+              {
+                "name": "缔结契约",
+                "id": "contract",
+                "description": "和失去御主的英灵缔结契约：英灵停止消散。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = target.template == \"servant\" and target.masterless == 1\ncast_time = 1",
+                "script": "target.set(masterless, 0)\ntarget.set(remaining, 1)",
+                "when": ""
+              }
+            ],
+            "min_count": 0,
+            "max_count": 0,
+            "effects": true,
+            "shapes": {
+              "allowed": []
+            },
+            "placements": false,
+            "timing": true,
+            "reactions": false,
+            "damage_kind": "",
+            "hidden": false
+          },
+          {
+            "name": "defense",
+            "label": "应对",
+            "fields": [],
+            "presets": [
+              {
+                "name": "反击",
+                "id": "counter",
+                "description": "被近战攻击时迎击：力量（筋力）检定，等级高过对方就挡下这次攻击，并反过来打中对方；平手时对方打中、只造成一半伤害。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"self\"\ncheck = \"strength\"",
+                "script": "if reacting and level >= 1 and level > opp_level:\n    self.negate()\n    target.damage((dice(1, str) if str > 0 else 0) + (dice(1, weapon_db) if weapon_db > 0 else 0))",
+                "when": ""
+              },
+              {
+                "name": "闪避",
+                "id": "dodge",
+                "description": "被攻击时躲开：敏捷检定，等级不低于对方就闪开（平手算闪开）。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"self\"\ncheck = \"agility\"",
+                "script": "if reacting and level >= 1 and level >= opp_level:\n    self.negate()",
+                "when": ""
+              }
+            ],
+            "min_count": 0,
+            "max_count": 0,
+            "effects": false,
+            "shapes": {
+              "allowed": []
+            },
+            "placements": false,
+            "timing": true,
+            "reactions": true,
+            "damage_kind": "",
+            "hidden": false
+          }
+        ],
+        "derived": [
+          {
+            "name": "perception_radius",
+            "label": "感知半径",
+            "formula": "50 + per * 10",
+            "unit": "m",
+            "hidden": false
+          },
+          {
+            "name": "concealment",
+            "label": "匿踪系数",
+            "formula": "1",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "move_speed",
+            "label": "移动速度",
+            "formula": "80 + agi * 10",
+            "unit": "m/min",
+            "hidden": false
+          },
+          {
+            "name": "fly_multiplier",
+            "label": "飞行速度系数",
+            "formula": "1",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "fly_speed",
+            "label": "飞行速度",
+            "formula": "fly_multiplier * move_speed",
+            "unit": "m/min",
+            "hidden": false
+          },
+          {
+            "name": "hear_multiplier",
+            "label": "听力系数",
+            "formula": "1",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "hear_distance",
+            "label": "听力范围",
+            "formula": "(10 + per * 4) * hear_multiplier",
+            "unit": "m",
+            "hidden": false
+          },
+          {
+            "name": "hp_max",
+            "label": "生命值上限",
+            "formula": "30 + con * 4",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "mp_max",
+            "label": "魔力值上限",
+            "formula": "0 if is_muggle else 10 + (max(int, per) + cha) * 2",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "ap",
+            "label": "魔术能力",
+            "formula": "0 if is_muggle else max(int, per, cha)",
+            "unit": null,
+            "hidden": false
+          }
+        ],
+        "damage_taken": "",
+        "stealth": "",
+        "search": "1d20 + per",
+        "on_death": "# 御主死了：英灵断了魔力供给，开始消散（有单独行动的按天数，否则 1d(幸运) 小时）\nif servant.masterless == 0:\n    servant.set(masterless, 1)\n    servant.set(remaining, servant.independent_minutes if servant.independent_minutes > 0 else dice(1, servant.luk) * 60)\n# 被英灵杀死的人：凶手回魔力，杀得越多收益越少\nif target.template == \"servant\":\n    target.add(mp, lookup(kill_mp, target.kills))\n    target.add(kills, 1)"
+      },
+      {
+        "name": "servant",
+        "label": "英灵",
+        "appearance_field": "appearance",
+        "fields": [
+          {
+            "name": "appearance",
+            "label": "外观",
+            "description": "角色的外观",
+            "kind": "text",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "can_fly",
+            "label": "飞行能力",
+            "description": "是否可以飞行",
+            "kind": "boolean",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "hp",
+            "label": "生命值",
+            "description": "生命值",
+            "kind": "resource",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": "hp_max",
+            "initial": "hp_max",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": "hp_max * 0.05 * lookup(class_heal, klass)",
+            "vital": true
+          },
+          {
+            "name": "mp",
+            "label": "魔力值",
+            "description": "魔力值。每天的日常消耗按分钟扣：基础 2，加上 EX/A/B 级技能各 4/2/1。降到 0 会消失",
+            "kind": "resource",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": "mp_max",
+            "initial": "mp_max",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": "-(2 + 4 * (count(klass_skill.level, 10) + count(personal_skill.level, 10)) + 2 * (count(klass_skill.level, 5) + count(personal_skill.level, 5)) + count(klass_skill.level, 4) + count(personal_skill.level, 4)) / 1440",
+            "vital": true
+          },
+          {
+            "name": "shield",
+            "label": "护盾值",
+            "description": "护盾值",
+            "kind": "resource",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": null,
+            "initial": "0",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "klass",
+            "label": "职阶",
+            "description": "英灵的职阶",
+            "kind": "text",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [
+              "Saber",
+              "Archer",
+              "Lancer",
+              "Rider",
+              "Caster",
+              "Assassin",
+              "Berserker"
+            ],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "str",
+            "label": "筋力",
+            "description": "决定近战攻击和近战物理伤害",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [
+              "E=1",
+              "D=2",
+              "C=3",
+              "B=4",
+              "A=5",
+              "EX=10"
+            ],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "agi",
+            "label": "敏捷",
+            "description": "决定速度、远程物理伤害、闪避",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [
+              "E=1",
+              "D=2",
+              "C=3",
+              "B=4",
+              "A=5",
+              "EX=10"
+            ],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "con",
+            "label": "耐久",
+            "description": "决定生命值",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [
+              "E=1",
+              "D=2",
+              "C=3",
+              "B=4",
+              "A=5",
+              "EX=10"
+            ],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "int",
+            "label": "魔力",
+            "description": "决定魔力值、魔力豁免",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [
+              "E=1",
+              "D=2",
+              "C=3",
+              "B=4",
+              "A=5",
+              "EX=10"
+            ],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "luk",
+            "label": "幸运",
+            "description": "天意；幸运豁免、失去御主后还能存在多久",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [
+              "E=1",
+              "D=2",
+              "C=3",
+              "B=4",
+              "A=5",
+              "EX=10"
+            ],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "np",
+            "label": "宝具",
+            "description": "宝具的等级",
+            "kind": "number",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [
+              "E=1",
+              "D=2",
+              "C=3",
+              "B=4",
+              "A=5",
+              "EX=10"
+            ],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "spirit_form",
+            "label": "灵体化中",
+            "description": "",
+            "kind": "number",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": "1",
+            "initial": "0",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "riding",
+            "label": "骑乘中",
+            "description": "",
+            "kind": "number",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": "1",
+            "initial": "0",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "masterless",
+            "label": "失去御主",
+            "description": "",
+            "kind": "number",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": "1",
+            "initial": "0",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          },
+          {
+            "name": "remaining",
+            "label": "失去御主后的剩余时间",
+            "description": "失去御主后按分钟倒数，到 0 消散；重新缔结契约后停止",
+            "kind": "number",
+            "cls": "runtime",
+            "unit": "min",
+            "min": "0",
+            "max": null,
+            "initial": "1",
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": "-1 if masterless else 0",
+            "vital": true
+          },
+          {
+            "name": "kills",
+            "label": "杀人数",
+            "description": "靠杀人回魔力时，杀得越多收益越少",
+            "kind": "number",
+            "cls": "runtime",
+            "unit": null,
+            "min": "0",
+            "max": null,
+            "initial": "0",
+            "choices": [],
+            "required": true,
+            "hidden": true,
+            "spends": null,
+            "per_minute": null,
+            "vital": false
+          }
+        ],
+        "groups": [
+          {
+            "name": "servant_action",
+            "label": "英灵动作",
+            "fields": [],
+            "presets": [
+              {
+                "name": "灵体化",
+                "id": "spirit",
+                "description": "进入或解除灵体化：普通人看不见，物理上碰不到也不能攻击，速度提升 30%；被感知的距离不变。不消耗魔力。",
+                "fields": {},
+                "effects": [
+                  {
+                    "description": "灵体化时速度提升 30%",
+                    "target": "move_speed",
+                    "formula": "move_speed * 1.3 if spirit_form else move_speed",
+                    "priority": null
+                  }
+                ],
+                "config": "target = \"self\"",
+                "script": "self.set(spirit_form, 0 if spirit_form else 1)\nif not spirit_form:\n    self.set(riding, 0)",
+                "when": ""
+              },
+              {
+                "name": "近战攻击",
+                "id": "servant_melee_attack",
+                "description": "英灵的近战攻击：伤害 (筋力)d(职阶伤害骰)；刺客是 (敏捷)d6，对方没发现时 d12",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not spirit_form\ncheck = best(\"strength\", \"agility\")    # 筋力（力量）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
+                "script": "x = agi if klass == \"Assassin\" else str\ny = 12 if klass == \"Assassin\" and unseen else lookup(class_melee, klass)\n# 平手（被反击时）只造成一半伤害\nhalf = opposed and level == opp_level\ntarget.damage(dice(x, y) / (2 if half else 1))",
+                "when": ""
+              },
+              {
+                "name": "远程攻击",
+                "id": "servant_range_attack",
+                "description": "英灵的远程攻击：敏捷 + 1d(职阶伤害骰)",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 10\nrequires = not spirit_form\ncheck = \"agility\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
+                "script": "target.damage(agi + dice(1, lookup(class_melee, klass)))",
+                "when": "klass != \"Archer\" and klass != \"Caster\""
+              },
+              {
+                "name": "Archer远程攻击",
+                "id": "archer_range_attack",
+                "description": "Archer 的远程攻击：(敏捷)d8",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 10\nrequires = not spirit_form\ncheck = \"agility\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
+                "script": "target.damage(dice(agi, lookup(class_melee, klass)))",
+                "when": "klass == \"Archer\""
+              }
+            ],
+            "min_count": 0,
+            "max_count": 0,
+            "effects": true,
+            "shapes": {
+              "allowed": []
+            },
+            "placements": false,
+            "timing": true,
+            "reactions": false,
+            "damage_kind": "",
+            "hidden": true
+          },
+          {
+            "name": "klass_skill",
+            "label": "职阶技能",
+            "fields": [
+              {
+                "name": "level",
+                "label": "等级",
+                "description": "",
+                "kind": "number",
+                "cls": "player",
+                "unit": null,
+                "min": null,
+                "max": null,
+                "initial": null,
+                "choices": [
+                  "E=1",
+                  "D=2",
+                  "C=3",
+                  "B=4",
+                  "A=5",
+                  "EX=10"
+                ],
+                "required": true,
+                "hidden": false,
+                "spends": null,
+                "per_minute": null,
+                "vital": false
+              }
+            ],
+            "presets": [
+              {
+                "name": "骑乘",
+                "id": "ride",
+                "description": "骑上或跳下坐骑：骑乘时速度 + 骑乘等级 × 5 米/秒。灵体化时不能骑乘。骑上时按技能等级消耗魔力。",
+                "fields": {},
+                "effects": [
+                  {
+                    "description": "骑乘时速度 + 骑乘等级 × 5 米/秒",
+                    "target": "move_speed",
+                    "formula": "move_speed + this.level * 300 if riding else move_speed",
+                    "priority": null
+                  }
+                ],
+                "config": "target = \"self\"\nrequires = not spirit_form",
+                "script": "if not riding:\n    self.sub(mp, lookup(skill_cost, this.level))\nself.set(riding, 0 if riding else 1)",
+                "when": "klass == \"Rider\" or klass == \"Saber\""
+              },
+              {
+                "name": "对魔力",
+                "id": "anti_magic",
+                "description": "受到魔力伤害（魔术、魔术攻击）时，无视其中 5/10/15/20/25 点（E~A），EX 为 50 点。宝具伤害一般不算魔力伤害。",
+                "fields": {},
+                "effects": [],
+                "config": "",
+                "script": "",
+                "when": "klass == \"Saber\" or klass == \"Archer\" or klass == \"Lancer\" or klass == \"Rider\""
+              },
+              {
+                "name": "气息遮蔽",
+                "id": "presence_concealment",
+                "description": "隐藏自己的气息：别人发现你要掷出 10 + 等级 × ⌈距离÷40 米⌉（EX 按 6 算）；200 米外发现不了。御主用 1d20+感知，英灵用 1d20+魔力+敏捷。攻击会暴露给对象；对方没发现你时，近战伤害骰变成 d12，对方也躲不开。",
+                "fields": {},
+                "effects": [],
+                "config": "",
+                "script": "",
+                "when": "klass == \"Assassin\""
+              },
+              {
+                "name": "阵地作成",
+                "id": "territory",
+                "description": "花一天布置自己的阵地（半径约 125 米）。有人闯入时你会知道；在阵地中每分钟额外恢复等级点魔力（由 KP 按位置执行）。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"none\"\nrange = 1\ncast_time = 1440\nplacement = placement(radius=125, perceive=0.2, notify=True)",
+                "script": "pass",
+                "when": "klass == \"Caster\""
+              },
+              {
+                "name": "狂化",
+                "id": "madness",
+                "description": "狂战士的狂化。效果和等级由御主决定，请直接和 KP 商量。",
+                "fields": {},
+                "effects": [],
+                "config": "",
+                "script": "",
+                "when": "klass == \"Berserker\""
+              }
+            ],
+            "min_count": 0,
+            "max_count": 0,
+            "effects": true,
+            "shapes": {
+              "allowed": []
+            },
+            "placements": true,
+            "timing": true,
+            "reactions": false,
+            "damage_kind": "",
+            "hidden": false
+          },
+          {
+            "name": "personal_skill",
+            "label": "保有技能",
+            "fields": [
+              {
+                "name": "level",
+                "label": "等级",
+                "description": "",
+                "kind": "number",
+                "cls": "player",
+                "unit": null,
+                "min": null,
+                "max": null,
+                "initial": null,
+                "choices": [
+                  "E=1",
+                  "D=2",
+                  "C=3",
+                  "B=4",
+                  "A=5",
+                  "EX=10"
+                ],
+                "required": true,
+                "hidden": false,
+                "spends": null,
+                "per_minute": null,
+                "vital": false
+              }
+            ],
+            "presets": [],
+            "min_count": 0,
+            "max_count": null,
+            "effects": true,
+            "shapes": {
+              "allowed": []
+            },
+            "placements": true,
+            "timing": true,
+            "reactions": false,
+            "damage_kind": "",
+            "hidden": false
+          },
+          {
+            "name": "servant_magic",
+            "label": "英灵魔术",
+            "fields": [
+              {
+                "name": "mp_spent",
+                "label": "消耗魔力值",
+                "description": "这次投入多少魔力（不需要魔力的填 0）",
+                "kind": "param",
+                "cls": "player",
+                "unit": null,
+                "min": "0",
+                "max": "mp_max",
+                "initial": null,
+                "choices": [],
+                "required": true,
+                "hidden": false,
+                "spends": "mp",
+                "per_minute": null,
+                "vital": false
+              }
+            ],
+            "presets": [
+              {
+                "name": "Caster远程魔术",
+                "id": "caster_magic_attack",
+                "description": "Caster 的魔术攻击：(魔力)d4 的魔力伤害",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 10\nrequires = not spirit_form\ncheck = \"intelligence\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
+                "script": "target.damage(dice(int, lookup(class_melee, klass)))",
+                "when": "klass == \"Caster\""
+              },
+              {
+                "name": "咏唱攻击魔术",
+                "id": "caster_chant",
+                "description": "咏唱的攻击魔术：每 3MP 一小节，造成 1d4 魔力伤害，最多 15 小节。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 100\nrequires = not spirit_form and this.mp_spent <= 45\ncheck = \"intelligence\"\ndifficulty = floor(distance / 500)\nreactions = [\"dodge\"]",
+                "script": "target.damage(dice(max(1, floor(this.mp_spent / 3)), 4))",
+                "when": "klass == \"Caster\""
+              },
+              {
+                "name": "治疗",
+                "id": "caster_heal",
+                "description": "支付魔力恢复一个单位的生命值：1MP 恢复 10HP。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 25\nvisible = True\nnoise = 10",
+                "script": "target.add(hp, 10 * this.mp_spent)",
+                "when": "klass == \"Caster\""
+              },
+              {
+                "name": "防护魔术",
+                "id": "caster_shield",
+                "description": "为一个单位制造防护罩：每 1MP 获得 10 点护盾，最多持续 3 小时。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 25\nvisible = True\nnoise = 10",
+                "script": "target.add(shield, 10 * this.mp_spent, 180)",
+                "when": "klass == \"Caster\""
+              },
+              {
+                "name": "暗示",
+                "id": "caster_suggestion",
+                "description": "对普通人下达的命令必定被执行；对魔术师下达命令要做魔力检定，危险或复杂的命令由 KP 判定难度。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = 25\nvisible = True\nrequires = target.template == \"master\"\ncheck = \"intelligence\"\nhit = target.is_muggle or level >= 1    # 对普通人必定生效",
+                "script": "pass",
+                "when": "klass == \"Caster\""
+              },
+              {
+                "name": "警戒结界",
+                "id": "caster_alert",
+                "description": "花 3 分钟布置一个半径 250 米的结界，任何实体闯入都会通知你。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"none\"\nrange = 1\ncast_time = 3\nplacement = placement(radius=250, perceive=0, notify=True)",
+                "script": "pass",
+                "when": "klass == \"Caster\""
+              }
+            ],
+            "min_count": 0,
+            "max_count": 0,
+            "effects": true,
+            "shapes": {
+              "allowed": []
+            },
+            "placements": true,
+            "timing": true,
+            "reactions": false,
+            "damage_kind": "magic",
+            "hidden": true
+          },
+          {
+            "name": "noble_phantasm",
+            "label": "宝具",
+            "fields": [
+              {
+                "name": "np_type",
+                "label": "宝具类型",
+                "description": "",
+                "kind": "text",
+                "cls": "player",
+                "unit": null,
+                "min": null,
+                "max": null,
+                "initial": null,
+                "choices": [
+                  "对人",
+                  "对军",
+                  "对城",
+                  "对界"
+                ],
+                "required": true,
+                "hidden": false,
+                "spends": null,
+                "per_minute": null,
+                "vital": false
+              }
+            ],
+            "presets": [
+              {
+                "name": "真名解放",
+                "id": "true_name",
+                "description": "解放宝具真名的攻击：伤害按宝具等级（A 5d12+9、B 5d10+7、C 4d10+5、D 3d10+3、E 3d6+1、EX 6d12+15）。对方只能闪避，不能反击。100 米内：对城、对界默认困难成功，对人、对军默认极难成功；更远：对城、对界极难成功，对人、对军困难成功。消耗：技能等级的魔力 × 类型倍数（对人 1、对军 3、对城 5、对界 10）。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"single\"\nrange = None\nvisible = True\nnoise = 1000\nrequires = not spirit_form and mp >= lookup(skill_cost, np) * lookup(np_cost, this.np_type)\nauto_level = (3 if near else 2) if small else (2 if near else 3)\nreactions = [\"dodge\"]",
+                "script": "near = distance <= 100\nsmall = this.np_type == \"对人\" or this.np_type == \"对军\"\nself.sub(mp, lookup(skill_cost, np) * lookup(np_cost, this.np_type))\ntarget.damage(dice(lookup(np_dice_count, np), lookup(np_dice_sides, np)) + lookup(np_bonus, np))",
+                "when": ""
+              }
+            ],
+            "min_count": 0,
+            "max_count": 3,
+            "effects": true,
+            "shapes": {
+              "allowed": []
+            },
+            "placements": true,
+            "timing": true,
+            "reactions": false,
+            "damage_kind": "noble_phantasm",
+            "hidden": false
+          },
+          {
+            "name": "defense",
+            "label": "应对",
+            "fields": [],
+            "presets": [
+              {
+                "name": "反击",
+                "id": "counter",
+                "description": "被近战攻击时迎击：力量（筋力）检定，等级高过对方就挡下这次攻击，并反过来打中对方；平手时对方打中、只造成一半伤害。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"self\"\ncheck = \"strength\"",
+                "script": "if reacting and level >= 1 and level > opp_level:\n    self.negate()\n    target.damage(dice(agi if klass == \"Assassin\" else str, lookup(class_melee, klass)))",
+                "when": ""
+              },
+              {
+                "name": "闪避",
+                "id": "dodge",
+                "description": "被攻击时躲开：敏捷检定，等级不低于对方就闪开（平手算闪开）。",
+                "fields": {},
+                "effects": [],
+                "config": "target = \"self\"\ncheck = \"agility\"",
+                "script": "if reacting and level >= 1 and level >= opp_level:\n    self.negate()",
+                "when": ""
+              }
+            ],
+            "min_count": 0,
+            "max_count": 0,
+            "effects": false,
+            "shapes": {
+              "allowed": []
+            },
+            "placements": false,
+            "timing": true,
+            "reactions": true,
+            "damage_kind": "",
+            "hidden": false
+          }
+        ],
+        "derived": [
+          {
+            "name": "perception_radius",
+            "label": "感知半径",
+            "formula": "150 + 30 * max(agi, int)",
+            "unit": "m",
+            "hidden": false
+          },
+          {
+            "name": "concealment",
+            "label": "匿踪系数",
+            "formula": "1",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "move_speed",
+            "label": "移动速度",
+            "formula": "(3 + lookup(class_speed, klass)) * agi * 60",
+            "unit": "m/min",
+            "hidden": false
+          },
+          {
+            "name": "fly_multiplier",
+            "label": "飞行速度系数",
+            "formula": "4",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "fly_speed",
+            "label": "飞行速度",
+            "formula": "fly_multiplier * move_speed",
+            "unit": "m/min",
+            "hidden": false
+          },
+          {
+            "name": "hear_multiplier",
+            "label": "听力系数",
+            "formula": "3",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "hear_distance",
+            "label": "听力范围",
+            "formula": "(10 + agi * 4) * hear_multiplier",
+            "unit": "m",
+            "hidden": false
+          },
+          {
+            "name": "hp_max",
+            "label": "生命值上限",
+            "formula": "con * lookup(class_hp, klass)",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "mp_max",
+            "label": "魔力值上限",
+            "formula": "int * 30",
+            "unit": null,
+            "hidden": false
+          },
+          {
+            "name": "independent_minutes",
+            "label": "单独行动",
+            "formula": "lookup(independent_days, max(con, int)) * 1440 if klass == \"Archer\" else 0",
+            "unit": "min",
+            "hidden": false
+          }
+        ],
+        "damage_taken": "max(0, amount - 5 * servant.anti_magic.level) if kind == \"magic\" else amount",
+        "stealth": "max(\n    (10 + min(servant.presence_concealment.level, 6) * ceil(max(distance, 1) / 40) if distance <= 200 else 999) if servant.presence_concealment.level > 0 else 0,\n    999 if spirit_form and observer.template == \"master\" and observer.is_muggle else 0,\n)",
+        "search": "1d20 + int + agi",
+        "on_death": ""
+      }
+    ],
+    "player_entities": [
+      {
+        "template": "master",
+        "min": 1,
+        "max": 1
+      },
+      {
+        "template": "servant",
+        "min": 1,
+        "max": 1
+      }
+    ],
+    "formulas": [],
+    "tables": [
+      {
+        "name": "class_hp",
+        "kind": "exact",
+        "rows": [
+          [
+            "Saber",
+            16.0
+          ],
+          [
+            "Archer",
+            14.0
+          ],
+          [
+            "Lancer",
+            14.0
+          ],
+          [
+            "Rider",
+            14.0
+          ],
+          [
+            "Caster",
+            10.0
+          ],
+          [
+            "Assassin",
+            12.0
+          ],
+          [
+            "Berserker",
+            18.0
+          ]
+        ]
+      },
+      {
+        "name": "class_melee",
+        "kind": "exact",
+        "rows": [
+          [
+            "Saber",
+            10.0
+          ],
+          [
+            "Archer",
+            8.0
+          ],
+          [
+            "Lancer",
+            10.0
+          ],
+          [
+            "Rider",
+            10.0
+          ],
+          [
+            "Caster",
+            4.0
+          ],
+          [
+            "Assassin",
+            6.0
+          ],
+          [
+            "Berserker",
+            12.0
+          ]
+        ]
+      },
+      {
+        "name": "class_speed",
+        "kind": "exact",
+        "rows": [
+          [
+            "Saber",
+            6.0
+          ],
+          [
+            "Archer",
+            8.0
+          ],
+          [
+            "Lancer",
+            7.0
+          ],
+          [
+            "Rider",
+            9.0
+          ],
+          [
+            "Caster",
+            5.0
+          ],
+          [
+            "Assassin",
+            8.0
+          ],
+          [
+            "Berserker",
+            6.0
+          ]
+        ]
+      },
+      {
+        "name": "class_heal",
+        "kind": "exact",
+        "rows": [
+          [
+            "Saber",
+            1.0
+          ],
+          [
+            "Archer",
+            1.0
+          ],
+          [
+            "Lancer",
+            1.1
+          ],
+          [
+            "Rider",
+            1.0
+          ],
+          [
+            "Caster",
+            1.2
+          ],
+          [
+            "Assassin",
+            0.9
+          ],
+          [
+            "Berserker",
+            1.3
+          ]
+        ]
+      },
+      {
+        "name": "skill_cost",
+        "kind": "exact",
+        "rows": [
+          [
+            1.0,
+            1.0
+          ],
+          [
+            2.0,
+            2.0
+          ],
+          [
+            3.0,
+            3.0
+          ],
+          [
+            4.0,
+            4.0
+          ],
+          [
+            5.0,
+            5.0
+          ],
+          [
+            10.0,
+            8.0
+          ]
+        ]
+      },
+      {
+        "name": "np_cost",
+        "kind": "exact",
+        "rows": [
+          [
+            "对人",
+            1.0
+          ],
+          [
+            "对军",
+            3.0
+          ],
+          [
+            "对城",
+            5.0
+          ],
+          [
+            "对界",
+            10.0
+          ]
+        ]
+      },
+      {
+        "name": "np_dice_count",
+        "kind": "exact",
+        "rows": [
+          [
+            1.0,
+            3.0
+          ],
+          [
+            2.0,
+            3.0
+          ],
+          [
+            3.0,
+            4.0
+          ],
+          [
+            4.0,
+            5.0
+          ],
+          [
+            5.0,
+            5.0
+          ],
+          [
+            10.0,
+            6.0
+          ]
+        ]
+      },
+      {
+        "name": "np_dice_sides",
+        "kind": "exact",
+        "rows": [
+          [
+            1.0,
+            6.0
+          ],
+          [
+            2.0,
+            10.0
+          ],
+          [
+            3.0,
+            10.0
+          ],
+          [
+            4.0,
+            10.0
+          ],
+          [
+            5.0,
+            12.0
+          ],
+          [
+            10.0,
+            12.0
+          ]
+        ]
+      },
+      {
+        "name": "np_bonus",
+        "kind": "exact",
+        "rows": [
+          [
+            1.0,
+            1.0
+          ],
+          [
+            2.0,
+            3.0
+          ],
+          [
+            3.0,
+            5.0
+          ],
+          [
+            4.0,
+            7.0
+          ],
+          [
+            5.0,
+            9.0
+          ],
+          [
+            10.0,
+            15.0
+          ]
+        ]
+      },
+      {
+        "name": "save_mod",
+        "kind": "exact",
+        "rows": [
+          [
+            1.0,
+            -4.0
+          ],
+          [
+            2.0,
+            -2.0
+          ],
+          [
+            3.0,
+            0.0
+          ],
+          [
+            4.0,
+            2.0
+          ],
+          [
+            5.0,
+            4.0
+          ],
+          [
+            10.0,
+            8.0
+          ]
+        ]
+      },
+      {
+        "name": "independent_days",
+        "kind": "exact",
+        "rows": [
+          [
+            1.0,
+            1.0
+          ],
+          [
+            2.0,
+            3.0
+          ],
+          [
+            3.0,
+            6.0
+          ],
+          [
+            4.0,
+            10.0
+          ],
+          [
+            5.0,
+            15.0
+          ],
+          [
+            10.0,
+            30.0
+          ]
+        ]
+      },
+      {
+        "name": "kill_mp",
+        "kind": "range",
+        "rows": [
+          [
+            0.0,
+            5.0
+          ],
+          [
+            10.0,
+            4.0
+          ],
+          [
+            30.0,
+            3.0
+          ],
+          [
+            60.0,
+            2.0
+          ],
+          [
+            100.0,
+            1.0
+          ]
+        ]
+      }
+    ],
+    "checks": [
+      {
+        "name": "strength",
+        "config": "label = \"力量 / 筋力\"\ndice = 1d20 + str\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      },
+      {
+        "name": "agility",
+        "config": "label = \"敏捷\"\ndice = 1d20 + agi\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      },
+      {
+        "name": "constitution",
+        "config": "label = \"体质 / 耐久\"\ndice = 1d20 + con\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      },
+      {
+        "name": "intelligence",
+        "config": "label = \"智力 / 魔力\"\ndice = 1d20 + int\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      },
+      {
+        "name": "perception",
+        "config": "label = \"感知\"\ndice = 1d20 + per\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      },
+      {
+        "name": "charisma",
+        "config": "label = \"魅力\"\ndice = 1d20 + cha\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      },
+      {
+        "name": "luck",
+        "config": "label = \"幸运\"\ndice = 1d20 + luk\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      },
+      {
+        "name": "magecraft",
+        "config": "label = \"魔术\"\ndice = 1d20 + ap\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      },
+      {
+        "name": "magic_save",
+        "config": "label = \"魔力豁免\"\ndice = 1d20 + (lookup(save_mod, int) if self.template == \"servant\" else int)\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      },
+      {
+        "name": "luck_save",
+        "config": "label = \"幸运豁免\"\ndice = 1d20 + (lookup(save_mod, luk) if self.template == \"servant\" else 0)\nlevel = max(\n    0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2 if roll - difficulty <= 20 else 3,\n    2 if self.template == \"servant\" and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
+      }
+    ],
+    "rules_text": "引擎已经执行的规则（检定、对抗、伤害、魔力、隐匿、死亡）不用 KP 再算。下面这些由 KP 按叙事处理：\n\n1. 通讯：英灵和御主任何一方进入战斗，除非另一方对战场有额外的观测手段，否则视作双方共感、同时进入战斗状态，无视距离。战斗中不准和队友交流。\n   没有共感也没有观测手段时，英灵想和御主通讯：这一回合的行动视为困难，并且无法在紧急时刻回避攻击。\n2. 狂化：等级和效果由御主决定，和 KP 商量后写进角色卡。\n3. 宝具和保有技能：玩家可以自己设计，须经过 KP 审核。宝具特效需要对抗魔力或幸运时，技能设置写 save = \"magic_save\" 或 \"luck_save\"，difficulty 写宝具等级。其他特效依照 Fate 原作的宝具效果比对。\n4. “+”：每个英灵最多 3 个，分配在属性、技能或宝具上；每天一次、最多 10 分钟提升效果（+50%/+100%/+150%），爆发性宝具每个 + 效果多 0.5 倍；由幸运决定是否发动成功。初版由 KP 裁定。\n5. 宝具的范围效果：对军以上的宝具波及范围内的其他人，由 KP 声明范围查询后裁定。\n6. 暗示、使魔、瞬间移动、强化、傀儡兵等魔术的叙事效果由 KP 裁定；能消耗的魔力照常扣。\n7. 阵地作成：Caster 在自己的阵地里每分钟额外恢复等级点魔力，由 KP 在阵地内时用补魔类的叙述处理。",
+    "samples": [
+      {
+        "name": "示例御主",
+        "template": "master",
+        "sheet": {
+          "name": "示例御主",
+          "fields": {
+            "appearance": "穿红色外套的少女，双马尾",
+            "can_fly": false,
+            "str": 0,
+            "agi": 1,
+            "con": 1,
+            "int": 4,
+            "per": 2,
+            "cha": 2,
+            "weapon_db": 0,
+            "is_muggle": false
+          }
+        },
+        "expected": {
+          "hp_max": 34.0,
+          "mp_max": 22.0,
+          "ap": 4.0,
+          "perception_radius": 70.0
+        }
+      },
+      {
+        "name": "示例英灵",
+        "template": "servant",
+        "sheet": {
+          "name": "示例英灵",
+          "fields": {
+            "appearance": "身穿蓝银铠甲、手持看不见的剑的骑士",
+            "can_fly": false,
+            "klass": "Saber",
+            "str": 5,
+            "agi": 3,
+            "con": 4,
+            "int": 2,
+            "luk": 4,
+            "np": 5
+          },
+          "preset_fields": {
+            "klass_skill": {
+              "骑乘": {
+                "level": 2
+              },
+              "对魔力": {
+                "level": 5
+              }
+            },
+            "noble_phantasm": {
+              "真名解放": {
+                "np_type": "对城"
+              }
+            }
+          }
+        },
+        "expected": {
+          "hp_max": 64.0,
+          "mp_max": 60.0,
+          "move_speed": 1620.0,
+          "perception_radius": 240.0,
+          "independent_minutes": 0.0
+        }
+      }
+    ]
+  }
+}
