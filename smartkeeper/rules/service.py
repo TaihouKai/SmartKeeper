@@ -102,26 +102,39 @@ class RulesService:
         self, pack: RulePack, template: str | None, scope: FormulaScope | None = None
     ) -> list[str]:
         tpl = pack.template(template) if template else None
-        names = validation.known_names(pack, tpl) | set(f.FUNCTIONS)
+        names = (
+            validation.known_names(pack, tpl)
+            | set(f.FUNCTIONS)
+            | {"and", "or", "not", "if", "else"}
+        )
         if tpl is not None:
             mine = validation.known_names(pack, tpl) - {x.name for x in pack.formulas}
-            names |= {f"self.{n}" for n in mine}
+            names |= {f"self.{n}" for n in mine} | {"self.template"}
             names |= {f"this.{x.name}" for g in tpl.groups for x in g.fields}
+            for pid, cols in validation.preset_ids(tpl).items():
+                names.add(f"self.{pid}")
+                names |= {f"self.{pid}.{c}" for c in cols}
         if scope == "script":
             names |= {f"{who}.{verb}" for who in f.RECEIVERS for verb in f.VERBS}
+            names |= {"elif", "pass"}
         names |= {t.name for t in pack.tables}
-        # 引用写法：<模板>.字段/推导值、<模板>.<固定条目ID>、<模板>.<固定条目ID>.<列>、target.x
+        # 引用写法：<模板>.字段/推导值、<模板>.<固定条目ID>、<模板>.<固定条目ID>.<列>、target.x、
+        # 分组引用（count / sum）：分组、分组.列、<模板>.分组.列、target.分组.列
+        names.add("target.template")
         for t in pack.templates:
             plain = validation.known_names(pack, t) - {x.name for x in pack.formulas}
-            names |= {f"{t.name}.{n}" for n in plain}
+            names |= {f"{t.name}.{n}" for n in plain} | {f"{t.name}.template"}
             names |= {f"target.{n}" for n in plain}
             for g in t.groups:
                 gcols = [x.name for x in g.fields if x.kind != "param"]
-                names |= {f"{t.name}.{g.name}.{c}" for c in gcols}
-                names |= {f"{g.name}.{c}" for c in gcols}
+                for head in (t.name, "target", ""):
+                    ref = f"{head}.{g.name}" if head else g.name
+                    names.add(ref)
+                    names |= {f"{ref}.{c}" for c in gcols}
             for pid, cols in validation.preset_ids(t).items():
-                names.add(f"{t.name}.{pid}")
-                names |= {f"{t.name}.{pid}.{c}" for c in cols}
+                for head in (t.name, "target"):
+                    names.add(f"{head}.{pid}")
+                    names |= {f"{head}.{pid}.{c}" for c in cols}
         return sorted(names)
 
     def _tpl(self, pack: RulePack, template: str) -> EntityTemplate:

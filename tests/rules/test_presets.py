@@ -40,7 +40,7 @@ def entry_names(rules: RulesService, pack: RulePack, sheet: JsonValue) -> list[s
 
 def test_preset_appears_only_when_condition_holds(rules: RulesService) -> None:
     pack = with_presets(
-        {"name": "triage", "fields": {"level": 1}, "when": 'occupation = "doctor"'},
+        {"name": "triage", "fields": {"level": 1}, "when": 'occupation == "doctor"'},
         {"name": "sail", "fields": {"level": 1}, "when": 'occupation == "sailor"'},
         {"name": "always", "fields": {"level": 1}},
     )

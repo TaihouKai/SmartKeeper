@@ -27,8 +27,9 @@ def ev(text: str, faces: list[int] | None = None, **names: float | str) -> float
         ("2d6*5", [3, 4], 35),
         ("-1d4", [3], -3),
         ("1dstr", [5], 5),
-        ("2 d str", [5, 6], 11),
-        ("lv d luck", [2, 2, 2], 6),
+        ("2d str", [5, 6], 11),
+        ("dice(lv, luck)", [2, 2, 2], 6),
+        ("dice(lv, luck) * 2", [1, 1, 1], 6),
         ("2d(str + 1)", [1, 1], 2),
         ("1d6 + 1d4", [6, 4], 10),
         ("highest(4, 6, 3)", [1, 5, 3, 6], 14),
@@ -42,7 +43,9 @@ def test_dice(text: str, faces: list[int], expected: float) -> None:
 
 def test_dice_sides_and_count_come_from_names() -> None:
     dice = FakeDice()
-    evaluate(parse("lv d luck"), {"lv": 3.0, "luck": 8.0}.__getitem__, lambda t, k: 0, dice.faces)
+    evaluate(
+        parse("dice(lv, luck)"), {"lv": 3.0, "luck": 8.0}.__getitem__, lambda t, k: 0, dice.faces
+    )
     assert dice.calls == [(3, 8)]
 
 
@@ -56,16 +59,12 @@ def test_dice_sides_and_count_come_from_names() -> None:
         ("pow(2, 10)", 1024),
         ("mod(7, 3) + mod(-1, 3)", 3),
         ("clamp(15, 0, 10) + clamp(-3, 0, 10)", 10),
-        ('if(x > 3, "big", "small") == "big"', 1),
-        ("and(1, x > 3) + or(0, 0) + not(0)", 2),
+        ('("big" if x > 3 else "small") == "big"', 1),
+        ("(1 and x > 3) + (0 or 0) + (not 0)", 2),
     ],
 )
 def test_functions(text: str, expected: float) -> None:
     assert ev(text, x=4) == expected
-
-
-def test_if_is_lazy() -> None:
-    assert ev("if(1, 5, 1 / 0)") == 5
 
 
 def test_dice_not_allowed_without_faces() -> None:
@@ -74,7 +73,7 @@ def test_dice_not_allowed_without_faces() -> None:
     assert e.value.code == "formula.dice_not_allowed"
 
 
-@pytest.mark.parametrize("text", ["1d0", "2000d6", "(0 - 1)d6"])
+@pytest.mark.parametrize("text", ["1d0", "2000d6", "dice(0 - 1, 6)"])
 def test_dice_range(text: str) -> None:
     with pytest.raises(FormulaError):
         ev(text, [1] * 10)
@@ -97,7 +96,7 @@ def test_glued_names_get_a_hint(rules: RulesService) -> None:
     pack = load_pack("single")
     problems = rules.validate_formula(pack, None, "strdper", scope="dice")
     assert [p.code for p in problems] == ["formula.dice_needs_space"]
-    assert problems[0].params["fixed"] == "str d per"
+    assert problems[0].params["fixed"] == "dice(str, per)"
 
 
 def test_check_dice_may_use_sheet_fields(rules: RulesService) -> None:

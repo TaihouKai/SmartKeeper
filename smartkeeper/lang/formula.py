@@ -1,11 +1,12 @@
-"""受限的公式语言。引擎不执行任何外部代码，这里是自己的解析器和求值器。
+"""公式语言。语法借用 Python 的表达式（用 ast 解析，不执行），只认白名单里的写法，求值是自己的。
 
-- 数字、"字符串"、+ - * /、比较（< <= > >= == !=，结果是 1 或 0；单个 = 等同 ==）、括号
+- 数字、"文字"（单双引号都行）、+ - * / // % **、比较（< <= > >= == !=，结果 1 或 0；可以连写 1 < x < 3）、括号
+- a if 条件 else b、and、or、not
 - 名字：字段、推导值、命名公式；self.x 是自己的（和直接写 x 一样）；条目里 this.x 是这一条的列；
   <模板>.x 引用自己这边（自己，或同一玩家控制的那个模板的角色），
   <模板>.<条目ID> 是有没有这一条（1/0），<模板>.<条目ID>.<列> 是那一条的列；target.x 是作用对象的
-- 掷骰：NdM。数字后面紧跟 d 就是掷骰（3d6、1dstr、2d(str+1)）；名字和名字之间要加空格
-  （np_level d luck）；d20 等于 1d20，d% 等于 1d100。掷骰比乘除先算：2d6*5 是 (2d6)*5。
+- 掷骰：3d6、d20、d%（= d100）、2d(str + 1)、1d str，解析前改写成 dice(个数, 面数)；两个名字之间写 dice(level, luck)。
+  掷骰是一个整体：2d6 * 5 是 (2d6) * 5。
 - 函数见 FUNCTIONS。
 
 掷骰只在调用方给了 faces（真正产生随机数的函数）时允许；推导值、上下限这类每次都要重算的公式
@@ -14,6 +15,7 @@
 
 from __future__ import annotations
 
+import ast
 import math
 import re
 from collections.abc import Callable
@@ -33,20 +35,17 @@ FUNCTIONS: dict[str, tuple[int, int | None]] = {
     "min": (1, None),
     "max": (1, None),
     "clamp": (3, 3),
-    "if": (3, 3),
-    "and": (1, None),
-    "or": (1, None),
-    "not": (1, 1),
     "lookup": (2, 2),
     "count": (1, 2),
     "sum": (1, 1),
     "highest": (3, 3),
     "lowest": (3, 3),
+    "dice": (2, 2),
 }
+# if / and / or / not 是 Python 的关键字（a if c else b、a and b、not a），解析成内部的同名调用
 
 # 第一个参数是分组引用（分组、分组.列、<模板>.分组.列、target.分组.列），不是普通名字
 LIST_FUNCTIONS = ("count", "sum")
-COMPARISONS = ("<", "<=", ">", ">=", "==", "!=")
 MAX_DICE = 1000
 MAX_SIDES = 100000
 
@@ -102,164 +101,242 @@ class Dice:
 
 type Node = Num | Str | Name | Unary | Binary | Call | Dice
 
-_TOKEN = re.compile(
-    r"\s*(?:(?P<num>\d+(?:\.\d+)?)|(?P<str>\"[^\"]*\")|(?P<name>[^\W\d]\w*(?:\.[^\W\d]\w*)*)"
-    r"|(?P<op><=|>=|==|!=|[-+*/()<>,%=]))"
-)
-_DIE_NAME = re.compile(r"[dD](\d*)")
+# ---------------- 文本 -> 公式树：借用 Python 的语法（ast），只认白名单里的写法 ----------------
+
+_NUM = re.compile(r"\d+(?:\.\d+)?")
+_IDENT = re.compile(r"[^\W\d]\w*")
+_DOTTED = re.compile(r"[^\W\d]\w*(?:\.[^\W\d]\w*)*")
+_DIE_NAME = re.compile(r"[dD]\d*")
 
 
-@dataclass(frozen=True, slots=True)
-class _Tok:
-    kind: str
-    text: str
-    pos: int
-
-    def is_op(self, *ops: str) -> bool:
-        return self.kind == "op" and self.text in ops
-
-
-def _tokenize(text: str) -> list[_Tok]:
-    tokens: list[_Tok] = []
-    pos = 0
-    text = text.rstrip()
-    while pos < len(text):
-        m = _TOKEN.match(text, pos)
-        if not m or m.end() == pos:
-            raise FormulaError("formula.bad_token", pos=pos)
-        kind = m.lastgroup
-        assert kind is not None
-        start = m.start(kind)
-        word = m.group(kind)
-        prev = tokens[-1] if tokens else None
-        glued = prev is not None and prev.kind == "num" and start == prev.pos + len(prev.text)
-        if kind == "name" and (glued or _DIE_NAME.fullmatch(word)) and word[0] in "dD":
-            # 3d6、1dstr：数字后紧跟的 d；d、d20：单独的 d 或 d 加数字
-            tokens.append(_Tok("op", "d", start))
-            rest = word[1:]
-            if rest:
-                tokens.append(_Tok("num" if rest.isdigit() else "name", rest, start + 1))
-        else:
-            tokens.append(_Tok(kind, word, start))
-        pos = m.end()
-    return tokens
+def _skip_string(text: str, i: int) -> int:
+    """text[i] 是引号，返回字符串结束后的位置（没关上就到末尾，让 Python 报错）。"""
+    q = text[i]
+    j = i + 1
+    while j < len(text):
+        if text[j] == "\\":
+            j += 2
+            continue
+        if text[j] == q or text[j] == "\n":
+            return j + 1
+        j += 1
+    return j
 
 
-class _Parser:
-    def __init__(self, text: str) -> None:
-        self.tokens = _tokenize(text)
-        self.i = 0
+def _group(text: str, i: int) -> int:
+    """text[i] 是 (，返回配对的 ) 之后的位置；没配对就是 -1。"""
+    depth = 0
+    j = i
+    while j < len(text):
+        c = text[j]
+        if c in "\"'":
+            j = _skip_string(text, j)
+            continue
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return j + 1
+        j += 1
+    return -1
 
-    def peek(self) -> _Tok | None:
-        return self.tokens[self.i] if self.i < len(self.tokens) else None
 
-    def peek_op(self, *ops: str) -> bool:
-        tok = self.peek()
-        return tok is not None and tok.is_op(*ops)
+def _sides(text: str, i: int, space: bool) -> tuple[str, int] | None:
+    """掷骰的面数：%、数字、(…)、名字（可以带调用）。返回 (改写后的文本, 结束位置)。"""
+    j = i
+    if space:
+        while j < len(text) and text[j] in " \t":
+            j += 1
+    if j >= len(text):
+        return None
+    c = text[j]
+    if c == "%":
+        return "100", j + 1
+    m = _NUM.match(text, j)
+    if m:
+        return m.group(), m.end()
+    if c == "(":
+        end = _group(text, j)
+        return None if end < 0 else (f"({desugar(text[j + 1 : end - 1])})", end)
+    m = _DOTTED.match(text, j)
+    if m:
+        end = m.end()
+        if end < len(text) and text[end] == "(":
+            close = _group(text, end)
+            if close < 0:
+                return None
+            return f"{m.group()}({desugar(text[end + 1 : close - 1])})", close
+        return m.group(), end
+    return None
 
-    def take(self) -> _Tok:
-        tok = self.peek()
-        if tok is None:
-            raise FormulaError("formula.unexpected_end")
-        self.i += 1
-        return tok
 
-    def expect(self, op: str) -> None:
-        tok = self.take()
-        if not tok.is_op(op):
-            raise FormulaError("formula.expected", token=op, pos=tok.pos)
+def desugar(text: str) -> str:
+    """掷骰写法改成函数：3d6 -> dice(3, 6)，d20 -> dice(1, 20)，d% -> dice(1, 100)，
+    2d(str + 1)、1d str、1dstr 也一样。字符串和注释里的不动；改写不跨行，行号不变。"""
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c in "\"'":
+            j = _skip_string(text, i)
+            out.append(text[i:j])
+            i = j
+            continue
+        if c == "#":
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            out.append(text[i:j])
+            i = j
+            continue
+        prev = text[i - 1] if i else ""
+        m = _NUM.match(text, i)
+        if m and not (prev.isalnum() or prev in ("_", ".")):
+            end = m.end()
+            if end < n and text[end] in "dD":
+                got = _sides(text, end + 1, space=True)
+                if got is not None:
+                    out.append(f"dice({m.group()}, {got[0]})")
+                    i = got[1]
+                    continue
+            out.append(m.group())
+            i = end
+            continue
+        m = _IDENT.match(text, i)
+        if m:
+            word = m.group()
+            if prev != "." and _DIE_NAME.fullmatch(word):
+                got = _sides(text, i + 1, space=False) if len(word) == 1 else (word[1:], m.end())
+                if got is not None:
+                    out.append(f"dice(1, {got[0]})")
+                    i = got[1]
+                    continue
+            out.append(word)
+            i = m.end()
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
 
-    def parse(self) -> Node:
-        if not self.tokens:
-            raise FormulaError("formula.empty")
-        node = self.comparison()
-        tok = self.peek()
-        if tok is not None:
-            raise FormulaError("formula.trailing", pos=tok.pos)
-        return node
 
-    def comparison(self) -> Node:
-        left = self.additive()
-        if self.peek_op(*COMPARISONS, "="):
-            op = self.take().text
-            left = Binary("==" if op == "=" else op, left, self.additive())
-            if self.peek_op(*COMPARISONS, "="):
-                raise FormulaError("formula.chained_comparison")
-        return left
+def syntax_error(e: SyntaxError, src: str, script: bool) -> FormulaError:
+    """Python 的语法错误换成我们的代码；script 时带行号。"""
+    msg = e.msg or ""
+    line = e.lineno or 1
+    extra: dict[str, str | int | float] = {"line": line} if script else {}
+    if isinstance(e, IndentationError):
+        if msg.startswith("expected an indented block"):
+            return FormulaError("script.empty_block", line=max(1, line - 1))
+        return FormulaError("script.unexpected_indent", line=line)
+    lines = src.split("\n")
+    at = lines[line - 1] if 0 < line <= len(lines) else ""
+    col = (e.offset or 1) - 1
+    if "was never closed" in msg:
+        return FormulaError("formula.unclosed", **extra)
+    if msg.startswith("unmatched"):
+        return FormulaError("formula.unmatched", **extra)
+    if msg.startswith("unterminated string"):
+        return FormulaError("formula.unclosed_string", **extra)
+    if "instead of '='" in msg or (
+        0 <= col < len(at) and at[col] == "=" and at[col + 1 : col + 2] != "="
+    ):
+        return FormulaError("formula.single_equals", **extra)
+    return FormulaError("formula.syntax", **extra)
 
-    def additive(self) -> Node:
-        left = self.term()
-        while self.peek_op("+", "-"):
-            op = self.take().text
-            left = Binary(op, left, self.term())
-        return left
 
-    def term(self) -> Node:
-        left = self.unary()
-        while self.peek_op("*", "/"):
-            op = self.take().text
-            left = Binary(op, left, self.unary())
-        return left
+_COMPARE: dict[type, str] = {
+    ast.Lt: "<",
+    ast.LtE: "<=",
+    ast.Gt: ">",
+    ast.GtE: ">=",
+    ast.Eq: "==",
+    ast.NotEq: "!=",
+}
+_ARITH: dict[type, str] = {ast.Add: "+", ast.Sub: "-", ast.Mult: "*", ast.Div: "/"}
 
-    def unary(self) -> Node:
-        if self.peek_op("-"):
-            self.take()
-            return Unary("-", self.unary())
-        return self.dice()
 
-    def dice(self) -> Node:
-        if self.peek_op("d"):
-            self.take()
-            node: Node = Dice(Num(1), self.sides())
-        else:
-            node = self.primary()
-        while self.peek_op("d"):
-            self.take()
-            node = Dice(node, self.sides())
-        return node
+def dotted(n: ast.expr) -> str | None:
+    """a、a.b、a.b.c 这样的名字；别的写法返回 None。"""
+    parts: list[str] = []
+    while isinstance(n, ast.Attribute):
+        parts.append(n.attr)
+        n = n.value
+    if not isinstance(n, ast.Name):
+        return None
+    parts.append(n.id)
+    return ".".join(reversed(parts))
 
-    def sides(self) -> Node:
-        if self.peek_op("%"):
-            self.take()
-            return Num(100)
-        return self.primary()
 
-    def primary(self) -> Node:
-        tok = self.take()
-        if tok.kind == "num":
-            return Num(float(tok.text))
-        if tok.kind == "str":
-            return Str(tok.text[1:-1])
-        if tok.kind == "name":
-            if self.peek_op("("):
-                return self.call(tok)
-            return Name(tok.text)
-        if tok.is_op("("):
-            node = self.comparison()
-            self.expect(")")
-            return node
-        raise FormulaError("formula.unexpected", token=tok.text, pos=tok.pos)
+def convert(n: ast.expr) -> Node:
+    """Python 的表达式树 -> 公式树。白名单之外的写法报 formula.unsupported。"""
+    match n:
+        case ast.Constant(value=bool() as b):
+            return Num(1.0 if b else 0.0)
+        case ast.Constant(value=int() | float() as v):
+            return Num(float(v))
+        case ast.Constant(value=str() as s):
+            return Str(s)
+        case ast.Name() | ast.Attribute():
+            name = dotted(n)
+            if name is None:
+                raise FormulaError("formula.unsupported", what=ast.unparse(n))
+            return Name(name)
+        case ast.UnaryOp(op=ast.USub(), operand=o):
+            return Unary("-", convert(o))
+        case ast.UnaryOp(op=ast.UAdd(), operand=o):
+            return convert(o)
+        case ast.UnaryOp(op=ast.Not(), operand=o):
+            return Call("not", (convert(o),))
+        case ast.BinOp(op=op, left=a, right=b):
+            x, y = convert(a), convert(b)
+            if type(op) in _ARITH:
+                return Binary(_ARITH[type(op)], x, y)
+            if isinstance(op, ast.Mod):
+                return Call("mod", (x, y))
+            if isinstance(op, ast.Pow):
+                return Call("pow", (x, y))
+            if isinstance(op, ast.FloorDiv):
+                return Call("floor", (Binary("/", x, y),))
+        case ast.BoolOp(op=op, values=vs):
+            return Call("and" if isinstance(op, ast.And) else "or", tuple(convert(v) for v in vs))
+        case ast.Compare(left=a, ops=ops, comparators=cs) if all(type(o) in _COMPARE for o in ops):
+            items = [convert(a), *(convert(c) for c in cs)]
+            parts = tuple(
+                Binary(_COMPARE[type(o)], items[k], items[k + 1]) for k, o in enumerate(ops)
+            )
+            if len(parts) > 1 and any(has_dice(x) for x in items[1:-1]):
+                raise FormulaError("formula.chained_comparison")  # 中间那项会掷两次
+            return parts[0] if len(parts) == 1 else Call("and", parts)
+        case ast.IfExp(test=c, body=a, orelse=b):
+            return Call("if", (convert(c), convert(a), convert(b)))
+        case ast.Call(func=ast.Name(id=fn), args=args, keywords=[]) if not any(
+            isinstance(a, ast.Starred) for a in args
+        ):
+            return _call(fn, args)
+        case ast.Call(func=func):
+            raise FormulaError("formula.unknown_function", name=dotted(func) or ast.unparse(func))
+        case _:
+            pass
+    raise FormulaError("formula.unsupported", what=ast.unparse(n))
 
-    def call(self, tok: _Tok) -> Node:
-        name = tok.text
-        if name not in FUNCTIONS:
-            raise FormulaError("formula.unknown_function", name=name)
-        self.expect("(")
-        args: list[Node] = []
-        if not self.peek_op(")"):
-            args.append(self.comparison())
-            while self.peek_op(","):
-                self.take()
-                args.append(self.comparison())
-        self.expect(")")
-        lo, hi = FUNCTIONS[name]
-        if len(args) < lo or (hi is not None and len(args) > hi):
-            raise FormulaError("formula.arity", name=name, count=len(args))
-        if name == "lookup" and not isinstance(args[0], Name):
-            raise FormulaError("formula.lookup_table_name")
-        if name in LIST_FUNCTIONS and not isinstance(args[0], Name):
-            raise FormulaError("formula.list_ref", name=name)
-        return Call(name, tuple(args))
+
+def _call(name: str, args: list[ast.expr]) -> Node:
+    if name not in FUNCTIONS:
+        raise FormulaError("formula.unknown_function", name=name)
+    lo, hi = FUNCTIONS[name]
+    if len(args) < lo or (hi is not None and len(args) > hi):
+        raise FormulaError("formula.arity", name=name, count=len(args))
+    if name in ("lookup", *LIST_FUNCTIONS):
+        ref = dotted(args[0])
+        if ref is None:
+            raise FormulaError(
+                "formula.lookup_table_name" if name == "lookup" else "formula.list_ref", name=name
+            )
+        return Call(name, (Name(ref), *(convert(a) for a in args[1:])))
+    if name == "dice":
+        return Dice(convert(args[0]), convert(args[1]))
+    return Call(name, tuple(convert(a) for a in args))
 
 
 _CACHE: dict[str, Node] = {}
@@ -269,7 +346,14 @@ def parse(text: str) -> Node:
     """解析失败抛 FormulaError。"""
     node = _CACHE.get(text)
     if node is None:
-        node = _Parser(text).parse()
+        src = desugar(text).strip()
+        if not src:
+            raise FormulaError("formula.empty")
+        try:
+            tree = ast.parse(src, mode="eval")
+        except SyntaxError as e:
+            raise syntax_error(e, src, script=False) from None
+        node = convert(tree.body)
         if len(_CACHE) < 10000:
             _CACHE[text] = node
     return node
@@ -358,33 +442,55 @@ def is_die_name(name: str) -> bool:
     return _DIE_NAME.fullmatch(name) is not None
 
 
+_PREC = {"+": 6, "-": 6, "*": 7, "/": 7, "<": 5, "<=": 5, ">": 5, ">=": 5, "==": 5, "!=": 5}
+
+
 def to_text(node: Node, values: dict[str, Value] | None = None) -> str:
-    """把公式树写回文本，values 里的名字换成那个值。"""
+    """把公式树写回文本（能再被 parse 读回来，只加必要的括号），values 里的名字换成那个值。"""
     vals = values or {}
 
-    def lit(v: Value) -> str:
+    def lit(v: Value) -> tuple[str, int]:
         if isinstance(v, str):
-            return '"' + v.replace('"', "") + '"'
-        return repr(float(v)) if not float(v).is_integer() else str(int(v))
+            return '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"', 10
+        text = repr(float(v)) if not float(v).is_integer() else str(int(v))
+        return text, 8 if text.startswith("-") else 10
 
-    def go(n: Node) -> str:
-        if isinstance(n, Num):
-            return lit(n.value)
-        if isinstance(n, Str):
-            return lit(n.value)
-        if isinstance(n, Name):
-            if n.name in vals:
-                return lit(vals[n.name])
-            return n.name
-        if isinstance(n, Unary):
-            return f"({n.op}{go(n.operand)})"
-        if isinstance(n, Binary):
-            return f"({go(n.left)} {n.op} {go(n.right)})"
-        if isinstance(n, Call):
-            return f"{n.func}({', '.join(go(a) for a in n.args)})"
-        return f"(({go(n.count)}) d ({go(n.sides)}))"
+    def whole(n: Node) -> bool:
+        return isinstance(n, Num) and n.value >= 0 and float(n.value).is_integer()
 
-    return go(node)
+    def at(n: Node, need: int) -> str:
+        """n 的文本；优先级低于 need 时加括号。"""
+        text, p = go(n)
+        return f"({text})" if p < need else text
+
+    # 优先级：if-else 1，or 2，and 3，not 4，比较 5，加减 6，乘除 7，取负 8，原子 10
+    def go(n: Node) -> tuple[str, int]:
+        match n:
+            case Num(value=v) | Str(value=v):
+                return lit(v)
+            case Name(name=x):
+                return lit(vals[x]) if x in vals else (x, 10)
+            case Unary(operand=o):
+                return f"-{at(o, 8)}", 8
+            case Binary(op=op, left=a, right=b):
+                p = _PREC[op]
+                # 比较不能连着写（那是另一种意思），两边都要比它高；其余左结合
+                return f"{at(a, p + 1 if p == 5 else p)} {op} {at(b, p + 1)}", p
+            case Dice(count=c, sides=sd):
+                if whole(c) and whole(sd):
+                    return f"{go(c)[0]}d{go(sd)[0]}", 10
+                return f"dice({go(c)[0]}, {go(sd)[0]})", 10
+            case Call(func="if", args=(c, a, b)):
+                return f"{at(a, 2)} if {at(c, 2)} else {at(b, 1)}", 1
+            case Call(func="and" | "or" as fn, args=args):
+                p = 3 if fn == "and" else 2
+                return f" {fn} ".join(at(a, p + 1) for a in args), p
+            case Call(func="not", args=(a,)):
+                return f"not {at(a, 4)}", 4
+            case Call(func=fn, args=args):
+                return f"{fn}({', '.join(go(a)[0] for a in args)})", 10
+
+    return go(node)[0]
 
 
 def has_dice(node: Node) -> bool:

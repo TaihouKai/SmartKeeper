@@ -85,7 +85,8 @@ textarea.sk-code { white-space: pre; }
 .sk-formula input.invalid, textarea.invalid { border-color: var(--warn); }
 .sk-formula-multi textarea { width: 100%; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
 .sk-invalid { color: var(--warn); font-size: 12px; display: block; }
-.sk-suggest { position: absolute; z-index: 10; background: var(--card); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column; }
+.sk-suggest { position: absolute; z-index: 10; background: var(--card); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column; max-height: 240px; overflow-y: auto; min-width: 160px; }
+.sk-suggest-more { opacity: 0.5; }
 .sk-suggest button { border: none; margin: 0; text-align: left; }
 .sk-suggest button.active { background: color-mix(in srgb, var(--accent) 25%, var(--card)); }
 .sk-entry, .sk-effect { border-left: 3px solid var(--line); padding-left: 8px; margin: 6px 0; }

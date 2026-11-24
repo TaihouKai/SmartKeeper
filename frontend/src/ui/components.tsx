@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode, type SyntheticEvent } from "react";
 import { useI18n } from "../i18n";
 import { describeError, translateCode } from "./errors";
+import { suggest } from "./complete";
 
 export function ErrorBox({ error }: { error: unknown }) {
   const { lang } = useI18n();
@@ -150,7 +151,7 @@ export function FormulaInput({
   const [closed, setClosed] = useState(false);
   const end = caret ?? value.length;
   const word = /[\p{L}_][\p{L}\p{N}_.]*$/u.exec(value.slice(0, end))?.[0] ?? "";
-  const suggestions = focus && word && !closed ? names.filter((n) => n.startsWith(word) && n !== word).slice(0, 8) : [];
+  const suggestions = focus && !closed ? suggest(names, word) : [];
   const pick = (s: string) => {
     const next = value.slice(0, end - word.length) + s + value.slice(end);
     const at = end - word.length + s.length;
@@ -191,7 +192,7 @@ export function FormulaInput({
       if (!suggestions.length) return;
       if (e.key === "Tab" || e.key === "Enter") {
         e.preventDefault();
-        pick(suggestions[sel] ?? word);
+        pick(suggestions[sel]?.insert ?? word);
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
         setActive((sel + 1) % suggestions.length);
@@ -212,8 +213,19 @@ export function FormulaInput({
       {suggestions.length > 0 && (
         <span className="sk-suggest">
           {suggestions.map((s, i) => (
-            <button key={s} type="button" className={i === sel ? "active" : ""} onMouseDown={(e) => { e.preventDefault(); pick(s); }} onMouseEnter={() => setActive(i)}>
-              {s}
+            <button
+              key={s.insert}
+              type="button"
+              ref={i === sel ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}
+              className={i === sel ? "active" : ""}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                pick(s.insert);
+              }}
+              onMouseEnter={() => setActive(i)}
+            >
+              {s.label}
+              {s.more && <span className="sk-suggest-more">.</span>}
             </button>
           ))}
         </span>

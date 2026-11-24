@@ -1,10 +1,11 @@
 # `lang`：公式与技能脚本
 
 规则包里所有能算的东西都用这门小语言写：推导值、上下限、检定的骰子和目标值、条目的修正、施放时间和冷却时间、技能脚本。
-引擎不执行任何外部代码，这里是自己的解析器和求值器。
+
+**语法就是 Python 的一个子集。** 用 Python 自带的 `ast` 把文字解析成语法树，但不交给 Python 执行：只认下面列出的写法，求值、名字、掷骰都是自己做的。所以不会跑任何外部代码，也不能 `import`。
 
 - 依赖：无。这个包不认识角色卡和规则包；名字指什么、表怎么查、骰子怎么掷，都由调用方（`rules`）以回调传进来。
-- 文件：`formula.py` 是公式，`script.py` 是技能脚本。
+- 文件：`formula.py` 是公式（解析、求值、写回文本），`script.py` 是技能脚本。
 - 单独测试：`uv run pytest tests/lang`
 
 下面先讲公式，再讲技能脚本，最后是名字的含义（由 `rules` 决定）和出错代码。
@@ -19,23 +20,27 @@
 
 | 写法 | 说明 |
 | --- | --- |
-| `3`、`2.5` | 数字。没有负数字面量，`-3` 是对 3 取负 |
-| `"warrior"` | 文字，用英文双引号；里面不能再有双引号 |
+| `3`、`2.5` | 数字 |
+| `"warrior"`、`'warrior'` | 文字，单引号双引号都行 |
+| `True`、`False` | 就是 1 和 0 |
 
 ### 2. 运算
 
-按优先级从高到低：
+和 Python 一样，按优先级从高到低：
 
-| 优先级 | 运算 | 说明 |
-| --- | --- | --- |
-| 1 | `( … )`、函数调用、名字、字面量 | |
-| 2 | `NdM` | 掷骰，比乘除先算：`2d6 * 5` 是 `(2d6) * 5` |
-| 3 | `-x` | 取负 |
-| 4 | `*`、`/` | 除以 0 报错 |
-| 5 | `+`、`-` | |
-| 6 | `<` `<=` `>` `>=` `==` `!=` | 成立得 1，不成立得 0；单个 `=` 等同 `==`；不能连写（`1 < x < 3` 报错，用 `and(1 < x, x < 3)`） |
+| 运算 | 说明 |
+| --- | --- |
+| `( … )`、函数调用、名字、掷骰 `3d6` | 掷骰是一个整体：`2d6 * 5` 是 `(2d6) * 5` |
+| `x ** y` | 乘方 |
+| `-x` | 取负 |
+| `*`、`/`、`//`、`%` | 乘、除、整除（向下取整）、余数（和除数同号：`-1 % 3` 是 2）；除以 0 报错 |
+| `+`、`-` | |
+| `<` `<=` `>` `>=` `==` `!=` | 成立得 1，不成立得 0；可以连写：`1 < x <= 3` |
+| `not x` | 不成立得 1 |
+| `a and b`、`a or b` | 都成立 / 有一个成立得 1；短路（后面的不算） |
+| `a if 条件 else b` | 条件成立取 a，否则取 b；没选中的一边不算（不会掷骰、不会报错） |
 
-- 同级从左往右算。
+- 比较相等要写 `==`。单个 `=` 报 `formula.single_equals`。
 - 文字只能用 `==` / `!=` 比较，参与加减乘除会报错。
 - 真假：0 和空文字是假，其余是真。
 
@@ -43,37 +48,39 @@
 
 | 写法 | 含义 |
 | --- | --- |
-| `3d6` | 3 颗 6 面骰求和 |
+| `3d6`、`3D6` | 3 颗 6 面骰求和 |
 | `d20`、`d%` | 省略个数就是 1 颗；`d%` 是 `d100` |
-| `1dstr`、`2d(str + 1)` | 数字后面紧跟 `d`，面数可以是名字或括号 |
-| `level d luck` | 两个名字之间掷骰，`d` 两边要加空格（`leveldluck` 会被当成一个名字） |
+| `1d str`、`1dstr`、`2d(str + 1)`、`1d lookup(表, x)` | 面数可以是名字、括号或函数调用 |
+| `dice(level, luck)` | 个数不是数字时用这个：level 颗、每颗 luck 面 |
 | `highest(4, 6, 3)` | 掷 4 颗 6 面骰，取最高的 3 颗之和；`lowest` 取最低的 |
 
+- `NdM` 这些写法在交给 Python 之前改写成 `dice(N, M)`。引号里和 `#` 注释里的不动。
 - 个数和面数先四舍五入（.5 远离零）。个数 0～1000，面数 1～100000，超出报错。
 - **只有能掷骰的地方才能掷骰**：检定的骰子、KP 的临时检定和自由掷骰、技能脚本的数量和分钟、掷骰公式列。
-- 推导值、上下限、初值、每分钟变化、检定目标值和结果条件、施放时间、冷却时间、`modify` 的新值公式，每次查看或每轮都要重新算，所以不能掷骰。写了会报 `formula.dice_not_allowed`。
+- 推导值、上下限、初值、每分钟变化、检定目标值和结果条件、施放时间、冷却时间、`modify` 的新值公式、脚本里的 `if` 条件，每次查看都要重新算，或者没有地方记点数，所以不能掷骰。写了会报 `formula.dice_not_allowed`。
 
 ### 4. 函数
 
 | 函数 | 说明 |
 | --- | --- |
 | `abs(x)` `floor(x)` `ceil(x)` `trunc(x)` `sign(x)` `sqrt(x)` | 绝对值、向下取整、向上取整、向零取整、符号（1 / -1 / 0）、平方根 |
-| `round(x)` | 四舍五入，.5 远离零（不是银行家舍入） |
-| `pow(x, y)` | x 的 y 次方 |
-| `mod(x, y)` | 余数，和 y 同号：`mod(-1, 3)` 是 2 |
+| `round(x)` | 四舍五入，.5 远离零（不是 Python 的银行家舍入） |
+| `pow(x, y)` | 等于 `x ** y` |
+| `mod(x, y)` | 等于 `x % y` |
 | `min(a, b, …)` `max(a, b, …)` | 最小、最大 |
 | `clamp(x, lo, hi)` | 把 x 限制在 lo..hi |
-| `if(cond, a, b)` | 条件为真取 a，否则取 b；没选中的一边不算（不会掷骰、不会报错） |
-| `and(a, …)` `or(a, …)` `not(a)` | 逻辑运算，结果 1 / 0；`and`、`or` 短路 |
 | `lookup(表, key)` | 查规则包的表。范围表取“不超过 key 的最大一行”，精确表要求完全相等 |
 | `count(分组)` | 分组里有几条 |
 | `count(分组.列, 值)` | 这一列等于这个值的有几条（数字或文字都行） |
 | `sum(分组.列)` | 这一列加起来是多少 |
+| `dice(n, s)` | 掷骰，等于 `NdM` |
 | `highest(n, s, k)` `lowest(n, s, k)` | 掷骰，见上 |
 
+- 只能调用这张表里的函数。Python 自己的函数（`print`、`len`、`__import__`……）一律报 `formula.unknown_function`。
 - `lookup` 的第一个参数是表名，`count` / `sum` 的第一个参数是分组引用，它们都不是普通名字。
 - 分组前面可以加 `<模板>.` 或 `target.`，例如 `count(companion.traits.rank, 3)`。
 - `count` / `sum` 统计时跳过没填的列；“使用时填写”的列不能统计。
+- 不支持的 Python 写法（列表、下标 `x[0]`、`lambda`、`in`、f-string、关键字参数……）报 `formula.unsupported`。
 
 ---
 
@@ -93,10 +100,13 @@ target.modify(move_speed,
 
 ### 1. 书写规则
 
+就是 Python 的写法：
+
 - 一行一句，也可以用 `;` 隔开。
-- `#` 到行尾是注释（双引号里的 `#` 不算）。
+- `#` 到行尾是注释（引号里的 `#` 不算）。
 - 括号没关上时，换行算同一句。
-- 空行和只有注释的行忽略；整段为空表示没有脚本。
+- 空行和只有注释的行忽略；整段为空表示没有脚本。`pass` 什么都不做（例如空着的 `else`）。
+- 只能写动作句和 `if`。赋值（`x = 1`）、循环、`def` 这些都报 `script.bad_statement`。
 
 ### 2. 语句
 
@@ -135,11 +145,11 @@ else:
 self.sub(mp, 1)          # 不缩进：不管走哪一支都执行
 ```
 
-- 写法和 Python 一样：`if 条件:`，下面缩进的几行是这一支；后面可以接任意个 `elif 条件:`，最后可以有一个 `else:`。
+- 写法和 Python 一样：`if 条件:`，下面缩进的几行是这一支；后面可以接任意个 `elif 条件:`，最后可以有一个 `else:`。只有一句时可以写在同一行：`if x > 1: self.add(hp, 1)`。
 - 从上往下，第一个成立的条件那一支执行，其余跳过；都不成立就执行 `else`（没有 `else` 就什么都不做）。
 - 缩进几个空格都行（Tab 算 4 个），但同一支里的行要对齐。分支里可以再套分支。
 - `if` 后面的条件是一条公式，0 和空文字算不成立。
-- 条件在声明使用时算，**不能掷骰**，因为条件掷出来的点数没有地方记进日志。要按概率触发，就把掷骰放进数量里，例如 `target.damage(if(1d100 <= 30, 10, 0))`。
+- 条件在声明使用时算，**不能掷骰**，因为条件掷出来的点数没有地方记进日志。要按概率触发，就把掷骰放进数量里，例如 `target.damage(10 if 1d100 <= 30 else 0)`。
 - 没有对象时，条件里用到 `target.` 的整个 `if … elif … else` 都跳过。
 - 编辑框里按 Tab 插入 4 个空格；回车会保持这一行的缩进，行尾是冒号时再多缩进一级。
 
@@ -166,36 +176,38 @@ self.sub(mp, 1)          # 不缩进：不管走哪一支都执行
 | `hero.fireball` | `<模板>.<条目ID>`：有没有这一条（1 / 0） |
 | `hero.fireball.level` | `<模板>.<条目ID>.<列>`：那一条的某一列；没有这一条按 0 算；“使用时填写”的列不能引用 |
 | `target.hp` | 技能的对象的值（只在使用技能时有） |
-| `target.template`、`self.template`、`<模板>.template` | 那个角色的模板名（文字），例如 `if(target.template == "monster", 2, 1)` |
+| `target.template`、`self.template`、`<模板>.template` | 那个角色的模板名（文字），例如 `2 if target.template == "monster" else 1` |
 | `roll`、`target`、`difficulty`、`opp_roll`、`opp_target` | 只在检定的结果条件里有 |
 
-字段名不能叫 `d`、`d6` 这种会被当成掷骰的名字。条目 ID 不能叫 `self`、`this`、`target`、`template`。
+字段名不能叫 `d`、`d6` 这种会被当成掷骰的名字。条目 ID 不能叫 `self`、`this`、`target`、`template`。字段、推导值、分组、模板、条目 ID 都不能用 Python 的关键字（`if`、`and`、`class`、`pass`、`in`……）。
 
 ---
 
 ## 四、出错代码
 
-解析和校验的问题用代码报给前端，前端翻译成说明（翻译在 `scripts/i18n_source.py` 的 `codes.*`）。技能脚本的问题都带 `line`（第几行）。
+解析和校验的问题用代码报给前端，前端翻译成说明（翻译在 `scripts/i18n_source.py` 的 `codes.*`）。技能脚本的问题都带 `line`（第几行）。Python 的语法错误换成下面的代码。
 
 | 代码 | 什么时候 |
 | --- | --- |
-| `formula.empty` / `formula.bad_token` / `formula.unexpected` / `formula.unexpected_end` / `formula.trailing` / `formula.expected` | 语法错 |
-| `formula.chained_comparison` | 比较连写 |
+| `formula.empty` | 空的 |
+| `formula.syntax` | 别的语法错（Python 读不了） |
+| `formula.unclosed` / `formula.unmatched` / `formula.unclosed_string` | 括号没关上 / 多了右括号 / 引号没关上 |
+| `formula.single_equals` | 比较相等写成了单个 `=` |
+| `formula.unsupported` | Python 的写法，但不在白名单里 |
+| `formula.chained_comparison` | 连写的比较中间那一项掷骰（会掷两次） |
 | `formula.unknown_function` / `formula.arity` | 没有这个函数 / 参数个数不对 |
-| `formula.unknown_name` / `formula.dice_needs_space` | 没有这个名字 / 像是两个名字之间掷骰忘了加空格 |
+| `formula.unknown_name` / `formula.dice_needs_space` | 没有这个名字 / 像是两个名字之间掷骰（`strdper`），提示写 `dice(str, per)` |
 | `formula.dice_not_allowed` / `formula.dice_range` | 这里不能掷骰 / 骰子个数或面数超范围 |
 | `formula.text_in_arithmetic` / `formula.text_result` | 文字参与计算 / 结果是文字但这里要数字 |
 | `formula.division_by_zero` / `formula.math_domain` | 除以 0 / 算不出结果（例如负数开平方） |
 | `formula.cycle` | 循环引用 |
 | `formula.list_ref` / `formula.unknown_group` | `count` / `sum` 的第一个参数不是分组引用 / 没有这个分组或列 |
 | `formula.this_outside_entry` | 不在条目里却写了 `this.x` |
-| `script.bad_statement` | 不是 `对象.动作(参数)` 的形式 |
+| `script.bad_statement` | 不是 `对象.动作(参数)`、`if`、`pass` |
 | `script.unknown_receiver` / `script.unknown_verb` | 对象不是 `self` / `target`；没有这个动作 |
 | `script.arity` / `script.field_arg` | 参数个数不对 / 字段参数不是一个简单的名字 |
 | `script.unexpected_indent` | 缩进不对：同一段没对齐，或不在 `if` / `elif` / `else` 下面却缩进了 |
-| `script.empty_block` | `if` / `elif` / `else` 下面没有缩进的行 |
-| `script.dangling_else` | `elif` / `else` 前面没有对齐的 `if` |
-| `script.bad_condition` | `if` / `elif` 后面没写条件 |
+| `script.empty_block` | `if` / `elif` / `else` 下面没有缩进的行（空着就写 `pass`） |
 | `script.not_runtime` / `script.not_derived` | `add` / `sub` / `set` 的字段不是运行值；`modify` 的不是推导值 |
 
 ---
@@ -203,8 +215,11 @@ self.sub(mp, 1)          # 不缩进：不管走哪一支都执行
 ## 五、给开发者
 
 - `parse(text)` → 公式树（`Num`、`Str`、`Name`、`Unary`、`Binary`、`Call`、`Dice`），出错抛 `FormulaError(code, **params)`。解析结果有缓存。
+  - 过程：`desugar` 把 `3d6` 这类写法改成 `dice(3, 6)` → `ast.parse(mode="eval")` → `convert` 按白名单把 Python 的树换成公式树。
+  - `a if c else b`、`and`、`or`、`not` 换成内部的 `Call("if" / "and" / "or" / "not")`；`%`、`**`、`//` 换成 `mod`、`pow`、`floor(a / b)`；连写的比较换成 `and`。
+  - 求值和公式树与 Python 无关，只有解析这一步借用 Python。
 - `evaluate(node, resolve, lookup, faces=None, collect=None)`：`resolve` 解析名字，`lookup` 查表，`faces` 掷骰（不给就不能掷），`collect` 给 `count` / `sum` 列出分组的值。
 - `names` / `tables` / `lists`：公式里引用的名字、表、分组；`has_dice`：有没有掷骰。
-- `substitute(node, fn)`：把名字换成别的公式树（`this.<掷骰公式列>` 的展开用它）。`to_text(node, values)`：写回文本，并把一些名字换成值（冻结用它）。
-- `parse_script(text)` → `ScriptNode`（`Statement` 或 `If`）的元组。`Statement`：行号、对象、动作和参数原文（参数已经检查过能解析）。`If`：一串 `Branch`（行号、条件原文或 `None`、分支里的语句）。`statements(nodes)` 列出所有分支里的动作句。
-- 改语法时，同时改：这份说明、前端“公式速查”（`frontend/src/ui/FormulaHelp.tsx`，函数表有测试保证和 `FUNCTIONS` 一致）、`tests/lang`。
+- `substitute(node, fn)`：把名字换成别的公式树（`this.<掷骰公式列>` 的展开用它）。`to_text(node, values)`：写回能被 `parse` 读回来的文本，并把一些名字换成值（冻结用它）。
+- `parse_script(text)` → `ScriptNode`（`Statement` 或 `If`）的元组，用 `ast.parse(mode="exec")`。`Statement`：行号、对象、动作和参数（写成 `to_text` 的文本）。`If`：一串 `Branch`（行号、条件原文或 `None`、分支里的语句）。`statements(nodes)` 列出所有分支里的动作句。
+- 改语法时，同时改：这份说明、前端“公式速查”（`frontend/src/ui/FormulaHelp.tsx`，函数表有测试保证和 `FUNCTIONS` 一致）、`tests/lang`。存下来的公式要跟着改写法时加一个迁移（参考 `web/migrations/versions/0005_python_syntax.py`：旧解析器读、`to_text` 写）。

@@ -430,8 +430,8 @@ T: dict[str, tuple[str, str]] = {
         "Say it in your action when used ({min} to {max})",
     ),
     "rules.kind_help.formula": (
-        "掷骰公式：一条可以带骰子的公式，例如技能的伤害 1d str，或 this.level d lookup(某表, this.level)。放在分组里时每个条目各填各的，可以用 this.<列> 引用这个条目的其他列。技能脚本和这一条的其他公式里写 this.<这一列> 就是用这条公式（当场掷骰），例如脚本 target.damage(this.damage)。",
-        "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or this.level d lookup(table, this.level). In a group each entry fills its own and may use this.<column>. In the skill script and this entry's other formulas, this.<that column> uses the formula (rolled then), e.g. the script target.damage(this.damage).",
+        "掷骰公式：一条可以带骰子的公式，例如技能的伤害 1d str，或 dice(this.level, lookup(某表, this.level))。放在分组里时每个条目各填各的，可以用 this.<列> 引用这个条目的其他列。技能脚本和这一条的其他公式里写 this.<这一列> 就是用这条公式（当场掷骰），例如脚本 target.damage(this.damage)。",
+        "Dice formula: a formula that may roll dice, e.g. a skill's damage 1d str, or dice(this.level, lookup(table, this.level)). In a group each entry fills its own and may use this.<column>. In the skill script and this entry's other formulas, this.<that column> uses the formula (rolled then), e.g. the script target.damage(this.damage).",
     ),
     "rules.kind_help.boolean": (
         "是/否：一个勾选框，例如“能否飞行”。公式里是 1 或 0。",
@@ -622,8 +622,8 @@ T: dict[str, tuple[str, str]] = {
     ),
     "rules.g.presets": ("固定条目：规则预先填好的行", "Fixed entries: rows filled in by the rules"),
     "rules.g.presets_hint": (
-        '按上面的表头预先填好的行，玩家不用自己填；玩家建角时自己写的条目是另外加的行。生效条件为真时，这一条自动出现在角色卡上、修正也生效；条件不满足就不会出现。条件只能引用这张卡的字段，文字值要加英文引号，例如 class = "warrior"；也可以写 class != "warrior"、and(class = "warrior", str >= 3)。固定条目不算进上面的“最少/最多”。',
-        'Rows filled in from the header above, so players don\'t write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn\'t appear. Conditions may only use this sheet\'s fields; text values need double quotes, e.g. class = "warrior", class != "warrior" or and(class = "warrior", str >= 3). Fixed entries don\'t count toward the min/max above.',
+        '按上面的表头预先填好的行，玩家不用自己填；玩家建角时自己写的条目是另外加的行。生效条件为真时，这一条自动出现在角色卡上、修正也生效；条件不满足就不会出现。条件只能引用这张卡的字段，文字值要加引号，例如 class == "warrior"；也可以写 class != "warrior"、class == "warrior" and str >= 3。固定条目不算进上面的“最少/最多”。',
+        'Rows filled in from the header above, so players don\'t write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn\'t appear. Conditions may only use this sheet\'s fields; text values need quotes, e.g. class == "warrior", class != "warrior" or class == "warrior" and str >= 3. Fixed entries don\'t count toward the min/max above.',
     ),
     "rules.gt.title": ("条目表", "Entry table"),
     "rules.g.timing": (
@@ -697,7 +697,7 @@ T: dict[str, tuple[str, str]] = {
     ),
     "rules.gt.column": ("列设置：{name}", "Column: {name}"),
     "rules.p.when": ("生效条件（留空表示总是生效）", "Condition (empty means always)"),
-    "rules.ph.when": ('例如 class = "warrior"', 'e.g. class = "warrior"'),
+    "rules.ph.when": ('例如 class == "warrior"', 'e.g. class == "warrior"'),
     "rules.add_preset": ("添加固定条目", "Add fixed entry"),
     "rules.add_group": ("添加分组", "Add group"),
     "rules.player_entities": (
@@ -812,17 +812,13 @@ T: dict[str, tuple[str, str]] = {
         "{name} 的参数个数不对（给了 {count} 个）",
         "{name} got the wrong number of arguments ({count})",
     ),
-    "codes.formula.bad_token": (
-        "第 {pos} 个字符看不懂",
-        "Unrecognised character at position {pos}",
-    ),
     "codes.formula.bad_value": (
         "{name} 的值不能用于计算",
         "{name} has a value that can't be used here",
     ),
     "codes.formula.chained_comparison": (
-        "不能连着比较（例如 1 < x < 3），请用 and(1 < x, x < 3)",
-        "Comparisons can't be chained (1 < x < 3); use and(1 < x, x < 3)",
+        "连着比较时中间那一项不能掷骰（会掷两次），请先拆开：a < b and b < c",
+        "In a chained comparison the middle term can't roll dice (it would roll twice); split it: a < b and b < c",
     ),
     "codes.formula.cycle": (
         "公式互相引用成了环：{name}",
@@ -842,7 +838,21 @@ T: dict[str, tuple[str, str]] = {
     ),
     "codes.formula.division_by_zero": ("除以零", "Division by zero"),
     "codes.formula.empty": ("公式是空的", "The formula is empty"),
-    "codes.formula.expected": ("这里缺一个 {token}", "Expected {token} here"),
+    "codes.formula.syntax": (
+        "写法不对，看不懂（检查运算符、括号和逗号）",
+        "Can't read this (check operators, brackets and commas)",
+    ),
+    "codes.formula.unclosed": ("括号没关上", "A bracket isn't closed"),
+    "codes.formula.unmatched": ("多了一个右括号", "There's an extra closing bracket"),
+    "codes.formula.unclosed_string": ("引号没关上", "A quote isn't closed"),
+    "codes.formula.single_equals": (
+        "比较相等要写两个等号：==",
+        "Use two equals signs to compare: ==",
+    ),
+    "codes.formula.unsupported": (
+        "不支持这种写法：{what}",
+        "This isn't supported: {what}",
+    ),
     "codes.formula.lookup_miss": (
         "表 {table} 里找不到 {key}",
         "Table {table} has no row for {key}",
@@ -860,8 +870,8 @@ T: dict[str, tuple[str, str]] = {
         "{name} can only be used inside an entry (it means that entry's column)",
     ),
     "codes.script.bad_statement": (
-        "看不懂这一句：{text}。每句写成 对象.动作(参数)，例如 target.damage(5)",
-        "Can't read: {text}. Write object.action(arguments), e.g. target.damage(5)",
+        "这一句不是动作：{text}。每句写成 对象.动作(参数)，例如 target.damage(5)；或者 if / elif / else / pass",
+        "Not an action: {text}. Write object.action(arguments), e.g. target.damage(5); or if / elif / else / pass",
     ),
     "codes.script.unknown_receiver": (
         "{name} 不是对象：只能写 self（自己）或 target（对象）",
@@ -888,20 +898,12 @@ T: dict[str, tuple[str, str]] = {
         "{name} isn't a derived value; modify only works on derived values",
     ),
     "codes.script.unexpected_indent": (
-        "这一行的缩进不对：同一段里的行要对齐，只有 if / elif / else 下面才能缩进",
-        "Unexpected indent: lines in one block must line up; only lines under if / elif / else are indented",
+        "缩进不对：同一段里的行要对齐，只有 if / elif / else 下面的几行才缩进",
+        "Indentation is off: lines in one block must line up; only lines under if / elif / else are indented",
     ),
     "codes.script.empty_block": (
         "if / elif / else 下面要有缩进的几行",
         "if / elif / else needs indented lines under it",
-    ),
-    "codes.script.dangling_else": (
-        "{name} 前面要有对齐的 if",
-        "{name} needs an if above it at the same indent",
-    ),
-    "codes.script.bad_condition": (
-        '看不懂这个条件：{text}。写成 if 条件:，例如 if target.template == "monster":',
-        'Can\'t read the condition: {text}. Write if condition:, e.g. if target.template == "monster":',
     ),
     "codes.formula.text_in_arithmetic": (
         "文字“{value}”不能参与计算",
@@ -911,12 +913,6 @@ T: dict[str, tuple[str, str]] = {
         "结果是文字“{value}”，这里需要数字",
         "The result is text ('{value}'); a number is needed",
     ),
-    "codes.formula.trailing": (
-        "第 {pos} 个字符起多出来一段，可能少了运算符",
-        "Unexpected extra text at position {pos}; an operator may be missing",
-    ),
-    "codes.formula.unexpected": ("“{token}”不该出现在这里", "'{token}' isn't expected here"),
-    "codes.formula.unexpected_end": ("公式没写完", "The formula ends too early"),
     "codes.formula.unknown_function": (
         "没有 {name} 这个函数（见“公式速查”）",
         "There is no function {name} (see the formula reference)",
@@ -1015,7 +1011,20 @@ T: dict[str, tuple[str, str]] = {
         "比较：< <= > >= == !=，成立得 1，不成立得 0",
         "Comparison (< <= > >= == !=): 1 if true, 0 if false",
     ),
-    "fh.b.text": ("文字用英文双引号", "Text goes in double quotes"),
+    "fh.b.text": ("文字加引号（单双都行）", "Text goes in quotes (single or double)"),
+    "fh.b.ifexp": (
+        "条件成立取前面的，否则取后面的",
+        "The first value if the condition holds, otherwise the second",
+    ),
+    "fh.b.logic": ("比较可以连写；and、or、not", "Comparisons may be chained; and, or, not"),
+    "fh.b.ops": (
+        "余数（和除数同号）、整除（向下取整）、乘方",
+        "Remainder (sign of the divisor), floor division, power",
+    ),
+    "fh.b.template": (
+        "角色的模板名，可以按对象的种类区分",
+        "The character's template name, to tell kinds of target apart",
+    ),
     "fh.b.names": (
         "用名字（英文代号）引用字段、推导值、命名公式",
         "Refer to fields, derived values and named formulas by name",
@@ -1076,8 +1085,8 @@ T: dict[str, tuple[str, str]] = {
         "A number followed by d; the sides can be a field or a bracketed expression",
     ),
     "fh.d.names": (
-        "两个名字之间掷骰，d 两边要加空格（level 颗、每颗 luck 面）",
-        "Between two names, put spaces around d (level dice with luck sides)",
+        "个数不是数字时用 dice(个数, 面数)：level 颗、每颗 luck 面",
+        "When the count isn't a number use dice(count, sides): level dice with luck sides",
     ),
     "fh.d.order": ("先掷骰再乘除：等于 (2d6) × 5", "Dice come before * and /: this is (2d6) × 5"),
     "fh.d.keep": (
@@ -1096,10 +1105,10 @@ T: dict[str, tuple[str, str]] = {
     "fh.fn.min": ("最小的一个", "The smallest"),
     "fh.fn.max": ("最大的一个", "The largest"),
     "fh.fn.clamp": ("把 x 限制在 lo 到 hi 之间", "Keep x between lo and hi"),
-    "fh.fn.if": ("条件成立取 a，否则取 b", "a if the condition holds, otherwise b"),
-    "fh.fn.and": ("全部成立得 1", "1 if all hold"),
-    "fh.fn.or": ("任何一个成立得 1", "1 if any holds"),
-    "fh.fn.not": ("成立得 0，不成立得 1", "0 if it holds, 1 if not"),
+    "fh.fn.dice": (
+        "掷 n 颗 s 面骰求和，和 NdM 一样",
+        "Roll n dice with s sides and add them, same as NdM",
+    ),
     "fh.fn.lookup": ("在规则包的表里查值", "Look a value up in one of the pack's tables"),
     "fh.fn.count": (
         "数一个分组里的条目：count(分组) 是条目数，count(分组.列, 值) 是这一列等于这个值的条目数",

@@ -344,7 +344,7 @@ def damage_pack() -> RulePack:
             "fields": (*g.fields, FieldDef(name="damage", kind="formula", required=False)),
             "presets": (
                 GroupPreset.model_validate(
-                    {"name": "punch", "fields": {"level": 2, "damage": "this.level d 6 + 1"}}
+                    {"name": "punch", "fields": {"level": 2, "damage": "dice(this.level, 6) + 1"}}
                 ),
             ),
         }
@@ -732,7 +732,7 @@ def test_timed_effect_freezes_the_users_values() -> None:
     statuses = e.world_state(g)["entities"][e1]["sheet"]["statuses"]  # type: ignore[index]
     assert isinstance(statuses, list) and len(statuses) == 1
     formula = statuses[0]["modifier"]["formula"]  # type: ignore[index]
-    assert formula == f"(move_speed + {source_str})"
+    assert formula == f"move_speed + {source_str}"
     assert statuses[0]["expires_at"] == 10 + 30  # type: ignore[index]
     assert e.derived_all(g)[e1]["move_speed"] == before + source_str  # type: ignore[operator]
 

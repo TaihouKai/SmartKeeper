@@ -5,6 +5,9 @@ const BASICS: [string, string][] = [
   ["str * 2 + (dex - 10) / 2", "fh.b.arith"],
   ["str >= 50", "fh.b.compare"],
   ['occupation == "doctor"', "fh.b.text"],
+  ['2 if job == "mage" else 1', "fh.b.ifexp"],
+  ["1 < x <= 3 and not dead", "fh.b.logic"],
+  ["x % 3    x // 2    x ** 2", "fh.b.ops"],
   ["hp_max", "fh.b.names"],
   ["self.hp", "fh.b.self"],
   ["this.level", "fh.b.this"],
@@ -12,6 +15,7 @@ const BASICS: [string, string][] = [
   ["hero.fireball", "fh.b.entry"],
   ["hero.fireball.level", "fh.b.entry_col"],
   ["target.hp", "fh.b.target"],
+  ['target.template == "monster"', "fh.b.template"],
   ["count(companion.traits.rank, 3)", "fh.b.count"],
   ["sum(talents.cost)", "fh.b.sum"],
 ];
@@ -20,7 +24,7 @@ const DICE: [string, string][] = [
   ["3d6", "fh.d.basic"],
   ["d20    d%", "fh.d.one"],
   ["1dstr    2d(str + 1)", "fh.d.field"],
-  ["level d luck", "fh.d.names"],
+  ["dice(level, luck)", "fh.d.names"],
   ["2d6 * 5", "fh.d.order"],
   ["highest(4, 6, 3)", "fh.d.keep"],
 ];
@@ -47,15 +51,12 @@ export const FUNCTION_SIGNATURES: [string, string][] = [
   ["min", "min(a, b, …)"],
   ["max", "max(a, b, …)"],
   ["clamp", "clamp(x, lo, hi)"],
-  ["if", "if(cond, a, b)"],
-  ["and", "and(a, b, …)"],
-  ["or", "or(a, b, …)"],
-  ["not", "not(a)"],
   ["lookup", "lookup(table, key)"],
   ["count", "count(group.col, value)"],
   ["sum", "sum(group.col)"],
   ["highest", "highest(n, s, k)"],
   ["lowest", "lowest(n, s, k)"],
+  ["dice", "dice(n, s)"],
 ];
 
 function Rows({ rows }: { rows: [string, string][] }) {

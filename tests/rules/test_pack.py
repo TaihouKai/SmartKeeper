@@ -332,10 +332,12 @@ def test_formula_field_values_are_checked_and_may_roll(rules: RulesService) -> N
         return {p.code for p in rules.validate_sheet(pack, "person", sheet)}
 
     assert codes("1d str") == set()
-    assert codes("this.level d 6 + floor(str / 10)") == set()
+    assert codes("dice(this.level, 6) + floor(str / 10)") == set()
     assert "formula.unknown_name" in codes("1d nope")
     assert (
-        rules.validate_formula(pack, "person", "this.level d 6", in_entry="skills", scope="dice")
+        rules.validate_formula(
+            pack, "person", "dice(this.level, 6)", in_entry="skills", scope="dice"
+        )
         == []
     )
 
@@ -383,7 +385,7 @@ def test_script_validation(rules: RulesService) -> None:
         got = rules.validate_formula(pack, "person", text, in_entry="skills", scope="script")
         return [(p.code, p.params.get("line")) for p in got]
 
-    assert codes("target.damage(this.level d 6)\nself.add(hp, 1, 10)") == []
+    assert codes("target.damage(dice(this.level, 6))\nself.add(hp, 1, 10)") == []
     assert codes("target.modify(move_speed, move_speed * 0.5, 1)") == []
     assert codes("self.add(str, 1)") == [("script.not_runtime", 1)]
     assert codes("\ntarget.modify(hp, 1, 1)") == [("script.not_derived", 2)]

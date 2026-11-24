@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import keyword
 import re
 from collections.abc import Iterable
 
@@ -29,6 +30,11 @@ from smartkeeper.rules.sheets import init_sheet
 CHECK_VARS = ("roll", "target", "difficulty", "opp_roll", "opp_target")
 _ID = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 RESERVED_IDS = {"self", "this", "target", "template"}
+
+
+def _keyword(name: str) -> bool:
+    """Python 的关键字（if、and、class……）不能当名字：公式用 Python 的语法读。"""
+    return keyword.iskeyword(name)
 
 
 def known_names(pack: RulePack, template: EntityTemplate | None) -> set[str]:
@@ -220,7 +226,7 @@ def _unknown_name(name: str, allowed: set[str], path: str) -> Problem:
                 return Problem(
                     code="formula.dice_needs_space",
                     path=path,
-                    params={"name": name, "fixed": f"{a} d {b}"},
+                    params={"name": name, "fixed": f"dice({a}, {b})"},
                 )
     return Problem(code="formula.unknown_name", path=path, params={"name": name})
 
@@ -312,9 +318,18 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
     for name in sorted(_dupes(g.name for g in tpl.groups)):
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
+    for name in [tpl.name, *(g.name for g in tpl.groups)]:
+        if _keyword(name):
+            problems.append(Problem(code="pack.reserved_name", path=path, params={"name": name}))
     reserved = set(CHECK_VARS)
     for name in all_names:
-        if name in reserved or name in f.FUNCTIONS or "." in name or f.is_die_name(name):
+        if (
+            name in reserved
+            or name in f.FUNCTIONS
+            or "." in name
+            or f.is_die_name(name)
+            or _keyword(name)
+        ):
             problems.append(Problem(code="pack.reserved_name", path=path, params={"name": name}))
     derived = {d.name for d in tpl.derived}
     for req in REQUIRED_DERIVED:
@@ -679,7 +694,7 @@ def _check_entry(
     """一个条目：玩家写的，或规则包里的固定条目（固定条目的字段可以留空）。"""
     problems: list[Problem] = []
     fdefs = {x.name: x for x in g.fields}
-    if entry.id and (not _ID.fullmatch(entry.id) or entry.id in RESERVED_IDS):
+    if entry.id and (not _ID.fullmatch(entry.id) or entry.id in RESERVED_IDS or _keyword(entry.id)):
         problems.append(
             Problem(code="sheet.bad_entry_id", path=f"{ep}.id", params={"id": entry.id})
         )
