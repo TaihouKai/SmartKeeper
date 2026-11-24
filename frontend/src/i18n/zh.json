@@ -230,7 +230,7 @@
       "cooldown": "冷却（分钟）",
       "noise": "动静范围（米），None 表示悄无声息",
       "placement": "设置物，例如 placement(radius=3, charges=1)",
-      "range": "射程（米），None 表示不限",
+      "range": "射程（米），None 表示不限；设置物是放置点离施法者的距离",
       "requires": "使用条件，例如 not silenced",
       "shape": "范围形状，例如 sphere(radius=5)",
       "target": "single 要选对象 / self 只能对自己 / none 没有对象",

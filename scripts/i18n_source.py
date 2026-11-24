@@ -693,7 +693,10 @@ T: dict[str, tuple[str, str]] = {
         "single 要选对象 / self 只能对自己 / none 没有对象",
         "single needs a target / self only / none",
     ),
-    "config.c.range": ("射程（米），None 表示不限", "range in metres; None = unlimited"),
+    "config.c.range": (
+        "射程（米），None 表示不限；设置物是放置点离施法者的距离",
+        "range in metres; None = unlimited; for a placement, how far from the user it may be put",
+    ),
     "config.c.visible": ("对象必须在施法者的感知里", "the target must be perceived"),
     "config.c.requires": ("使用条件，例如 not silenced", "condition to use, e.g. not silenced"),
     "config.c.noise": (

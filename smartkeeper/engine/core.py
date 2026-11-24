@@ -1270,6 +1270,55 @@ class Engine:
                     Problem(code="adj.bad_placement", path=path, params={"entry": pin.entry})
                 )
                 continue
+            # 技能设置：冷却、使用条件，射程是放置点离设置者的距离
+            cfg = self._cfg(row)
+            tags = {str(_obj(x).get("tag")) for x in _list(_obj(ent.get("sheet")).get("statuses"))}
+            if COOLDOWN_TAG + pin.entry in tags:
+                problems.append(
+                    Problem(code="use.cooling_down", path=path, params={"entry": pin.entry})
+                )
+                continue
+            try:
+                if cfg.requires.strip() and val(cfg.requires) == 0:
+                    problems.append(
+                        Problem(
+                            code="use.requires",
+                            path=path,
+                            params={"entry": pin.entry, "formula": cfg.requires},
+                        )
+                    )
+                    continue
+                reach = val(cfg.range) if cfg.range.strip() else None
+                cd = int(val(cfg.cooldown) * 60) if cfg.cooldown.strip() else 0
+            except ValidationFailed as e:
+                problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
+                continue
+            if reach is not None:
+                here = point_of(ent.get("pos"))
+                dist = self._spatial.distance(here, pin.at) if here is not None else None
+                if dist is None or dist > reach:
+                    problems.append(
+                        Problem(
+                            code="use.out_of_range",
+                            path=path,
+                            params={
+                                "entry": pin.entry,
+                                "distance": round(dist, 1) if dist is not None else -1,
+                                "range": round(reach, 1),
+                            },
+                        )
+                    )
+                    continue
+            if cd > 0:
+                ops.append(
+                    PatchOp(
+                        op="add",
+                        path=f"/entities/{pin.owner}/sheet/statuses/-",
+                        value=Status(
+                            tag=COOLDOWN_TAG + pin.entry, source=pin.owner, expires_at=end + cd
+                        ).model_dump(mode="json"),
+                    )
+                )
             problems += self._check_location(
                 m, pin.owner, Location(pos=pin.at, inside=pin.inside), path
             )

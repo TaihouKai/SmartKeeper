@@ -966,3 +966,42 @@ def test_skill_config_is_enforced_by_the_engine() -> None:
     )
     e.begin_plan(g)
     assert code("peek", e1) == "use.not_perceived"
+
+
+def test_placement_obeys_range_requirement_and_cooldown() -> None:
+    from smartkeeper.contracts import PlaceIn
+
+    pack = trap_pack()
+    tpl = pack.templates[0]
+    g0 = tpl.groups[0]
+    near = g0.presets[0].model_copy(
+        update={
+            "config": 'target = "none"\nrange = 10\ncooldown = 1\nplacement = placement(radius=5)'
+        }
+    )
+    pack = pack.model_copy(
+        update={
+            "templates": (
+                tpl.model_copy(update={"groups": (g0.model_copy(update={"presets": (near,)}),)}),
+            )
+        }
+    )
+    t = setup_table("single", 2, pack=pack)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0 = t.entities(p0)[0]
+    e.admin_patch(
+        g, [PatchOp(op="replace", path=f"/entities/{e0}/pos", value={"x": -90, "y": -90, "z": 0})]
+    )
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    item = e.activities(g)[e0].steps[0].item
+    far = PlaceIn(owner=e0, entry="trap", at=Point(x=100, y=100), because=item)
+    with pytest.raises(ValidationFailed) as err:
+        e.apply_adjudication(g, t.simple_adjudication(placements=[far]))
+    assert "use.out_of_range" in {p.code for p in err.value.problems}
+    ok = PlaceIn(owner=e0, entry="trap", at=Point(x=-85, y=-90), because=item)
+    publish(t, only=t.players, placements=[ok])
+    statuses = e.world_state(g)["entities"][e0]["sheet"]["statuses"]  # type: ignore[index]
+    assert "cooldown:trap" in {s["tag"] for s in statuses}  # type: ignore[index,union-attr]

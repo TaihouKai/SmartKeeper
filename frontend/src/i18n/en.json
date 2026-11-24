@@ -230,7 +230,7 @@
       "cooldown": "cooldown in minutes",
       "noise": "noise radius in metres; None = silent",
       "placement": "placement, e.g. placement(radius=3, charges=1)",
-      "range": "range in metres; None = unlimited",
+      "range": "range in metres; None = unlimited; for a placement, how far from the user it may be put",
       "requires": "condition to use, e.g. not silenced",
       "shape": "area shape, e.g. sphere(radius=5)",
       "target": "single needs a target / self only / none",
