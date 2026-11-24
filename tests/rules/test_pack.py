@@ -422,3 +422,21 @@ def test_skill_config_validation(rules: RulesService) -> None:
     assert cfg.shape is not None and cfg.shape.kind == "cone" and cfg.shape.angle == 60
     assert cfg.placement is not None and cfg.placement.duration == "(2) * 60"
     assert rules.skill_config("").target == "single"
+
+
+def test_boolean_initial_must_look_like_a_boolean(rules: RulesService) -> None:
+    from smartkeeper.contracts import FieldDef
+
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+
+    def codes(initial: str) -> list[str]:
+        fd = FieldDef(name="silenced", kind="boolean", cls="runtime", initial=initial)
+        p = pack.model_copy(
+            update={"templates": (tpl.model_copy(update={"fields": (*tpl.fields, fd)}),)}
+        )
+        return [x.code for x in rules.validate_pack(p) if x.code == "pack.boolean_initial"]
+
+    assert codes("123") == ["pack.boolean_initial"]
+    assert codes('"yes"') == ["pack.boolean_initial"]
+    assert codes("False") == codes("1") == codes("str > 3") == []

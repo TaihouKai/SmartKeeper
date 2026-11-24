@@ -530,6 +530,12 @@ T: dict[str, tuple[str, str]] = {
     ),
     "rules.f.max_required": ("上限（必填）", "Maximum (required)"),
     "rules.f.initial_required": ("初值（必填）", "Initial value (required)"),
+    "rules.f.initial_bool": ("初值（不填就是 False）", "Initial value (empty means False)"),
+    "rules.ph.initial_bool": ("False / True，或一个条件", "False / True, or a condition"),
+    "codes.pack.boolean_initial": (
+        "是/否字段的初值要写 True / False（或 1 / 0、一个条件），现在是 {value}",
+        "A yes/no field's initial value should be True / False (or 1 / 0, or a condition), not {value}",
+    ),
     "rules.ph.unit": ("可不填，例如 米", "optional, e.g. m"),
     "rules.ph.min": ("例如 0", "e.g. 0"),
     "rules.ph.max": ("例如 100", "e.g. 100"),

@@ -130,6 +130,7 @@
     },
     "pack": {
       "bad_count": "最少、最多的数量不对（最多不能小于最少）",
+      "boolean_initial": "是/否字段的初值要写 True / False（或 1 / 0、一个条件），现在是 {value}",
       "check_needs_levels": "检定至少要有一个结果等级",
       "choices_need_text": "只有文字字段能设可选值",
       "duplicate_name": "名字 {name} 重复了",
@@ -608,6 +609,7 @@
       "description": "给玩家看的说明（可不填）",
       "hidden": "对玩家隐藏",
       "initial": "初值",
+      "initial_bool": "初值（不填就是 False）",
       "initial_required": "初值（必填）",
       "kind": "类型",
       "label": "显示名",
@@ -766,6 +768,7 @@
       "group_max": "不限",
       "group_name": "例如 class_skills",
       "initial": "例如 hp_max",
+      "initial_bool": "False / True，或一个条件",
       "label_can_fly": "例如 飞行能力",
       "label_concealment": "例如 匿踪系数",
       "label_fly_multiplier": "例如 飞行速度系数",

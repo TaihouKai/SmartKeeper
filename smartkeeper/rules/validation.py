@@ -300,6 +300,20 @@ def _check_field_def(
         text = getattr(fd, attr)
         if text is not None:
             problems += check_formula(pack, tpl, text, f"{path}.{attr}", entry_fields=entry_fields)
+    if fd.kind == "boolean" and fd.initial is not None and fd.initial.strip():
+        # 是/否的初值：True / False、0 / 1 或一个条件；别的数字和文字多半是填错了
+        try:
+            node = f.parse(fd.initial)
+        except f.FormulaError:
+            node = None
+        if isinstance(node, f.Str) or (isinstance(node, f.Num) and node.value not in (0.0, 1.0)):
+            problems.append(
+                Problem(
+                    code="pack.boolean_initial",
+                    path=f"{path}.initial",
+                    params={"value": fd.initial},
+                )
+            )
     if fd.vital and (fd.cls != "runtime" or fd.kind not in ("number", "resource")):
         problems.append(Problem(code="pack.vital_needs_runtime", path=path))
     if fd.per_minute is not None:

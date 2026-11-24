@@ -21,6 +21,13 @@ export function useListEdit<T>(list: T[], set: (l: T[]) => void) {
   };
 }
 
+/** 是/否字段的初值写成了 0、1 以外的数字或文字（多半是填错了）。 */
+function badBool(text: string | null | undefined): boolean {
+  const v = (text ?? "").trim();
+  if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v) !== 0 && Number(v) !== 1;
+  return /^(".*"|'.*')$/.test(v);
+}
+
 function parseChoices(text: string): string[] {
   return text
     .split(/[|,，、]/)
@@ -176,8 +183,9 @@ export function FieldCard({
           )}
           {cls === "runtime" && f.kind !== "text" && f.kind !== "formula" && f.kind !== "param" && (
             <label>
-              {t("rules.f.initial_required")}
-              <FormulaInput value={f.initial ?? ""} validate={validate} placeholder={t("rules.ph.initial")} onChange={(x) => onChange({ ...f, initial: x || null })} />
+              {t(f.kind === "boolean" ? "rules.f.initial_bool" : "rules.f.initial_required")}
+              <FormulaInput value={f.initial ?? ""} validate={validate} placeholder={t(f.kind === "boolean" ? "rules.ph.initial_bool" : "rules.ph.initial")} onChange={(x) => onChange({ ...f, initial: x || null })} />
+              {f.kind === "boolean" && badBool(f.initial) && <small className="sk-invalid">{t("codes.pack.boolean_initial", { value: f.initial ?? "" })}</small>}
             </label>
           )}
           {f.kind === "text" && cls === "player" && (

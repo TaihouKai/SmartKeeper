@@ -130,6 +130,7 @@
     },
     "pack": {
       "bad_count": "Min and max counts don't make sense",
+      "boolean_initial": "A yes/no field's initial value should be True / False (or 1 / 0, or a condition), not {value}",
       "check_needs_levels": "A check needs at least one result level",
       "choices_need_text": "Only text fields can have choices",
       "duplicate_name": "The name {name} is used twice",
@@ -608,6 +609,7 @@
       "description": "Description for players (optional)",
       "hidden": "Hidden",
       "initial": "Initial",
+      "initial_bool": "Initial value (empty means False)",
       "initial_required": "Initial value (required)",
       "kind": "Kind",
       "label": "Label",
@@ -766,6 +768,7 @@
       "group_max": "no limit",
       "group_name": "e.g. class_skills",
       "initial": "e.g. hp_max",
+      "initial_bool": "False / True, or a condition",
       "label_can_fly": "e.g. Can fly",
       "label_concealment": "e.g. Concealment",
       "label_fly_multiplier": "e.g. Fly multiplier",
