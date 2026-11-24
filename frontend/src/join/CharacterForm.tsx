@@ -5,7 +5,11 @@ import { ErrorBox, Mover, moved } from "../ui/components";
 import { EntryEditor, FieldInput, fieldLabel, type Entry } from "../ui/EntryEditor";
 
 type Template = Schemas["EntityTemplate"];
-export type SheetDraft = { name: string; fields: Record<string, string | number | boolean>; groups: Record<string, Entry[]> };
+type Value = string | number | boolean;
+/** preset_fields：固定条目里规则包留空的列（分组 -> 固定条目名 -> 列 -> 值），由玩家填。 */
+export type SheetDraft = { name: string; fields: Record<string, Value>; groups: Record<string, Entry[]>; preset_fields?: Record<string, Record<string, Record<string, Value>>> };
+
+const dropEmpty = (o: Record<string, Value>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== ""));
 export type Submission = { template: string; sheet: SheetDraft };
 
 function emptySheet(): SheetDraft {
@@ -64,6 +68,29 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
             {(preview?.presets?.[g.name] ?? []).length > 0 && (
               <p className="sk-hint">{t("character.fixed_entries", { names: (preview?.presets?.[g.name] ?? []).join("、") })}</p>
             )}
+            {(preview?.presets?.[g.name] ?? []).map((pname) => {
+              // 固定条目里规则包留空的列：玩家自己填（例如这个角色的对魔力等级）
+              const p = (g.presets ?? []).find((x) => x.name === pname);
+              const open = p ? (g.fields ?? []).filter((x) => x.kind !== "param" && !(x.name in (p.fields ?? {}))) : [];
+              if (!open.length) return null;
+              const mine = value.preset_fields?.[g.name]?.[pname] ?? {};
+              const set = (col: string, v: Value) =>
+                onChange({
+                  ...value,
+                  preset_fields: { ...value.preset_fields, [g.name]: { ...value.preset_fields?.[g.name], [pname]: { ...mine, [col]: v } } },
+                });
+              return (
+                <div key={pname} className="sk-preset-fill">
+                  <strong>{pname}</strong>
+                  {open.map((fd) => (
+                    <label key={fd.name}>
+                      {fieldLabel(fd, t("character.unnamed_field"))}
+                      <FieldInput def={fd} value={mine[fd.name]} validateFormula={topDice} onChange={(v) => set(fd.name, v)} />
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
             {entries.map((en, i) => (
               <EntryEditor
                 key={i}
@@ -130,7 +157,10 @@ export function CharacterForm({
         template: s.template,
         sheet: {
           ...s.sheet,
-          fields: Object.fromEntries(Object.entries(s.sheet.fields).filter(([, v]) => v !== "")),
+          fields: dropEmpty(s.sheet.fields),
+          preset_fields: Object.fromEntries(
+            Object.entries(s.sheet.preset_fields ?? {}).map(([g, byName]) => [g, Object.fromEntries(Object.entries(byName).map(([n, vals]) => [n, dropEmpty(vals)]))]),
+          ),
           groups: Object.fromEntries(
             Object.entries(s.sheet.groups).map(([g, es]) => [
               g,

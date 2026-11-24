@@ -788,6 +788,8 @@
       "more": "More ({n})",
       "no_cd": "none",
       "param_cell": "chosen on use",
+      "player_fills": "Empty: the player fills it in",
+      "player_fills_hint": "A column left empty on a fixed entry is filled in by each player when making the character (e.g. each one's own level). If the column is required, it must be filled whenever the entry applies.",
       "script": "Script",
       "script_add": "+ Script",
       "script_bad": "The skill script has problems; click to see",

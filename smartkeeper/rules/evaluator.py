@@ -8,7 +8,22 @@ from dataclasses import dataclass, field
 from pydantic import JsonValue
 
 from smartkeeper import lang as f
-from smartkeeper.contracts import DerivedValue, Effect, EntityTemplate, GroupEntry, RulePack, Sheet
+from smartkeeper.contracts import (
+    DerivedValue,
+    Effect,
+    EntityTemplate,
+    FieldDef,
+    GroupDef,
+    GroupEntry,
+    GroupPreset,
+    RulePack,
+    Sheet,
+)
+
+
+def open_columns(g: GroupDef, p: GroupPreset) -> list[FieldDef]:
+    """固定条目里规则包没写、要玩家建角时填的列（“使用时填写”的列不算）。"""
+    return [x for x in g.fields if x.kind != "param" and x.name not in p.fields]
 
 
 def table_lookup(pack: RulePack) -> f.TableLookup:
@@ -89,7 +104,11 @@ class EntityContext:
                             continue
                     except f.FormulaError:
                         continue
-                hits.append(GroupEntry.model_validate(p.model_dump(exclude={"when"})))
+                filled = self.sheet.preset_fields.get(g.name, {}).get(p.name, {})
+                cols = {x.name for x in open_columns(g, p)}
+                merged = {k: v for k, v in filled.items() if k in cols} | dict(p.fields)
+                data = p.model_dump(exclude={"when"}) | {"fields": merged}
+                hits.append(GroupEntry.model_validate(data))
             if hits:
                 out[g.name] = tuple(hits)
         return out

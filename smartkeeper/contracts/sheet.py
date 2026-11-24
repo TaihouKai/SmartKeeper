@@ -145,6 +145,9 @@ class Sheet(Frozen):
     name: str
     fields: dict[str, JsonValue] = {}
     groups: dict[str, tuple[GroupEntry, ...]] = {}
+    # 固定条目里规则包留空的列，由玩家建角时填：分组名 -> 固定条目名 -> 列名 -> 值
+    # （例如每个角色的同一个技能等级各不相同）。固定条目本身不存进角色卡，读卡时把这里的值合并进去
+    preset_fields: dict[str, dict[str, dict[str, JsonValue]]] = {}
     statuses: tuple[Status, ...] = ()
     items: tuple[Item, ...] = ()
 

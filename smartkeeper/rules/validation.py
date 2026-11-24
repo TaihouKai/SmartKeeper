@@ -25,7 +25,7 @@ from smartkeeper.contracts import (
     Sheet,
 )
 from smartkeeper.rules import checkconfig, choices, skillconfig
-from smartkeeper.rules.evaluator import EntityContext
+from smartkeeper.rules.evaluator import EntityContext, open_columns
 from smartkeeper.rules.sheets import init_sheet
 
 # 受到伤害的公式里能用的：原始伤害和伤害类型
@@ -744,6 +744,7 @@ def validate_sheet(
         problems.append(Problem(code="sheet.duplicate_entry_id", path="groups", params={"id": eid}))
     for g in groups.values():
         problems += _check_group_entries(pack, tpl, g, sheet, derived)
+    problems += _check_preset_fields(tpl, sheet)
     problems += _check_priorities(sheet)
     for i, st in enumerate(sheet.statuses):
         if st.modifier is not None:
@@ -756,6 +757,7 @@ def validate_sheet(
     for name, fd in fields.items():
         if name in sheet.fields:
             problems += _check_value(ctx, fd, sheet.fields[name], f"fields.{name}")
+    problems += _check_active_presets(ctx, tpl, sheet)
     if problems:
         return problems
     for d in tpl.derived:
@@ -763,6 +765,43 @@ def validate_sheet(
             ctx.derived(d.name)
         except f.FormulaError as e:
             problems.append(Problem(code=e.code, path=f"derived.{d.name}", params=dict(e.params)))
+    return problems
+
+
+def _check_preset_fields(tpl: EntityTemplate, sheet: Sheet) -> list[Problem]:
+    """玩家给固定条目填的列：分组、条目、列都要存在且是留空的列；先只查类型。"""
+    problems: list[Problem] = []
+    for gname, by_name in sorted(sheet.preset_fields.items()):
+        g = next((x for x in tpl.groups if x.name == gname), None)
+        for pname, values in sorted(by_name.items()):
+            p = next((x for x in g.presets if x.name == pname), None) if g else None
+            cols = {x.name: x for x in open_columns(g, p)} if g and p else {}
+            for col, v in sorted(values.items()):
+                path = f"preset_fields.{gname}.{pname}.{col}"
+                fd = cols.get(col)
+                if fd is None:
+                    problems.append(Problem(code="sheet.unknown_field", path=path))
+                else:
+                    problems += _check_value(None, fd, v, path)
+    return problems
+
+
+def _check_active_presets(ctx: EntityContext, tpl: EntityTemplate, sheet: Sheet) -> list[Problem]:
+    """按现在的填写会出现的固定条目：留空的必填列要填，值在上下限和可选值之内。"""
+    problems: list[Problem] = []
+    active = ctx.active_presets()
+    for g in tpl.groups:
+        names = {e.name for e in active.get(g.name, ())}
+        for p in g.presets:
+            if p.name not in names:
+                continue
+            values = sheet.preset_fields.get(g.name, {}).get(p.name, {})
+            for fd in open_columns(g, p):
+                path = f"preset_fields.{g.name}.{p.name}.{fd.name}"
+                if fd.name in values:
+                    problems += _check_value(ctx, fd, values[fd.name], path)
+                elif fd.required:
+                    problems.append(Problem(code="sheet.missing_field", path=path))
     return problems
 
 

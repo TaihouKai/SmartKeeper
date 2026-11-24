@@ -47,7 +47,14 @@ def _template(t: EntityTemplate, include_hidden: bool) -> list[str]:
             out.append("  " + _field(fd))
         for p in g.presets:
             cond = f" when `{p.when}`" if p.when.strip() else ""
-            vals = ", ".join(f"{k}={v}" for k, v in p.fields.items())
+            vals = ", ".join(
+                [f"{k}={v}" for k, v in p.fields.items()]
+                + [
+                    f"{x.name}=(player)"
+                    for x in g.fields
+                    if x.kind != "param" and x.name not in p.fields
+                ]
+            )
             line = f"  - * {p.name}{cond}"
             if vals:
                 line += f" ({vals})"

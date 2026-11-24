@@ -162,6 +162,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                           onExpand={f.kind === "formula" ? () => wb.open(`${rowPath(r)}.fields.${f.name}`) : undefined}
                         />
                       )}
+                      {f.kind !== "param" && !(f.name in (p.fields ?? {})) && <small className="sk-hint" title={t("rules.gt.player_fills_hint")}>{t("rules.gt.player_fills")}</small>}
                     </td>
                   ))}
                   <td className="sk-nowrap">

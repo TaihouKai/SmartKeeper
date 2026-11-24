@@ -1,4 +1,5 @@
 import json
+from typing import Any, cast
 
 import pytest
 import sqlalchemy as sa
@@ -578,3 +579,43 @@ def test_damage_kinds_and_damage_taken(rules: RulesService) -> None:
     assert plan('target.damage(30, "physical")', kind="magic") == [(30, "physical", 30)]
     bad = rules.validate_formula(pack, "person", "amount * nope", None, "damage")
     assert [p.code for p in bad] == ["formula.unknown_name"]
+
+
+def test_preset_columns_left_empty_are_filled_by_the_player(rules: RulesService) -> None:
+    from smartkeeper.contracts import GroupPreset
+
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    g = tpl.groups[0].model_copy(
+        update={
+            "presets": (
+                GroupPreset(name="resist", id="resist"),  # level 留空：玩家填
+                GroupPreset(name="fixed", id="fixed", fields={"level": 7}),
+                GroupPreset(name="tall", id="tall", when="str > 90"),  # 不生效：不用填
+            )
+        }
+    )
+    tpl = tpl.model_copy(update={"groups": (g,)})
+    pack = pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+    # 例题卡没填 resist 的 level：规则包检查会指出来
+    assert "samples[0].preset_fields.skills.resist.level" in [
+        p.path for p in rules.validate_pack(pack)
+    ]
+    base = pack.samples[0].sheet
+
+    def check(preset_fields: dict[str, Any]) -> list[tuple[str, str]]:
+        sheet = rules.init_sheet(pack, "person", {**base, "preset_fields": preset_fields})
+        return [(p.code, p.path) for p in rules.validate_sheet(pack, "person", sheet)]
+
+    assert check({}) == [("sheet.missing_field", "preset_fields.skills.resist.level")]
+    assert check({"skills": {"resist": {"level": 30}}}) == []
+    assert check({"skills": {"fixed": {"level": 3}}})[0] == (
+        "sheet.unknown_field",
+        "preset_fields.skills.fixed.level",
+    )
+    sheet = rules.init_sheet(
+        pack, "person", {**base, "preset_fields": {"skills": {"resist": {"level": 30}}}}
+    )
+    full = cast(dict[str, Any], rules.full_sheet(pack, "person", sheet))
+    levels = {e["name"]: e["fields"].get("level") for e in full["groups"]["skills"]}
+    assert levels == {"resist": 30, "fixed": 7, "first aid": 30}

@@ -1670,6 +1670,7 @@ export interface components {
          * GroupPreset
          * @description 规则包写好的固定条目。when 是条件公式（只能引用这张卡的字段），为真时条目出现在角色卡上；
          *     空表示总是出现。固定条目不存进角色卡，每次读卡时按当前字段重新算，所以不算进 min/max_count。
+         *     fields 里没写的列（“使用时填写”的除外）由玩家建角时填，存在角色卡的 preset_fields 里。
          */
         GroupPreset: {
             /**
@@ -2595,6 +2596,17 @@ export interface components {
             items: components["schemas"]["Item"][];
             /** Name */
             name: string;
+            /**
+             * Preset Fields
+             * @default {}
+             */
+            preset_fields: {
+                [key: string]: {
+                    [key: string]: {
+                        [key: string]: components["schemas"]["JsonValue"];
+                    };
+                };
+            };
             /**
              * Statuses
              * @default []

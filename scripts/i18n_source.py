@@ -730,6 +730,11 @@ T: dict[str, tuple[str, str]] = {
         "When the skill is used and the keeper rules it took effect (hit), the engine runs it line by line; otherwise only the cost is paid. self is the user, target is whoever it's used on (the player chooses, may be themselves); with no target only the self lines run. Actions: damage(amount) – shield first, then hp; add(field, amount[, minutes]) – with minutes it's timed and the rest is taken back when it ends; sub(field, amount); set(field, amount); modify(derived, new-value formula, minutes) – a timed modifier: the derived value's own name is the bearer's value, other names are the user's at the time of use. Amounts are formulas and may roll dice; this.column is this entry's column (dice-formula columns roll), self.x and bare names are the user's, target.x the target's, target.template the target's template name. Branches: the indented lines under if condition: run only when it holds; elif condition: and else: may follow. Conditions are worked out when the use is declared and can't roll dice; with no target, a block whose condition asks about target is skipped. Tab indents; Enter keeps the indent. # starts a comment.",
     ),
     "rules.gt.id": ("ID（引用用，可不填）", "ID (for references, optional)"),
+    "rules.gt.player_fills": ("留空：玩家建角时填", "Empty: the player fills it in"),
+    "rules.gt.player_fills_hint": (
+        "固定条目里留空的列，由每个玩家建角时自己填（例如每个角色的对魔力等级不同）。这一列必填时，条目生效就必须填。",
+        "A column left empty on a fixed entry is filled in by each player when making the character (e.g. each one's own level). If the column is required, it must be filled whenever the entry applies.",
+    ),
     "rules.gt.id_ph": ("例如 fireball", "e.g. fireball"),
     "rules.gt.id_hint": (
         "英文 ID，填了才能在公式里引用：hero.fireball 是有没有这一条（1 或 0），hero.fireball.level 是这一条的 level 列。同一张卡上不能重复。",
