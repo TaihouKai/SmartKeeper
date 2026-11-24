@@ -440,3 +440,34 @@ def test_boolean_initial_must_look_like_a_boolean(rules: RulesService) -> None:
     assert codes("123") == ["pack.boolean_initial"]
     assert codes('"yes"') == ["pack.boolean_initial"]
     assert codes("False") == codes("1") == codes("str > 3") == []
+
+
+def test_settings_and_scripts_may_use_earlier_names(rules: RulesService) -> None:
+    pack = load_pack("single")
+
+    def codes(text: str, scope: str) -> list[tuple[str, object]]:
+        got = rules.validate_formula(pack, "person", text, in_entry="skills", scope=scope)  # type: ignore[arg-type]
+        return [(p.code, p.params.get("line")) for p in got]
+
+    # 设置：后面的项引用前面的项；引用下面的项不行（和 Python 一样）
+    assert codes("range = 10 + this.level\nnoise = range * 2", "config") == []
+    assert codes("noise = range\nrange = 10", "config") == [("formula.unknown_name", 1)]
+    assert rules.skill_config("range = 10\nnoise = range * 2").noise == "10 * 2"
+    # 脚本：局部变量；不能掷骰
+    script = "heal = 2 + this.level\nif heal > 1:\n    self.add(hp, heal)\ntarget.modify(move_speed, move_speed + heal, 1)"
+    assert codes(script, "script") == []
+    assert codes("x = 1d6\nself.add(hp, x)", "script") == [("formula.dice_not_allowed", 1)]
+    assert codes("self.add(hp, y)\ny = 1", "script") == [("formula.unknown_name", 1)]
+
+
+def test_script_variables_are_worked_out_once(rules: RulesService) -> None:
+    from tests.fixtures import FakeDice
+
+    pack = load_pack("single")
+    sheet = rules.init_sheet(pack, "person", pack.samples[0].sheet)
+    script = "heal = 2 + this.level * 3\nself.add(hp, heal)\nif heal > 100:\n    self.damage(1)\ntarget.modify(move_speed, move_speed + heal, 1)"
+    steps = rules.plan_script(
+        pack, script, FakeDice().faces, "person", sheet, {"level": 2}, None, ("person", sheet, None)
+    )
+    assert [(s.op, s.amount) for s in steps[:1]] == [("add", 8)]
+    assert len(steps) == 2 and steps[1].formula == "move_speed + 8"

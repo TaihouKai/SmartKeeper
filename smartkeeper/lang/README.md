@@ -106,7 +106,7 @@ target.modify(move_speed,
 - `#` 到行尾是注释（引号里的 `#` 不算）。
 - 括号没关上时，换行算同一句。
 - 空行和只有注释的行忽略；整段为空表示没有脚本。`pass` 什么都不做（例如空着的 `else`）。
-- 只能写动作句和 `if`。赋值（`x = 1`）、循环、`def` 这些都报 `script.bad_statement`。
+- 能写动作句、`if` 和局部变量（`heal = 2 + this.level * 3`，后面的句子直接用 `heal`；只算一次，不能掷骰，变量名不能叫 `self` / `target` / `this`）。循环、`def`、`+=` 这些报 `script.bad_statement`。
 
 ### 2. 语句
 
@@ -179,6 +179,7 @@ placement = placement(radius=3, perceive=0.5, charges=1, duration=60, notify=Tru
 ```
 
 - 语法是 Python 的赋值（`lang/config.py` 解析）；值可以是公式（能用 `this.列`），`None` 表示不设，没写的项取默认。
+- 后面的项可以引用写在它上面的项：`noise = range * 2`（换成那一项的公式）。
 - 有哪些项、值是什么类型在 `rules/skillconfig.py`；公式不能掷骰。
 - 范围形状：`sphere(radius=)`、`cone(length=, angle=)`、`capsule(length=, width=)`、`box(length=, width=, height=)`，参数是数字（米、度）。分组要允许这种形状。
 - 设置物：`placement(radius=, perceive=, charges=, duration=, notify=)`，radius 必填；duration 按分钟。分组要打开“可以是设置物”。
@@ -230,6 +231,7 @@ placement = placement(radius=3, perceive=0.5, charges=1, duration=60, notify=Tru
 | `formula.list_ref` / `formula.unknown_group` | `count` / `sum` 的第一个参数不是分组引用 / 没有这个分组或列 |
 | `formula.this_outside_entry` | 不在条目里却写了 `this.x` |
 | `script.bad_statement` | 不是 `对象.动作(参数)`、`if`、`pass` |
+| `script.bad_variable` | 局部变量起名叫了 `self` / `target` / `this` |
 | `script.unknown_receiver` / `script.unknown_verb` | 对象不是 `self` / `target`；没有这个动作 |
 | `script.arity` / `script.field_arg` | 参数个数不对 / 字段参数不是一个简单的名字 |
 | `script.unexpected_indent` | 缩进不对：同一段没对齐，或不在 `if` / `elif` / `else` 下面却缩进了 |

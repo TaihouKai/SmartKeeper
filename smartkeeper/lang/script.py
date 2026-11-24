@@ -72,7 +72,16 @@ class If:
     branches: tuple[Branch, ...]
 
 
-type ScriptNode = Statement | If
+@dataclass(frozen=True, slots=True)
+class Let:
+    """局部变量：名字 = 公式。后面的句子可以用这个名字；只算一次。"""
+
+    line: int
+    name: str
+    value: str
+
+
+type ScriptNode = Statement | If | Let
 
 
 def _arg(node: ast.expr, line: int) -> str:
@@ -147,6 +156,13 @@ def _body(stmts: list[ast.stmt], src: str) -> tuple[ScriptNode, ...]:
             continue
         if isinstance(s, ast.If):
             out.append(_if(s, src))
+        elif (
+            isinstance(s, ast.Assign) and len(s.targets) == 1 and isinstance(s.targets[0], ast.Name)
+        ):
+            name = s.targets[0].id
+            if name in (*RECEIVERS, "this"):
+                raise FormulaError("script.bad_variable", line=s.lineno, name=name)
+            out.append(Let(line=s.lineno, name=name, value=_arg(s.value, s.lineno)))
         elif isinstance(s, ast.Expr) and isinstance(s.value, ast.Call):
             out.append(_statement(s.value, s.lineno, src))
         else:
@@ -173,7 +189,7 @@ def statements(nodes: tuple[ScriptNode, ...]) -> list[Statement]:
     for n in nodes:
         if isinstance(n, Statement):
             out.append(n)
-        else:
+        elif isinstance(n, If):
             for b in n.branches:
                 out += statements(b.body)
     return out

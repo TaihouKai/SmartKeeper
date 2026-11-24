@@ -113,8 +113,20 @@ def check_script(
     def at(line: int, found: list[Problem]) -> None:
         problems.extend(p.model_copy(update={"params": {**p.params, "line": line}}) for p in found)
 
+    defined: list[str] = []  # 到这一句为止定义过的局部变量
+
     def walk(body: tuple[f.ScriptNode, ...]) -> None:
         for node in body:
+            if isinstance(node, f.Let):
+                # 局部变量不掷骰（掷出来的点数没处记）；之后的句子可以用它
+                at(
+                    node.line,
+                    check_formula(
+                        pack, template, node.value, path, entry_fields=entry_fields, extra=defined
+                    ),
+                )
+                defined.append(node.name)
+                continue
             if isinstance(node, f.If):
                 for b in node.branches:
                     if b.condition is not None:
@@ -122,7 +134,12 @@ def check_script(
                         at(
                             b.line,
                             check_formula(
-                                pack, template, b.condition, path, entry_fields=entry_fields
+                                pack,
+                                template,
+                                b.condition,
+                                path,
+                                entry_fields=entry_fields,
+                                extra=defined,
                             ),
                         )
                     walk(b.body)
@@ -140,12 +157,23 @@ def check_script(
             for arg in (st.amount, st.minutes):
                 if arg is not None:
                     found += check_formula(
-                        pack, template, arg, path, entry_fields=entry_fields, dice=True
+                        pack,
+                        template,
+                        arg,
+                        path,
+                        entry_fields=entry_fields,
+                        extra=defined,
+                        dice=True,
                     )
             if st.formula is not None and st.field is not None:
                 # 被修正的推导值自己的名字指带着这条修正的角色的值，其余名字取使用者
                 found += check_formula(
-                    pack, template, st.formula, path, entry_fields=entry_fields, extra=[st.field]
+                    pack,
+                    template,
+                    st.formula,
+                    path,
+                    entry_fields=entry_fields,
+                    extra=[st.field, *defined],
                 )
             at(st.line, found)
 
@@ -171,7 +199,7 @@ def check_config(
         found = check_formula(pack, template, formula, path, entry_fields=entry_fields)
         problems += [p.model_copy(update={"params": {**p.params, "line": line}}) for p in found]
     if g is not None:
-        settings = {s.name: s.line for s in f.parse_config(text)}
+        settings = {s.name: s.line for s in skillconfig.settings(text)}
 
         def off(name: str, code: str) -> None:
             problems.append(

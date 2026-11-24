@@ -40,15 +40,26 @@ def plan_script(
         ctx.target = context(pack, target[0], target[1], target[2])
     lookup = table_lookup(pack)
     steps: list[ScriptStep] = []
+    local: dict[str, f.Value] = {}  # 局部变量：算一次，后面的句子按名字取
 
     def run(body: tuple[f.ScriptNode, ...]) -> None:
         for node in body:
             line = node.line
             try:
+                if isinstance(node, f.Let):
+                    v = f.evaluate(
+                        ctx.prepare(node.value, entry),
+                        ctx.resolver(entry, local),
+                        lookup,
+                        None,
+                        ctx.collect,
+                    )
+                    local[node.name] = v
+                    continue
                 if isinstance(node, f.Statement):
                     if node.receiver == "target" and target is None:
                         continue
-                    steps.append(_step(ctx, lookup, faces, entry, node))
+                    steps.append(_step(ctx, lookup, faces, entry, node, local))
                     continue
                 for b in node.branches:
                     if b.condition is None:
@@ -58,7 +69,9 @@ def plan_script(
                     cond = ctx.prepare(b.condition, entry)
                     if target is None and any(n.startswith("target.") for n in f.names(cond)):
                         break  # 没有对象时，问对象的条件整块跳过
-                    if f.truthy(f.evaluate(cond, ctx.resolver(entry), lookup, None, ctx.collect)):
+                    if f.truthy(
+                        f.evaluate(cond, ctx.resolver(entry, local), lookup, None, ctx.collect)
+                    ):
                         run(b.body)
                         break
             except f.FormulaError as e:
@@ -74,6 +87,7 @@ def _step(
     faces: f.Faces,
     entry: dict[str, JsonValue],
     st: f.Statement,
+    local: dict[str, f.Value],
 ) -> ScriptStep:
     rolls: list[int] = []
 
@@ -83,7 +97,9 @@ def _step(
         return got
 
     def num(text: str) -> float:
-        v = f.evaluate(ctx.prepare(text, entry), ctx.resolver(entry), lookup, record, ctx.collect)
+        v = f.evaluate(
+            ctx.prepare(text, entry), ctx.resolver(entry, local), lookup, record, ctx.collect
+        )
         if isinstance(v, str):
             raise f.FormulaError("formula.text_result", value=v)
         return v
@@ -93,7 +109,7 @@ def _step(
         assert st.formula is not None and st.field is not None
         # 被修正的推导值自己的名字留着（在带着这条修正的角色身上求值），其余名字都换成此刻的值
         node = ctx.prepare(st.formula, entry)
-        resolve = ctx.resolver(entry)
+        resolve = ctx.resolver(entry, local)
         values = {n: resolve(n) for n in f.names(node) if n != st.field}
         return ScriptStep(
             who=st.receiver,

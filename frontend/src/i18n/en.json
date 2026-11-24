@@ -166,6 +166,7 @@
     "script": {
       "arity": "Wrong number of arguments for {name} ({count})",
       "bad_statement": "Not an action: {text}. Write object.action(arguments), e.g. target.damage(5); or if / elif / else / pass",
+      "bad_variable": "{name} can't be a variable name (self, target and this are taken)",
       "empty_block": "if / elif / else needs indented lines under it",
       "field_arg": "The first argument of {name} must be a field name, e.g. hp",
       "if_call": "if isn't a function. To do different things, write if cond: on its own line with the actions indented below, then else:; to pick between two values write a if cond else b",
@@ -234,7 +235,7 @@
       "target": "single needs a target / self only / none",
       "visible": "the target must be perceived"
     },
-    "hint": "The engine applies these settings itself. target: single needs one target, self is only on yourself, none has no target. range: metres, unset means unlimited. visible: True means the target must be perceived by the user. requires: a condition that must hold. noise: metres; other players within it sense the use. cast_time / cooldown: minutes. shape: area shape, e.g. sphere(radius=5), cone(length=10, angle=60), capsule(length=20, width=2), box(length=, width=, height=). placement: a trap or ward, e.g. placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True). Values may be formulas using this.column; None means unset.",
+    "hint": "The engine applies these settings itself. target: single needs one target, self is only on yourself, none has no target. range: metres, unset means unlimited. visible: True means the target must be perceived by the user. requires: a condition that must hold. noise: metres; other players within it sense the use. cast_time / cooldown: minutes. shape: area shape, e.g. sphere(radius=5), cone(length=10, angle=60), capsule(length=20, width=2), box(length=, width=, height=). placement: a trap or ward, e.g. placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True). Values may be formulas using this.column or settings above them (e.g. noise = range * 2); None means unset.",
     "title": "Skill settings"
   },
   "demo": {
@@ -319,6 +320,7 @@
       "damage": "The target takes damage: shield first, then hp",
       "else": "After an if: another condition / when none held",
       "if": "When the target uses the monster template, run the indented lines below (conditions can't roll dice)",
+      "let": "A local variable: later lines can use heal; worked out once, no dice",
       "modify": "Timed modifier: halve the target's move speed for 10 minutes",
       "sub": "Subtract 10 from the target's mp; set(field, value) sets it"
     },

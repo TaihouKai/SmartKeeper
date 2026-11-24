@@ -34,6 +34,7 @@ const SCRIPT: [string, string][] = [
   ["self.add(hp, 5)", "fh.s.add"],
   ["target.sub(mp, 10)", "fh.s.sub"],
   ["target.modify(move_speed, move_speed * 0.5, 10)", "fh.s.modify"],
+  ["heal = 2 + this.level * 3", "fh.s.let"],
   ['if target.template == "monster":', "fh.s.if"],
   ["elif …: / else:", "fh.s.else"],
 ];

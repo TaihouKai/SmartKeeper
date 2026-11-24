@@ -62,10 +62,33 @@ def _number(s: f.Setting, arg: str, text: str) -> float:
     return node.value
 
 
+def settings(text: str) -> tuple[f.Setting, ...]:
+    """解析设置，并把公式里引用的前面的设置换成那一项的公式（像 Python 一样，只能引用写在上面的项）。"""
+    env: dict[str, f.Node] = {}
+    out: list[f.Setting] = []
+
+    def expand(text_: str) -> str:
+        if not text_.strip() or not env:
+            return text_
+        return f.to_text(f.substitute(f.parse(text_), env.get))
+
+    for s in f.parse_config(text):
+        try:
+            value = expand(s.value)
+            args = tuple((a, expand(v)) for a, v in s.args)
+        except f.FormulaError as e:
+            raise f.FormulaError(e.code, **{"line": s.line, **e.params}) from None
+        s = f.Setting(line=s.line, name=s.name, value=value, call=s.call, args=args)
+        out.append(s)
+        if s.call is None and s.value.strip():
+            env[s.name] = f.parse(s.value)
+    return tuple(out)
+
+
 def read_config(text: str) -> SkillConfig:
     """解析并检查名字和值的类型；没写的项取默认。"""
     out: dict[str, object] = {}
-    for s in f.parse_config(text):
+    for s in settings(text):
         kind = KEYS.get(s.name)
         if kind is None:
             raise _err("config.unknown_key", s)
@@ -126,11 +149,11 @@ def read_config(text: str) -> SkillConfig:
 def formulas(text: str) -> list[tuple[int, str, str]]:
     """设置里要按公式检查的值：(行号, 名字, 公式文本)。设置物的参数也算。语法错时返回空（由 read_config 报）。"""
     try:
-        settings = f.parse_config(text)
+        found = settings(text)
     except f.FormulaError:
         return []
     out: list[tuple[int, str, str]] = []
-    for s in settings:
+    for s in found:
         if KEYS.get(s.name) == "formula" and s.value.strip():
             out.append((s.line, s.name, s.value))
         if KEYS.get(s.name) == "placement" and s.call == "placement":
