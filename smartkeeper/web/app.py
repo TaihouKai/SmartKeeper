@@ -225,6 +225,7 @@ def build_services(
         judge=j,
         writer=w,
         chat=SqlChatStore(db),
+        dice=dice,
         scenarios_dir=settings.scenarios_dir,
         base_url=settings.base_url,
     )

@@ -1,0 +1,217 @@
+/* 规则编辑工作台：顶栏 + 左目录 + 中间编辑区 + 右边 IDE，占满管理控制台标签页下面的整块屏幕 */
+
+.sk-page.sk-admin.sk-admin-full { max-width: none; height: 100vh; display: flex; flex-direction: column; padding-bottom: 0; overflow: hidden; }
+.sk-admin-full > .sk-tabs { margin-bottom: 0; }
+.sk-admin-full { padding-top: 4px; }
+.sk-admin-full > .sk-top h1 { font-size: 17px; margin: 2px 0; }
+.sk-admin-full > .sk-top .sk-link, .sk-admin-full > .sk-top button { margin: 0; }
+.sk-admin-full > .sk-tabs { margin-top: 0; }
+.sk-admin-full > .sk-tabs button { padding: 6px 12px; margin: 0; }
+
+.wb { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0 -24px; border-top: 1px solid var(--line); }
+.wb button { margin: 0; }
+
+/* ---------------- 顶栏 ---------------- */
+.wb-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--card); border-bottom: 1px solid var(--line); min-height: 52px; flex-wrap: wrap; }
+.wb-bar-spacer { flex: 1; }
+.wb-pack { display: inline-flex; align-items: baseline; gap: 10px; border: 1px solid transparent; background: none; padding: 6px 10px; border-radius: 8px; max-width: 46vw; }
+.wb-pack:hover, .wb-pack[aria-expanded="true"] { background: var(--wb-sunken); border-color: var(--line); }
+.wb-pack-name { font-weight: 650; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wb-pack-state { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.wb-caret { font-size: 11px; color: var(--muted); }
+.wb-saved { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.wb-chip { border-radius: 999px; padding: 4px 12px; font-size: 13px; background: var(--wb-sunken); border: 1px solid var(--line); white-space: nowrap; }
+.wb-chip.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); background: color-mix(in srgb, var(--ok) 8%, var(--card)); }
+.wb-chip.ok::before { content: "✓ "; }
+.wb-chip.bad { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); background: color-mix(in srgb, var(--warn) 8%, var(--card)); }
+.wb-chip.bad::before { content: "● "; }
+.wb-icon { font-family: ui-monospace, Consolas, monospace; font-size: 13px; padding: 5px 10px; }
+.wb-icon.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
+.wb-nav-toggle { display: none; }
+
+.wb-pop-wrap { position: relative; }
+.wb-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 340px; max-width: min(560px, 90vw); background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); }
+.wb-bar-spacer ~ .wb-pop-wrap .wb-pop { left: auto; right: 0; }
+.wb-pop h4 { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.wb-pop select { margin-bottom: 6px; }
+.wb-pop hr { border: none; border-top: 1px solid var(--line); margin: 10px 0; }
+.wb-pop .sk-row button, .wb-pop .sk-row .sk-button { margin: 0; }
+.wb-problem-list { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; }
+.wb-problem-list button { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; border: none; background: none; padding: 8px 6px; border-radius: 6px; font-size: 13px; }
+.wb-problem-list button:hover { background: var(--wb-sunken); }
+.wb-problem-list li + li { border-top: 1px solid var(--line); }
+.wb-problem-where { font-size: 12px; color: var(--muted); }
+.wb-problem-list span:last-child { color: var(--warn); }
+
+/* ---------------- 三栏 ---------------- */
+.wb-body { flex: 1; min-height: 0; display: flex; position: relative; }
+
+.wb-outline { width: 236px; flex: 0 0 236px; overflow-y: auto; background: var(--wb-sunken); border-right: 1px solid var(--line); padding: 10px 8px 24px; font-size: 14px; }
+.wb-outline-group { margin-top: 14px; }
+.wb-outline-title { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 4px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.wb-add { border: none; background: none; color: var(--muted); font-size: 16px; line-height: 1; padding: 0 4px; }
+.wb-add:hover { color: var(--accent); }
+.wb-tpl { margin: 4px 0 10px; }
+.wb-tpl-name { display: flex; align-items: baseline; gap: 6px; padding: 4px 8px; font-weight: 650; }
+.wb-tpl-name code { font-size: 11px; color: var(--muted); font-weight: 400; }
+.wb-node button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; border: none; background: none; border-radius: 6px; padding: 5px 8px; color: var(--fg); position: relative; }
+.wb-node.depth-1 button { padding-left: 18px; }
+.wb-node button:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.wb-node.active button { background: var(--card); box-shadow: inset 3px 0 0 var(--accent), 0 1px 2px rgba(0, 0, 0, 0.06); font-weight: 600; }
+.wb-node-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+.wb-node-icon { color: var(--muted); font-size: 11px; }
+.wb-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wb-node-bad { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: 0 0 auto; }
+.wb-outline-add { display: block; border: none; background: none; color: var(--muted); font-size: 13px; padding: 4px 8px 4px 18px; text-align: left; width: 100%; }
+.wb-outline-add:hover { color: var(--accent); }
+
+.wb-content { flex: 1; min-width: 0; overflow: auto; background: var(--bg); }
+.wb-content-inner { padding: 20px 28px 64px; max-width: 1400px; }
+.wb-scrim { display: none; }
+
+.wb-resize { flex: 0 0 5px; cursor: col-resize; background: var(--line); opacity: 0.6; transition: opacity 0.15s, background 0.15s; }
+.wb-resize:hover { opacity: 1; background: var(--accent); }
+.wb-ide-pane { width: var(--wb-ide-w); flex: 0 0 var(--wb-ide-w); min-width: 320px; display: flex; flex-direction: column; background: var(--card); position: relative; }
+.wb-ide-close { display: none; }
+
+/* ---------------- 中间的各节 ---------------- */
+.wb-head { margin-bottom: 14px; }
+.wb-crumbs { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.wb-head-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wb-head-row h2 { font-size: 21px; font-weight: 650; flex: 1; min-width: 0; }
+.wb-head-actions { display: flex; align-items: center; gap: 6px; }
+.wb-hint { color: var(--muted); font-size: 13px; margin: 6px 0 0; max-width: 80ch; }
+.wb-danger { color: var(--warn) !important; }
+.wb-sub { font-size: 15px; margin: 22px 0 4px; }
+.wb-sub-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.wb-help { font-size: 13px; color: var(--muted); }
+.wb-help > summary { cursor: pointer; color: var(--accent); list-style: none; }
+.wb-help > summary::-webkit-details-marker { display: none; }
+.wb-help > summary::before { content: "? "; font-weight: 700; }
+.wb-help[open] { flex-basis: 100%; }
+.wb-help p { margin: 6px 0 0; max-width: 90ch; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.wb-table-wrap textarea { resize: none; overflow: hidden; }
+.wb-table-wrap textarea:focus { overflow: auto; min-height: 80px; }
+.wb-panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+.wb-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }
+.wb-form-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wb-form-4 { grid-template-columns: 1.3fr 1.3fr 0.7fr 0.7fr; }
+.wb-form-check { grid-template-columns: 1fr 1.4fr 1.4fr auto; align-items: end; }
+.wb-form .wb-wide { grid-column: 1 / -1; }
+.wb-toggle { margin-top: 8px !important; padding: 2px 0; font-size: 13px; }
+.wb-settings { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 10px; }
+.wb-shapes { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.wb-grid-head { font-size: 12px; color: var(--muted); }
+.wb-players { display: grid; grid-template-columns: 2fr 0.6fr 0.6fr auto; gap: 8px; align-items: center; margin: 4px 0; }
+.wb-formula-row { display: grid; grid-template-columns: minmax(120px, 0.6fr) minmax(0, 2fr) auto; gap: 8px; align-items: start; margin: 6px 0; }
+.wb-derived + .wb-derived { border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.wb-longtext { min-height: calc(100vh - 300px); font-size: 14px; line-height: 1.7; }
+.wb-derived-out { list-style: none; padding: 0; margin: 8px 0 0; columns: 2; font-size: 13px; }
+.wb-content .sk-code { font-size: 12.5px; }
+.wb-content .sk-field { background: var(--card); border-radius: 10px; }
+.wb-content > .wb-content-inner > button, .wb-panel > button:last-child { margin-top: 6px; }
+
+/* 条目表 */
+.wb-table-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; }
+.wb-table-wrap .sk-entry-table th { background: var(--wb-sunken); position: sticky; top: 0; z-index: 1; padding: 6px 8px; }
+.wb-table-wrap .sk-entry-table td { padding: 6px 8px; }
+.wb-table-wrap .sk-entry-table tr:last-child td { border-bottom: none; }
+.sk-entry-table tr.wb-row-active > td { background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
+.wb-script-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 10px; border-radius: 999px; font-family: ui-monospace, Consolas, monospace; white-space: nowrap; }
+.wb-script-btn .wb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); opacity: 0.5; }
+.wb-script-btn.ok .wb-dot { background: var(--ok); opacity: 1; }
+.wb-script-btn.bad { border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); color: var(--warn); }
+.wb-script-btn.bad .wb-dot { background: var(--warn); opacity: 1; }
+.wb-script-btn.empty { color: var(--muted); border-style: dashed; }
+.wb-script-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+
+/* 公式框右边“在 IDE 里打开” */
+.sk-formula-expandable > input { padding-right: 28px; }
+.sk-expand { position: absolute; right: 3px; top: 3px; padding: 1px 5px !important; margin: 0 !important; border: none !important; background: none !important; color: var(--muted); font-size: 13px; line-height: 1.4; opacity: 0.55; }
+.sk-formula:hover .sk-expand, .sk-expand:focus { opacity: 1; color: var(--accent); }
+
+/* ---------------- IDE ---------------- */
+.wb-ide { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wb-ide-tabs { display: flex; overflow-x: auto; background: var(--wb-sunken); border-bottom: 1px solid var(--line); min-height: 38px; padding-right: 34px; }
+.wb-ide-tab { display: flex; align-items: center; border-right: 1px solid var(--line); max-width: 240px; flex: 0 0 auto; }
+.wb-ide-tab.active { background: var(--card); box-shadow: inset 0 2px 0 var(--accent); }
+.wb-ide-tab-name { border: none; background: none; padding: 8px 6px 8px 12px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+.wb-ide-tab.active .wb-ide-tab-name { color: var(--fg); }
+.wb-ide-tab-x { border: none; background: none; padding: 2px 8px; color: var(--muted); font-size: 15px; border-radius: 4px; }
+.wb-ide-tab-x:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); }
+.wb-kind { font-family: ui-monospace, Consolas, monospace; font-size: 10px; font-weight: 700; padding: 0 4px; border-radius: 3px; background: color-mix(in srgb, var(--cm-number) 18%, transparent); color: var(--cm-number); }
+.wb-kind-script { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+
+.wb-ide-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wb-ide-editor { min-height: 120px; display: flex; flex-direction: column; flex-grow: 0; flex-shrink: 0; overflow: hidden; }
+.wb-ide-crumbs { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 12px; font-size: 12px; border-bottom: 1px solid var(--line); }
+.wb-ide-crumbs .sk-link { font-size: 12px; color: var(--muted); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-ide-crumbs .sk-link:hover { color: var(--accent); }
+.wb-status { white-space: nowrap; font-size: 12px; }
+.wb-status.ok { color: var(--ok); }
+.wb-status.ok::before { content: "✓ "; }
+.wb-status.bad { color: var(--warn); }
+.wb-status.bad::before { content: "● "; }
+.wb-cm { flex: 1; min-height: 0; overflow: hidden; }
+.wb-cm .cm-editor { height: 100%; }
+.wb-cm .cm-scroller { overflow: auto; }
+.wb-ide-problems { margin: 0; padding: 6px 12px 6px 28px; max-height: 30%; overflow-y: auto; font-size: 12px; color: var(--warn); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--warn) 5%, var(--card)); }
+.wb-ide-empty { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px 32px; color: var(--muted); }
+.wb-ide-empty h4 { margin: 0 0 6px; color: var(--fg); font-size: 15px; }
+.wb-ide-empty p { margin: 0; font-size: 13px; max-width: 46ch; }
+.wb-ide-split { flex: 0 0 5px; cursor: row-resize; background: var(--line); opacity: 0.7; }
+.wb-ide-split:hover { background: var(--accent); opacity: 1; }
+.wb-ide-tools { flex: 1; min-height: 80px; display: flex; flex-direction: column; }
+.wb-ide-tooltabs { display: flex; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--line); background: var(--wb-sunken); }
+.wb-ide-tooltabs button { border: none; background: none; border-radius: 0; padding: 7px 10px; font-size: 12px; color: var(--muted); border-bottom: 2px solid transparent; }
+.wb-ide-tooltabs button.active { color: var(--fg); border-bottom-color: var(--accent); }
+.wb-ide-toolbody { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 16px; font-size: 13px; }
+.wb-ide-toolbody .sk-fh h4 { margin: 12px 0 4px; }
+.wb-ide-toolbody .sk-fh h4:first-child { margin-top: 0; }
+
+.wb-names section { margin-bottom: 12px; }
+.wb-names h5 { margin: 0 0 4px; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.wb-name { display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left; border: none !important; background: none; padding: 3px 6px !important; border-radius: 5px; }
+.wb-name:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.wb-name code { font-size: 12.5px; color: var(--cm-prop); white-space: nowrap; }
+.wb-name-note { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.wb-search-bar { display: flex; gap: 6px; }
+.wb-search-bar input { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+.wb-search-bar button { white-space: nowrap; font-size: 12px; }
+.wb-hits { list-style: none; margin: 4px 0 0; padding: 0; }
+.wb-hits button { display: flex; flex-direction: column; width: 100%; text-align: left; border: none; background: none; padding: 6px; border-radius: 6px; gap: 2px; }
+.wb-hits button:hover { background: var(--wb-sunken); }
+.wb-hit-where { font-size: 11.5px; color: var(--muted); }
+.wb-hits code { font-size: 12.5px; white-space: pre-wrap; word-break: break-all; }
+
+.wb-try-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 10px; align-items: end; }
+.wb-try-form label { margin: 0; }
+.wb-try-form button { justify-self: start; margin-bottom: 2px; }
+.wb-steps { margin: 12px 0 0; padding-left: 22px; }
+.wb-step { margin: 0 0 8px; }
+.wb-who { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--wb-sunken); border: 1px solid var(--line); }
+.wb-step-target .wb-who { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); }
+.wb-step-self .wb-who { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.wb-rolls { margin-left: 8px; font-size: 12px; color: var(--muted); }
+.wb-change { font-size: 12px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+/* 建角表单里的脚本编辑器 */
+.sk-code-inline { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-top: 4px; }
+
+/* ---------------- 窄屏：目录收成抽屉，IDE 盖在上面 ---------------- */
+@media (max-width: 1100px) {
+  .wb-nav-toggle { display: inline-block; }
+  .wb-outline { position: absolute; z-index: 30; top: 0; bottom: 0; left: 0; transform: translateX(-100%); transition: transform 0.18s; box-shadow: 4px 0 20px rgba(0, 0, 0, 0.18); }
+  .wb-nav-on .wb-outline { transform: none; }
+  .wb-nav-on .wb-scrim { display: block; position: absolute; inset: 0; z-index: 25; background: rgba(0, 0, 0, 0.2); }
+}
+@media (max-width: 860px) {
+  .wb-resize { display: none; }
+  .wb-ide-pane { position: absolute; z-index: 35; inset: 0 0 0 auto; width: 100%; max-width: 100%; min-width: 0; box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2); }
+  .wb-ide-close { display: block; position: absolute; top: 4px; right: 6px; border: none; background: none; font-size: 18px; color: var(--muted); }
+  .wb-content-inner { padding: 16px; }
+  .wb-form, .wb-form-3, .wb-form-4, .wb-form-check { grid-template-columns: 1fr 1fr; }
+  .wb-pack { max-width: 60vw; }
+  .wb-saved { display: none; }
+}

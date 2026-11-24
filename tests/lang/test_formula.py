@@ -70,7 +70,7 @@ def test_evaluate(text: str, expected: float) -> None:
         ("min()", "formula.arity"),
         ("lookup(1, 2)", "formula.lookup_table_name"),
         ("count(1)", "formula.list_ref"),
-        ("if(x, 1, 2)", "formula.syntax"),
+        ("if(x, 1, 2)", "formula.if_call"),
     ],
 )
 def test_rejects_outside_whitelist(text: str, code: str) -> None:

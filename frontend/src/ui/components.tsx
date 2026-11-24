@@ -110,11 +110,14 @@ export function FormulaInput({
   validate,
   placeholder,
   multiline = false,
+  onExpand,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   multiline?: boolean;
+  /** 给了就在框右边显示一个小按钮：在规则编辑器的 IDE 里打开这一段 */
+  onExpand?: () => void;
   validate: (formula: string) => Promise<{ problems: { code: string; params?: Record<string, unknown> }[]; names: string[] }>;
 }) {
   const { t, lang } = useI18n();
@@ -208,8 +211,13 @@ export function FormulaInput({
     spellCheck: false,
   };
   return (
-    <span className={multiline ? "sk-formula sk-formula-multi" : "sk-formula"}>
+    <span className={`sk-formula${multiline ? " sk-formula-multi" : ""}${onExpand ? " sk-formula-expandable" : ""}`}>
       {multiline ? <textarea rows={Math.max(3, value.split("\n").length + 1)} {...props} /> : <input {...props} />}
+      {onExpand && (
+        <button type="button" className="sk-expand" title={t("ide.open_here")} aria-label={t("ide.open_here")} onClick={onExpand}>
+          ⤢
+        </button>
+      )}
       {suggestions.length > 0 && (
         <span className="sk-suggest">
           {suggestions.map((s, i) => (

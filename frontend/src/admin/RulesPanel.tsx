@@ -1,516 +1,61 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { ErrorBox, Fold, FormulaInput, Mover, Section, moved } from "../ui/components";
-import { FieldCard, blankField, useListEdit, type Validate } from "./fieldCard";
-import { GroupTable } from "./GroupTable";
+import { ErrorBox, Mover } from "../ui/components";
 import { translateCode } from "../ui/errors";
-import { FormulaHelp } from "../ui/FormulaHelp";
 import { useAction, usePoll } from "../ui/hooks";
+import type { Validate } from "./fieldCard";
+import { WorkbenchProvider } from "./rules/ctx";
+import { Ide } from "./rules/ide/Ide";
+import { blankGroup, blankPack, blankTemplate, describePath, docFor, renameTemplate, selForPath, selKey, withEngineDefaults, type Pack, type Sel } from "./rules/model";
+import { Outline } from "./rules/Outline";
+import { ChecksSection, DerivedSection, FieldsSection, FormulasSection, GroupSection, PlayersSection, SamplesSection, TablesSection, TextSection, WorldSection } from "./rules/sections";
+import "./rules/workbench.css";
 
-type Pack = Schemas["RulePack"];
-type Template = Schemas["EntityTemplate"];
-type Field = Schemas["FieldDef"];
-type Group = Schemas["GroupDef"];
-
-const SHAPES = ["capsule", "box", "sphere", "cone"] as const;
-
-export const REQUIRED_DERIVED = ["perception_radius", "concealment", "move_speed", "fly_multiplier", "fly_speed", "hear_multiplier", "hear_distance"];
-const FLY_FIELD = "can_fly";
-const HP_FIELD = "hp";
-
-const DEFAULT_FORMULA: Record<string, string> = { concealment: "1", fly_multiplier: "1", fly_speed: "fly_multiplier * move_speed", hear_multiplier: "1" };
-const DEFAULT_UNIT: Record<string, string> = { perception_radius: "m", move_speed: "m/min", fly_speed: "m/min", hear_distance: "m" };
-
-type T = (k: string) => string;
-
-export function blankPack(t: T): Pack {
-  return {
-    world: { name: "", description: "", canon: "", reference_sites: [] },
-    templates: [blankTemplate("character", t)],
-    player_entities: [{ template: "character", min: 1, max: 1 }],
-    formulas: [],
-    tables: [],
-    checks: [],
-    rules_text: "",
-    samples: [],
-  };
-}
-
-/** 引擎必需项的默认显示名（按界面语言），也是它们显示名框里的提示。 */
-const REQUIRED_FIELDS = ["appearance", FLY_FIELD, HP_FIELD];
-function defaultLabel(t: T, name: string): string {
-  return t(`rules.default_label.${name}`);
-}
-
-/** 以前存的规则包可能缺少后来新增的引擎必需项（能否飞行字段、飞行速度等推导值）：打开时补上默认的；必需项的显示名空着就填默认的。 */
-function withEngineDefaults(p: Pack, t: T): Pack {
-  const blank = blankTemplate("x", t);
-  const named = <X extends { name: string; label?: string }>(x: X): X => (x.label ? x : { ...x, label: defaultLabel(t, x.name) });
-  return {
-    ...p,
-    templates: p.templates.map((tpl) => {
-      const fields = tpl.fields ?? [];
-      const derived = tpl.derived ?? [];
-      const missing = (blank.fields ?? []).filter((f) => f.name !== "appearance" && !fields.some((x) => x.name === f.name));
-      const allFields = [...fields, ...missing];
-      const allDerived = [...derived, ...(blank.derived ?? []).filter((d) => !derived.some((x) => x.name === d.name))];
-      return {
-        ...tpl,
-        fields: allFields.map((f) => (REQUIRED_FIELDS.includes(f.name) ? named(f) : f)),
-        derived: allDerived.map((d) => (REQUIRED_DERIVED.includes(d.name) ? named(d) : d)),
-      };
-    }),
-  };
-}
-
-/** 改了模板 ID：建角实体和例题里引用它的地方跟着改。 */
-function renameTemplate(pack: Pack, i: number, next: Template): Pack {
-  const prev = pack.templates[i]?.name;
-  const templates = pack.templates.map((x, j) => (j === i ? next : x));
-  if (!prev || prev === next.name) return { ...pack, templates };
-  return {
-    ...pack,
-    templates,
-    player_entities: pack.player_entities.map((pe) => (pe.template === prev ? { ...pe, template: next.name } : pe)),
-    samples: (pack.samples ?? []).map((sm) => (sm.template === prev ? { ...sm, template: next.name } : sm)),
-  };
-}
-
-function blankTemplate(name: string, t: T): Template {
-  return {
-    name,
-    label: "",
-    appearance_field: "appearance",
-    fields: [
-      { name: "appearance", label: defaultLabel(t, "appearance"), description: "", kind: "text", cls: "player", required: true, hidden: false, choices: [], vital: false },
-      { name: FLY_FIELD, label: defaultLabel(t, FLY_FIELD), description: "", kind: "boolean", cls: "player", required: true, hidden: false, choices: [], vital: false },
-      { name: HP_FIELD, label: defaultLabel(t, HP_FIELD), description: "", kind: "resource", cls: "runtime", min: "0", initial: "10", required: true, hidden: false, choices: [], vital: true },
-    ],
-    groups: [],
-    derived: REQUIRED_DERIVED.map((n) => ({
-      name: n,
-      label: defaultLabel(t, n),
-      formula: DEFAULT_FORMULA[n] ?? "",
-      unit: DEFAULT_UNIT[n] ?? null,
-      hidden: false,
-    })),
-  };
-}
-
-function FieldsTable({
-  fields,
-  onChange,
-  validate,
-  template,
-  appearance,
-  inGroup = false,
-}: {
-  fields: Field[];
-  onChange: (f: Field[]) => void;
-  validate: Validate;
-  template: string;
-  appearance?: string;
-  inGroup?: boolean;
-}) {
-  const { t } = useI18n();
-  const ed = useListEdit(fields, onChange);
-  const v = useCallback((f: string) => validate(f, template), [validate, template]);
-  return (
-    <div>
-      {fields.map((f, i) => (
-        <FieldCard
-          key={i}
-          f={f}
-          validate={v}
-          inGroup={inGroup}
-          isAppearance={!inGroup && !!appearance && f.name === appearance}
-          isFly={!inGroup && f.name === FLY_FIELD}
-          isHp={!inGroup && f.name === HP_FIELD}
-          onChange={(x) => ed.update(i, x)}
-          onRemove={() => ed.remove(i)}
-          mover={<Mover index={i} count={fields.length} onMove={ed.move} />}
-        />
-      ))}
-      <button onClick={() => ed.add(blankField())}>{t("rules.add_field")}</button>
-    </div>
-  );
-}
-
-function GroupCard({ g, onChange, onRemove, validate, template, derived, mover, spendTargets }: { g: Group; onChange: (g: Group) => void; onRemove: () => void; validate: Validate; template: string; derived: string[]; mover: ReactNode; spendTargets: string[] }) {
-  const { t } = useI18n();
-  const allowed = g.shapes?.allowed ?? [];
-  return (
-    <div className="sk-card">
-      <Fold level={5} title={g.label || g.name || t("rules.g.untitled")}>
-        <div className="sk-group-main">
-          <label>
-            {t("rules.g.name")}
-            <input value={g.name} placeholder={t("rules.ph.group_name")} onChange={(e) => onChange({ ...g, name: e.target.value })} />
-          </label>
-          <label>
-            {t("rules.g.label")}
-            <input value={g.label ?? ""} placeholder={t("rules.ph.group_label")} onChange={(e) => onChange({ ...g, label: e.target.value })} />
-          </label>
-          <label>
-            {t("rules.g.min")}
-            <input type="number" min={0} value={g.min_count ?? 0} onChange={(e) => onChange({ ...g, min_count: Number(e.target.value) })} />
-          </label>
-          <label>
-            {t("rules.g.max")}
-            <input type="number" min={0} value={g.max_count ?? ""} placeholder={t("rules.ph.group_max")} onChange={(e) => onChange({ ...g, max_count: e.target.value === "" ? null : Number(e.target.value) })} />
-          </label>
-          <div className="sk-field-side sk-side-actions">
-            {mover}
-            <button className="sk-link" onClick={onRemove}>
-              {t("common.remove")}
-            </button>
-          </div>
-        </div>
-        <div className="sk-field-flags">
-          <label className="sk-inline">
-            <input type="checkbox" checked={g.effects ?? true} onChange={(e) => onChange({ ...g, effects: e.target.checked })} /> {t("rules.g.effects")}
-          </label>
-          <label className="sk-inline">
-            <input type="checkbox" checked={g.hidden ?? false} onChange={(e) => onChange({ ...g, hidden: e.target.checked })} /> {t("rules.g.hidden")}
-          </label>
-          <label className="sk-inline">
-            <input type="checkbox" checked={g.placements ?? false} onChange={(e) => onChange({ ...g, placements: e.target.checked })} /> {t("rules.g.placements")}
-          </label>
-          <label className="sk-inline">
-            <input type="checkbox" checked={g.timing ?? false} onChange={(e) => onChange({ ...g, timing: e.target.checked })} /> {t("rules.g.timing")}
-          </label>
-        </div>
-        <label>{t("rules.g.shapes")}</label>
-        <div className="sk-shapes">
-          {SHAPES.map((s) => (
-            <label key={s} className="sk-inline">
-              <input
-                type="checkbox"
-                checked={allowed.includes(s)}
-                onChange={(e) => onChange({ ...g, shapes: { allowed: e.target.checked ? SHAPES.filter((x) => x === s || allowed.includes(x)) : allowed.filter((x) => x !== s) } })}
-              />{" "}
-              {t(`shape.${s}`)}
-            </label>
-          ))}
-        </div>
-        <Fold level={5} title={t("rules.gt.title")} hint={t("rules.gt.hint")}>
-          <GroupTable g={g} onChange={onChange} validate={validate} template={template} derived={derived} spendTargets={spendTargets} />
-        </Fold>
-      </Fold>
-    </div>
-  );
-}
-
-function TemplateEditor({ tpl, onChange, onRemove, validate, mover }: { tpl: Template; onChange: (t: Template) => void; onRemove: () => void; validate: Validate; mover: ReactNode }) {
-  const { t } = useI18n();
-  const groups = tpl.groups ?? [];
-  const derived = tpl.derived ?? [];
-  const ged = useListEdit(groups, (g) => onChange({ ...tpl, groups: g }));
-  const ded = useListEdit(derived, (d) => onChange({ ...tpl, derived: d }));
-  const v = useCallback((f: string) => validate(f, tpl.name), [validate, tpl.name]);
-  return (
-    <div className="sk-card">
-      <Fold level={4} title={tpl.label || tpl.name}>
-        <p className="sk-hint">{t("rules.template_hint")}</p>
-        <div className="sk-row">
-          <label>{t("rules.t.name")}<input value={tpl.name} placeholder={t("rules.ph.template_name")} onChange={(e) => onChange({ ...tpl, name: e.target.value })} /></label>
-          <label>{t("rules.t.label")}<input value={tpl.label ?? ""} placeholder={t("rules.ph.template_label")} onChange={(e) => onChange({ ...tpl, label: e.target.value })} /></label>
-          {mover}
-          <button className="sk-link" onClick={onRemove}>{t("rules.remove_template")}</button>
-        </div>
-        <Fold level={5} title={t("rules.fields")} hint={t("rules.fields_hint")}>
-          <FieldsTable fields={tpl.fields ?? []} onChange={(f) => onChange({ ...tpl, fields: f })} validate={validate} template={tpl.name} appearance={tpl.appearance_field ?? "appearance"} />
-        </Fold>
-        <Fold level={5} title={t("rules.derived")} hint={t("rules.derived_hint")}>
-          <div className="sk-derived-row sk-derived-head">
-            <span>{t("rules.d.name")}</span>
-            <span>{t("rules.d.label")}</span>
-            <span>{t("rules.d.formula")}</span>
-            <span>{t("rules.d.unit")}</span>
-            <span />
-          </div>
-          {derived.map((d, i) => {
-            const required = REQUIRED_DERIVED.includes(d.name);
-            return (
-              <div key={i}>
-                <div className="sk-derived-row">
-                  <input value={d.name} disabled={required} title={required ? t("rules.locked") : undefined} placeholder={t("rules.ph.derived_name")} onChange={(e) => ded.update(i, { ...d, name: e.target.value })} />
-                  <input value={d.label ?? ""} placeholder={required ? t(`rules.ph.label_${d.name}`) : t("rules.ph.derived_label")} onChange={(e) => ded.update(i, { ...d, label: e.target.value })} />
-                  <FormulaInput value={d.formula} validate={v} placeholder={required ? t(`rules.ph.formula_${d.name}`) : t("rules.ph.formula")} onChange={(x) => ded.update(i, { ...d, formula: x })} />
-                  <input className="sk-small" value={d.unit ?? ""} placeholder={required ? t(`rules.ph.unit_${d.name}`) : ""} onChange={(e) => ded.update(i, { ...d, unit: e.target.value || null })} />
-                  <span className="sk-side-actions">
-                    <Mover index={i} count={derived.length} onMove={ded.move} />
-                    {required ? <span className="sk-badge-req">{t("rules.required_badge")}</span> : <button className="sk-link" onClick={() => ded.remove(i)}>{t("common.remove")}</button>}
-                  </span>
-                </div>
-                {required && <div className="sk-hint sk-derived-help">{t(`rules.help.${d.name}`)}</div>}
-              </div>
-            );
-          })}
-          <button onClick={() => ded.add({ name: "", label: "", formula: "", hidden: false })}>{t("rules.add_derived")}</button>
-        </Fold>
-        <Fold level={5} title={t("rules.groups")} hint={t("rules.groups_hint")}>
-          {groups.map((g: Group, i) => (
-            <GroupCard key={i} g={g} template={tpl.name} derived={derived.map((d) => d.name)} spendTargets={(tpl.fields ?? []).filter((f) => f.kind === "number" || f.kind === "resource").map((f) => f.name)} validate={validate} onChange={(x) => ged.update(i, x)} onRemove={() => ged.remove(i)} mover={<Mover index={i} count={groups.length} onMove={ged.move} />} />
-          ))}
-          <button onClick={() => ged.add({ name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: false, timing: false })}>{t("rules.add_group")}</button>
-        </Fold>
-      </Fold>
-    </div>
-  );
-}
-
-function PackEditor({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pack) => void; validate: Validate }) {
-  const { t } = useI18n();
-  const ted = useListEdit(pack.templates, (x) => onChange({ ...pack, templates: x }));
-  const ped = useListEdit(pack.player_entities, (x) => onChange({ ...pack, player_entities: x }));
-  const fed = useListEdit(pack.formulas ?? [], (x) => onChange({ ...pack, formulas: x }));
-  const tbl = useListEdit(pack.tables ?? [], (x) => onChange({ ...pack, tables: x }));
-  const ced = useListEdit(pack.checks ?? [], (x) => onChange({ ...pack, checks: x }));
-  const sed = useListEdit(pack.samples ?? [], (x) => onChange({ ...pack, samples: x }));
-  const vNone = useCallback((f: string) => validate(f, null), [validate]);
-  const vEntity = useCallback((f: string) => validate(f, null, undefined, "any_entity"), [validate]);
-  const vDice = useCallback((f: string) => validate(f, null, undefined, "dice"), [validate]);
-  const w = pack.world;
-  return (
-    <div>
-      <Fold title={t("rules.world")}>
-      <label>{t("rules.w.name")}<input value={w.name} onChange={(e) => onChange({ ...pack, world: { ...w, name: e.target.value } })} /></label>
-      <label>{t("rules.w.canon")}<input value={w.canon ?? ""} onChange={(e) => onChange({ ...pack, world: { ...w, canon: e.target.value } })} /></label>
-      <label>{t("rules.w.description")}<textarea rows={3} value={w.description ?? ""} onChange={(e) => onChange({ ...pack, world: { ...w, description: e.target.value } })} /></label>
-      <label>{t("rules.w.sites")}<textarea rows={2} value={(w.reference_sites ?? []).join("\n")} onChange={(e) => onChange({ ...pack, world: { ...w, reference_sites: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) } })} /></label>
-      </Fold>
-
-      <Fold title={t("rules.templates")}>
-      {pack.templates.map((tp, i) => (
-        <TemplateEditor key={i} tpl={tp} validate={validate} onChange={(x) => onChange(renameTemplate(pack, i, x))} onRemove={() => ted.remove(i)} mover={<Mover index={i} count={pack.templates.length} onMove={ted.move} />} />
-      ))}
-      <button onClick={() => ted.add(blankTemplate(`template_${pack.templates.length + 1}`, t))}>{t("rules.add_template")}</button>
-      </Fold>
-
-      <Fold title={t("rules.player_entities")}>
-      {pack.player_entities.map((pe, i) => (
-        <div key={i} className="sk-row">
-          <select value={pe.template} onChange={(e) => ped.update(i, { ...pe, template: e.target.value })}>
-            {!pack.templates.some((tp) => tp.name === pe.template) && <option value={pe.template}>{t("rules.missing_template", { name: pe.template })}</option>}
-            {pack.templates.map((tp) => <option key={tp.name} value={tp.name}>{tp.label ? `${tp.label}（${tp.name}）` : tp.name}</option>)}
-          </select>
-          <input type="number" value={pe.min ?? 1} onChange={(e) => ped.update(i, { ...pe, min: Number(e.target.value) })} />
-          <input type="number" value={pe.max ?? 1} onChange={(e) => ped.update(i, { ...pe, max: Number(e.target.value) })} />
-          <Mover index={i} count={pack.player_entities.length} onMove={ped.move} />
-          <button className="sk-link" onClick={() => ped.remove(i)}>{t("common.remove")}</button>
-        </div>
-      ))}
-      <button onClick={() => ped.add({ template: pack.templates[0]?.name ?? "", min: 1, max: 1 })}>{t("common.add")}</button>
-      </Fold>
-
-      <Fold title={t("rules.formulas")}>
-      {(pack.formulas ?? []).map((f, i) => (
-        <div key={i} className="sk-row">
-          <input value={f.name} onChange={(e) => fed.update(i, { ...f, name: e.target.value })} />
-          <FormulaInput value={f.formula} validate={vEntity} onChange={(x) => fed.update(i, { ...f, formula: x })} />
-          <Mover index={i} count={(pack.formulas ?? []).length} onMove={fed.move} />
-          <button className="sk-link" onClick={() => fed.remove(i)}>{t("common.remove")}</button>
-        </div>
-      ))}
-      <button onClick={() => fed.add({ name: "", formula: "", label: "" })}>{t("common.add")}</button>
-      </Fold>
-
-      <Fold title={t("rules.tables")} hint={t("rules.tables_hint")}>
-      {(pack.tables ?? []).map((tb, i) => (
-        <div key={i} className="sk-card">
-          <div className="sk-row">
-            <input value={tb.name} onChange={(e) => tbl.update(i, { ...tb, name: e.target.value })} />
-            <select value={tb.kind ?? "range"} onChange={(e) => tbl.update(i, { ...tb, kind: e.target.value as "range" | "exact" })}>
-              <option value="range">{t("rules.table.range")}</option>
-              <option value="exact">{t("rules.table.exact")}</option>
-            </select>
-            <Mover index={i} count={(pack.tables ?? []).length} onMove={tbl.move} />
-            <button className="sk-link" onClick={() => tbl.remove(i)}>{t("common.remove")}</button>
-          </div>
-          <textarea
-            rows={4}
-            value={tb.rows.map(([k, v]) => `${k},${v}`).join("\n")}
-            onChange={(e) =>
-              tbl.update(i, {
-                ...tb,
-                rows: e.target.value.split("\n").filter((l) => l.includes(",")).map((l) => {
-                  const [k = "", v = "0"] = l.split(",");
-                  const num = Number(k);
-                  return [k.trim() !== "" && !Number.isNaN(num) ? num : k.trim(), Number(v)] as [number | string, number];
-                }),
-              })
-            }
-          />
-        </div>
-      ))}
-      <button onClick={() => tbl.add({ name: "", kind: "range", rows: [] })}>{t("common.add")}</button>
-      </Fold>
-
-      <Fold title={t("rules.checks")}>
-      {(pack.checks ?? []).map((c, i) => (
-        <div key={i} className="sk-card">
-          <div className="sk-row">
-            <label>{t("rules.c.name")}<input value={c.name} onChange={(e) => ced.update(i, { ...c, name: e.target.value })} /></label>
-            <label>{t("rules.c.dice")}<FormulaInput value={c.dice} validate={vDice} placeholder={t("rules.ph.dice")} onChange={(x) => ced.update(i, { ...c, dice: x })} /></label>
-            <label>{t("rules.c.target")}<FormulaInput value={c.target ?? "0"} validate={vEntity} onChange={(x) => ced.update(i, { ...c, target: x })} /></label>
-            <Mover index={i} count={(pack.checks ?? []).length} onMove={ced.move} />
-            <button className="sk-link" onClick={() => ced.remove(i)}>{t("common.remove")}</button>
-          </div>
-          {c.levels.map((lv, j) => (
-            <div key={j} className="sk-row">
-              <input value={lv.name} onChange={(e) => ced.update(i, { ...c, levels: c.levels.map((x, k) => (k === j ? { ...x, name: e.target.value } : x)) })} />
-              <FormulaInput value={lv.condition} validate={vNone} onChange={(x) => ced.update(i, { ...c, levels: c.levels.map((y, k) => (k === j ? { ...y, condition: x } : y)) })} />
-              <Mover index={j} count={c.levels.length} onMove={(from, to) => ced.update(i, { ...c, levels: moved(c.levels, from, to) })} />
-              <button className="sk-link" onClick={() => ced.update(i, { ...c, levels: c.levels.filter((_, k) => k !== j) })}>{t("common.remove")}</button>
-            </div>
-          ))}
-          <button onClick={() => ced.update(i, { ...c, levels: [...c.levels, { name: "", condition: "" }] })}>{t("rules.add_level")}</button>
-          <p className="sk-hint">{t("rules.levels_hint")}</p>
-        </div>
-      ))}
-      <button onClick={() => ced.add({ name: "", label: "", dice: "1d100", target: "0", levels: [] })}>{t("common.add")}</button>
-      </Fold>
-
-      <Fold title={t("rules.rules_text")}>
-      <textarea rows={8} value={pack.rules_text ?? ""} onChange={(e) => onChange({ ...pack, rules_text: e.target.value })} />
-      </Fold>
-
-      <Fold title={t("rules.samples")} hint={t("rules.samples_hint")}>
-      {(pack.samples ?? []).map((s, i) => (
-        <SampleEditor key={i} sample={s} templates={pack.templates.map((x) => x.name)} onChange={(x) => sed.update(i, x)} onRemove={() => sed.remove(i)} mover={<Mover index={i} count={(pack.samples ?? []).length} onMove={sed.move} />} />
-      ))}
-      <button onClick={() => sed.add({ name: "", template: pack.templates[0]?.name ?? "", sheet: { name: "sample", fields: {} }, expected: {} })}>{t("common.add")}</button>
-      </Fold>
-    </div>
-  );
-}
-
-function SampleEditor({ sample, templates, onChange, onRemove, mover }: { sample: Schemas["SampleSheet"]; templates: string[]; onChange: (s: Schemas["SampleSheet"]) => void; onRemove: () => void; mover: ReactNode }) {
-  const { t } = useI18n();
-  const [sheetText, setSheetText] = useState(() => JSON.stringify(sample.sheet, null, 1));
-  const [bad, setBad] = useState(false);
-  useEffect(() => {
-    // 换了位置或换了规则包时，用新的内容覆盖输入框（正在输入的不合法 JSON 不覆盖）
-    let same = false;
-    try {
-      same = JSON.stringify(JSON.parse(sheetText)) === JSON.stringify(sample.sheet);
-    } catch {
-      same = bad;
-    }
-    if (!same) {
-      setSheetText(JSON.stringify(sample.sheet, null, 1));
-      setBad(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sample.sheet]);
-  return (
-    <div className="sk-card">
-      <div className="sk-row">
-        <input value={sample.name} onChange={(e) => onChange({ ...sample, name: e.target.value })} />
-        <select value={sample.template} onChange={(e) => onChange({ ...sample, template: e.target.value })}>
-          {templates.map((x) => <option key={x} value={x}>{x}</option>)}
-        </select>
-        {mover}
-        <button className="sk-link" onClick={onRemove}>{t("common.remove")}</button>
-      </div>
-      <label>
-        {t("rules.sample_sheet")}
-        <textarea
-          rows={6}
-          className={bad ? "invalid" : ""}
-          value={sheetText}
-          onChange={(e) => {
-            setSheetText(e.target.value);
-            try {
-              onChange({ ...sample, sheet: JSON.parse(e.target.value) });
-              setBad(false);
-            } catch {
-              setBad(true);
-            }
-          }}
-        />
-      </label>
-      <label>
-        {t("rules.sample_expected")}
-        <textarea
-          rows={3}
-          value={Object.entries(sample.expected).map(([k, v]) => `${k}=${v}`).join("\n")}
-          onChange={(e) =>
-            onChange({
-              ...sample,
-              expected: Object.fromEntries(
-                e.target.value.split("\n").filter((l) => l.includes("=")).map((l) => {
-                  const [k = "", v = "0"] = l.split("=");
-                  return [k.trim(), Number(v)];
-                }),
-              ),
-            })
-          }
-        />
-      </label>
-    </div>
-  );
-}
-
-function TryPanel({ pack }: { pack: Pack }) {
-  const { t } = useI18n();
-  const [template, setTemplate] = useState(pack.templates[0]?.name ?? "");
-  const [sheet, setSheet] = useState(() => JSON.stringify(pack.samples?.[0]?.sheet ?? { name: "x", fields: {} }, null, 1));
-  const act = useAction();
-  const [out, setOut] = useState<Schemas["TryOut"] | null>(null);
-  return (
-    <div className="sk-card">
-      <Fold title={t("rules.try")}>
-      <select value={template} onChange={(e) => setTemplate(e.target.value)}>
-        {pack.templates.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}
-      </select>
-      <textarea rows={6} value={sheet} onChange={(e) => setSheet(e.target.value)} />
-      <button onClick={() => void act.run(async () => setOut(await call(api.POST("/api/admin/rulepacks/try", { body: { pack, template, sheet: JSON.parse(sheet) } }))))}>
-        {t("rules.try_run")}
-      </button>
-      <ErrorBox error={act.error} />
-      {out && (
-        <ul>
-          {out.derived.map((d) => <li key={d.name}>{d.name} = {d.value} ({d.base}{d.modifiers?.length ? `; ${d.modifiers.join(", ")}` : ""})</li>)}
-          {out.problems.map((p, i) => <li key={i} className="sk-invalid">{p.code} {p.path}</li>)}
-        </ul>
-      )}
-      </Fold>
-    </div>
-  );
-}
-
-/** 把问题路径（templates[0].fields[2]）换成看得懂的名字（模板 hero › 字段 hp）。 */
-function describePath(t: (k: string) => string, pack: Pack, path: string): string {
-  if (!path || path === ".") return "";
-  let obj: unknown = pack;
-  const out: string[] = [];
-  for (const seg of path.split(".")) {
-    const m = /^(\w+)\[(\d+)\]$/.exec(seg);
-    const key = m?.[1] ?? seg;
-    const label = t(`rules.path.${key}`);
-    const known = label !== `rules.path.${key}`;
-    obj = obj && typeof obj === "object" ? (obj as Record<string, unknown>)[key] : undefined;
-    if (m) {
-      const idx = Number(m[2]);
-      obj = Array.isArray(obj) ? obj[idx] : undefined;
-      const rec = obj && typeof obj === "object" ? (obj as Record<string, unknown>) : {};
-      const name = typeof rec.label === "string" && rec.label ? rec.label : typeof rec.name === "string" && rec.name ? rec.name : `#${idx + 1}`;
-      out.push(known ? `${label} ${name}` : `${key} ${name}`);
-    } else {
-      out.push(known ? label : seg);
-    }
-  }
-  return out.join(" › ");
-}
 
 function when(iso: string | null | undefined): string {
   return iso ? new Date(iso).toLocaleString() : "";
 }
 
-/** “规则”面板：新建和编辑规则包、草稿、试算、版本管理、导入导出。 */
+function stored(key: string, fallback: number): number {
+  try {
+    const v = Number(window.localStorage.getItem(key));
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/** 点一下展开、点外面收起的小浮层。 */
+function Popover({ label, className, children, open, setOpen }: { label: ReactNode; className?: string; children: ReactNode; open: boolean; setOpen: (o: boolean) => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => {
+      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open, setOpen]);
+  return (
+    <div className="wb-pop-wrap" ref={box}>
+      <button type="button" className={className} aria-expanded={open} onClick={() => setOpen(!open)}>
+        {label}
+      </button>
+      {open && <div className="wb-pop">{children}</div>}
+    </div>
+  );
+}
+
+/**
+ * “规则”面板：全屏的规则编辑工作台。
+ * 顶栏是规则包和保存；左边是目录，中间是选中的那一节，右边是写公式和技能脚本的 IDE。
+ */
 export function RulesPanel() {
   const { t, lang } = useI18n();
   const packs = usePoll(() => call(api.GET("/api/admin/rulepacks")), 600_000);
@@ -520,13 +65,21 @@ export function RulesPanel() {
   const [checkError, setCheckError] = useState<unknown>(null);
   const [draftAt, setDraftAt] = useState<string | null>(null);
   const [draftError, setDraftError] = useState<unknown>(null);
-  const [help, setHelp] = useState(false);
   const [choice, setChoice] = useState("");
+  const [sel, setSel] = useState<Sel>({ k: "world" });
+  const [docs, setDocs] = useState<string[]>([]);
+  const [active, setActive] = useState<string | null>(null);
+  const [ideOpen, setIdeOpen] = useState(true);
+  const [ideWidth, setIdeWidth] = useState(() => stored("sk.rules.ide", 560));
+  const [navOpen, setNavOpen] = useState(false);
+  const [packMenu, setPackMenu] = useState(false);
+  const [problemList, setProblemList] = useState(false);
   const act = useAction();
   // 上次打开或保存时的内容；和它不同就是“有未保存的修改”
   const baseline = useRef(JSON.stringify(pack));
   const idRef = useRef<string | null>(null);
   const creating = useRef<Promise<string> | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   idRef.current = current.id;
   const dirty = JSON.stringify(pack) !== baseline.current;
 
@@ -537,15 +90,17 @@ export function RulesPanel() {
     setCurrent({ id, version });
     setDraftAt(draft);
     setChoice(id ? `${id}|${version ?? "draft"}` : "");
+    setDocs([]);
+    setActive(null);
+    setSel({ k: "world" });
+    setPackMenu(false);
   };
 
   const validate: Validate = useCallback(
-    (formula, template, inEntry, scope) =>
-      call(api.POST("/api/admin/rulepacks/formula", { body: { pack, formula, template, in_entry: inEntry ?? null, scope: scope ?? null } })),
+    (formula, template, inEntry, scope) => call(api.POST("/api/admin/rulepacks/formula", { body: { pack, formula, template, in_entry: inEntry ?? null, scope: scope ?? null } })),
     [pack],
   );
   useEffect(() => {
-    setProblems(null);
     const id = window.setTimeout(() => {
       call(api.POST("/api/admin/rulepacks/validate", { body: { pack } }))
         .then((r) => {
@@ -624,93 +179,259 @@ export function RulesPanel() {
       void packs.refresh();
     });
 
+  // ---------------- 目录和 IDE ----------------
+  const select = (s: Sel) => {
+    setSel(s);
+    setNavOpen(false);
+    contentRef.current?.scrollTo({ top: 0 });
+  };
+  const openDoc = useCallback((path: string) => {
+    setDocs((d) => (d.includes(path) ? d : [...d, path]));
+    setActive(path);
+    setIdeOpen(true);
+  }, []);
+  const closeDoc = (path: string) => {
+    const i = docs.indexOf(path);
+    const next = docs.filter((p) => p !== path);
+    setDocs(next);
+    if (active === path) setActive(next[Math.min(i, next.length - 1)] ?? null);
+  };
+  const reveal = (path: string) => select(selForPath(path));
+  // 删了行或改了结构，打不开的文档自动关掉
+  const liveDocs = docs.filter((p) => docFor(pack, p));
+  const liveActive = active && liveDocs.includes(active) ? active : (liveDocs[liveDocs.length - 1] ?? null);
+
+  const dragIde = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = ideWidth;
+    let w = startW;
+    const move = (ev: PointerEvent) => {
+      w = Math.min(Math.max(320, startW + startX - ev.clientX), window.innerWidth - 480);
+      setIdeWidth(w);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      try {
+        window.localStorage.setItem("sk.rules.ide", String(Math.round(w)));
+      } catch {
+        /* 存不了就算了 */
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   // 下拉菜单里选中的一项：规则包 id 加版本号（草稿是 null）
   const [pid = "", ver = ""] = choice.split("|");
   const picked = choice ? { id: pid, version: ver === "draft" ? null : Number(ver) } : null;
-
   let editing = t("rules.editing_new");
-  if (current.id && current.version !== null) editing = t("rules.editing", { id: current.id, version: String(current.version) });
-  else if (current.id) editing = t("rules.editing_draft", { id: current.id });
+  if (current.id && current.version !== null) editing = t("rules.wb.version", { v: String(current.version) });
+  else if (current.id) editing = t("rules.wb.draft");
 
+  const setTemplate = (i: number, x: Pack["templates"][number]) => setPack((p) => renameTemplate(p, i, x));
+  const content = (() => {
+    const s = sel;
+    if (s.k === "fields" || s.k === "derived" || s.k === "group") {
+      const tpl = pack.templates[s.t];
+      if (!tpl) return <p className="sk-hint">{t("rules.wb.gone")}</p>;
+      const base = `templates[${s.t}]`;
+      if (s.k === "fields")
+        return (
+          <FieldsSection
+            tpl={tpl}
+            validate={validate}
+            onChange={(x) => setTemplate(s.t, x)}
+            onRemove={() => {
+              setPack((p) => ({ ...p, templates: p.templates.filter((_, j) => j !== s.t) }));
+              select({ k: "world" });
+            }}
+            mover={<Mover index={s.t} count={pack.templates.length} onMove={(from, to) => { setPack((p) => ({ ...p, templates: movedList(p.templates, from, to) })); setSel({ k: "fields", t: to }); }} />}
+          />
+        );
+      if (s.k === "derived") return <DerivedSection tpl={tpl} validate={validate} base={base} onChange={(x) => setTemplate(s.t, x)} />;
+      const groups = tpl.groups ?? [];
+      const g = groups[s.g];
+      if (!g) return <p className="sk-hint">{t("rules.wb.gone")}</p>;
+      return (
+        <GroupSection
+          key={`${s.t}:${s.g}`}
+          tpl={tpl}
+          g={g}
+          base={`${base}.groups[${s.g}]`}
+          validate={validate}
+          onChange={(x) => setTemplate(s.t, { ...tpl, groups: groups.map((y, j) => (j === s.g ? x : y)) })}
+          onRemove={() => {
+            setTemplate(s.t, { ...tpl, groups: groups.filter((_, j) => j !== s.g) });
+            select({ k: "fields", t: s.t });
+          }}
+          mover={<Mover index={s.g} count={groups.length} onMove={(from, to) => { setTemplate(s.t, { ...tpl, groups: movedList(groups, from, to) }); setSel({ k: "group", t: s.t, g: to }); }} />}
+        />
+      );
+    }
+    if (s.k === "world") return <WorldSection pack={pack} onChange={setPack} />;
+    if (s.k === "players") return <PlayersSection pack={pack} onChange={setPack} />;
+    if (s.k === "formulas") return <FormulasSection pack={pack} onChange={setPack} validate={validate} />;
+    if (s.k === "tables") return <TablesSection pack={pack} onChange={setPack} />;
+    if (s.k === "checks") return <ChecksSection pack={pack} onChange={setPack} validate={validate} />;
+    if (s.k === "text") return <TextSection pack={pack} onChange={setPack} />;
+    return <SamplesSection pack={pack} onChange={setPack} />;
+  })();
+
+  const nProblems = problems?.length ?? 0;
   return (
-    <div className={help ? "sk-with-drawer" : undefined}>
-      <Section title={t("admin.panel.rules")}>
-      <div className="sk-card">
-        <h3>{t("rules.packs")}</h3>
-        <div className="sk-row sk-pack-picker">
-          <select value={choice} onChange={(e) => setChoice(e.target.value)}>
-            <option value="">{t("rules.pick")}</option>
-            {(packs.data ?? []).map((p) => (
-              <optgroup key={p.pack_id} label={p.name || p.pack_id}>
-                {p.draft_updated_at && <option value={`${p.pack_id}|draft`}>{t("rules.draft_chip", { time: when(p.draft_updated_at) })}</option>}
-                {[...p.versions].reverse().map((v) => (
-                  <option key={v} value={`${p.pack_id}|${v}`}>
-                    {t("rules.version", { v: String(v) })}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <button className="sk-primary" disabled={!picked} onClick={() => picked && (picked.version === null ? openDraft(picked.id) : open(picked.id, picked.version))}>
-            {t("rules.open")}
+    <WorkbenchProvider value={{ open: openDoc, active: liveActive, problems: problems ?? [] }}>
+      <div className={`wb${ideOpen ? " wb-ide-on" : ""}${navOpen ? " wb-nav-on" : ""}`} style={{ "--wb-ide-w": `${ideWidth}px` } as React.CSSProperties}>
+        <div className="wb-bar">
+          <button type="button" className="wb-icon wb-nav-toggle" aria-label={t("rules.outline")} onClick={() => setNavOpen(!navOpen)}>
+            ☰
           </button>
-          {picked && picked.version !== null && (
-            <a className="sk-button" href={`/api/admin/rulepacks/${picked.id}/versions/${picked.version}/export`}>
-              {t("rules.export")}
-            </a>
-          )}
-          {picked && (
-            <button onClick={() => (picked.version === null ? discardDraft(picked.id) : remove(picked.id, picked.version))}>
-              {picked.version === null ? t("rules.draft_discard") : t("common.remove")}
-            </button>
-          )}
+          <Popover
+            open={packMenu}
+            setOpen={setPackMenu}
+            className="wb-pack"
+            label={
+              <>
+                <span className="wb-pack-name">{pack.world.name || t("rules.wb.untitled")}</span>
+                <span className="wb-pack-state">{editing}</span>
+                <span className="wb-caret">▾</span>
+              </>
+            }
+          >
+            <h4>{t("rules.packs")}</h4>
+            <select value={choice} onChange={(e) => setChoice(e.target.value)}>
+              <option value="">{t("rules.pick")}</option>
+              {(packs.data ?? []).map((p) => (
+                <optgroup key={p.pack_id} label={p.name || p.pack_id}>
+                  {p.draft_updated_at && <option value={`${p.pack_id}|draft`}>{t("rules.draft_chip", { time: when(p.draft_updated_at) })}</option>}
+                  {[...p.versions].reverse().map((v) => (
+                    <option key={v} value={`${p.pack_id}|${v}`}>
+                      {t("rules.version", { v: String(v) })}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <div className="sk-row">
+              <button className="sk-primary" disabled={!picked} onClick={() => picked && (picked.version === null ? openDraft(picked.id) : open(picked.id, picked.version))}>
+                {t("rules.open")}
+              </button>
+              {picked && picked.version !== null && (
+                <a className="sk-button" href={`/api/admin/rulepacks/${picked.id}/versions/${picked.version}/export`}>
+                  {t("rules.export")}
+                </a>
+              )}
+              {picked && (
+                <button onClick={() => (picked.version === null ? discardDraft(picked.id) : remove(picked.id, picked.version))}>{picked.version === null ? t("rules.draft_discard") : t("common.remove")}</button>
+              )}
+            </div>
+            <hr />
+            <div className="sk-row">
+              <button onClick={() => load(blankPack(t), null, null, null)}>{t("rules.new")}</button>
+              <label className="sk-button sk-file">
+                {t("rules.import")}
+                <input type="file" accept=".json,application/json" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
+              </label>
+            </div>
+          </Popover>
+          <div className="wb-bar-spacer" />
+          <Popover
+            open={problemList}
+            setOpen={setProblemList}
+            className={problems === null ? "wb-chip" : nProblems ? "wb-chip bad" : "wb-chip ok"}
+            label={problems === null ? t("rules.checking") : nProblems ? t("rules.wb.problems", { n: String(nProblems) }) : t("rules.wb.no_problems")}
+          >
+            {nProblems === 0 ? (
+              <p className="sk-hint">{t("rules.valid")}</p>
+            ) : (
+              <ul className="wb-problem-list">
+                {(problems ?? []).slice(0, 100).map((p, i) => {
+                  const where = describePath(t, pack, p.path ?? "").join(" › ");
+                  return (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (p.path) {
+                            reveal(p.path);
+                            if (docFor(pack, p.path)) openDoc(p.path);
+                          }
+                          setProblemList(false);
+                        }}
+                      >
+                        {where && <span className="wb-problem-where">{where}</span>}
+                        <span>{translateCode(lang, p.code, p.params)}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Popover>
+          <span className="wb-saved">{dirty ? t("rules.unsaved") : draftAt ? t("rules.wb.saved_at", { time: new Date(draftAt).toLocaleTimeString() }) : ""}</span>
+          <button disabled={act.busy} onClick={() => void act.run(() => saveDraft(pack))}>
+            {t("rules.save_draft")}
+          </button>
+          <button className="sk-primary" disabled={act.busy || problems === null || nProblems > 0} title={nProblems ? t("rules.wb.fix_first") : undefined} onClick={save}>
+            {t("rules.save_version")}
+          </button>
+          <button type="button" className={ideOpen ? "wb-icon active" : "wb-icon"} title={t("ide.toggle")} aria-pressed={ideOpen} onClick={() => setIdeOpen(!ideOpen)}>
+            {"</>"}
+          </button>
         </div>
-        <div className="sk-row">
-          <button onClick={() => load(blankPack(t), null, null, null)}>{t("rules.new")}</button>
-          <label className="sk-button sk-file">
-            {t("rules.import")}
-            <input type="file" accept=".json,application/json" onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
-          </label>
-        </div>
-      </div>
-      <p className="sk-hint">{editing}</p>
-      <PackEditor pack={pack} onChange={setPack} validate={validate} />
-      <TryPanel pack={pack} />
-      {help && <FormulaHelp onClose={() => setHelp(false)} />}
-      <div className="sk-sticky">
-        {problems === null ? (
-          <span className="sk-hint">{t("rules.checking")}</span>
-        ) : problems.length > 0 ? (
-          <details>
-            <summary className="sk-invalid">{t("rules.problems", { n: String(problems.length) })}</summary>
-            <ul className="sk-problems">
-              {problems.slice(0, 50).map((p, i) => {
-                const where = describePath(t, pack, p.path ?? "");
-                return (
-                  <li key={i}>
-                    {where && <span className="sk-hint">{t("rules.problem_where", { where })}</span>}
-                    {translateCode(lang, p.code, p.params)}
-                  </li>
-                );
-              })}
-            </ul>
-          </details>
-        ) : (
-          <span>{t("rules.valid")}</span>
-        )}
-        <span className="sk-hint">{dirty ? t("rules.unsaved") : draftAt ? t("rules.draft_saved", { time: when(draftAt) }) : ""}</span>
-        <button disabled={act.busy} onClick={() => void act.run(() => saveDraft(pack))}>
-          {t("rules.save_draft")}
-        </button>
-        <button className="sk-primary" disabled={act.busy || problems === null || problems.length > 0} onClick={save}>
-          {t("rules.save_version")}
-        </button>
-        <button className="sk-link" onClick={() => setHelp((x) => !x)}>
-          {t("fh.open")}
-        </button>
         <ErrorBox error={act.error ?? draftError ?? checkError} />
+        <div className="wb-body">
+          <Outline
+            pack={pack}
+            current={sel}
+            onSelect={select}
+            problems={problems ?? []}
+            onAddTemplate={() => {
+              setPack((p) => ({ ...p, templates: [...p.templates, blankTemplate(`template_${p.templates.length + 1}`, t)] }));
+              select({ k: "fields", t: pack.templates.length });
+            }}
+            onAddGroup={(ti) => {
+              const tpl = pack.templates[ti];
+              if (!tpl) return;
+              setTemplate(ti, { ...tpl, groups: [...(tpl.groups ?? []), blankGroup()] });
+              select({ k: "group", t: ti, g: (tpl.groups ?? []).length });
+            }}
+          />
+          <div className="wb-scrim" onClick={() => setNavOpen(false)} />
+          <main className="wb-content" ref={contentRef} key={selKey(sel)}>
+            <div className="wb-content-inner">{content}</div>
+          </main>
+          {ideOpen && <div className="wb-resize" role="separator" aria-orientation="vertical" onPointerDown={dragIde} />}
+          {ideOpen && (
+            <aside className="wb-ide-pane">
+              <Ide
+                pack={pack}
+                setPack={setPack}
+                validate={validate}
+                docs={liveDocs}
+                active={liveActive}
+                onActivate={setActive}
+                onClose={closeDoc}
+                onOpen={openDoc}
+                onReveal={reveal}
+                onGoSamples={() => select({ k: "samples" })}
+              />
+              <button type="button" className="wb-ide-close" aria-label={t("ide.toggle")} onClick={() => setIdeOpen(false)}>
+                ×
+              </button>
+            </aside>
+          )}
+        </div>
       </div>
-      </Section>
-    </div>
+    </WorkbenchProvider>
   );
+}
+
+function movedList<X>(list: X[], from: number, to: number): X[] {
+  if (to < 0 || to >= list.length) return list;
+  const out = [...list];
+  const [x] = out.splice(from, 1);
+  out.splice(to, 0, x as X);
+  return out;
 }

@@ -86,6 +86,7 @@
       "dice_range": "Dice count must be 0–1000 and sides 1–100000 (got {count} dice with {sides} sides)",
       "division_by_zero": "Division by zero",
       "empty": "The formula is empty",
+      "if_call": "if isn't a function: write if(cond, a, b) as a if cond else b",
       "list_ref": "The first argument of {name} must be a group reference, e.g. traits.level",
       "lookup_miss": "Table {table} has no row for {key}",
       "lookup_table_name": "lookup's first argument must be a table name",
@@ -156,6 +157,7 @@
       "bad_statement": "Not an action: {text}. Write object.action(arguments), e.g. target.damage(5); or if / elif / else / pass",
       "empty_block": "if / elif / else needs indented lines under it",
       "field_arg": "The first argument of {name} must be a field name, e.g. hp",
+      "if_call": "if isn't a function. To do different things, write if cond: on its own line with the actions indented below, then else:; to pick between two values write a if cond else b",
       "not_derived": "{name} isn't a derived value; modify only works on derived values",
       "not_runtime": "{name} isn't a runtime value (number or resource) and can't be changed by a script",
       "unexpected_indent": "Indentation is off: lines in one block must line up; only lines under if / elif / else are indented",
@@ -324,6 +326,56 @@
     "submitted": "Submitted",
     "waiting": "Waiting",
     "web_search": "Allow the keeper to search the web"
+  },
+  "ide": {
+    "close_tab": "Close",
+    "empty_hint": "Click “Script” in an entry table, or the ⤢ next to any formula, to open it here. You can have several open. “Find” below searches the whole pack.",
+    "empty_title": "Nothing open",
+    "n": {
+      "actions": "Actions",
+      "empty": "empty",
+      "self": "Yourself ({name})",
+      "set": "Set one of the target's values",
+      "target": "Target",
+      "this": "This entry ({name})"
+    },
+    "n_problems": "{n} problems",
+    "names_none": "Open a formula or script to see the names you can use; click one to insert it.",
+    "ok": "No problems",
+    "op": {
+      "add": "add",
+      "damage": "takes damage",
+      "modify": "timed modifier",
+      "set": "set",
+      "subtract": "subtract"
+    },
+    "open_here": "Open in the IDE",
+    "reveal": "Show where this is",
+    "search_count": "{n} found",
+    "search_cursor": "Name at cursor",
+    "search_ph": "A name or some text, e.g. mp_spent",
+    "toggle": "Show or hide the IDE",
+    "tool": {
+      "help": "Reference",
+      "names": "Names",
+      "search": "Find",
+      "try": "Try it"
+    },
+    "try_again": "Roll again",
+    "try_go_samples": "Go to Examples",
+    "try_minutes": "for {n} min",
+    "try_no_sample": "You need an example sheet of template {tpl} to act as the user. Add one under Examples.",
+    "try_none": "No target",
+    "try_nothing": "Nothing would happen (no condition held, or there is no target).",
+    "try_only_scripts": "Try it works on a skill script from an entry table: click a row's “Script” first.",
+    "try_run": "Run",
+    "try_self": "On yourself",
+    "try_target": "Target",
+    "try_user": "User",
+    "who": {
+      "self": "You",
+      "target": "Target"
+    }
   },
   "join": {
     "character": "Character",
@@ -533,6 +585,7 @@
     "fields": "Fields",
     "fields_hint": "Values and text on the sheet. The appearance field is required: other players' handles for this character are generated from it.",
     "formulas": "Named formulas",
+    "formulas_hint": "Formulas with a name that can be used anywhere, e.g. dex_bonus.",
     "g": {
       "effects": "Entries may carry modifiers and a skill script",
       "fields": "Header: columns every entry fills besides name and description",
@@ -545,6 +598,7 @@
       "placements": "Entries may be placed objects (traps, wards… left on the map)",
       "presets": "Fixed entries: rows filled in by the rules",
       "presets_hint": "Rows filled in from the header above, so players don't write them; entries players write are extra rows. When the condition is true the entry appears on the sheet and its effects apply; otherwise it doesn't appear. Conditions may only use this sheet's fields; text values need quotes, e.g. class == \"warrior\", class != \"warrior\" or class == \"warrior\" and str >= 3. Fixed entries don't count toward the min/max above.",
+      "settings": "More settings: switches and area shapes",
       "shapes": "Area shapes entries may have (for area attacks, beams…; leave all unticked if unused)",
       "timing": "Entries have a casting time and a cooldown (skills)",
       "untitled": "Untitled group"
@@ -559,7 +613,7 @@
       "column": "Column: {name}",
       "cooldown": "Cooldown (min)",
       "empty": "No entries yet. Use “+ Row” below.",
-      "hint": "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. Modifiers, the skill script and area shapes are under the row's “More”. Conditions may only use this sheet's fields; text needs double quotes, e.g. class = \"warrior\"; empty means always. Row order matters: modifiers on one value run top to bottom. Players fill the same columns for their own entries.",
+      "hint": "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. The “Script” button opens the entry's skill script in the IDE on the right; the ⤢ next to a formula cell opens it there too. Modifiers and area shapes are under the row's “More”. Conditions may only use this sheet's fields, e.g. class == \"warrior\"; empty means always. Row order matters: modifiers on one value run top to bottom. Players fill the same columns for their own entries.",
       "id": "ID (for references, optional)",
       "id_hint": "English ID, needed to refer to this entry in formulas: hero.fireball is whether it exists (1 or 0), hero.fireball.level is its level column. Must be unique on a sheet.",
       "id_ph": "e.g. fireball",
@@ -567,6 +621,12 @@
       "more": "More ({n})",
       "no_cd": "none",
       "param_cell": "chosen on use",
+      "script": "Script",
+      "script_add": "+ Script",
+      "script_bad": "The skill script has problems; click to see",
+      "script_col": "Skill script",
+      "script_empty": "No skill script yet; click to write one in the IDE",
+      "script_ok": "Open the skill script in the IDE",
       "timing_hint": "Cast time and cooldown are in minutes and may be formulas (24*60 is a day). Under 1 minute is instant; an action using the skill takes at least the cast time. Cooldown: after a use (hit or not) the skill can't be used again for this long.",
       "title": "Entry table",
       "when": "Condition"
@@ -583,6 +643,7 @@
       "move_speed": "Metres per minute. Required, e.g. 80 for an ordinary person, or 60 + agi * 2.",
       "perception_radius": "How far (in metres) this character notices others. Required, e.g. 50 + per, or a constant like 100."
     },
+    "how": "How it works",
     "hp_badge": "HP (required)",
     "import": "Import file",
     "kind": {
@@ -607,27 +668,39 @@
     "new": "New rule pack",
     "open": "Open",
     "order_matters_presets": "Note: the order of fixed entries matters; effects on the same value run top to bottom.",
+    "outline": "Contents",
+    "outline_other": "Rule pack",
+    "outline_text": "Rules text",
     "p": {
       "what": "One row of the table, i.e. one concrete entry (e.g. one skill). Name and description come with every row; each box further down is one column you added in the header above.",
       "when": "Condition (empty means always)"
     },
     "packs": "Rule packs",
     "path": {
+      "cast_time": "Cast time",
       "checks": "Check",
+      "condition": "Condition",
+      "cooldown": "Cooldown",
       "derived": "Derived value",
       "dice": "Dice",
       "effects": "Modifier",
       "fields": "Field",
+      "formula": "Formula",
       "formulas": "Named formula",
       "groups": "Group",
       "levels": "Result level",
+      "placement": "Placement",
       "player_entities": "Player entities",
       "presets": "Fixed entry",
       "samples": "Example",
+      "script": "Skill script",
       "tables": "Table",
       "target": "Target",
       "templates": "Template",
       "when": "Condition"
+    },
+    "pe": {
+      "template": "Template"
     },
     "ph": {
       "appearance_label": "e.g. Appearance",
@@ -645,6 +718,7 @@
       "formula_hear_distance": "e.g. 30 * hear_multiplier",
       "formula_hear_multiplier": "e.g. 1",
       "formula_move_speed": "e.g. 80",
+      "formula_name": "Name, e.g. dex_bonus",
       "formula_perception_radius": "e.g. 50 + per",
       "group_label": "e.g. Class skills",
       "group_max": "no limit",
@@ -662,6 +736,7 @@
       "max_resource": "e.g. hp_max; empty means no limit",
       "min": "e.g. 0",
       "per_minute": "empty means none, e.g. 1 or con / 2",
+      "sample_name": "Example name",
       "template_label": "e.g. Hero",
       "template_name": "e.g. hero",
       "unit": "optional, e.g. m",
@@ -676,11 +751,13 @@
     },
     "pick": "Choose a rule pack and version…",
     "player_entities": "Entities each player creates (template, min, max)",
+    "player_entities_hint": "Which kinds of character each player creates, and how many of each.",
     "problem_where": "{where}: ",
     "problems": "{n} problems; can't save a version yet (drafts are always fine)",
     "remove_template": "Remove template",
     "required_badge": "required",
     "rules_text": "Rules text (free text for the keeper)",
+    "rules_text_hint": "Rules text for the keeper: everything the pack can't express as formulas.",
     "sample_expected": "Expected values (name=value per line)",
     "sample_sheet": "Sample sheet (JSON)",
     "samples": "Worked examples",
@@ -710,6 +787,16 @@
       "description": "Description",
       "name": "Name",
       "sites": "Reference sites (one per line)"
+    },
+    "wb": {
+      "draft": "draft",
+      "fix_first": "Fix the problems before saving a version (drafts can always be saved)",
+      "gone": "This section no longer exists.",
+      "no_problems": "No problems",
+      "problems": "{n} problems",
+      "saved_at": "Saved {time}",
+      "untitled": "Untitled rule pack",
+      "version": "v{v}"
     },
     "world": "World"
   },

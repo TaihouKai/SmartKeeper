@@ -30,6 +30,7 @@ from smartkeeper.contracts import (
     RulePackDraft,
     RulePackInfo,
     RulePackVersion,
+    ScriptStep,
     ValidationFailed,
 )
 from smartkeeper.engine import kp_meta, public_meta
@@ -91,6 +92,25 @@ class TryOut(BaseModel):
     derived: list[DerivedValue]
     problems: list[Problem]
     sheet: JsonValue = None
+
+
+class ScriptTryIn(BaseModel):
+    """技能脚本试运行：使用者一张卡、对象一张卡（可以没有），条目这一行的列和使用时填写的数。"""
+
+    pack: RulePack
+    script: str
+    template: str
+    sheet: dict[str, JsonValue]
+    entry: dict[str, JsonValue] = {}
+    target_template: str | None = None
+    target_sheet: dict[str, JsonValue] | None = None
+
+
+class ScriptTryOut(BaseModel):
+    steps: list[ScriptStep]
+    problems: list[Problem]
+    # 双方此刻的值（字段和推导值），给界面算“从多少变成多少”
+    values: dict[str, dict[str, JsonValue]] = {}
 
 
 class FormulaIn(BaseModel):
@@ -332,6 +352,26 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
         derived = [] if problems else s.rules.derive(body.pack, body.template, sheet)
         return TryOut(derived=derived, problems=problems, sheet=sheet)
 
+    @guarded.post("/rulepacks/script/try")
+    def try_script(body: ScriptTryIn) -> ScriptTryOut:
+        """不进对局、不写日志：用例题卡把脚本规划一遍，看会执行哪些动作、掷出什么。"""
+        values: dict[str, dict[str, JsonValue]] = {}
+        try:
+            sheet = s.rules.init_sheet(body.pack, body.template, body.sheet)
+            values["self"] = _values(s, body.pack, body.template, sheet)
+            target = None
+            if body.target_template is not None and body.target_sheet is not None:
+                tsheet = s.rules.init_sheet(body.pack, body.target_template, body.target_sheet)
+                values["target"] = _values(s, body.pack, body.target_template, tsheet)
+                target = (body.target_template, tsheet, None)
+            steps = s.rules.plan_script(
+                body.pack, body.script, s.dice.faces, body.template, sheet, body.entry, None, target
+            )
+        except ValidationFailed as err:
+            found = err.problems or [Problem(code=err.code, params=err.params)]
+            return ScriptTryOut(steps=[], problems=list(found), values=values)
+        return ScriptTryOut(steps=list(steps), problems=[], values=values)
+
     @guarded.post("/rulepacks/formula")
     def formula(body: FormulaIn) -> FormulaOut:
         return FormulaOut(
@@ -511,3 +551,15 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
 
     r.include_router(guarded)
     return r
+
+
+def _values(s: Services, pack: RulePack, template: str, sheet: JsonValue) -> dict[str, JsonValue]:
+    """一张卡此刻的字段和推导值。"""
+    out: dict[str, JsonValue] = {}
+    if isinstance(sheet, dict):
+        fields = sheet.get("fields")
+        if isinstance(fields, dict):
+            out.update(fields)
+    if not s.rules.validate_sheet(pack, template, sheet):
+        out.update({d.name: d.value for d in s.rules.derive(pack, template, sheet)})
+    return out

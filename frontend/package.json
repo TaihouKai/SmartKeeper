@@ -12,6 +12,14 @@
     "gen:api": "openapi-typescript openapi.json -o src/api/schema.ts"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/lint": "^6.9.8",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/highlight": "^1.2.5",
     "maplibre-gl": "^4.7.1",
     "openapi-fetch": "^0.13.3",
     "react": "^18.3.1",

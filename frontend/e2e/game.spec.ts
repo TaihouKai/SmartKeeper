@@ -155,18 +155,28 @@ test("admin console login and panels render", async ({ page }) => {
   await page.getByLabel("Admin password").fill(PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page.getByRole("button", { name: "Games" })).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole("button", { name: "Rules" }).click();
+  // 规则工作台：左边目录，中间一节，右边 IDE
+  await page.locator(".wb-node", { hasText: "Derived values" }).first().click();
   await expect(page.getByText("How far (in metres) this character notices others").first()).toBeVisible();
   // 新的空白规则包：引擎必需的推导值公式还是空的，不能保存
-  await expect(page.getByText("can't save a version yet")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator(".wb-chip.bad")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: "Save as new version" })).toBeDisabled();
+  // 公式框右边的 ⤢ 在 IDE 里打开这一段
+  await page.locator(".sk-expand").first().click();
+  await expect(page.locator(".wb-ide-tab")).toHaveCount(1);
+  await expect(page.locator(".wb-cm .cm-content")).toBeVisible();
   // 没写完也能存草稿；草稿出现在规则包列表里
+  await page.locator(".wb-node", { hasText: "World" }).first().click();
   await page.getByLabel("Name", { exact: true }).first().fill("Unfinished e2e pack");
   await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByText(/Draft saved/)).toBeVisible();
-  await expect(page.locator(".sk-pack-picker option", { hasText: "Draft" }).first()).toBeAttached();
-  // 检定的骰子可以引用字段；公式速查能打开
-  await page.getByRole("button", { name: "Formula reference" }).click();
+  await expect(page.locator(".wb-saved")).toContainText("Saved");
+  await page.locator(".wb-pack").click();
+  await expect(page.locator(".wb-pop option", { hasText: "Draft" }).first()).toBeAttached();
+  await page.keyboard.press("Escape");
+  // 公式速查在 IDE 的工具里
+  await page.locator(".wb-ide-tooltabs button", { hasText: "Reference" }).click();
   await expect(page.getByText("Roll 4d6 and keep the highest 3")).toBeVisible();
   await shot(page, "admin-rules");
   await page.getByRole("button", { name: "Materials" }).click();

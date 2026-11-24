@@ -7,6 +7,14 @@
   --accent: #1f5fbf;
   --warn: #b3473a;
   --ok: #2f7d4f;
+  --wb-sunken: #eeebe3;
+  --cm-keyword: #7a3fc4;
+  --cm-string: #0f7b6c;
+  --cm-number: #b45309;
+  --cm-comment: #8b8a85;
+  --cm-call: #1f5fbf;
+  --cm-prop: #0e6c88;
+  --cm-op: #6b6b70;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -19,6 +27,14 @@
     --accent: #6aa0ff;
     --warn: #ff7b6b;
     --ok: #6cd39b;
+    --wb-sunken: #1c1d20;
+    --cm-keyword: #c5a3ff;
+    --cm-string: #72d6bd;
+    --cm-number: #f2b45f;
+    --cm-comment: #868b94;
+    --cm-call: #82b1ff;
+    --cm-prop: #6fd2e8;
+    --cm-op: #a0a0a8;
   }
 }
 * { box-sizing: border-box; }

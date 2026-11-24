@@ -58,7 +58,7 @@ export function AdminPage() {
     );
   }
   return (
-    <main className="sk-page sk-admin">
+    <main className={panel === "rules" ? "sk-page sk-admin sk-admin-full" : "sk-page sk-admin"}>
       <header className="sk-top">
         <h1>{t("admin.title")}</h1>
         <LangSwitch />

@@ -75,17 +75,11 @@ function Rows({ rows }: { rows: [string, string][] }) {
   );
 }
 
-/** 公式写法速查：侧边抽屉，编辑时可以一直开着。 */
-export function FormulaHelp({ onClose }: { onClose: () => void }) {
+/** 公式写法速查的内容（规则编辑器的 IDE 里一个标签页）。 */
+export function FormulaHelpBody() {
   const { t } = useI18n();
   return (
-    <aside className="sk-drawer" aria-label={t("fh.open")}>
-      <div className="sk-drawer-head">
-        <h3>{t("fh.open")}</h3>
-        <button className="sk-link" onClick={onClose}>
-          {t("fh.close")}
-        </button>
-      </div>
+    <div className="sk-fh">
       <h4>{t("fh.basic")}</h4>
       <Rows rows={BASICS} />
       <h4>{t("fh.dice")}</h4>
@@ -96,6 +90,6 @@ export function FormulaHelp({ onClose }: { onClose: () => void }) {
       <p className="sk-hint">{t("script.hint")}</p>
       <h4>{t("fh.functions")}</h4>
       <Rows rows={FUNCTION_SIGNATURES.map(([name, sig]) => [sig, `fh.fn.${name}`])} />
-    </aside>
+    </div>
   );
 }

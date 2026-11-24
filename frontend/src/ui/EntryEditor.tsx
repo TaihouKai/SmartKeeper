@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import type { ReactNode } from "react";
 import { FormulaInput, Mover, moved } from "./components";
+import { CodeEditor } from "./CodeEditor";
 
 type FieldDef = Schemas["FieldDef"];
 type GroupDef = Schemas["GroupDef"];
@@ -15,7 +16,7 @@ export type Entry = { name: string; id?: string; description: string; fields: Re
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
-export function FieldInput({ def, value, onChange, validateFormula }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check }) {
+export function FieldInput({ def, value, onChange, validateFormula, onExpand }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check; onExpand?: () => void }) {
   const { t } = useI18n();
   if (def.kind === "param") {
     // 使用时填写（例如这次消耗多少魔力）：建角时不填，行动里说
@@ -24,7 +25,7 @@ export function FieldInput({ def, value, onChange, validateFormula }: { def: Fie
   if (def.kind === "formula") {
     // 掷骰公式（例如伤害 1d str）：平时不算，KP 裁定时才掷
     return validateFormula ? (
-      <FormulaInput value={typeof value === "string" ? value : ""} validate={validateFormula} placeholder={t("rules.ph.dice")} onChange={(v) => onChange(v)} />
+      <FormulaInput value={typeof value === "string" ? value : ""} validate={validateFormula} placeholder={t("rules.ph.dice")} onChange={(v) => onChange(v)} onExpand={onExpand} />
     ) : (
       <input value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)} />
     );
@@ -196,10 +197,12 @@ export function EffectsEditor({
 /** 技能脚本：用这个条目（并且 KP 判定生效）时引擎执行的语句，一行一句。 */
 export function ScriptEditor({ script, validate, onChange }: { script: string; validate: Check; onChange: (s: string) => void }) {
   const { t } = useI18n();
+  const [problems, setProblems] = useState<string[]>([]);
   return (
     <div className="sk-effects sk-script">
       <strong>{t("script.title")}</strong>
-      <FormulaInput multiline value={script} validate={validate} placeholder={t("script.ph")} onChange={onChange} />
+      <CodeEditor className="sk-code-inline" value={script} check={validate} placeholder={t("script.ph")} minLines={4} onChange={onChange} onProblems={setProblems} />
+      {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
       <p className="sk-hint">{t("script.hint")}</p>
     </div>
   );

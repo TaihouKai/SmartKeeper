@@ -220,6 +220,25 @@ def desugar(text: str) -> str:
     return "".join(out)
 
 
+_IF_CALL = re.compile(r"(?<![\w.])(?:el)?if\s*\(")
+
+
+def _if_call(line: str) -> bool:
+    """这一行有没有 if(…, …) 这种把 if 当函数用的写法（括号里第一层有逗号）。"""
+    for m in _IF_CALL.finditer(line):
+        depth = 0
+        for c in line[m.end() - 1 :]:
+            if c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            elif c == "," and depth == 1:
+                return True
+    return False
+
+
 def syntax_error(e: SyntaxError, src: str, script: bool) -> FormulaError:
     """Python 的语法错误换成我们的代码；script 时带行号。"""
     msg = e.msg or ""
@@ -232,6 +251,9 @@ def syntax_error(e: SyntaxError, src: str, script: bool) -> FormulaError:
     lines = src.split("\n")
     at = lines[line - 1] if 0 < line <= len(lines) else ""
     col = (e.offset or 1) - 1
+    if _if_call(at):
+        # 旧写法 if(条件, a, b)：if 是 Python 的关键字，不能当函数
+        return FormulaError("script.if_call" if script else "formula.if_call", **extra)
     if "was never closed" in msg:
         return FormulaError("formula.unclosed", **extra)
     if msg.startswith("unmatched"):

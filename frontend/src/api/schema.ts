@@ -435,6 +435,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/rulepacks/script/try": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Try Script
+         * @description 不进对局、不写日志：用例题卡把脚本规划一遍，看会执行哪些动作、掷出什么。
+         */
+        post: operations["try_script_api_admin_rulepacks_script_try_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/rulepacks/try": {
         parameters: {
             query?: never;
@@ -2283,6 +2303,87 @@ export interface components {
             /** Seen */
             seen: components["schemas"]["SeenOut"][];
         };
+        /**
+         * ScriptStep
+         * @description 技能脚本的一句，数值已经算好（规划时掷骰、冻结使用者的值），生效时由引擎执行。
+         *
+         *     - who：self 使用者，target 使用时选的对象
+         *     - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值；
+         *       modify 给 field 这个推导值加一条限时修正（formula 是冻结好的新值公式）
+         *     - seconds：add 的限时（到期扣回加上去还剩下的部分）或 modify 的持续时间；None 表示永久
+         */
+        ScriptStep: {
+            /**
+             * Amount
+             * @default 0
+             */
+            amount: number;
+            /** Field */
+            field?: string | null;
+            /** Formula */
+            formula?: string | null;
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: "damage" | "add" | "subtract" | "set" | "modify";
+            /**
+             * Rolls
+             * @default []
+             */
+            rolls: number[];
+            /** Seconds */
+            seconds?: number | null;
+            /**
+             * Who
+             * @enum {string}
+             */
+            who: "self" | "target";
+        };
+        /**
+         * ScriptTryIn
+         * @description 技能脚本试运行：使用者一张卡、对象一张卡（可以没有），条目这一行的列和使用时填写的数。
+         */
+        ScriptTryIn: {
+            /**
+             * Entry
+             * @default {}
+             */
+            entry: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            pack: components["schemas"]["RulePack"];
+            /** Script */
+            script: string;
+            /** Sheet */
+            sheet: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Target Sheet */
+            target_sheet?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /** Target Template */
+            target_template?: string | null;
+            /** Template */
+            template: string;
+        };
+        /** ScriptTryOut */
+        ScriptTryOut: {
+            /** Problems */
+            problems: components["schemas"]["Problem"][];
+            /** Steps */
+            steps: components["schemas"]["ScriptStep"][];
+            /**
+             * Values
+             * @default {}
+             */
+            values: {
+                [key: string]: {
+                    [key: string]: components["schemas"]["JsonValue"];
+                };
+            };
+        };
         /** SearchRecord */
         SearchRecord: {
             /** Query */
@@ -3600,6 +3701,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RulePackVersion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    try_script_api_admin_rulepacks_script_try_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptTryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptTryOut"];
                 };
             };
             /** @description Validation Error */

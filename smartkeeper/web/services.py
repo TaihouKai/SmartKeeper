@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 
 from smartkeeper.chat import SqlChatStore
-from smartkeeper.contracts import LLMClient
+from smartkeeper.contracts import Dice, LLMClient
 from smartkeeper.engine import Engine
 from smartkeeper.kp import KP
 from smartkeeper.llm import SqlLLMCallLog
@@ -27,5 +27,6 @@ class Services:
     judge: LLMClient
     writer: LLMClient
     chat: SqlChatStore
+    dice: Dice  # 规则编辑器的试运行用；对局里的随机数只由 engine 产生
     scenarios_dir: str = "scenarios"
     base_url: str | None = None  # 没配置时邀请链接用管理员打开控制台时的地址

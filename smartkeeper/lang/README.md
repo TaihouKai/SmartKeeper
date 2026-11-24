@@ -193,6 +193,7 @@ self.sub(mp, 1)          # 不缩进：不管走哪一支都执行
 | `formula.syntax` | 别的语法错（Python 读不了） |
 | `formula.unclosed` / `formula.unmatched` / `formula.unclosed_string` | 括号没关上 / 多了右括号 / 引号没关上 |
 | `formula.single_equals` | 比较相等写成了单个 `=` |
+| `formula.if_call` / `script.if_call` | 把 `if` 当函数写成了 `if(条件, a, b)`；提示改成 `a if 条件 else b`，或者脚本里的 `if 条件:` 块 |
 | `formula.unsupported` | Python 的写法，但不在白名单里 |
 | `formula.chained_comparison` | 连写的比较中间那一项掷骰（会掷两次） |
 | `formula.unknown_function` / `formula.arity` | 没有这个函数 / 参数个数不对 |
