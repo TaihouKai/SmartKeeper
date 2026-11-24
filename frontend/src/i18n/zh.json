@@ -906,6 +906,7 @@
       "min": "例如 0",
       "per_minute": "留空表示不变，例如 1 或 con / 2",
       "sample_name": "例题名",
+      "table_rows": "一行一个：键,值\n例如 Saber,14",
       "template_label": "例如 主角",
       "template_name": "例如 hero",
       "unit": "可不填，例如 米",
@@ -939,6 +940,7 @@
       "name": "模板 ID（英文代号）"
     },
     "table": {
+      "bad_rows": "第 {lines} 行看不懂，没有存进去：写成 键,值，值要是数",
       "exact": "精确",
       "range": "区间"
     },

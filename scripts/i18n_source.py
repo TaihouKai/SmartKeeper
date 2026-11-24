@@ -864,6 +864,14 @@ T: dict[str, tuple[str, str]] = {
         "One row per line: key,value. Range tables take the largest key not above the input; exact tables need an exact match.",
     ),
     "rules.table.range": ("区间", "Range"),
+    "rules.ph.table_rows": (
+        "一行一个：键,值\n例如 Saber,14",
+        "One per line: key,value\ne.g. Saber,14",
+    ),
+    "rules.table.bad_rows": (
+        "第 {lines} 行看不懂，没有存进去：写成 键,值，值要是数",
+        "Line {lines} can't be read and isn't saved: write key,value with a number value",
+    ),
     "rules.table.exact": ("精确", "Exact"),
     "rules.checks": ("检定", "Checks"),
     "rules.c.name": ("检定名（英文代号，KP 用它调用）", "Check name (the keeper uses it)"),

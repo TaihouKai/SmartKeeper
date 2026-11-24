@@ -324,27 +324,59 @@ export function TablesSection({ pack, onChange }: { pack: Pack; onChange: (p: Pa
               {t("common.remove")}
             </button>
           </div>
-          <textarea
-            className="sk-code"
-            rows={5}
-            value={tb.rows.map(([k, v]) => `${k},${v}`).join("\n")}
-            onChange={(e) =>
-              tbl.update(i, {
-                ...tb,
-                rows: e.target.value
-                  .split("\n")
-                  .filter((l) => l.includes(","))
-                  .map((l) => {
-                    const [k = "", v = "0"] = l.split(",");
-                    const num = Number(k);
-                    return [k.trim() !== "" && !Number.isNaN(num) ? num : k.trim(), Number(v)] as [number | string, number];
-                  }),
-              })
-            }
-          />
+          <TableRows rows={tb.rows} onChange={(rows) => tbl.update(i, { ...tb, rows })} />
         </div>
       ))}
       <button onClick={() => tbl.add({ name: "", kind: "range", rows: [] })}>{t("common.add")}</button>
+    </>
+  );
+}
+
+type Row = Pack["tables"][number]["rows"][number];
+
+/** 一行 “键,值”：键是数或文字，值必须是数。看不懂的行返回 null。 */
+function parseRow(line: string): Row | null {
+  const at = line.lastIndexOf(",") >= 0 ? line.lastIndexOf(",") : line.lastIndexOf("，");
+  if (at < 0) return null;
+  const k = line.slice(0, at).trim();
+  const v = line.slice(at + 1).trim();
+  if (!k || v === "" || Number.isNaN(Number(v))) return null;
+  const num = Number(k);
+  return [Number.isNaN(num) ? k : num, Number(v)];
+}
+
+/** 表的内容：一行一个“键,值”。打的字原样留着（不会被改写、光标不会跳），能看懂的行才存进规则包；看不懂的行列出来。 */
+function TableRows({ rows, onChange }: { rows: Row[]; onChange: (rows: Row[]) => void }) {
+  const { t } = useI18n();
+  const asText = (r: Row[]) => r.map(([k, v]) => `${k},${v}`).join("\n");
+  const [text, setText] = useState(() => asText(rows));
+  // 外面换了（打开别的规则包、撤销）时才用规则包里的内容覆盖
+  useEffect(() => {
+    const mine = text.split("\n").map(parseRow).filter((x): x is Row => x !== null);
+    if (JSON.stringify(mine) !== JSON.stringify(rows)) setText(asText(rows));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
+  const bad = text
+    .split("\n")
+    .map((line, i) => ({ line, i }))
+    .filter(({ line }) => line.trim() && parseRow(line) === null);
+  return (
+    <>
+      <textarea
+        className={bad.length ? "sk-code invalid" : "sk-code"}
+        rows={Math.max(5, text.split("\n").length + 1)}
+        value={text}
+        placeholder={t("rules.ph.table_rows")}
+        onChange={(e) => {
+          setText(e.target.value);
+          onChange(e.target.value.split("\n").map(parseRow).filter((x): x is Row => x !== null));
+        }}
+      />
+      {bad.length > 0 && (
+        <small className="sk-invalid">
+          {t("rules.table.bad_rows", { lines: bad.map((b) => String(b.i + 1)).join(", ") })}
+        </small>
+      )}
     </>
   );
 }
