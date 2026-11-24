@@ -36,6 +36,7 @@ def plan_script(
     config: str = "",
     result: str = "",
     reacting: bool = False,
+    damage_kind: str = "",
 ) -> tuple[ScriptStep, ...]:
     try:
         nodes = f.parse_script(script)
@@ -72,7 +73,7 @@ def plan_script(
                 if isinstance(node, f.Statement):
                     if node.receiver == "target" and target is None:
                         continue
-                    steps.append(_step(ctx, lookup, faces, entry, node, local, prep))
+                    steps.append(_step(ctx, lookup, faces, entry, node, local, prep, damage_kind))
                     continue
                 for b in node.branches:
                     if b.condition is None:
@@ -102,6 +103,7 @@ def _step(
     st: f.Statement,
     local: dict[str, f.Value],
     prep: Callable[[str], f.Node],
+    damage_kind: str = "",
 ) -> ScriptStep:
     rolls: list[int] = []
 
@@ -135,6 +137,27 @@ def _step(
     assert st.amount is not None
     rolls.clear()
     amount = num(st.amount)
+    if st.verb == "damage":
+        kind = damage_kind
+        if st.kind is not None:
+            v = f.evaluate(prep(st.kind), ctx.resolver(entry, local), lookup, None, ctx.collect)
+            kind = str(v) if isinstance(v, str) else damage_kind
+        # 受伤的角色按自己模板的“受到伤害的公式”减免
+        hurt = ctx if st.receiver == "self" else ctx.target
+        taken = amount
+        if hurt is not None and hurt.template.damage_taken.strip():
+            v = hurt.eval(hurt.template.damage_taken, None, None, {"amount": amount, "kind": kind})
+            if isinstance(v, str):
+                raise f.FormulaError("formula.text_result", value=v)
+            taken = max(0.0, v)
+        return ScriptStep(
+            who=st.receiver,
+            op="damage",
+            amount=taken,
+            rolls=tuple(rolls),
+            kind=kind,
+            raw=amount,
+        )
     return ScriptStep(
         who=st.receiver,
         op=_OPS[st.verb],

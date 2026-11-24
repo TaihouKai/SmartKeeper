@@ -56,6 +56,9 @@ class ScriptStep(Frozen):
     rolls: tuple[int, ...] = ()
     seconds: int | None = None
     formula: str | None = None
+    # damage：伤害类型和减免前的数（amount 是按对象模板的“受到伤害的公式”算过的）
+    kind: str = ""
+    raw: float | None = None
 
 
 class Grant(Frozen):

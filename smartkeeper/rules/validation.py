@@ -28,6 +28,8 @@ from smartkeeper.rules import checkconfig, choices, skillconfig
 from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.sheets import init_sheet
 
+# 受到伤害的公式里能用的：原始伤害和伤害类型
+DAMAGE_VARS = ("amount", "kind")
 CHECK_VARS = ("roll", "natural", "target", "difficulty", "opp_roll", "opp_target")
 _ID = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 RESERVED_IDS = {"self", "this", "target", "template"}
@@ -165,6 +167,10 @@ def check_script(
             if st.verb == "modify" and st.field not in derived:
                 found.append(
                     Problem(code="script.not_derived", path=path, params={"name": st.field})
+                )
+            if st.kind is not None:
+                found += check_formula(
+                    pack, template, st.kind, path, entry_fields=entry_fields, extra=defined
                 )
             for arg in (st.amount, st.minutes):
                 if arg is not None:
@@ -429,6 +435,10 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
     for name in sorted(_dupes(g.name for g in tpl.groups)):
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
+    if tpl.damage_taken.strip():
+        problems += check_formula(
+            pack, tpl, tpl.damage_taken, f"{path}.damage_taken", extra=DAMAGE_VARS
+        )
     for name in [tpl.name, *(g.name for g in tpl.groups)]:
         if _keyword(name):
             problems.append(Problem(code="pack.reserved_name", path=path, params={"name": name}))

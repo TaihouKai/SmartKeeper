@@ -53,6 +53,14 @@ class RulesService:
             )
         if scope == "check":
             return validation.check_check(pack, formula, "check")
+        if scope == "damage":
+            return validation.check_formula(
+                pack,
+                pack.template(template) if template else None,
+                formula,
+                "formula",
+                extra=validation.DAMAGE_VARS,
+            )
         if scope == "config":
             tpl = pack.template(template) if template else None
             if tpl is None:
@@ -118,9 +126,21 @@ class RulesService:
         config: str = "",
         result: str = "",
         reacting: bool = False,
+        damage_kind: str = "",
     ) -> tuple[ScriptStep, ...]:
         return scripts.plan_script(
-            pack, script, faces, template, sheet, entry, peers, target, config, result, reacting
+            pack,
+            script,
+            faces,
+            template,
+            sheet,
+            entry,
+            peers,
+            target,
+            config,
+            result,
+            reacting,
+            damage_kind,
         )
 
     def skill_config(self, config: str, script: str = "") -> SkillConfig:
@@ -148,6 +168,8 @@ class RulesService:
         if scope == "script":
             names |= {f"{who}.{verb}" for who in f.RECEIVERS for verb in f.VERBS}
             names |= {"elif", "pass"}
+        if scope == "damage":
+            names |= set(validation.DAMAGE_VARS)
         if scope == "check":
             names |= (
                 set(checkconfig.KEYS) | set(checkconfig.VARS) | validation.all_field_names(pack)

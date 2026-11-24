@@ -319,6 +319,7 @@
       "amount_dice": "Amount: a formula, may roll dice, e.g. 2d6 + this.level",
       "angle": "Opening angle in degrees (a number)",
       "charges": "How many times it can trigger; unset means unlimited",
+      "damage_kind": "damage type, e.g. \"magic\"; defaults to the group's damage type. The one hurt applies their template's damage-taken formula",
       "derived": "The derived value to modify, e.g. move_speed",
       "duration": "Minutes it lasts; unset means until removed",
       "height_m": "Height in metres (a number)",
@@ -749,6 +750,8 @@
     "formulas": "Named formulas",
     "formulas_hint": "Formulas with a name that can be used anywhere, e.g. dex_bonus.",
     "g": {
+      "damage_kind": "Damage type",
+      "damage_kind_hint": "The type of damage that entries in this group (rule-written or player-written) deal in their scripts. The one hurt applies their template's damage-taken formula, e.g. set magic here and anti-magic applies.",
       "effects": "Entries may carry modifiers and a skill script",
       "fields": "Header: columns every entry fills besides name and description",
       "fields_hint": "Think of a group as a table: each row is an entry (one skill) and already has Name and Description columns. Add extra columns here, e.g. rank (number), mana cost (number), damage (dice formula). Fixed entries below and players' own entries fill in these columns. Leave empty if you need none.",
@@ -873,6 +876,8 @@
       "check_name": "e.g. perception",
       "choices": "e.g. red, blue, green (comma-separated; leave empty for free text)",
       "choices_number": "e.g. E=1, D=2, C=3, B=4, A=5, EX=10, or 1~5, 10 (empty for any number)",
+      "damage_kind": "e.g. magic; empty for none",
+      "damage_taken": "e.g. max(0, amount - 5 * anti_magic) if kind == \"magic\" else amount; empty = take it as is",
       "derived_label": "e.g. Max HP",
       "derived_name": "e.g. hp_max",
       "dice": "e.g. 1d100",
@@ -936,6 +941,8 @@
     "save_version": "Save as new version",
     "t": {
       "appearance": "Appearance field",
+      "damage_taken": "Damage taken",
+      "damage_taken_hint": "Each time a character of this template takes skill damage, the engine uses this to work out how much (never below 0). amount is the raw damage, kind its type (from the skill's group, or damage(amount, \"type\")). Resistances written here apply to every attack.",
       "label": "Shown to players as",
       "name": "Template ID"
     },

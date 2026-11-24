@@ -260,6 +260,7 @@ export function RulesPanel() {
         return (
           <FieldsSection
             tpl={tpl}
+            base={base}
             validate={validate}
             onChange={(x) => setTemplate(s.t, x)}
             onRemove={() => {

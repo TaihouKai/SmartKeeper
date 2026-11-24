@@ -5,7 +5,14 @@ export type Doc = { sig: string; desc: string; params?: [string, string][] };
 
 /** 技能脚本的动作（self. / target. 后面的名字）。和后端 lang/script.py 的 VERBS 对应。 */
 const VERBS: Record<string, Doc> = {
-  damage: { sig: "damage(amount)", desc: "doc.verb.damage", params: [["amount", "doc.p.amount_dice"]] },
+  damage: {
+    sig: 'damage(amount, kind="")',
+    desc: "doc.verb.damage",
+    params: [
+      ["amount", "doc.p.amount_dice"],
+      ["kind", "doc.p.damage_kind"],
+    ],
+  },
   add: {
     sig: "add(field, amount, minutes=None)",
     desc: "doc.verb.add",

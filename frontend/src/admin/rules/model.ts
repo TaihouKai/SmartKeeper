@@ -43,6 +43,7 @@ export function blankTemplate(name: string, t: T): Template {
       { name: HP_FIELD, label: defaultLabel(t, HP_FIELD), description: "", kind: "resource", cls: "runtime", min: "0", initial: "10", required: true, hidden: false, choices: [], vital: true },
     ],
     groups: [],
+    damage_taken: "",
     derived: REQUIRED_DERIVED.map((n) => ({
       name: n,
       label: defaultLabel(t, n),
@@ -54,7 +55,7 @@ export function blankTemplate(name: string, t: T): Template {
 }
 
 export function blankGroup(): Group {
-  return { name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: true, timing: true, reactions: true };
+  return { name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: true, timing: true, reactions: true, damage_kind: "" };
 }
 
 /** 以前存的规则包可能缺少后来新增的引擎必需项（能否飞行字段、飞行速度等推导值）：打开时补上默认的；必需项的显示名空着就填默认的。 */
@@ -205,6 +206,7 @@ export function docFor(pack: Pack, path: string): Doc | null {
   if (!tpl) return null;
   const template = tpl.name;
   if (s[2] === "derived" && s[4] === "formula") return { path, kind: "formula", template };
+  if (s[2] === "damage_taken") return { path, kind: "formula", template, scope: "damage" };
   if (s[2] === "fields" && TEMPLATE_FORMULA_KEYS.has(String(s[4]))) return { path, kind: "formula", template };
   if (s[2] !== "groups" || typeof s[3] !== "number") return null;
   const g = tpl.groups?.[s[3]];

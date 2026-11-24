@@ -3,7 +3,7 @@ import { builtinDoc } from "./codeDocs";
 
 describe("builtinDoc", () => {
   it("finds actions, functions, settings and constructor parameters", () => {
-    expect(builtinDoc("target.damage", null, false)?.doc.sig).toBe("damage(amount)");
+    expect(builtinDoc("target.damage", null, false)?.doc.sig).toBe('damage(amount, kind="")');
     expect(builtinDoc("self.add", null, false)?.doc.params?.map(([p]) => p)).toEqual(["field", "amount", "minutes"]);
     expect(builtinDoc("max", null, false)?.doc.desc).toBe("fh.fn.max");
     expect(builtinDoc("range", null, true)?.doc.desc).toBe("config.c.range");

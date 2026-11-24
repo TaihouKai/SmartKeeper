@@ -1444,6 +1444,25 @@ T: dict[str, tuple[str, str]] = {
         "Set a runtime value, clamped to its limits",
     ),
     "doc.verb.modify": ("限时修正一个推导值，到期消失", "Modify a derived value for a while"),
+    "doc.p.damage_kind": (
+        '伤害类型，例如 "magic"；不写就用这个技能所在分组的伤害类型。受伤的一方按自己模板的“受到伤害的公式”减免',
+        "damage type, e.g. \"magic\"; defaults to the group's damage type. The one hurt applies their template's damage-taken formula",
+    ),
+    "rules.t.damage_taken": ("受到伤害的公式", "Damage taken"),
+    "rules.ph.damage_taken": (
+        '例如 max(0, amount - 5 * anti_magic) if kind == "magic" else amount；空着就是原样受伤',
+        'e.g. max(0, amount - 5 * anti_magic) if kind == "magic" else amount; empty = take it as is',
+    ),
+    "rules.t.damage_taken_hint": (
+        '这个模板的角色每次受到技能伤害时，引擎用这条公式算实际受到多少（不会小于 0）。amount 是原始伤害，kind 是伤害类型（技能所在分组设的，或 damage(数量, "类型") 写的）。对魔力、护甲、各种抗性写在这里，就对所有攻击生效，不用每个技能各写一遍。',
+        'Each time a character of this template takes skill damage, the engine uses this to work out how much (never below 0). amount is the raw damage, kind its type (from the skill\'s group, or damage(amount, "type")). Resistances written here apply to every attack.',
+    ),
+    "rules.g.damage_kind": ("伤害类型", "Damage type"),
+    "rules.ph.damage_kind": ("例如 magic；空着表示没有类型", "e.g. magic; empty for none"),
+    "rules.g.damage_kind_hint": (
+        "这个分组里的条目（规则写的和玩家自己写的都算）在技能脚本里造成的伤害是什么类型。受伤的一方按自己模板的“受到伤害的公式”减免，例如魔术分组填 magic，对魔力就会对它生效。",
+        "The type of damage that entries in this group (rule-written or player-written) deal in their scripts. The one hurt applies their template's damage-taken formula, e.g. set magic here and anti-magic applies.",
+    ),
     "doc.p.amount_dice": (
         "数量，公式，可以掷骰，例如 2d6 + this.level",
         "Amount: a formula, may roll dice, e.g. 2d6 + this.level",

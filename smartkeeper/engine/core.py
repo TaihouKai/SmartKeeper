@@ -1592,6 +1592,8 @@ class Engine:
                     tgt,
                     parsed.config,
                     result,
+                    False,
+                    gdef.damage_kind if gdef else "",
                 )
             )
             actions: list[JsonValue] = [
@@ -1916,6 +1918,13 @@ class Engine:
             )
         return out
 
+    @staticmethod
+    def _group_kind(pack: RulePack, template: str, group: str) -> str:
+        """分组的伤害类型（damage 不写类型时用它）。"""
+        tpl = pack.template(template)
+        g = next((x for x in tpl.groups if x.name == group), None) if tpl else None
+        return g.damage_kind if g else ""
+
     def _check_label(self, pack: RulePack, name: str) -> str:
         try:
             return self._rules.check_spec(pack, name).label or name
@@ -1960,7 +1969,7 @@ class Engine:
         found = self._entry_on(state, pack, source, entry)
         if found is None:
             raise NotFound("roll.unknown_entry", entity=source, entry=entry)
-        s_tpl, s_sheet, s_peers, _g, row = found
+        s_tpl, s_sheet, s_peers, s_group, row = found
         cfg = self._cfg(row)
         fields = {**_obj(row.get("fields")), **_obj(p.get("params"))}
         d_ent = self._entity(state, defender)
@@ -2048,6 +2057,7 @@ class Engine:
                 str(rrow.get("config") or ""),
                 r_level,
                 True,
+                g.damage_kind,
             )
             negated = any(st.op == "negate" and st.who == "self" for st in rsteps)
             reaction = {
@@ -2117,6 +2127,8 @@ class Engine:
                 (d_tpl, d_sheet, d_peers),
                 str(row.get("config") or ""),
                 result,
+                False,
+                self._group_kind(pack, s_tpl, s_group),
             )
             if hit
             else ()

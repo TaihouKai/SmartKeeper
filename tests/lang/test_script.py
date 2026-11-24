@@ -47,7 +47,7 @@ def test_optional_minutes_and_strings() -> None:
         ("self = 5", "script.bad_variable", 1),
         ("self.hp", "script.bad_statement", 1),
         ("self.add(hp)", "script.arity", 1),
-        ("self.damage(1, 2)", "script.arity", 1),
+        ("self.damage(1, 2, 3)", "script.arity", 1),
         ("self.damage(amount=2)", "script.arity", 1),
         ("target.add(target.hp, 1)", "script.field_arg", 1),
         ("self.damage(1 +)", "formula.syntax", 1),

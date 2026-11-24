@@ -54,8 +54,10 @@ export function WorldSection({ pack, onChange }: { pack: Pack; onChange: (p: Pac
 }
 
 /** 模板：ID、显示名和字段列表。 */
-export function FieldsSection({ tpl, onChange, onRemove, validate, mover }: { tpl: Template; onChange: (t: Template) => void; onRemove: () => void; validate: Validate; mover: ReactNode }) {
+export function FieldsSection({ tpl, onChange, onRemove, validate, mover, base }: { tpl: Template; onChange: (t: Template) => void; onRemove: () => void; validate: Validate; mover: ReactNode; base: string }) {
   const { t } = useI18n();
+  const wb = useWorkbench();
+  const vDamage = useCallback((f: string) => validate(f, tpl.name, undefined, "damage"), [validate, tpl.name]);
   const fields = tpl.fields ?? [];
   const ed = useListEdit(fields, (f) => onChange({ ...tpl, fields: f }));
   const v = useCallback((f: string) => validate(f, tpl.name), [validate, tpl.name]);
@@ -87,6 +89,11 @@ export function FieldsSection({ tpl, onChange, onRemove, validate, mover }: { tp
           </label>
         </div>
         <p className="wb-hint">{t("rules.template_hint")}</p>
+        <label title={t("rules.t.damage_taken_hint")}>
+          {t("rules.t.damage_taken")}
+          <FormulaInput value={tpl.damage_taken ?? ""} validate={vDamage} placeholder={t("rules.ph.damage_taken")} onChange={(x) => onChange({ ...tpl, damage_taken: x })} onExpand={() => wb.open(`${base}.damage_taken`)} />
+        </label>
+        <p className="wb-hint">{t("rules.t.damage_taken_hint")}</p>
       </div>
       {fields.map((f: Field, i) => (
         <FieldCard
@@ -203,6 +210,11 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
               {flag("reactions", true, t("rules.g.reactions"))}
               {flag("hidden", false, t("rules.g.hidden"))}
             </div>
+            <label className="wb-damage-kind" title={t("rules.g.damage_kind_hint")}>
+              {t("rules.g.damage_kind")}
+              <input value={g.damage_kind ?? ""} placeholder={t("rules.ph.damage_kind")} onChange={(e) => onChange({ ...g, damage_kind: e.target.value.trim() })} />
+            </label>
+            <p className="wb-hint">{t("rules.g.damage_kind_hint")}</p>
             <div className="wb-shapes">
               <span className="sk-hint">{t("rules.g.shapes")}</span>
               {SHAPES.map((s) => (

@@ -107,6 +107,8 @@ class GroupDef(Frozen):
     placements: bool = True  # 条目是否可以是设置物（陷阱、结界等）
     timing: bool = True  # 条目是否有施放时间和冷却时间（技能）
     reactions: bool = True  # 条目可以当反应（被攻击时用来应对；只有瞬发的才行）
+    # 这个分组的条目在技能脚本里造成的伤害是什么类型（例如 magic）；damage(数量, "类型") 可以单独指定
+    damage_kind: str = ""
     hidden: bool = False
 
 
@@ -125,6 +127,9 @@ class EntityTemplate(Frozen):
     fields: tuple[FieldDef, ...] = ()
     groups: tuple[GroupDef, ...] = ()
     derived: tuple[DerivedDef, ...] = ()
+    # 受到伤害的公式：在受伤的角色身上算，amount 是原始伤害、kind 是伤害类型，结果就是实际受到的伤害
+    # （不会小于 0）。例如 max(0, amount - 5 * anti_magic) if kind == "magic" else amount。空表示原样受伤
+    damage_taken: str = ""
 
 
 class PlayerEntities(Frozen):

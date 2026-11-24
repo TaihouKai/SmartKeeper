@@ -551,3 +551,30 @@ def test_number_choices(rules: RulesService) -> None:
     ranged = with_field(("1~5", "10"))
     s = {**sheet, "fields": {**sheet["fields"], "rank": 6}}  # type: ignore[dict-item]
     assert "sheet.choice" in [p.code for p in rules.validate_sheet(ranged, "person", s)]
+
+
+def test_damage_kinds_and_damage_taken(rules: RulesService) -> None:
+    from tests.fixtures import FakeDice
+
+    pack = load_pack("single")
+    tpl = pack.templates[0]
+    tpl = tpl.model_copy(
+        update={"damage_taken": 'max(0, amount - 5 * per / 10) if kind == "magic" else amount'}
+    )
+    pack = pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+    assert rules.validate_pack(pack) == []
+    sheet = rules.init_sheet(pack, "person", pack.samples[0].sheet)  # per = 40：魔力伤害减 20
+    tgt = ("person", sheet, None)
+
+    def plan(script: str, kind: str = "") -> list[tuple[float, str, float | None]]:
+        steps = rules.plan_script(
+            pack, script, FakeDice().faces, "person", sheet, {}, None, tgt, "", "", False, kind
+        )
+        return [(s.amount, s.kind, s.raw) for s in steps]
+
+    assert plan("target.damage(30)") == [(30, "", 30)]
+    assert plan("target.damage(30)", kind="magic") == [(10, "magic", 30)]  # 分组的类型
+    assert plan('target.damage(15, "magic")') == [(0, "magic", 15)]  # 单独指定；不会小于 0
+    assert plan('target.damage(30, "physical")', kind="magic") == [(30, "physical", 30)]
+    bad = rules.validate_formula(pack, "person", "amount * nope", None, "damage")
+    assert [p.code for p in bad] == ["formula.unknown_name"]

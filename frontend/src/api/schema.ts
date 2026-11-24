@@ -1349,6 +1349,11 @@ export interface components {
              */
             appearance_field: string;
             /**
+             * Damage Taken
+             * @default
+             */
+            damage_taken: string;
+            /**
              * Derived
              * @default []
              */
@@ -1486,7 +1491,7 @@ export interface components {
             problems: components["schemas"]["Problem"][];
         };
         /** @enum {string} */
-        FormulaScope: "any_entity" | "dice" | "script" | "config" | "check";
+        FormulaScope: "any_entity" | "dice" | "script" | "config" | "check" | "damage";
         /** Game */
         Game: {
             /** Current Round */
@@ -1565,6 +1570,11 @@ export interface components {
          *     条目有两种来源：玩家建角时自己写的（数量受 min/max_count 限制），和 presets 里满足条件的固定条目。
          */
         GroupDef: {
+            /**
+             * Damage Kind
+             * @default
+             */
+            damage_kind: string;
             /**
              * Effects
              * @default true
@@ -2459,10 +2469,17 @@ export interface components {
             /** Formula */
             formula?: string | null;
             /**
+             * Kind
+             * @default
+             */
+            kind: string;
+            /**
              * Op
              * @enum {string}
              */
             op: "damage" | "add" | "subtract" | "set" | "modify" | "negate";
+            /** Raw */
+            raw?: number | null;
             /**
              * Rolls
              * @default []

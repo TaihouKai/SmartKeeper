@@ -177,6 +177,7 @@ class Rules(Protocol):
         config: str = "",
         result: str = "",
         reacting: bool = False,
+        damage_kind: str = "",
     ) -> tuple[ScriptStep, ...]:
         """技能脚本（config 是同一条目的技能设置，脚本里可以用它的各项）：在使用者的角色卡和这个条目（entry 是它的列，含这次使用时填写的数）上，
         掷骰算好每一句的数值；modify 的公式除了被修正的推导值自己，其余名字都换成此刻的值。
@@ -256,7 +257,7 @@ type Faces = Callable[[int, int], tuple[int, ...]]
 
 # 同一个玩家控制的其他实体：模板名 -> 角色卡；同一个模板有不止一个时为 None（引用它会报错）
 type Peers = Mapping[str, JsonValue | None]
-type FormulaScope = Literal["any_entity", "dice", "script", "config", "check"]
+type FormulaScope = Literal["any_entity", "dice", "script", "config", "check", "damage"]
 
 
 class Dice(Protocol):

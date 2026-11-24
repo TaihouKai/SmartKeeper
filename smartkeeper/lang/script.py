@@ -34,7 +34,7 @@ RECEIVERS: tuple[Receiver, ...] = ("self", "target")
 
 # 动作 -> 参数：field 是字段名，其余是公式；? 表示可以不写
 VERBS: dict[str, tuple[str, ...]] = {
-    "damage": ("amount",),
+    "damage": ("amount", "kind?"),  # 类型不写时用条目所在分组的伤害类型
     "add": ("field", "amount", "minutes?"),
     "sub": ("field", "amount"),
     "set": ("field", "amount"),
@@ -54,6 +54,7 @@ class Statement:
     amount: str | None = None
     formula: str | None = None
     minutes: str | None = None
+    kind: str | None = None  # damage 的伤害类型（公式，通常是一段文字）
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +132,7 @@ def _statement(call: ast.Call, line: int, src: str) -> Statement:
         amount=got.get("amount"),
         formula=got.get("formula"),
         minutes=got.get("minutes"),
+        kind=got.get("kind"),
     )
 
 
