@@ -13,7 +13,7 @@ from smartkeeper.contracts.events import Audience, Event, EventType, NewEvent
 from smartkeeper.contracts.game import RoundStatus
 from smartkeeper.contracts.geometry import Point
 from smartkeeper.contracts.rulepack import RulePack, RulePackDraft, RulePackInfo, RulePackVersion
-from smartkeeper.contracts.sheet import DerivedValue, ScriptStep
+from smartkeeper.contracts.sheet import DerivedValue, ScriptStep, SkillConfig
 from smartkeeper.contracts.spatial import (
     Body,
     Handle,
@@ -174,6 +174,10 @@ class Rules(Protocol):
         没有对象（target 为 None）时跳过作用在 target 上的句子。出错抛 ValidationFailed。"""
         ...
 
+    def skill_config(self, config: str) -> SkillConfig:
+        """条目的技能设置文本解析成 SkillConfig（没写的项取默认）。写错抛 ValidationFailed。"""
+        ...
+
     def resolve_check(
         self,
         pack: RulePack,
@@ -236,7 +240,7 @@ type Faces = Callable[[int, int], tuple[int, ...]]
 
 # 同一个玩家控制的其他实体：模板名 -> 角色卡；同一个模板有不止一个时为 None（引用它会报错）
 type Peers = Mapping[str, JsonValue | None]
-type FormulaScope = Literal["any_entity", "dice", "script"]
+type FormulaScope = Literal["any_entity", "dice", "script", "config"]
 
 
 class Dice(Protocol):

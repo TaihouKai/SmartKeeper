@@ -162,7 +162,32 @@ self.sub(mp, 1)          # 不缩进：不管走哪一支都执行
 
 ---
 
-## 三、名字指什么
+## 三、技能设置
+
+条目的另一半：引擎在 KP 之前就按它检查和执行，不用 KP 判断。一行一项，`名字 = 值`；在 IDE 里打开条目时，这个分组用得上的项会预先填好。
+
+```
+target = "single"                # single 要选一个对象 / self 只能对自己用 / none 没有对象
+range = 30 + this.level * 5      # 射程（米）；None 表示不限
+visible = True                   # 对象必须在使用者此刻的感知里
+requires = not silenced          # 使用条件，不成立就不能用
+noise = 20                       # 动静范围（米）：范围内的其他玩家会察觉到有人用了它
+cast_time = 0.5                  # 施放时间（分钟），不到 1 算瞬发
+cooldown = 60                    # 冷却（分钟）
+shape = cone(length=10, angle=60)
+placement = placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True)
+```
+
+- 语法是 Python 的赋值（`lang/config.py` 解析）；值可以是公式（能用 `this.列`），`None` 表示不设，没写的项取默认。
+- 有哪些项、值是什么类型在 `rules/skillconfig.py`；公式不能掷骰。
+- 范围形状：`sphere(radius=)`、`cone(length=, angle=)`、`capsule(length=, width=)`、`box(length=, width=, height=)`，参数是数字（米、度）。分组要允许这种形状。
+- 设置物：`placement(radius=, perceive=, charges=, duration=, notify=)`，radius 必填；duration 按分钟。分组要打开“可以是设置物”。
+- `cast_time`、`cooldown` 要分组打开“有施放时间和冷却时间”。
+- 引擎怎么用：KP 声明使用时，引擎按 `target` 定对象（self / none 时不看 KP 给的对象，single 不给对象就拒绝），检查 `requires`、`range`（按地图距离）、`visible`（按感知），不满足就拒绝（`use.requires`、`use.out_of_range`、`use.not_perceived`）；`noise` 范围内其他玩家在回合发布时收到一条 `entry_noticed`（看得见使用者的还知道是谁）。
+
+---
+
+## 四、名字指什么
 
 名字的写法是 `字母或下划线开头，后面跟字母、数字、下划线`，可以用 `.` 连起来。中文也算字母，但规则包里建议用英文。名字的含义由 `rules` 决定：
 
@@ -183,7 +208,7 @@ self.sub(mp, 1)          # 不缩进：不管走哪一支都执行
 
 ---
 
-## 四、出错代码
+## 五、出错代码
 
 解析和校验的问题用代码报给前端，前端翻译成说明（翻译在 `scripts/i18n_source.py` 的 `codes.*`）。技能脚本的问题都带 `line`（第几行）。Python 的语法错误换成下面的代码。
 
@@ -209,11 +234,13 @@ self.sub(mp, 1)          # 不缩进：不管走哪一支都执行
 | `script.arity` / `script.field_arg` | 参数个数不对 / 字段参数不是一个简单的名字 |
 | `script.unexpected_indent` | 缩进不对：同一段没对齐，或不在 `if` / `elif` / `else` 下面却缩进了 |
 | `script.empty_block` | `if` / `elif` / `else` 下面没有缩进的行（空着就写 `pass`） |
+| `config.bad_line` / `config.duplicate` / `config.unknown_key` | 技能设置：不是 `名字 = 值` / 写了两次 / 没有这一项 |
+| `config.bad_value` / `config.bad_call` / `config.bad_arg` / `config.missing_arg` / `config.call_keywords` | 技能设置：值的类型不对 / 构造的名字不对 / 参数不对 / 少了参数 / 参数没写成 `名字=值` |
 | `script.not_runtime` / `script.not_derived` | `add` / `sub` / `set` 的字段不是运行值；`modify` 的不是推导值 |
 
 ---
 
-## 五、给开发者
+## 六、给开发者
 
 - `parse(text)` → 公式树（`Num`、`Str`、`Name`、`Unary`、`Binary`、`Call`、`Dice`），出错抛 `FormulaError(code, **params)`。解析结果有缓存。
   - 过程：`desugar` 把 `3d6` 这类写法改成 `dice(3, 6)` → `ast.parse(mode="eval")` → `convert` 按白名单把 Python 的树换成公式树。
@@ -223,4 +250,5 @@ self.sub(mp, 1)          # 不缩进：不管走哪一支都执行
 - `names` / `tables` / `lists`：公式里引用的名字、表、分组；`has_dice`：有没有掷骰。
 - `substitute(node, fn)`：把名字换成别的公式树（`this.<掷骰公式列>` 的展开用它）。`to_text(node, values)`：写回能被 `parse` 读回来的文本，并把一些名字换成值（冻结用它）。
 - `parse_script(text)` → `ScriptNode`（`Statement` 或 `If`）的元组，用 `ast.parse(mode="exec")`。`Statement`：行号、对象、动作和参数（写成 `to_text` 的文本）。`If`：一串 `Branch`（行号、条件原文或 `None`、分支里的语句）。`statements(nodes)` 列出所有分支里的动作句。
+- `parse_config(text)` → `Setting` 的元组：行号、名字、值的公式文本；构造（`sphere(radius=5)`）时是构造名和各参数的公式文本。
 - 改语法时，同时改：这份说明、前端“公式速查”（`frontend/src/ui/FormulaHelp.tsx`，函数表有测试保证和 `FUNCTIONS` 一致）、`tests/lang`。存下来的公式要跟着改写法时加一个迁移（参考 `web/migrations/versions/0005_python_syntax.py`：旧解析器读、`to_text` 写）。

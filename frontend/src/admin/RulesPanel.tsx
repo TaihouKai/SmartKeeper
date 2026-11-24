@@ -7,7 +7,8 @@ import { useAction, usePoll } from "../ui/hooks";
 import type { Validate } from "./fieldCard";
 import { WorkbenchProvider } from "./rules/ctx";
 import { Ide } from "./rules/ide/Ide";
-import { blankGroup, blankPack, blankTemplate, describePath, docFor, renameTemplate, selForPath, selKey, withEngineDefaults, type Pack, type Sel } from "./rules/model";
+import { blankGroup, blankPack, blankTemplate, describePath, docFor, getAt, openPath, renameTemplate, selForPath, selKey, setAt, withEngineDefaults, type Pack, type Sel } from "./rules/model";
+import { fillConfig } from "../ui/skillConfig";
 import { Outline } from "./rules/Outline";
 import { ChecksSection, DerivedSection, FieldsSection, FormulasSection, GroupSection, PlayersSection, SamplesSection, TablesSection, TextSection, WorldSection } from "./rules/sections";
 import "./rules/workbench.css";
@@ -185,11 +186,23 @@ export function RulesPanel() {
     setNavOpen(false);
     contentRef.current?.scrollTo({ top: 0 });
   };
-  const openDoc = useCallback((path: string) => {
-    setDocs((d) => (d.includes(path) ? d : [...d, path]));
-    setActive(path);
-    setIdeOpen(true);
-  }, []);
+  const openDoc = useCallback(
+    (raw: string) => {
+      const path = openPath(raw);
+      // 条目的技能设置：这个分组用得上的项预先填好（已有的不动）
+      setPack((p) => {
+        const d = docFor(p, path);
+        if (d?.kind !== "entry" || !d.entry) return p;
+        const cur = String(getAt(p, `${path}.config`) ?? "");
+        const next = fillConfig(cur, p.templates[d.entry.t]?.groups?.[d.entry.g] ?? {}, t);
+        return next === cur ? p : setAt(p, `${path}.config`, next);
+      });
+      setDocs((d) => (d.includes(path) ? d : [...d, path]));
+      setActive(path);
+      setIdeOpen(true);
+    },
+    [t],
+  );
   const closeDoc = (path: string) => {
     const i = docs.indexOf(path);
     const next = docs.filter((p) => p !== path);

@@ -6,7 +6,7 @@ import copy
 import hashlib
 import secrets
 import threading
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -59,7 +59,6 @@ from smartkeeper.contracts import (
     Place,
     Placement,
     PlacementSeen,
-    PlacementSpec,
     Player,
     Point,
     PresenceEntry,
@@ -74,6 +73,7 @@ from smartkeeper.contracts import (
     SeenEntry,
     SheetSubmission,
     SheetView,
+    SkillConfig,
     Spatial,
     SpatialQuery,
     SpatialQueryResult,
@@ -1225,7 +1225,7 @@ class Engine:
                     (str(gname), _obj(e))
                     for gname, entries in _obj(sheet.get("groups")).items()
                     for e in (entries if isinstance(entries, list) else [])
-                    if _obj(e).get("name") == pin.entry and _obj(e).get("placement")
+                    if _obj(e).get("name") == pin.entry and self._cfg(_obj(e)).placement
                 ),
                 None,
             )
@@ -1235,7 +1235,8 @@ class Engine:
                 )
                 continue
             gname, row = found
-            spec = PlacementSpec.model_validate(row["placement"])
+            spec = self._cfg(row).placement
+            assert spec is not None
             fields = dict(_obj(row.get("fields")))
             tpl = pack.template(template)
             gdef = next((x for x in tpl.groups if x.name == gname), None) if tpl else None
@@ -1452,6 +1453,14 @@ class Engine:
                 raise ValidationFailed("use.dead", entity=source)
             if COOLDOWN_TAG + parsed.name in tags:
                 raise ValidationFailed("use.cooling_down", entity=source, entry=parsed.name)
+            cfg = self._cfg(row)
+            # 对象由技能设置决定：只能对自己用的没有选择，没有对象的不要对象
+            if cfg.target == "self":
+                target = source
+            elif cfg.target == "none":
+                target = None
+            elif target is None:
+                raise ValidationFailed("use.needs_target", entity=source, entry=parsed.name)
             fields = dict(parsed.fields)
             gdef = next((g for g in tpl.groups if g.name == gname), None) if tpl else None
             spends = self._use_params(pack, template, sheet, gdef, fields, params, entry, peers)
@@ -1470,6 +1479,12 @@ class Engine:
                 return self._rules.roll(
                     pack, text, self._dice.faces, template, sheet, fields, peers, tgt
                 )
+
+            if cfg.requires.strip() and roll(cfg.requires).total == 0:
+                raise ValidationFailed(
+                    "use.requires", entity=source, entry=parsed.name, formula=cfg.requires
+                )
+            heard = self._reach_checks(game_id, state, pack, source, target, cfg, roll, parsed.name)
 
             # 技能脚本：现在就掷骰算好；每一步记下落在哪个实体身上
             steps = self._rules.plan_script(
@@ -1490,13 +1505,72 @@ class Engine:
                     "params": cast(JsonValue, dict(params)),
                     "spends": spends,
                     "actions": actions,
-                    "cooldown": int(roll(parsed.cooldown).total * 60)
-                    if parsed.cooldown.strip()
-                    else 0,
+                    "cooldown": int(roll(cfg.cooldown).total * 60) if cfg.cooldown.strip() else 0,
+                    "heard_by": cast(JsonValue, heard),
                     "reason": reason,
                 },
             )
             return self._events.append(game_id, r.no, [ev])[0]
+
+    def _cfg(self, row: dict[str, JsonValue]) -> SkillConfig:
+        """角色卡上一个条目的技能设置；写错的（校验会报）当作默认设置。"""
+        try:
+            return self._rules.skill_config(str(row.get("config") or ""))
+        except ValidationFailed:
+            return SkillConfig()
+
+    def _reach_checks(
+        self,
+        game_id: str,
+        state: State,
+        pack: RulePack,
+        source: str,
+        target: str | None,
+        cfg: SkillConfig,
+        roll: Callable[[str], DiceResult],
+        entry: str,
+    ) -> list[str]:
+        """射程、对象要在感知里：不满足就不能用。返回会察觉到动静的玩家（不含使用者自己的玩家）。"""
+        need_space = (
+            target is not None and target != source and (cfg.range.strip() or cfg.visible)
+        ) or cfg.noise.strip()
+        if not need_space:
+            return []
+        space = self._space_for(self._map(game_id), state, pack)
+        me = space.bodies.get(source)
+        if target is not None and target != source:
+            other = space.bodies.get(target)
+            if cfg.range.strip():
+                reach = roll(cfg.range).total
+                if me is None or other is None:
+                    raise ValidationFailed("use.no_position", entity=source, entry=entry)
+                dist = self._spatial.distance(me.pos, other.pos)
+                if dist > reach:
+                    raise ValidationFailed(
+                        "use.out_of_range",
+                        entity=source,
+                        entry=entry,
+                        distance=round(dist, 1),
+                        range=round(reach, 1),
+                    )
+            if cfg.visible and target not in space.perceived_by(source):
+                raise ValidationFailed(
+                    "use.not_perceived", entity=source, target=target, entry=entry
+                )
+        if not cfg.noise.strip() or me is None:
+            return []
+        radius = roll(cfg.noise).total
+        if radius <= 0:
+            return []
+        mine = space.owner.get(source)
+        out: set[str] = set()
+        for eid, body in space.bodies.items():
+            pid = space.owner.get(eid)
+            if pid is None or pid == mine or eid == source:
+                continue
+            if self._spatial.distance(me.pos, body.pos) <= radius:
+                out.add(pid)
+        return sorted(out)
 
     def cast_seconds(self, game_id: str, entity_id: str, entry: str) -> int:
         """技能的施放时间（秒）：施放时间列按分钟算，不到 1 分钟算瞬发（0）。没有这个技能也是 0。"""
@@ -1513,7 +1587,7 @@ class Engine:
                 row = _obj(e)
                 if entry not in (row.get("name"), row.get("id")):
                     continue
-                text = str(row.get("cast_time") or "")
+                text = self._cfg(row).cast_time
                 if not text.strip():
                     return 0
                 fields = _obj(row.get("fields"))
@@ -2336,6 +2410,38 @@ class Engine:
     def draft(self, game_id: str) -> dict[str, JsonValue] | None:
         return self.round(game_id).draft
 
+    def _noticed_events(
+        self, game_id: str, round_no: int, adj: Adjudication, seconds: int
+    ) -> list[NewEvent]:
+        """技能的动静：裁定里用了的技能，给动静范围内的其他玩家发一条“察觉到有人用了某个技能”。
+        看得见使用者的玩家还知道是谁（外貌）。生效没生效都有动静。"""
+        used = {e.seq: e for e in self.current_attempt(game_id, round_no) if e.type == "entry_used"}
+        out: list[NewEvent] = []
+        space: Space | None = None
+        for u in adj.uses:
+            ev = used.get(u.seq)
+            heard = [str(x) for x in _list(ev.payload.get("heard_by"))] if ev else []
+            if ev is None or not heard:
+                continue
+            space = space or self._space(game_id)
+            src = str(ev.payload.get("source"))
+            for pid in heard:
+                seen = src in space.player_perceived(pid)
+                out.append(
+                    NewEvent(
+                        type="entry_noticed",
+                        actor=ENGINE,
+                        visibility=Visibility.to(pid),
+                        payload={
+                            "entry": ev.payload.get("entry"),
+                            "who": self._appearance(space.state, space.pack, src) if seen else None,
+                            "round": round_no,
+                            "game_seconds": seconds,
+                        },
+                    )
+                )
+        return out
+
     def publish_round(self, game_id: str) -> Round:
         """发布：写入裁定、状态变更、反馈与广播，开启下一轮（或结束这一局）。"""
         with self._lock:
@@ -2383,6 +2489,7 @@ class Engine:
                         },
                     )
                 )
+            evs += self._noticed_events(game_id, r.no, adj, seconds)
             if isinstance(bc, str):
                 evs.append(
                     NewEvent(
@@ -2801,7 +2908,10 @@ class Engine:
             for entries in _obj(sheet.get("groups")).values():
                 for e in entries if isinstance(entries, list) else []:
                     if _obj(e).get("name") == q.ability:
-                        shape_raw = _obj(e).get("shape")
+                        found_shape = self._cfg(_obj(e)).shape
+                        shape_raw = (
+                            None if found_shape is None else found_shape.model_dump(mode="json")
+                        )
             if shape_raw is None and q.shape is None:
                 raise ValidationFailed("query.ability_without_shape", ability=q.ability)
         if shape_raw is not None:

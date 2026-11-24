@@ -1424,7 +1424,7 @@ export interface components {
             problems: components["schemas"]["Problem"][];
         };
         /** @enum {string} */
-        FormulaScope: "any_entity" | "dice" | "script";
+        FormulaScope: "any_entity" | "dice" | "script" | "config";
         /** Game */
         Game: {
             /** Current Round */
@@ -1555,15 +1555,10 @@ export interface components {
         /** GroupEntry */
         GroupEntry: {
             /**
-             * Cast Time
+             * Config
              * @default
              */
-            cast_time: string;
-            /**
-             * Cooldown
-             * @default
-             */
-            cooldown: string;
+            config: string;
             /**
              * Description
              * @default
@@ -1588,13 +1583,11 @@ export interface components {
             id: string;
             /** Name */
             name: string;
-            placement?: components["schemas"]["PlacementSpec"] | null;
             /**
              * Script
              * @default
              */
             script: string;
-            shape?: components["schemas"]["Shape"] | null;
         };
         /**
          * GroupPreset
@@ -1603,15 +1596,10 @@ export interface components {
          */
         GroupPreset: {
             /**
-             * Cast Time
+             * Config
              * @default
              */
-            cast_time: string;
-            /**
-             * Cooldown
-             * @default
-             */
-            cooldown: string;
+            config: string;
             /**
              * Description
              * @default
@@ -1636,13 +1624,11 @@ export interface components {
             id: string;
             /** Name */
             name: string;
-            placement?: components["schemas"]["PlacementSpec"] | null;
             /**
              * Script
              * @default
              */
             script: string;
-            shape?: components["schemas"]["Shape"] | null;
             /**
              * When
              * @default
@@ -1965,34 +1951,6 @@ export interface components {
             radius: number;
             /** Ref */
             ref: string;
-        };
-        /**
-         * PlacementSpec
-         * @description 条目是设置物（陷阱、结界等）时的参数。都是公式，在设置者的角色卡和这个条目上求值，设置时算定。
-         */
-        PlacementSpec: {
-            /**
-             * Charges
-             * @default
-             */
-            charges: string;
-            /**
-             * Duration
-             * @default
-             */
-            duration: string;
-            /**
-             * Notify Owner
-             * @default true
-             */
-            notify_owner: boolean;
-            /**
-             * Perceive Multiplier
-             * @default 1
-             */
-            perceive_multiplier: string;
-            /** Radius */
-            radius: string;
         };
         /**
          * PlayerEntities
@@ -2404,27 +2362,6 @@ export interface components {
             ref: string;
         };
         /**
-         * Shape
-         * @description 范围形状的结构化参数，单位米、度。
-         */
-        Shape: {
-            /** Angle */
-            angle?: number | null;
-            /** Height */
-            height?: number | null;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "capsule" | "box" | "sphere" | "cone";
-            /** Length */
-            length?: number | null;
-            /** Radius */
-            radius?: number | null;
-            /** Width */
-            width?: number | null;
-        };
-        /**
          * ShapeDef
          * @description 可重复分组的条目是否带范围形状参数（供空间查询使用）。
          */
@@ -2724,6 +2661,11 @@ export interface components {
         };
         /** FormulaIn */
         smartkeeper__web__routes_player__FormulaIn: {
+            /**
+             * Config
+             * @default false
+             */
+            config: boolean;
             /**
              * Dice
              * @default false

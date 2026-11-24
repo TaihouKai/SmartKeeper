@@ -4,15 +4,14 @@ import { useI18n } from "../i18n";
 import type { ReactNode } from "react";
 import { FormulaInput, Mover, moved } from "./components";
 import { CodeEditor } from "./CodeEditor";
+import { fillConfig } from "./skillConfig";
 
 type FieldDef = Schemas["FieldDef"];
 type GroupDef = Schemas["GroupDef"];
 
 // formula 算出 target 的新值；写 target 自己的名字表示到这一步为止的值。priority 只有玩家写的效果才有
 export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null };
-export type Shape = { kind: "capsule" | "box" | "sphere" | "cone"; length?: number | null; width?: number | null; height?: number | null; radius?: number | null; angle?: number | null };
-export type PlacementSpec = { radius: string; perceive_multiplier?: string; charges?: string; duration?: string; notify_owner?: boolean };
-export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; shape: Shape | null; placement?: PlacementSpec | null; script?: string; cast_time?: string; cooldown?: string };
+export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; config?: string; script?: string };
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
@@ -78,17 +77,17 @@ export function EntryEditor({
   entry: Entry;
   onChange: (e: Entry) => void;
   onRemove?: () => void;
-  validate: (f: string, inEntry: string, scope?: "dice" | "script") => Promise<{ problems: { code: string }[]; names: string[] }>;
+  validate: (f: string, inEntry: string, scope?: "dice" | "script" | "config") => Promise<{ problems: { code: string }[]; names: string[] }>;
   /** 玩家写的条目要给效果填计算顺序；规则包的固定条目按定义顺序，不用填 */
   withPriority?: boolean;
   mover?: ReactNode;
 }) {
   const { t } = useI18n();
   const fields = group.fields ?? [];
-  const shapes = group.shapes?.allowed ?? [];
   const v = useCallback((f: string) => validate(f, group.name), [validate, group.name]);
   const vDice = useCallback((f: string) => validate(f, group.name, "dice"), [validate, group.name]);
   const vScript = useCallback((f: string) => validate(f, group.name, "script"), [validate, group.name]);
+  const vConfig = useCallback((f: string) => validate(f, group.name, "config"), [validate, group.name]);
   return (
     <div className="sk-entry">
       {mover && <div className="sk-row sk-row-end">{mover}</div>}
@@ -105,18 +104,6 @@ export function EntryEditor({
         {t("character.entry_description")}
         <textarea rows={2} value={entry.description} onChange={(e) => onChange({ ...entry, description: e.target.value })} />
       </label>
-      {group.timing && (
-        <div className="sk-field-extra">
-          <label title={t("rules.gt.timing_hint")}>
-            {t("rules.gt.cast_time")}
-            <FormulaInput value={entry.cast_time ?? ""} validate={v} placeholder={t("rules.gt.instant")} onChange={(x) => onChange({ ...entry, cast_time: x })} />
-          </label>
-          <label title={t("rules.gt.timing_hint")}>
-            {t("rules.gt.cooldown")}
-            <FormulaInput value={entry.cooldown ?? ""} validate={v} placeholder={t("rules.gt.no_cd")} onChange={(x) => onChange({ ...entry, cooldown: x })} />
-          </label>
-        </div>
-      )}
       {fields.map((f) => (
         <label key={f.name}>
           {fieldLabel(f, t("character.unnamed_field"))}
@@ -126,9 +113,8 @@ export function EntryEditor({
         </label>
       ))}
       {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} onChange={(effects) => onChange({ ...entry, effects })} />}
+      {group.effects !== false && <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />}
       {group.effects !== false && <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />}
-      {shapes.length > 0 && <ShapeEditor allowed={shapes} shape={entry.shape} onChange={(shape) => onChange({ ...entry, shape })} />}
-      {group.placements && <PlacementEditor spec={entry.placement ?? null} validate={v} onChange={(placement) => onChange({ ...entry, placement })} />}
       {onRemove && (
         <button type="button" className="sk-link" onClick={onRemove}>
           {t("character.remove_entry")}
@@ -194,6 +180,20 @@ export function EffectsEditor({
   );
 }
 
+/** 技能设置：一串 名字 = 值（对象、射程、施放时间、冷却、范围形状……），引擎按它执行。 */
+export function ConfigEditor({ config, validate, onChange }: { config: string; validate: Check; onChange: (s: string) => void }) {
+  const { t } = useI18n();
+  const [problems, setProblems] = useState<string[]>([]);
+  return (
+    <div className="sk-effects sk-script">
+      <strong>{t("config.title")}</strong>
+      <CodeEditor className="sk-code-inline" value={config} check={validate} minLines={3} onChange={onChange} onProblems={setProblems} />
+      {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
+      <p className="sk-hint">{t("config.hint")}</p>
+    </div>
+  );
+}
+
 /** 技能脚本：用这个条目（并且 KP 判定生效）时引擎执行的语句，一行一句。 */
 export function ScriptEditor({ script, validate, onChange }: { script: string; validate: Check; onChange: (s: string) => void }) {
   const { t } = useI18n();
@@ -204,71 +204,6 @@ export function ScriptEditor({ script, validate, onChange }: { script: string; v
       <CodeEditor className="sk-code-inline" value={script} check={validate} placeholder={t("script.ph")} minLines={4} onChange={onChange} onProblems={setProblems} />
       {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
       <p className="sk-hint">{t("script.hint")}</p>
-    </div>
-  );
-}
-
-/** 条目的范围形状（范围攻击、光束等）：种类和尺寸。 */
-export function ShapeEditor({ allowed, shape, onChange }: { allowed: string[]; shape: Shape | null; onChange: (s: Shape | null) => void }) {
-  const { t } = useI18n();
-  return (
-    <div className="sk-shape">
-      <strong>{t("character.shape")}</strong>
-      <select value={shape?.kind ?? ""} onChange={(e) => onChange(e.target.value ? { kind: e.target.value as Shape["kind"] } : null)}>
-        <option value="">{t("character.shape_none")}</option>
-        {allowed.map((s) => (
-          <option key={s} value={s}>
-            {t(`shape.${s}`)}
-          </option>
-        ))}
-      </select>
-      {shape &&
-        (["length", "width", "height", "radius", "angle"] as const).map((k) => (
-          <label key={k}>
-            {t(`shape.${k}`)}
-            <input type="number" value={shape[k] ?? ""} onChange={(e) => onChange({ ...shape, [k]: e.target.value === "" ? null : Number(e.target.value) })} />
-          </label>
-        ))}
-    </div>
-  );
-}
-
-/** 设置物参数（陷阱、结界等）：勾上“这一条是设置物”后填范围、发现难度、次数、持续时间、是否通知设置者。 */
-export function PlacementEditor({ spec, validate, onChange }: { spec: PlacementSpec | null; validate: Check; onChange: (s: PlacementSpec | null) => void }) {
-  const { t } = useI18n();
-  const set = (patch: Partial<PlacementSpec>) => onChange({ ...(spec ?? { radius: "" }), ...patch });
-  return (
-    <div className="sk-placement">
-      <label className="sk-inline">
-        <input type="checkbox" checked={spec !== null} onChange={(e) => onChange(e.target.checked ? { radius: "1", perceive_multiplier: "1", charges: "", duration: "", notify_owner: true } : null)} />{" "}
-        <strong>{t("placement.is")}</strong>
-      </label>
-      {spec && (
-        <>
-          <div className="sk-field-extra">
-            <label>
-              {t("placement.radius")}
-              <FormulaInput value={spec.radius} validate={validate} placeholder={t("placement.ph.radius")} onChange={(x) => set({ radius: x })} />
-            </label>
-            <label>
-              {t("placement.perceive")}
-              <FormulaInput value={spec.perceive_multiplier ?? "1"} validate={validate} placeholder={t("placement.ph.perceive")} onChange={(x) => set({ perceive_multiplier: x })} />
-            </label>
-            <label>
-              {t("placement.charges")}
-              <FormulaInput value={spec.charges ?? ""} validate={validate} placeholder={t("placement.ph.unlimited")} onChange={(x) => set({ charges: x })} />
-            </label>
-            <label>
-              {t("placement.duration")}
-              <FormulaInput value={spec.duration ?? ""} validate={validate} placeholder={t("placement.ph.forever")} onChange={(x) => set({ duration: x })} />
-            </label>
-          </div>
-          <label className="sk-inline">
-            <input type="checkbox" checked={spec.notify_owner ?? true} onChange={(e) => set({ notify_owner: e.target.checked })} /> {t("placement.notify")}
-          </label>
-          <p className="sk-hint">{t("placement.hint")}</p>
-        </>
-      )}
     </div>
   );
 }

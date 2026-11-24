@@ -2,7 +2,7 @@ import { Fragment, useCallback, useState } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { FormulaInput, Mover } from "../ui/components";
-import { EffectsEditor, FieldInput, PlacementEditor, ShapeEditor, fieldLabel, type Effect, type PlacementSpec, type Shape } from "../ui/EntryEditor";
+import { EffectsEditor, FieldInput, fieldLabel, type Effect } from "../ui/EntryEditor";
 import { FieldCard, blankField, useListEdit, type Validate } from "./fieldCard";
 import { hasProblem, useWorkbench } from "./rules/ctx";
 
@@ -20,17 +20,17 @@ function effectsOf(p: Preset): Effect[] {
   return (p.effects ?? []).map((e) => ({ description: e.description ?? "", target: e.target ?? null, formula: e.formula ?? null }));
 }
 
-/** 一行的技能脚本按钮：在 IDE 里打开。圆点：灰色是还没写，绿色是写了没问题，红色是有问题。 */
-function ScriptButton({ path, script }: { path: string; script: string }) {
+/** 一行的“编辑”按钮：在 IDE 里打开这一条的设置和效果。圆点：灰色是效果还没写，绿色是没问题，红色是有问题。 */
+function EditButton({ path, script }: { path: string; script: string }) {
   const { t } = useI18n();
   const wb = useWorkbench();
   const empty = !script.trim();
-  const bad = hasProblem(wb.problems, path);
-  const state = empty ? "empty" : bad ? "bad" : "ok";
+  const bad = hasProblem(wb.problems, `${path}.script`) || hasProblem(wb.problems, `${path}.config`);
+  const state = bad ? "bad" : empty ? "empty" : "ok";
   return (
     <button type="button" className={`wb-script-btn ${state}${wb.active === path ? " active" : ""}`} onClick={() => wb.open(path)} title={t(`rules.gt.script_${state}`)}>
       <span className="wb-dot" />
-      {empty ? t("rules.gt.script_add") : t("rules.gt.script")}
+      {t("rules.gt.edit")}
     </button>
   );
 }
@@ -46,7 +46,6 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
   const wb = useWorkbench();
   const fields = g.fields ?? [];
   const presets = g.presets ?? [];
-  const shapes = g.shapes?.allowed ?? [];
   const pre = useListEdit(presets, (x) => onChange({ ...g, presets: x }));
   const [col, setCol] = useState<number | null>(null);
   const [open, setOpen] = useState<number | null>(null);
@@ -58,7 +57,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
   const setRow = (r: number, patch: Partial<Preset>) => pre.update(r, { ...presets[r]!, ...patch });
   const rowPath = (r: number) => `${base}.presets[${r}]`;
   const scripts = g.effects !== false;
-  const more = g.effects !== false || shapes.length > 0 || !!g.placements;
+  const more = g.effects !== false;
 
   // 列的增删改：改名字时每一行里这一格的值跟着改键，删列时每一行里这一格的值也删掉
   const setColumn = (i: number, next: Field) => {
@@ -94,7 +93,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
     onChange({ ...g, fields: next });
     setCol(to);
   };
-  const width = 6 + (scripts ? 1 : 0) + fields.length + (g.timing ? 2 : 0);
+  const width = 6 + (scripts ? 1 : 0) + fields.length;
 
   return (
     <div>
@@ -104,12 +103,10 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
             <tr>
               <th />
               <th>{t("character.entry_name")}</th>
-              {scripts && <th>{t("rules.gt.script_col")}</th>}
+              {scripts && <th>{t("rules.gt.skill_col")}</th>}
               <th title={t("rules.gt.id_hint")}>{t("rules.gt.id")}</th>
               <th>{t("character.entry_description")}</th>
               <th>{t("rules.gt.when")}</th>
-              {g.timing && <th title={t("rules.gt.timing_hint")}>{t("rules.gt.cast_time")}</th>}
-              {g.timing && <th title={t("rules.gt.timing_hint")}>{t("rules.gt.cooldown")}</th>}
               {fields.map((f, i) => (
                 <th key={i}>
                   <button type="button" className={col === i ? "sk-link sk-col-active" : "sk-link"} onClick={() => setCol(col === i ? null : i)}>
@@ -128,7 +125,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
           <tbody>
             {presets.map((p, r) => (
               <Fragment key={r}>
-                <tr className={wb.active?.startsWith(`${rowPath(r)}.`) ? "wb-row-active" : undefined}>
+                <tr className={wb.active === rowPath(r) || wb.active?.startsWith(`${rowPath(r)}.`) ? "wb-row-active" : undefined}>
                   <td className="sk-nowrap">
                     <Mover index={r} count={presets.length} onMove={pre.move} />
                     <button type="button" className="sk-link" onClick={() => pre.remove(r)}>
@@ -140,7 +137,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   </td>
                   {scripts && (
                     <td className="sk-nowrap">
-                      <ScriptButton path={`${rowPath(r)}.script`} script={p.script ?? ""} />
+                      <EditButton path={rowPath(r)} script={p.script ?? ""} />
                     </td>
                   )}
                   <td>
@@ -152,16 +149,6 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   <td>
                     <FormulaInput value={p.when ?? ""} validate={vWhen} placeholder={t("rules.gt.always")} onChange={(x) => setRow(r, { when: x })} onExpand={() => wb.open(`${rowPath(r)}.when`)} />
                   </td>
-                  {g.timing && (
-                    <td>
-                      <FormulaInput value={p.cast_time ?? ""} validate={vEff} placeholder={t("rules.gt.instant")} onChange={(x) => setRow(r, { cast_time: x })} onExpand={() => wb.open(`${rowPath(r)}.cast_time`)} />
-                    </td>
-                  )}
-                  {g.timing && (
-                    <td>
-                      <FormulaInput value={p.cooldown ?? ""} validate={vEff} placeholder={t("rules.gt.no_cd")} onChange={(x) => setRow(r, { cooldown: x })} onExpand={() => wb.open(`${rowPath(r)}.cooldown`)} />
-                    </td>
-                  )}
                   {fields.map((f, i) => (
                     <td key={i}>
                       {f.kind === "param" ? (
@@ -180,7 +167,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   <td className="sk-nowrap">
                     {more && (
                       <button type="button" className="sk-link" onClick={() => setOpen(open === r ? null : r)}>
-                        {t("rules.gt.more", { n: String((p.effects ?? []).length + (p.shape ? 1 : 0) + (p.placement ? 1 : 0)) })}
+                        {t("rules.gt.more", { n: String((p.effects ?? []).length) })}
                       </button>
                     )}
                   </td>
@@ -189,8 +176,6 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   <tr className="sk-subrow">
                     <td colSpan={width}>
                       {g.effects !== false && <EffectsEditor effects={effectsOf(p)} derived={derived} validate={vEff} withPriority={false} onChange={(effects) => setRow(r, { effects })} />}
-                      {shapes.length > 0 && <ShapeEditor allowed={shapes} shape={(p.shape ?? null) as Shape | null} onChange={(shape) => setRow(r, { shape })} />}
-                      {g.placements && <PlacementEditor spec={(p.placement ?? null) as PlacementSpec | null} validate={vEff} onChange={(placement) => setRow(r, { placement: placement ? { radius: placement.radius, perceive_multiplier: placement.perceive_multiplier ?? "1", charges: placement.charges ?? "", duration: placement.duration ?? "", notify_owner: placement.notify_owner ?? true } : null })} />}
                     </td>
                   </tr>
                 )}
@@ -206,7 +191,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
           </tbody>
         </table>
       </div>
-      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], script: "", shape: null, when: "", cast_time: "", cooldown: "" })}>
+      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], config: "", script: "", when: "" })}>
         {t("rules.gt.add_row")}
       </button>
       {col !== null && fields[col] && (

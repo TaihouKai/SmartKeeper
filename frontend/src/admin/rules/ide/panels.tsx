@@ -4,6 +4,7 @@ import { useI18n } from "../../../i18n";
 import { ErrorBox } from "../../../ui/components";
 import { translateCode } from "../../../ui/errors";
 import { FUNCTION_SIGNATURES } from "../../../ui/FormulaHelp";
+import { configKeys } from "../../../ui/skillConfig";
 import { useAction } from "../../../ui/hooks";
 import { allFormulas, describePath, getAt, type Doc, type Pack } from "../model";
 
@@ -19,7 +20,7 @@ function Item({ code, note, onClick }: { code: string; note?: string; onClick: (
 }
 
 /** 写到这里能用的名字：点一下插入到光标处。 */
-export function NamesPanel({ pack, doc, insert }: { pack: Pack; doc: Doc | null; insert: Insert }) {
+export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; doc: Doc | null; insert: Insert; part?: "config" | "main" }) {
   const { t } = useI18n();
   const tpl = doc?.template ? pack.templates.find((x) => x.name === doc.template) : undefined;
   const row = doc?.entry ? pack.templates[doc.entry.t]?.groups?.[doc.entry.g] : undefined;
@@ -30,9 +31,21 @@ export function NamesPanel({ pack, doc, insert }: { pack: Pack; doc: Doc | null;
     return [...seen.entries()];
   }, [pack]);
   if (!doc) return <p className="sk-hint">{t("ide.names_none")}</p>;
-  const script = doc.kind === "script";
+  const script = doc.kind === "entry" && part === "main";
+  const group = doc.entry ? pack.templates[doc.entry.t]?.groups?.[doc.entry.g] : undefined;
   return (
     <div className="wb-names">
+      {doc.kind === "entry" && part === "config" && group && (
+        <section>
+          <h5>{t("config.title")}</h5>
+          {configKeys(group).map((k) => (
+            <Item key={k} code={`${k} = …`} note={t(`config.c.${k}`)} onClick={() => insert(`${k} = `)} />
+          ))}
+          {["sphere(radius=", "cone(length=, angle=", "capsule(length=, width=", "box(length=, width=, height=", "placement(radius="].map((c) => (
+            <Item key={c} code={`${c}…)`} note={t(c.startsWith("placement") ? "config.c.placement" : "config.c.shape")} onClick={() => insert(c)} />
+          ))}
+        </section>
+      )}
       {script && (
         <section>
           <h5>{t("ide.n.actions")}</h5>
@@ -146,7 +159,7 @@ export function TryPanel({ pack, doc, onGoSamples }: { pack: Pack; doc: Doc | nu
   const [params, setParams] = useState<Record<string, string>>({});
   const [out, setOut] = useState<Schemas["ScriptTryOut"] | null>(null);
   const samples = pack.samples ?? [];
-  if (!doc || doc.kind !== "script" || !doc.entry) return <p className="sk-hint">{t("ide.try_only_scripts")}</p>;
+  if (!doc || doc.kind !== "entry" || !doc.entry) return <p className="sk-hint">{t("ide.try_only_scripts")}</p>;
   const group = pack.templates[doc.entry.t]?.groups?.[doc.entry.g];
   const preset = group?.presets?.[doc.entry.r];
   const mine = samples.map((s, i) => ({ s, i })).filter(({ s }) => s.template === doc.template);
@@ -171,7 +184,7 @@ export function TryPanel({ pack, doc, onGoSamples }: { pack: Pack; doc: Doc | nu
           api.POST("/api/admin/rulepacks/script/try", {
             body: {
               pack,
-              script: String(getAt(pack, doc.path) ?? ""),
+              script: String(getAt(pack, `${doc.path}.script`) ?? ""),
               template: me.s.template,
               sheet: me.s.sheet as Record<string, unknown>,
               entry: entry as Schemas["ScriptTryIn"]["entry"],

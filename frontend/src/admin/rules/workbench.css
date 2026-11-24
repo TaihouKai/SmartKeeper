@@ -153,6 +153,11 @@
 .wb-status.bad { color: var(--warn); }
 .wb-status.bad::before { content: "● "; }
 .wb-cm { flex: 1; min-height: 0; overflow: hidden; }
+.wb-part { display: flex; flex-direction: column; min-height: 0; }
+.wb-part-main { flex: 1; }
+.wb-part-config { flex: 0 1 auto; max-height: 48%; border-bottom: 1px solid var(--line); }
+.wb-part-config .wb-cm { flex: 0 1 auto; overflow: auto; }
+.wb-part-head { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 4px 12px; background: var(--wb-sunken); border-bottom: 1px solid var(--line); font-weight: 600; }
 .wb-cm .cm-editor { height: 100%; }
 .wb-cm .cm-scroller { overflow: auto; }
 .wb-ide-problems { margin: 0; padding: 6px 12px 6px 28px; max-height: 30%; overflow-y: auto; font-size: 12px; color: var(--warn); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--warn) 5%, var(--card)); }

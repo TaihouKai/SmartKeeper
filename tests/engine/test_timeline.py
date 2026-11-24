@@ -433,12 +433,7 @@ def trap_pack() -> RulePack:
         "name": "trap",
         "description": "a hidden snare",
         "fields": {"level": 1},
-        "placement": {
-            "radius": "5",
-            "perceive_multiplier": "0.2",
-            "charges": "1",
-            "notify_owner": True,
-        },
+        "config": 'target = "none"\nplacement = placement(radius=5, perceive=0.2, charges=1)',
     }
     g = g.model_copy(update={"placements": True, "presets": (GroupPreset.model_validate(trap),)})
     tpl = tpl.model_copy(update={"groups": (g, *tpl.groups[1:])})
@@ -510,10 +505,8 @@ def test_triggering_reveals_an_invisible_trap() -> None:
     tpl = pack.templates[0]
     g = tpl.groups[0]
     preset = g.presets[0]
-    spec = preset.placement
-    assert spec is not None
     invisible = preset.model_copy(
-        update={"placement": spec.model_copy(update={"perceive_multiplier": "0", "charges": ""})}
+        update={"config": 'target = "none"\nplacement = placement(radius=5, perceive=0)'}
     )
     g = g.model_copy(update={"presets": (invisible,)})
     pack = pack.model_copy(update={"templates": (tpl.model_copy(update={"groups": (g,)}),)})
@@ -553,10 +546,10 @@ def test_placement_formulas_use_chosen_on_use_columns_and_spend() -> None:
     tpl = pack.templates[0]
     g = tpl.groups[0]
     preset = g.presets[0]
-    spec = preset.placement
-    assert spec is not None
     ward = preset.model_copy(
-        update={"placement": spec.model_copy(update={"radius": "this.cost * 2"})}
+        update={
+            "config": 'target = "none"\nplacement = placement(radius=this.cost * 2, perceive=0.2, charges=1)'
+        }
     )
     cost = FieldDef(name="cost", kind="param", min="1", max="hp", spends="hp")
     g = g.model_copy(update={"fields": (*g.fields, cost), "presets": (ward,)})
@@ -643,6 +636,12 @@ def magic_pack() -> RulePack:
             "name": "drain",
             "fields": {"level": 2, "damage": "this.level * 3"},
             "script": "target.damage(this.damage); self.add(hp, 2)",
+        },
+        {
+            "name": "echo",
+            "fields": {"level": 1},
+            "config": 'target = "none"',
+            "script": 'if target.template == "person":\n    target.damage(9)\ntarget.damage(9)\nself.damage(1)',
         },
         {
             "name": "sort",
@@ -759,7 +758,12 @@ def test_script_hits_both_sides_and_can_target_yourself() -> None:
     e.close_round(g)
     e.begin_plan(g)
     own = e.use_entry(g, e0, "bolt", e0, {}, "zaps itself")
-    nobody = e.use_entry(g, e0, "drain", None, {}, "no target: only the self part")
+    # 要选对象的技能没给对象：引擎拒绝；设置成没有对象的技能只执行 self 的句子
+    with pytest.raises(ValidationFailed) as err:
+        e.use_entry(g, e0, "drain", None, {}, "no target")
+    assert err.value.code == "use.needs_target"
+    nobody = e.use_entry(g, e0, "echo", e1, {}, "target is ignored")
+    assert nobody.payload["target"] is None
     assert [a["entity"] for a in nobody.payload["actions"]] == [e0]  # type: ignore[index,union-attr]
     publish(t, only=t.players, uses=[UseResult(seq=own.seq)])
     assert fields_of(t, e0)["hp"] == hp0 - 5  # type: ignore[operator]
@@ -779,7 +783,7 @@ def test_script_branches_pick_one_and_skip_target_questions_without_a_target() -
     hit = e.use_entry(g, e0, "sort", e1, {}, "same template: elif branch")
     acts = [(a["entity"], a["amount"]) for a in hit.payload["actions"]]  # type: ignore[index,union-attr]
     assert acts == [(e1, 3), (e0, 1)]
-    alone = e.use_entry(g, e0, "sort", None, {}, "no target: the whole if is skipped")
+    alone = e.use_entry(g, e0, "echo", None, {}, "no target: the whole if is skipped")
     acts = [(a["entity"], a["amount"]) for a in alone.payload["actions"]]  # type: ignore[index,union-attr]
     assert acts == [(e0, 1)]
     publish(t, only=t.players, uses=[UseResult(seq=hit.seq)])
@@ -812,15 +816,15 @@ def timing_pack() -> RulePack:
     presets = []
     for p in g.presets:
         if p.name == "ward":
-            p = p.model_copy(update={"cast_time": "2"})
+            p = p.model_copy(update={"config": "cast_time = 2"})
         if p.name == "bolt":
-            p = p.model_copy(update={"cast_time": "0.5"})
+            p = p.model_copy(update={"config": "cast_time = 0.5"})
         presets.append(p)
     nuke = GroupPreset.model_validate(
         {
             "name": "nuke",
             "fields": {"level": 1},
-            "cooldown": "1",
+            "config": "cooldown = 1",
             "script": "target.damage(1000)",
         }
     )
@@ -866,3 +870,99 @@ def test_cast_time_cooldown_and_death() -> None:
     publish(t, only=t.players)
     own = {s["tag"] for s in e.world_state(g)["entities"][e0]["sheet"]["statuses"]}  # type: ignore[index,union-attr]
     assert "cooldown:nuke" not in own
+
+
+# ---------------- 技能设置：对象、射程、要感知到对象、使用条件、动静 ----------------
+
+
+def reach_pack() -> RulePack:
+    """magic_pack 上加几个带技能设置的固定条目。"""
+    pack = magic_pack()
+    tpl = pack.templates[0]
+    g = tpl.groups[0]
+    extra = [
+        {
+            "name": "snipe",
+            "fields": {"level": 1},
+            "config": "range = 1",
+            "script": "target.damage(1)",
+        },
+        {
+            "name": "lance",
+            "fields": {"level": 1},
+            "config": "range = 2 + this.level",
+            "script": "target.damage(1)",
+        },
+        {
+            "name": "peek",
+            "fields": {"level": 1},
+            "config": "visible = True",
+            "script": "target.damage(1)",
+        },
+        {
+            "name": "focus",
+            "fields": {"level": 1},
+            "config": "requires = hp > 1000",
+            "script": "self.add(hp, 1)",
+        },
+        {
+            "name": "mend",
+            "fields": {"level": 1},
+            "config": 'target = "self"',
+            "script": "target.damage(2)",
+        },
+        {
+            "name": "boom",
+            "fields": {"level": 1},
+            "config": "noise = 3",
+            "script": "target.damage(1)",
+        },
+    ]
+    g = g.model_copy(
+        update={"presets": (*g.presets, *(GroupPreset.model_validate(p) for p in extra))}
+    )
+    tpl = tpl.model_copy(update={"groups": (g, *tpl.groups[1:])})
+    return pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+
+
+def test_skill_config_is_enforced_by_the_engine() -> None:
+    t = setup_table("single", 3, pack=reach_pack())
+    e, g = t.engine, t.game_id
+    p0, p1, p2 = t.players
+    e0, e1 = t.entities(p0)[0], t.entities(p1)[0]
+    for p in t.players:
+        wait(t, p, 10)
+    e.close_round(g)
+    e.begin_plan(g)
+
+    def code(entry: str, target: str | None) -> str:
+        with pytest.raises(ValidationFailed) as err:
+            e.use_entry(g, e0, entry, target, {}, "x")
+        return err.value.code
+
+    # 实体相隔 2 米
+    assert code("snipe", e1) == "use.out_of_range"
+    assert e.use_entry(g, e0, "lance", e1, {}, "3 m reach").payload["target"] == e1
+    assert code("focus", e1) == "use.requires"
+    mend = e.use_entry(g, e0, "mend", e1, {}, "only on yourself")
+    assert mend.payload["target"] == e0
+    assert [a["entity"] for a in mend.payload["actions"]] == [e0]  # type: ignore[index,union-attr]
+    # 动静 3 米：p1（2 米）察觉得到，p2（4 米）察觉不到
+    boom = e.use_entry(g, e0, "boom", e1, {}, "noisy")
+    assert boom.payload["heard_by"] == [p1]
+    from smartkeeper.contracts import UseResult
+
+    publish(t, only=t.players, uses=[UseResult(seq=boom.seq, hit=False)])
+    noticed = [x for x in e.view_for(g, p1) if x.type == "entry_noticed"]
+    assert len(noticed) == 1 and noticed[0].payload["entry"] == "boom"
+    assert not [x for x in e.view_for(g, p2) if x.type == "entry_noticed"]
+
+    # 对象要在感知里：把两人分开
+    for p in t.players:
+        wait(t, p, 10)
+    e.close_round(g)
+    e.admin_patch(
+        g, [PatchOp(op="replace", path=f"/entities/{e1}/pos", value={"x": 190, "y": 190, "z": 0})]
+    )
+    e.begin_plan(g)
+    assert code("peek", e1) == "use.not_perceived"

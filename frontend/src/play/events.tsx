@@ -57,6 +57,13 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
       body = t("event.submitted");
       cls += " sys";
       break;
+    case "entry_noticed": {
+      const entry = String(e.payload.entry ?? "");
+      const by = e.payload.who;
+      body = typeof by === "string" && by ? t("event.noticed_who", { who: by, entry }) : t("event.noticed", { entry });
+      who = t("event.sense");
+      break;
+    }
     default:
       body = eventText(e);
   }

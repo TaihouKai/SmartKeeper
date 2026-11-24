@@ -24,6 +24,7 @@ from smartkeeper.contracts import (
     RulePack,
     Sheet,
 )
+from smartkeeper.rules import skillconfig
 from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.sheets import init_sheet
 
@@ -149,6 +150,44 @@ def check_script(
             at(st.line, found)
 
     walk(nodes)
+    return problems
+
+
+def check_config(
+    pack: RulePack,
+    template: EntityTemplate,
+    g: GroupDef | None,
+    text: str,
+    path: str,
+    entry_fields: list[str],
+) -> list[Problem]:
+    """技能设置：名字和值的类型、分组允不允许（范围形状、设置物、施放时间和冷却），各个公式。问题带 line。"""
+    try:
+        cfg = skillconfig.read_config(text)
+    except f.FormulaError as e:
+        return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
+    problems: list[Problem] = []
+    for line, _name, formula in skillconfig.formulas(text):
+        found = check_formula(pack, template, formula, path, entry_fields=entry_fields)
+        problems += [p.model_copy(update={"params": {**p.params, "line": line}}) for p in found]
+    if g is not None:
+        settings = {s.name: s.line for s in f.parse_config(text)}
+
+        def off(name: str, code: str) -> None:
+            problems.append(
+                Problem(
+                    code=code,
+                    path=path,
+                    params={"name": name, "line": settings.get(name, 1)},
+                )
+            )
+
+        if cfg.shape is not None and cfg.shape.kind not in g.shapes.allowed:
+            off("shape", "sheet.shape_not_allowed")
+        if cfg.placement is not None and not g.placements:
+            off("placement", "sheet.placement_not_allowed")
+        if (cfg.cast_time.strip() or cfg.cooldown.strip()) and not g.timing:
+            off("cast_time" if cfg.cast_time.strip() else "cooldown", "sheet.timing_not_allowed")
     return problems
 
 
@@ -717,24 +756,10 @@ def _check_entry(
         problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
     if entry.script.strip():
         problems += check_script(pack, tpl, entry.script, f"{ep}.script", list(fdefs))
-    for key in ("cast_time", "cooldown"):
-        text = str(getattr(entry, key))
-        if text.strip():
-            problems += check_formula(pack, tpl, text, f"{ep}.{key}", entry_fields=list(fdefs))
     for j, eff in enumerate(entry.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
-    if entry.placement is not None:
-        if not g.placements:
-            problems.append(Problem(code="sheet.placement_not_allowed", path=f"{ep}.placement"))
-        spec = entry.placement
-        for attr in ("radius", "perceive_multiplier", "charges", "duration"):
-            text = str(getattr(spec, attr))
-            if attr == "radius" or text.strip():
-                problems += check_formula(
-                    pack, tpl, text, f"{ep}.placement.{attr}", entry_fields=list(fdefs)
-                )
-    if entry.shape is not None and entry.shape.kind not in g.shapes.allowed:
-        problems.append(Problem(code="sheet.shape_not_allowed", path=f"{ep}.shape"))
+    if entry.config.strip():
+        problems += check_config(pack, tpl, g, entry.config, f"{ep}.config", list(fdefs))
     return problems
 
 

@@ -38,20 +38,36 @@ export function Ide({
 }) {
   const { t } = useI18n();
   const editor = useRef<CodeEditorHandle>(null);
+  const configEditor = useRef<CodeEditorHandle>(null);
+  // 插入名字、查光标处的名字时用最后一个获得焦点的编辑器
+  const [focused, setFocused] = useState<"config" | "main">("main");
+  const current = () => (focused === "config" ? configEditor.current : editor.current);
   const [tool, setTool] = useState<Tool>("names");
   const [query, setQuery] = useState("");
   const [problems, setProblems] = useState<string[]>([]);
+  const [configProblems, setConfigProblems] = useState<string[]>([]);
   const [split, setSplit] = useState(58); // 编辑器占上面百分之几
   const body = useRef<HTMLDivElement>(null);
   const doc = active ? docFor(pack, active) : null;
-  const value = active ? getAt(pack, active) : undefined;
+  const entry = doc?.kind === "entry";
+  // 条目：下面的编辑器是技能脚本，上面是技能设置；其余文档只有一个编辑器
+  const mainPath = active && entry ? `${active}.script` : active;
+  const value = mainPath ? getAt(pack, mainPath) : undefined;
   const text = typeof value === "string" ? value : "";
+  const configText = active && entry ? String(getAt(pack, `${active}.config`) ?? "") : "";
+  const scope = entry ? "script" : doc?.scope;
   const check = useCallback(
-    (f: string) => (doc ? validate(f, doc.template, doc.inEntry, doc.scope) : Promise.resolve({ problems: [], names: [] })),
+    (f: string) => (doc ? validate(f, doc.template, doc.inEntry, scope) : Promise.resolve({ problems: [], names: [] })),
     // doc 每次都是新对象，按它的内容决定要不要换
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [validate, doc?.template, doc?.inEntry, doc?.scope],
+    [validate, doc?.template, doc?.inEntry, scope],
   );
+  const checkConfig = useCallback(
+    (f: string) => (doc ? validate(f, doc.template, doc.inEntry, "config") : Promise.resolve({ problems: [], names: [] })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [validate, doc?.template, doc?.inEntry],
+  );
+  const allProblems = entry ? [...configProblems, ...problems] : problems;
   const titles = useMemo(() => Object.fromEntries(docs.map((p) => [p, describePath(t, pack, p)])), [docs, pack, t]);
 
   const drag = (e: React.PointerEvent) => {
@@ -75,7 +91,7 @@ export function Ide({
           return (
             <div key={p} className={p === active ? "wb-ide-tab active" : "wb-ide-tab"} role="tab" aria-selected={p === active} title={parts.join(" › ")}>
               <button type="button" className="wb-ide-tab-name" onClick={() => onActivate(p)}>
-                <span className={docFor(pack, p)?.kind === "script" ? "wb-kind wb-kind-script" : "wb-kind"}>{docFor(pack, p)?.kind === "script" ? "py" : "ƒ"}</span>
+                <span className={docFor(pack, p)?.kind === "entry" ? "wb-kind wb-kind-script" : "wb-kind"}>{docFor(pack, p)?.kind === "entry" ? "py" : "ƒ"}</span>
                 {shortTitle(t, pack, p)}
               </button>
               <button type="button" className="wb-ide-tab-x" aria-label={t("ide.close_tab")} onClick={() => onClose(p)}>
@@ -93,21 +109,38 @@ export function Ide({
                 <button type="button" className="sk-link" onClick={() => onReveal(active)} title={t("ide.reveal")}>
                   {(titles[active] ?? []).join(" › ")}
                 </button>
-                <span className={problems.length ? "wb-status bad" : "wb-status ok"}>{problems.length ? t("ide.n_problems", { n: String(problems.length) }) : t("ide.ok")}</span>
+                <span className={allProblems.length ? "wb-status bad" : "wb-status ok"}>{allProblems.length ? t("ide.n_problems", { n: String(allProblems.length) }) : t("ide.ok")}</span>
               </div>
-              <CodeEditor
-                key={active}
-                ref={editor}
-                className="wb-cm"
-                value={text}
-                check={check}
-                placeholder={doc.kind === "script" ? t("script.ph") : t("rules.ph.formula")}
-                onChange={(v) => setPack((p) => setAt(p, active, v))}
-                onProblems={setProblems}
-              />
-              {problems.length > 0 && (
+              {entry && (
+                <div className="wb-part wb-part-config" onFocus={() => setFocused("config")}>
+                  <div className="wb-part-head">{t("ide.part.config")}</div>
+                  <CodeEditor
+                    key={`${active}.config`}
+                    ref={configEditor}
+                    className="wb-cm wb-cm-config"
+                    value={configText}
+                    check={checkConfig}
+                    onChange={(v) => setPack((p) => setAt(p, `${active}.config`, v))}
+                    onProblems={setConfigProblems}
+                  />
+                </div>
+              )}
+              <div className="wb-part wb-part-main" onFocus={() => setFocused("main")}>
+                {entry && <div className="wb-part-head">{t("ide.part.script")}</div>}
+                <CodeEditor
+                  key={mainPath ?? ""}
+                  ref={editor}
+                  className="wb-cm"
+                  value={text}
+                  check={check}
+                  placeholder={entry ? t("script.ph") : t("rules.ph.formula")}
+                  onChange={(v) => setPack((p) => setAt(p, mainPath!, v))}
+                  onProblems={setProblems}
+                />
+              </div>
+              {allProblems.length > 0 && (
                 <ul className="wb-ide-problems">
-                  {problems.map((m, i) => (
+                  {allProblems.map((m, i) => (
                     <li key={i}>{m}</li>
                   ))}
                 </ul>
@@ -130,9 +163,9 @@ export function Ide({
             ))}
           </div>
           <div className="wb-ide-toolbody">
-            {tool === "names" && <NamesPanel pack={pack} doc={doc} insert={(s) => editor.current?.insert(s)} />}
+            {tool === "names" && <NamesPanel pack={pack} doc={doc} part={entry ? focused : "main"} insert={(s) => current()?.insert(s)} />}
             {tool === "try" && <TryPanel key={active ?? ""} pack={pack} doc={doc} onGoSamples={onGoSamples} />}
-            {tool === "search" && <SearchPanel pack={pack} query={query} setQuery={setQuery} onOpen={onOpen} fromCursor={() => editor.current?.wordAtCursor() ?? ""} />}
+            {tool === "search" && <SearchPanel pack={pack} query={query} setQuery={setQuery} onOpen={onOpen} fromCursor={() => current()?.wordAtCursor() ?? ""} />}
             {tool === "help" && <FormulaHelpBody />}
           </div>
         </div>

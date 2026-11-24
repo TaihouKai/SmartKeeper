@@ -38,6 +38,17 @@ const SCRIPT: [string, string][] = [
   ["elif …: / else:", "fh.s.else"],
 ];
 
+const CONFIG: [string, string][] = [
+  ['target = "single"', "config.c.target"],
+  ["range = 30 + this.level * 5", "config.c.range"],
+  ["visible = True", "config.c.visible"],
+  ["requires = not silenced", "config.c.requires"],
+  ["noise = 20", "config.c.noise"],
+  ["cast_time = 0.5    cooldown = 60", "config.c.cooldown"],
+  ["shape = cone(length=10, angle=60)", "config.c.shape"],
+  ["placement = placement(radius=3, charges=1)", "config.c.placement"],
+];
+
 export const FUNCTION_SIGNATURES: [string, string][] = [
   ["abs", "abs(x)"],
   ["floor", "floor(x)"],
@@ -85,6 +96,9 @@ export function FormulaHelpBody() {
       <h4>{t("fh.dice")}</h4>
       <Rows rows={DICE} />
       <p className="sk-hint">{t("fh.where")}</p>
+      <h4>{t("config.title")}</h4>
+      <Rows rows={CONFIG} />
+      <p className="sk-hint">{t("config.hint")}</p>
       <h4>{t("fh.script")}</h4>
       <Rows rows={SCRIPT} />
       <p className="sk-hint">{t("script.hint")}</p>

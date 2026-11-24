@@ -94,14 +94,26 @@ class GroupEntry(Frozen):
     description: str = ""
     fields: dict[str, JsonValue] = {}
     effects: tuple[Effect, ...] = ()
-    shape: Shape | None = None
-    placement: PlacementSpec | None = None
+    # 技能设置：一串赋值（目标、射程、施放时间、冷却、范围形状、设置物……），见 smartkeeper.lang.config；
+    # 解析成 SkillConfig 由 rules 负责，引擎按它执行
+    config: str = ""
     # 技能脚本：用这个条目（并且 KP 判定生效）时执行的语句，见 smartkeeper.lang.script
     script: str = ""
-    # 施放时间（分钟，公式）：不到 1 分钟算瞬发。用这个技能的行动至少要这么久
-    cast_time: str = ""
-    # 冷却时间（分钟，公式）：用过之后这么久之内不能再用
-    cooldown: str = ""
+
+
+class SkillConfig(Frozen):
+    """条目的技能设置（GroupEntry.config 解析出来的）。公式都还是文本，用的时候在使用者和这一条上求值。"""
+
+    # single：要选一个对象；self：只能对自己用；none：没有对象
+    target: Literal["single", "self", "none"] = "single"
+    range: str = ""  # 射程（米）；空表示不限
+    visible: bool = False  # 对象必须在使用者此刻的感知里（看得见或察觉得到）
+    noise: str = ""  # 动静范围（米）：范围内的其他玩家会察觉到有人用了这个技能；空表示悄无声息
+    requires: str = ""  # 使用条件（公式），不成立就不能用
+    cast_time: str = ""  # 施放时间（分钟）：不到 1 分钟算瞬发；用这个技能的行动至少要这么久
+    cooldown: str = ""  # 冷却时间（分钟）：用过之后这么久之内不能再用
+    shape: Shape | None = None  # 范围形状
+    placement: PlacementSpec | None = None  # 是设置物（陷阱、结界）时的参数
 
 
 class Status(Frozen):

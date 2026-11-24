@@ -396,3 +396,29 @@ def test_script_validation(rules: RulesService) -> None:
     assert codes(branchy) == [("script.not_runtime", 4)]
     assert codes("if 1d6 > 3:\n  self.add(hp, 1)") == [("formula.dice_not_allowed", 1)]
     assert codes("if nope:\n  self.add(hp, 1)") == [("formula.unknown_name", 1)]
+
+
+def test_skill_config_validation(rules: RulesService) -> None:
+    pack = load_pack("single")
+
+    def codes(text: str) -> list[tuple[str, object]]:
+        got = rules.validate_formula(pack, "person", text, in_entry="skills", scope="config")
+        return [(p.code, p.params.get("line")) for p in got]
+
+    good = 'target = "single"\nrange = 10 + this.level\nvisible = True\nnoise = None\ncooldown = 60'
+    assert codes(good) == []
+    assert codes('target = "everyone"') == [("config.bad_value", 1)]
+    assert codes("\nreach = 5") == [("config.unknown_key", 2)]
+    assert codes("range = 1\nrange = 2") == [("config.duplicate", 2)]
+    assert codes("range = nope") == [("formula.unknown_name", 1)]
+    assert codes("range = 1d6") == [("formula.dice_not_allowed", 1)]
+    assert codes("visible = 3") == [("config.bad_value", 1)]
+    assert codes("shape = blob(radius=1)") == [("config.bad_call", 1)]
+    assert codes("shape = sphere(length=1)") == [("config.bad_arg", 1)]
+    assert codes("x == 1") == [("config.bad_line", 1)]
+    cfg = rules.skill_config(
+        "shape = cone(length=10, angle=60)\nplacement = placement(radius=3, duration=2)"
+    )
+    assert cfg.shape is not None and cfg.shape.kind == "cone" and cfg.shape.angle == 60
+    assert cfg.placement is not None and cfg.placement.duration == "(2) * 60"
+    assert rules.skill_config("").target == "single"

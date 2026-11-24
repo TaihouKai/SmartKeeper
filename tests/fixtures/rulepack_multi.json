@@ -308,17 +308,12 @@
               {
                 "name": "long beam",
                 "description": "a beam of light",
-                "shape": {
-                  "kind": "box",
-                  "length": 100000,
-                  "width": 3,
-                  "height": 5
-                },
                 "effects": [
                   {
                     "description": "blinding light"
                   }
-                ]
+                ],
+                "config": "target = \"none\"\nshape = box(length=100000, width=3, height=5)"
               },
               {
                 "name": "swift",

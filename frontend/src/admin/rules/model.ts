@@ -181,7 +181,8 @@ export function selForPath(path: string): Sel {
 
 export type Doc = {
   path: string;
-  kind: "script" | "formula";
+  /** entry：一个条目（上面是技能设置，下面是技能脚本）；script / config 只用于查找，打开时换成它们所在的条目 */
+  kind: "entry" | "script" | "config" | "formula";
   /** 校验和补全用：在哪个模板、哪个分组的条目里，什么范围 */
   template: string | null;
   inEntry?: string;
@@ -191,8 +192,6 @@ export type Doc = {
 };
 
 const TEMPLATE_FORMULA_KEYS = new Set(["min", "max", "initial", "per_minute"]);
-const ROW_FORMULA_KEYS = new Set(["when", "cast_time", "cooldown"]);
-const PLACEMENT_KEYS = new Set(["radius", "perceive_multiplier", "charges", "duration"]);
 
 /** 这个路径是不是一段能在 IDE 里打开的公式或脚本；是的话返回校验它需要的上下文。 */
 export function docFor(pack: Pack, path: string): Doc | null {
@@ -217,18 +216,24 @@ export function docFor(pack: Pack, path: string): Doc | null {
   if (s[4] === "fields" && TEMPLATE_FORMULA_KEYS.has(String(s[6]))) return { path, kind: "formula", template, inEntry };
   if (s[4] !== "presets" || typeof s[5] !== "number") return null;
   const entry = { t: s[1], g: s[3], r: s[5] };
+  if (s.length === 6) return g.presets?.[s[5]] ? { path, kind: "entry", template, inEntry, entry } : null;
   const key = String(s[6]);
   if (key === "script") return { path, kind: "script", template, inEntry, scope: "script", entry };
+  if (key === "config") return { path, kind: "config", template, inEntry, scope: "config", entry };
   if (key === "when") return { path, kind: "formula", template, entry };
-  if (ROW_FORMULA_KEYS.has(key)) return { path, kind: "formula", template, inEntry, entry };
   if (key === "fields" && typeof s[7] === "string") {
     const def = (g.fields ?? []).find((f) => f.name === s[7]);
     if (def?.kind === "formula") return { path, kind: "formula", template, inEntry, scope: "dice", entry };
     return null;
   }
   if (key === "effects" && s[8] === "formula") return { path, kind: "formula", template, inEntry, entry };
-  if (key === "placement" && PLACEMENT_KEYS.has(String(s[7]))) return { path, kind: "formula", template, inEntry, entry };
   return null;
+}
+
+/** 在 IDE 里打开时用的路径：条目的设置和脚本都打开整个条目。 */
+export function openPath(path: string): string {
+  const m = /^(.*\.presets\[\d+\])\.(config|script)$/.exec(path);
+  return m ? m[1]! : path;
 }
 
 /** 规则包里所有的公式和脚本（查找引用用）：路径和文本。 */
@@ -283,6 +288,7 @@ export function shortTitle(t: (k: string) => string, pack: Pack, path: string): 
       if (n) name = n;
     }
   }
+  if (typeof segs[segs.length - 1] === "number") return name || path;
   const last = String(segs[segs.length - 1] ?? "");
   const label = t(`rules.path.${last}`);
   const what = segs[segs.length - 2] === "fields" || label === `rules.path.${last}` ? last : label;

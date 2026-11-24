@@ -76,6 +76,16 @@
     "character": {
       "invalid": "The character sheet is invalid"
     },
+    "config": {
+      "bad_arg": "Bad argument {arg} for {name}",
+      "bad_call": "{name} can't be {call}(…)",
+      "bad_line": "Not a setting: {text}. Write name = value",
+      "bad_value": "Bad value for {name}; expected {expected}",
+      "call_keywords": "Arguments of {name}(…) must be name=value",
+      "duplicate": "{name} is set twice",
+      "missing_arg": "{name} is missing {arg}",
+      "unknown_key": "There is no setting {name} (see Reference in the IDE)"
+    },
     "formula": {
       "arity": "{name} got the wrong number of arguments ({count})",
       "bad_value": "{name} has a value that can't be used here",
@@ -170,7 +180,10 @@
       "choice": "'{value}' isn't one of the choices",
       "derived_not_writable": "Derived values can't be entered",
       "missing_field": "Missing field",
+      "placement_not_allowed": "Entries in this group can't be placements (turn it on in the group's settings)",
       "required": "Required",
+      "shape_not_allowed": "This group doesn't allow that area shape",
+      "timing_not_allowed": "This group has no cast time or cooldown (turn it on in the group's settings)",
       "type": "Wrong type",
       "unknown_field": "Unknown field"
     },
@@ -188,7 +201,12 @@
     },
     "use": {
       "cooling_down": "{entry} is still cooling down",
-      "dead": "{entity} is dead and can't use skills"
+      "dead": "{entity} is dead and can't use skills",
+      "needs_target": "{entry} needs a target",
+      "no_position": "{entry} has a range but the user or target isn't on the map",
+      "not_perceived": "{entry} needs the target to be perceived",
+      "out_of_range": "{entry} is out of range: the target is {distance} m away, range {range} m",
+      "requires": "{entry} can't be used now: its condition {formula} doesn't hold"
     }
   },
   "common": {
@@ -202,6 +220,21 @@
     "save": "Save",
     "show": "Show",
     "working": "Working…"
+  },
+  "config": {
+    "c": {
+      "cast_time": "cast time in minutes; under 1 is instant",
+      "cooldown": "cooldown in minutes",
+      "noise": "noise radius in metres; None = silent",
+      "placement": "placement, e.g. placement(radius=3, charges=1)",
+      "range": "range in metres; None = unlimited",
+      "requires": "condition to use, e.g. not silenced",
+      "shape": "area shape, e.g. sphere(radius=5)",
+      "target": "single needs a target / self only / none",
+      "visible": "the target must be perceived"
+    },
+    "hint": "The engine applies these settings itself. target: single needs one target, self is only on yourself, none has no target. range: metres, unset means unlimited. visible: True means the target must be perceived by the user. requires: a condition that must hold. noise: metres; other players within it sense the use. cast_time / cooldown: minutes. shape: area shape, e.g. sphere(radius=5), cone(length=10, angle=60), capsule(length=20, width=2), box(length=, width=, height=). placement: a trap or ward, e.g. placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True). Values may be formulas using this.column; None means unset.",
+    "title": "Skill settings"
   },
   "demo": {
     "hint": "Click an entity, a building or the ground.",
@@ -218,11 +251,14 @@
     "kp": "Keeper",
     "me": "Me",
     "my_action": "My action",
+    "noticed": "You sense someone nearby using “{entry}”",
+    "noticed_who": "You sense {who} using “{entry}”",
     "opening": "Opening",
     "quote": "Quote",
     "rejected": "Character needs changes",
     "round_closed": "— Round {round} ends —",
     "round_opened": "— Round {round} begins —",
+    "sense": "Sensed",
     "submitted": "Character submitted"
   },
   "fh": {
@@ -350,6 +386,10 @@
       "subtract": "subtract"
     },
     "open_here": "Open in the IDE",
+    "part": {
+      "config": "Settings",
+      "script": "Effect"
+    },
     "reveal": "Show where this is",
     "search_count": "{n} found",
     "search_cursor": "Name at cursor",
@@ -612,6 +652,7 @@
       "cast_time": "Cast (min)",
       "column": "Column: {name}",
       "cooldown": "Cooldown (min)",
+      "edit": "Edit",
       "empty": "No entries yet. Use “+ Row” below.",
       "hint": "This kind of entry is a table: each row is an entry written by the rules (e.g. one skill), each column is something every entry fills in. Condition, Name and Description come with every row; “+ Column” adds one (e.g. rank, mana cost, damage), and clicking a column name edits its name and type. The “Script” button opens the entry's skill script in the IDE on the right; the ⤢ next to a formula cell opens it there too. Modifiers and area shapes are under the row's “More”. Conditions may only use this sheet's fields, e.g. class == \"warrior\"; empty means always. Row order matters: modifiers on one value run top to bottom. Players fill the same columns for their own entries.",
       "id": "ID (for references, optional)",
@@ -627,6 +668,7 @@
       "script_col": "Skill script",
       "script_empty": "No skill script yet; click to write one in the IDE",
       "script_ok": "Open the skill script in the IDE",
+      "skill_col": "Settings & effect",
       "timing_hint": "Cast time and cooldown are in minutes and may be formulas (24*60 is a day). Under 1 minute is instant; an action using the skill takes at least the cast time. Cooldown: after a use (hit or not) the skill can't be used again for this long.",
       "title": "Entry table",
       "when": "Condition"

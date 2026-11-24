@@ -24,12 +24,12 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
   const fields = (template.fields ?? []).filter((f) => f.cls !== "runtime");
   const derived = (template.derived ?? []).map((d) => d.name);
   const validate = useCallback(
-    (formula: string, inEntry: string, scope?: "dice" | "script") =>
-      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script" } })),
+    (formula: string, inEntry: string, scope?: "dice" | "script" | "config") =>
+      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config" } })),
     [template.name],
   );
   const topDice = useCallback(
-    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true, script: false } })),
+    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true, script: false, config: false } })),
     [template.name],
   );
   const body = useMemo(() => JSON.stringify(value), [value]);
@@ -77,7 +77,7 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
               />
             ))}
             {(g.max_count === null || g.max_count === undefined || entries.length < g.max_count) && (
-              <button type="button" onClick={() => setEntries([...entries, { name: "", id: "", description: "", fields: {}, effects: [], shape: null }])}>
+              <button type="button" onClick={() => setEntries([...entries, { name: "", id: "", description: "", fields: {}, effects: [] }])}>
                 {t("character.add_entry")}
               </button>
             )}

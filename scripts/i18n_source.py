@@ -185,6 +185,12 @@ T: dict[str, tuple[str, str]] = {
     "event.approved": ("角色卡审核通过", "Character approved"),
     "event.rejected": ("角色卡需要修改", "Character needs changes"),
     "event.submitted": ("提交了角色卡", "Character submitted"),
+    "event.sense": ("察觉", "Sensed"),
+    "event.noticed": (
+        "你察觉到附近有人施展了「{entry}」",
+        "You sense someone nearby using “{entry}”",
+    ),
+    "event.noticed_who": ("你察觉到{who}施展了「{entry}」", "You sense {who} using “{entry}”"),
     "event.opening": ("开场", "Opening"),
     "event.round_opened": ("—— 第 {round} 轮开始 ——", "— Round {round} begins —"),
     "event.round_closed": ("—— 第 {round} 轮结束 ——", "— Round {round} ends —"),
@@ -672,6 +678,36 @@ T: dict[str, tuple[str, str]] = {
     ),
     "rules.gt.when": ("生效条件", "Condition"),
     "script.title": ("技能脚本（使用时）", "Skill script (on use)"),
+    "config.title": ("技能设置", "Skill settings"),
+    "config.hint": (
+        "引擎按这些设置执行，不用 KP 判断。target：single 要选一个对象，self 只能对自己用，none 没有对象。range：射程（米），不写表示不限。visible：True 表示对象必须在施法者此刻的感知里。requires：使用条件，不成立就不能用。noise：动静范围（米），范围内的其他玩家会察觉到有人用了这个技能。cast_time / cooldown：施放时间和冷却（分钟）。shape：范围形状，例如 sphere(radius=5)、cone(length=10, angle=60)、capsule(length=20, width=2)、box(length=, width=, height=)。placement：设置物（陷阱、结界），例如 placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True)。值可以是公式，能用 this.列；写 None 表示不设。",
+        "The engine applies these settings itself. target: single needs one target, self is only on yourself, none has no target. range: metres, unset means unlimited. visible: True means the target must be perceived by the user. requires: a condition that must hold. noise: metres; other players within it sense the use. cast_time / cooldown: minutes. shape: area shape, e.g. sphere(radius=5), cone(length=10, angle=60), capsule(length=20, width=2), box(length=, width=, height=). placement: a trap or ward, e.g. placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True). Values may be formulas using this.column; None means unset.",
+    ),
+    "config.c.target": (
+        "single 要选对象 / self 只能对自己 / none 没有对象",
+        "single needs a target / self only / none",
+    ),
+    "config.c.range": ("射程（米），None 表示不限", "range in metres; None = unlimited"),
+    "config.c.visible": ("对象必须在施法者的感知里", "the target must be perceived"),
+    "config.c.requires": ("使用条件，例如 not silenced", "condition to use, e.g. not silenced"),
+    "config.c.noise": (
+        "动静范围（米），None 表示悄无声息",
+        "noise radius in metres; None = silent",
+    ),
+    "config.c.cast_time": (
+        "施放时间（分钟），不到 1 算瞬发",
+        "cast time in minutes; under 1 is instant",
+    ),
+    "config.c.cooldown": ("冷却（分钟）", "cooldown in minutes"),
+    "config.c.shape": ("范围形状，例如 sphere(radius=5)", "area shape, e.g. sphere(radius=5)"),
+    "config.c.placement": (
+        "设置物，例如 placement(radius=3, charges=1)",
+        "placement, e.g. placement(radius=3, charges=1)",
+    ),
+    "ide.part.config": ("设置", "Settings"),
+    "ide.part.script": ("效果", "Effect"),
+    "rules.gt.edit": ("编辑", "Edit"),
+    "rules.gt.skill_col": ("设置与效果", "Settings & effect"),
     "script.ph": (
         "例如\ntarget.damage(this.damage)\nself.add(hp, 5)",
         "e.g.\ntarget.damage(this.damage)\nself.add(hp, 5)",
@@ -1069,6 +1105,55 @@ T: dict[str, tuple[str, str]] = {
     ),
     "codes.use.dead": ("{entity} 已经死亡，不能用技能", "{entity} is dead and can't use skills"),
     "codes.use.cooling_down": ("{entry} 还在冷却", "{entry} is still cooling down"),
+    "codes.use.needs_target": ("{entry} 要选一个对象", "{entry} needs a target"),
+    "codes.use.requires": (
+        "{entry} 现在不能用：使用条件 {formula} 不成立",
+        "{entry} can't be used now: its condition {formula} doesn't hold",
+    ),
+    "codes.use.out_of_range": (
+        "{entry} 够不着：对象在 {distance} 米外，射程 {range} 米",
+        "{entry} is out of range: the target is {distance} m away, range {range} m",
+    ),
+    "codes.use.not_perceived": (
+        "{entry} 要看得见（察觉得到）对象才能用",
+        "{entry} needs the target to be perceived",
+    ),
+    "codes.use.no_position": (
+        "{entry} 有射程，但使用者或对象不在地图上",
+        "{entry} has a range but the user or target isn't on the map",
+    ),
+    "codes.sheet.shape_not_allowed": (
+        "这个分组不允许这种范围形状",
+        "This group doesn't allow that area shape",
+    ),
+    "codes.sheet.placement_not_allowed": (
+        "这个分组的条目不能是设置物（在分组的更多设置里打开）",
+        "Entries in this group can't be placements (turn it on in the group's settings)",
+    ),
+    "codes.sheet.timing_not_allowed": (
+        "这个分组没有打开施放时间和冷却（在分组的更多设置里打开）",
+        "This group has no cast time or cooldown (turn it on in the group's settings)",
+    ),
+    "codes.config.unknown_key": (
+        "没有 {name} 这一项设置（见 IDE 的“速查”）",
+        "There is no setting {name} (see Reference in the IDE)",
+    ),
+    "codes.config.bad_value": (
+        "{name} 的值不对，应该是 {expected}",
+        "Bad value for {name}; expected {expected}",
+    ),
+    "codes.config.bad_call": ("{name} 不能写成 {call}(…)", "{name} can't be {call}(…)"),
+    "codes.config.bad_arg": ("{name} 的参数 {arg} 不对", "Bad argument {arg} for {name}"),
+    "codes.config.missing_arg": ("{name} 少了参数 {arg}", "{name} is missing {arg}"),
+    "codes.config.duplicate": ("{name} 写了两次", "{name} is set twice"),
+    "codes.config.bad_line": (
+        "这一行不是设置：{text}。写成 名字 = 值",
+        "Not a setting: {text}. Write name = value",
+    ),
+    "codes.config.call_keywords": (
+        "{name}(…) 的参数要写成 参数=值",
+        "Arguments of {name}(…) must be name=value",
+    ),
     "codes.pack.missing_hp": (
         "缺少生命值字段 {name}（必须是运行值）",
         "Missing the HP field {name} (must be a runtime value)",

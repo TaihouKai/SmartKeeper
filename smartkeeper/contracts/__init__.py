@@ -114,6 +114,7 @@ from smartkeeper.contracts.sheet import (
     SheetChange,
     SheetSubmission,
     SheetView,
+    SkillConfig,
     Status,
 )
 from smartkeeper.contracts.spatial import (
@@ -253,6 +254,7 @@ __all__ = [
     "SheetChange",
     "SheetSubmission",
     "SheetView",
+    "SkillConfig",
     "SmartKeeperError",
     "Spatial",
     "SpatialQuery",

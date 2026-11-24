@@ -20,9 +20,10 @@ from smartkeeper.contracts import (
     RulePack,
     ScriptStep,
     Sheet,
+    SkillConfig,
     ValidationFailed,
 )
-from smartkeeper.rules import checks, scripts, sheets, validation
+from smartkeeper.rules import checks, scripts, sheets, skillconfig, validation
 from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.render import render as render_markdown
 
@@ -46,6 +47,14 @@ class RulesService:
             grp = next((g for g in tpl.groups if g.name == in_entry), None)
             return validation.check_script(
                 pack, tpl, formula, "script", [x.name for x in grp.fields] if grp else []
+            )
+        if scope == "config":
+            tpl = pack.template(template) if template else None
+            if tpl is None:
+                return []
+            grp = next((g for g in tpl.groups if g.name == in_entry), None)
+            return validation.check_config(
+                pack, tpl, grp, formula, "config", [x.name for x in grp.fields] if grp else []
             )
         if scope == "dice" and template is not None:
             # 掷骰公式字段：在这个模板（和条目）上求值，可以掷骰
@@ -98,6 +107,12 @@ class RulesService:
     ) -> tuple[ScriptStep, ...]:
         return scripts.plan_script(pack, script, faces, template, sheet, entry, peers, target)
 
+    def skill_config(self, config: str) -> SkillConfig:
+        try:
+            return skillconfig.read_config(config)
+        except f.FormulaError as e:
+            raise ValidationFailed(e.code, **e.params) from e
+
     def complete_names(
         self, pack: RulePack, template: str | None, scope: FormulaScope | None = None
     ) -> list[str]:
@@ -117,6 +132,12 @@ class RulesService:
         if scope == "script":
             names |= {f"{who}.{verb}" for who in f.RECEIVERS for verb in f.VERBS}
             names |= {"elif", "pass"}
+        if scope == "config":
+            names |= (
+                set(skillconfig.KEYS)
+                | set(skillconfig.SHAPES)
+                | {"placement", "None", "True", "False"}
+            )
         names |= {t.name for t in pack.tables}
         # 引用写法：<模板>.字段/推导值、<模板>.<固定条目ID>、<模板>.<固定条目ID>.<列>、target.x、
         # 分组引用（count / sum）：分组、分组.列、<模板>.分组.列、target.分组.列
