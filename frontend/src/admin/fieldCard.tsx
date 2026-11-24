@@ -10,7 +10,7 @@ export function blankField(): Field {
 }
 
 export type Scope = "any_entity" | "dice" | "script" | "config";
-export type Validate = (formula: string, template: string | null, inEntry?: string, scope?: Scope) => Promise<{ problems: { code: string }[]; names: string[] }>;
+export type Validate = (formula: string, template: string | null, inEntry?: string, scope?: Scope, other?: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
 export function useListEdit<T>(list: T[], set: (l: T[]) => void) {
   return {

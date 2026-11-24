@@ -98,7 +98,7 @@ export function RulesPanel() {
   };
 
   const validate: Validate = useCallback(
-    (formula, template, inEntry, scope) => call(api.POST("/api/admin/rulepacks/formula", { body: { pack, formula, template, in_entry: inEntry ?? null, scope: scope ?? null } })),
+    (formula, template, inEntry, scope, other) => call(api.POST("/api/admin/rulepacks/formula", { body: { pack, formula, template, in_entry: inEntry ?? null, scope: scope ?? null, other: other ?? "" } })),
     [pack],
   );
   useEffect(() => {

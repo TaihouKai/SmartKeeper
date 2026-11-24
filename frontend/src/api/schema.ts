@@ -2304,6 +2304,11 @@ export interface components {
          */
         ScriptTryIn: {
             /**
+             * Config
+             * @default
+             */
+            config: string;
+            /**
              * Entry
              * @default {}
              */
@@ -2654,6 +2659,11 @@ export interface components {
             formula: string;
             /** In Entry */
             in_entry?: string | null;
+            /**
+             * Other
+             * @default
+             */
+            other: string;
             pack: components["schemas"]["RulePack"];
             scope?: components["schemas"]["FormulaScope"] | null;
             /** Template */
@@ -2675,6 +2685,11 @@ export interface components {
             formula: string;
             /** In Entry */
             in_entry?: string | null;
+            /**
+             * Other
+             * @default
+             */
+            other: string;
             /**
              * Script
              * @default false

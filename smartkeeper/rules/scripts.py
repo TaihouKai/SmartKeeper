@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Literal
 
 from pydantic import JsonValue
 
 from smartkeeper import lang as f
 from smartkeeper.contracts import Peers, RulePack, ScriptStep, ValidationFailed
+from smartkeeper.rules import skillconfig
 from smartkeeper.rules.checks import context
 from smartkeeper.rules.evaluator import EntityContext, table_lookup
 
@@ -30,6 +32,7 @@ def plan_script(
     entry: dict[str, JsonValue],
     peers: Peers | None = None,
     target: tuple[str, JsonValue, Peers | None] | None = None,
+    config: str = "",
 ) -> tuple[ScriptStep, ...]:
     try:
         nodes = f.parse_script(script)
@@ -41,6 +44,11 @@ def plan_script(
     lookup = table_lookup(pack)
     steps: list[ScriptStep] = []
     local: dict[str, f.Value] = {}  # 局部变量：算一次，后面的句子按名字取
+    # 设置的各项：在脚本的公式里换成它们的公式
+    env = {k: v for k, v in skillconfig.names(config, script).items() if k in skillconfig.KEYS}
+
+    def prep(text: str) -> f.Node:
+        return skillconfig.expand(ctx.prepare(text, entry), env)
 
     def run(body: tuple[f.ScriptNode, ...]) -> None:
         for node in body:
@@ -48,7 +56,7 @@ def plan_script(
             try:
                 if isinstance(node, f.Let):
                     v = f.evaluate(
-                        ctx.prepare(node.value, entry),
+                        prep(node.value),
                         ctx.resolver(entry, local),
                         lookup,
                         None,
@@ -59,14 +67,14 @@ def plan_script(
                 if isinstance(node, f.Statement):
                     if node.receiver == "target" and target is None:
                         continue
-                    steps.append(_step(ctx, lookup, faces, entry, node, local))
+                    steps.append(_step(ctx, lookup, faces, entry, node, local, prep))
                     continue
                 for b in node.branches:
                     if b.condition is None:
                         run(b.body)
                         break
                     line = b.line
-                    cond = ctx.prepare(b.condition, entry)
+                    cond = prep(b.condition)
                     if target is None and any(n.startswith("target.") for n in f.names(cond)):
                         break  # 没有对象时，问对象的条件整块跳过
                     if f.truthy(
@@ -88,6 +96,7 @@ def _step(
     entry: dict[str, JsonValue],
     st: f.Statement,
     local: dict[str, f.Value],
+    prep: Callable[[str], f.Node],
 ) -> ScriptStep:
     rolls: list[int] = []
 
@@ -97,9 +106,7 @@ def _step(
         return got
 
     def num(text: str) -> float:
-        v = f.evaluate(
-            ctx.prepare(text, entry), ctx.resolver(entry, local), lookup, record, ctx.collect
-        )
+        v = f.evaluate(prep(text), ctx.resolver(entry, local), lookup, record, ctx.collect)
         if isinstance(v, str):
             raise f.FormulaError("formula.text_result", value=v)
         return v
@@ -108,7 +115,7 @@ def _step(
     if st.verb == "modify":
         assert st.formula is not None and st.field is not None
         # 被修正的推导值自己的名字留着（在带着这条修正的角色身上求值），其余名字都换成此刻的值
-        node = ctx.prepare(st.formula, entry)
+        node = prep(st.formula)
         resolve = ctx.resolver(entry, local)
         values = {n: resolve(n) for n in f.names(node) if n != st.field}
         return ScriptStep(

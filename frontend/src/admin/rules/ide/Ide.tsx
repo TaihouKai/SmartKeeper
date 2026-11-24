@@ -57,15 +57,15 @@ export function Ide({
   const configText = active && entry ? String(getAt(pack, `${active}.config`) ?? "") : "";
   const scope = entry ? "script" : doc?.scope;
   const check = useCallback(
-    (f: string) => (doc ? validate(f, doc.template, doc.inEntry, scope) : Promise.resolve({ problems: [], names: [] })),
-    // doc 每次都是新对象，按它的内容决定要不要换
+    (f: string) => (doc ? validate(f, doc.template, doc.inEntry, scope, entry ? configText : undefined) : Promise.resolve({ problems: [], names: [] })),
+    // doc 每次都是新对象，按它的内容决定要不要换；条目的设置和脚本可以互相引用名字，另一半变了也要重新校验
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [validate, doc?.template, doc?.inEntry, scope],
+    [validate, doc?.template, doc?.inEntry, scope, entry ? configText : ""],
   );
   const checkConfig = useCallback(
-    (f: string) => (doc ? validate(f, doc.template, doc.inEntry, "config") : Promise.resolve({ problems: [], names: [] })),
+    (f: string) => (doc ? validate(f, doc.template, doc.inEntry, "config", text) : Promise.resolve({ problems: [], names: [] })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [validate, doc?.template, doc?.inEntry],
+    [validate, doc?.template, doc?.inEntry, text],
   );
   const allProblems = entry ? [...configProblems, ...problems] : problems;
   const titles = useMemo(() => Object.fromEntries(docs.map((p) => [p, describePath(t, pack, p)])), [docs, pack, t]);

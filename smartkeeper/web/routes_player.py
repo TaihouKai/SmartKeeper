@@ -110,6 +110,7 @@ class FormulaIn(BaseModel):
     dice: bool = False  # 掷骰公式字段：允许掷骰
     script: bool = False  # 技能脚本
     config: bool = False  # 技能设置
+    other: str = ""  # 条目的另一半（技能设置 / 技能脚本），两边可以互相引用名字
 
 
 class FormulaOut(BaseModel):
@@ -322,7 +323,7 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         )
         return FormulaOut(
             problems=s.rules.validate_formula(
-                pack, body.template, body.formula, body.in_entry, scope
+                pack, body.template, body.formula, body.in_entry, scope, body.other
             ),
             names=s.rules.complete_names(pack, body.template, scope),
         )

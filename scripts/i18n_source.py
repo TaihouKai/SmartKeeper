@@ -686,8 +686,8 @@ T: dict[str, tuple[str, str]] = {
     "script.title": ("技能脚本（使用时）", "Skill script (on use)"),
     "config.title": ("技能设置", "Skill settings"),
     "config.hint": (
-        "引擎按这些设置执行，不用 KP 判断。target：single 要选一个对象，self 只能对自己用，none 没有对象。range：射程（米），不写表示不限。visible：True 表示对象必须在施法者此刻的感知里。requires：使用条件，不成立就不能用。noise：动静范围（米），范围内的其他玩家会察觉到有人用了这个技能。cast_time / cooldown：施放时间和冷却（分钟）。shape：范围形状，例如 sphere(radius=5)、cone(length=10, angle=60)、capsule(length=20, width=2)、box(length=, width=, height=)。placement：设置物（陷阱、结界），例如 placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True)。值可以是公式，能用 this.列，也能用写在上面的项（例如 noise = range * 2）；写 None 表示不设。",
-        "The engine applies these settings itself. target: single needs one target, self is only on yourself, none has no target. range: metres, unset means unlimited. visible: True means the target must be perceived by the user. requires: a condition that must hold. noise: metres; other players within it sense the use. cast_time / cooldown: minutes. shape: area shape, e.g. sphere(radius=5), cone(length=10, angle=60), capsule(length=20, width=2), box(length=, width=, height=). placement: a trap or ward, e.g. placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True). Values may be formulas using this.column or settings above them (e.g. noise = range * 2); None means unset.",
+        "引擎按这些设置执行，不用 KP 判断。target：single 要选一个对象，self 只能对自己用，none 没有对象。range：射程（米），不写表示不限。visible：True 表示对象必须在施法者此刻的感知里。requires：使用条件，不成立就不能用。noise：动静范围（米），范围内的其他玩家会察觉到有人用了这个技能。cast_time / cooldown：施放时间和冷却（分钟）。shape：范围形状，例如 sphere(radius=5)、cone(length=10, angle=60)、capsule(length=20, width=2)、box(length=, width=, height=)。placement：设置物（陷阱、结界），例如 placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True)。值可以是公式，能用 this.列，也能用别的项和技能脚本里的变量（例如 noise = range * 2），不能绕成圈；写 None 表示不设。",
+        "The engine applies these settings itself. target: single needs one target, self is only on yourself, none has no target. range: metres, unset means unlimited. visible: True means the target must be perceived by the user. requires: a condition that must hold. noise: metres; other players within it sense the use. cast_time / cooldown: minutes. shape: area shape, e.g. sphere(radius=5), cone(length=10, angle=60), capsule(length=20, width=2), box(length=, width=, height=). placement: a trap or ward, e.g. placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True). Values may be formulas using this.column other settings or the script's variables (e.g. noise = range * 2), without loops; None means unset.",
     ),
     "config.c.target": (
         "single 要选对象 / self 只能对自己 / none 没有对象",
@@ -1027,6 +1027,10 @@ T: dict[str, tuple[str, str]] = {
         "这一句不是动作：{text}。每句写成 对象.动作(参数)，例如 target.damage(5)；或者 if / elif / else / pass",
         "Not an action: {text}. Write object.action(arguments), e.g. target.damage(5); or if / elif / else / pass",
     ),
+    "codes.script.setting_name": (
+        "{name} 是技能设置的项，变量换个名字",
+        "{name} is a skill setting; give the variable another name",
+    ),
     "codes.script.bad_variable": (
         "{name} 不能当变量名（self、target、this 有固定的意思）",
         "{name} can't be a variable name (self, target and this are taken)",
@@ -1278,8 +1282,8 @@ T: dict[str, tuple[str, str]] = {
         "Timed modifier: halve the target's move speed for 10 minutes",
     ),
     "fh.s.let": (
-        "局部变量：后面的句子直接用 heal；只算一次，不能掷骰",
-        "A local variable: later lines can use heal; worked out once, no dice",
+        "局部变量：后面的句子直接用 heal；只算一次，不能掷骰。技能设置的项（例如 range）在脚本里也能直接用",
+        "A local variable: later lines can use heal; worked out once, no dice. Skill settings (e.g. range) can be used too",
     ),
     "fh.s.if": (
         "对象是 monster 模板时，执行下面缩进的几行（条件不能掷骰）",

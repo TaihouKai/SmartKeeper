@@ -24,12 +24,12 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
   const fields = (template.fields ?? []).filter((f) => f.cls !== "runtime");
   const derived = (template.derived ?? []).map((d) => d.name);
   const validate = useCallback(
-    (formula: string, inEntry: string, scope?: "dice" | "script" | "config") =>
-      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config" } })),
+    (formula: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string) =>
+      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config", other: other ?? "" } })),
     [template.name],
   );
   const topDice = useCallback(
-    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true, script: false, config: false } })),
+    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true, script: false, config: false, other: "" } })),
     [template.name],
   );
   const body = useMemo(() => JSON.stringify(value), [value]);

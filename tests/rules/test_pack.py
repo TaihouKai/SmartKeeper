@@ -4,7 +4,7 @@ import pytest
 import sqlalchemy as sa
 from pydantic import JsonValue
 
-from smartkeeper.contracts import DerivedDef, NotFound, RulePack, ValidationFailed
+from smartkeeper.contracts import DerivedDef, FormulaScope, NotFound, RulePack, ValidationFailed
 from smartkeeper.rules import RulesService, SqlRulePackStore, export_pack, parse_import
 from tests.fixtures import PACKS, load_pack, pack_text
 
@@ -445,13 +445,15 @@ def test_boolean_initial_must_look_like_a_boolean(rules: RulesService) -> None:
 def test_settings_and_scripts_may_use_earlier_names(rules: RulesService) -> None:
     pack = load_pack("single")
 
-    def codes(text: str, scope: str) -> list[tuple[str, object]]:
-        got = rules.validate_formula(pack, "person", text, in_entry="skills", scope=scope)  # type: ignore[arg-type]
+    def codes(text: str, scope: FormulaScope) -> list[tuple[str, object]]:
+        got = rules.validate_formula(pack, "person", text, in_entry="skills", scope=scope)
         return [(p.code, p.params.get("line")) for p in got]
 
     # 设置：后面的项引用前面的项；引用下面的项不行（和 Python 一样）
     assert codes("range = 10 + this.level\nnoise = range * 2", "config") == []
-    assert codes("noise = range\nrange = 10", "config") == [("formula.unknown_name", 1)]
+    # 不分先后，但不能绕成圈
+    assert codes("noise = range\nrange = 10", "config") == []
+    assert codes("range = noise\nnoise = range", "config")[0][0] == "formula.cycle"
     assert rules.skill_config("range = 10\nnoise = range * 2").noise == "10 * 2"
     # 脚本：局部变量；不能掷骰
     script = "heal = 2 + this.level\nif heal > 1:\n    self.add(hp, heal)\ntarget.modify(move_speed, move_speed + heal, 1)"
@@ -471,3 +473,38 @@ def test_script_variables_are_worked_out_once(rules: RulesService) -> None:
     )
     assert [(s.op, s.amount) for s in steps[:1]] == [("add", 8)]
     assert len(steps) == 2 and steps[1].formula == "move_speed + 8"
+
+
+def test_settings_and_script_see_each_other(rules: RulesService) -> None:
+    from tests.fixtures import FakeDice
+
+    pack = load_pack("single")
+
+    def codes(text: str, scope: FormulaScope, other: str) -> list[str]:
+        got = rules.validate_formula(
+            pack, "person", text, in_entry="skills", scope=scope, other=other
+        )
+        return [p.code for p in got]
+
+    script = "reach = 5 + this.level\ntarget.damage(range)"
+    config = "range = reach * 2"
+    # 设置用脚本的变量，脚本用设置的项
+    assert codes(config, "config", script) == []
+    assert codes(script, "script", config) == []
+    assert codes(config, "config", "") == ["formula.unknown_name"]
+    # 脚本变量不能和设置项同名
+    assert codes("range = 1\nself.add(hp, range)", "script", "") == ["script.setting_name"]
+    assert rules.skill_config(config, script).range == "(5 + this.level) * 2"
+    sheet = rules.init_sheet(pack, "person", pack.samples[0].sheet)
+    steps = rules.plan_script(
+        pack,
+        script,
+        FakeDice().faces,
+        "person",
+        sheet,
+        {"level": 1},
+        None,
+        ("person", sheet, None),
+        config,
+    )
+    assert [(x.op, x.amount) for x in steps] == [("damage", 12)]

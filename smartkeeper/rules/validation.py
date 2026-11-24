@@ -93,7 +93,12 @@ def check_formula(
 
 
 def check_script(
-    pack: RulePack, template: EntityTemplate, text: str, path: str, entry_fields: list[str]
+    pack: RulePack,
+    template: EntityTemplate,
+    text: str,
+    path: str,
+    entry_fields: list[str],
+    config: str = "",
 ) -> list[Problem]:
     """技能脚本：语法，每句的字段是不是能改的值，参数公式里的名字。问题的 params 里带 line。"""
     try:
@@ -113,7 +118,12 @@ def check_script(
     def at(line: int, found: list[Problem]) -> None:
         problems.extend(p.model_copy(update={"params": {**p.params, "line": line}}) for p in found)
 
-    defined: list[str] = []  # 到这一句为止定义过的局部变量
+    # 到这一句为止定义过的局部变量；设置的各项在哪里都能用
+    settings = [n for n in skillconfig.names(config, "") if n in skillconfig.KEYS]
+    defined: list[str] = list(settings)
+    for n in nodes:
+        if isinstance(n, f.Let) and n.name in skillconfig.KEYS:
+            at(n.line, [Problem(code="script.setting_name", path=path, params={"name": n.name})])
 
     def walk(body: tuple[f.ScriptNode, ...]) -> None:
         for node in body:
@@ -188,18 +198,19 @@ def check_config(
     text: str,
     path: str,
     entry_fields: list[str],
+    script: str = "",
 ) -> list[Problem]:
     """技能设置：名字和值的类型、分组允不允许（范围形状、设置物、施放时间和冷却），各个公式。问题带 line。"""
     try:
-        cfg = skillconfig.read_config(text)
+        cfg = skillconfig.read_config(text, script)
     except f.FormulaError as e:
         return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
     problems: list[Problem] = []
-    for line, _name, formula in skillconfig.formulas(text):
+    for line, _name, formula in skillconfig.formulas(text, script):
         found = check_formula(pack, template, formula, path, entry_fields=entry_fields)
         problems += [p.model_copy(update={"params": {**p.params, "line": line}}) for p in found]
     if g is not None:
-        settings = {s.name: s.line for s in skillconfig.settings(text)}
+        settings = {s.name: s.line for s in skillconfig.settings(text, script)}
 
         def off(name: str, code: str) -> None:
             problems.append(
@@ -797,11 +808,13 @@ def _check_entry(
     if entry.effects and not g.effects:
         problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
     if entry.script.strip():
-        problems += check_script(pack, tpl, entry.script, f"{ep}.script", list(fdefs))
+        problems += check_script(pack, tpl, entry.script, f"{ep}.script", list(fdefs), entry.config)
     for j, eff in enumerate(entry.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
     if entry.config.strip():
-        problems += check_config(pack, tpl, g, entry.config, f"{ep}.config", list(fdefs))
+        problems += check_config(
+            pack, tpl, g, entry.config, f"{ep}.config", list(fdefs), entry.script
+        )
     return problems
 
 

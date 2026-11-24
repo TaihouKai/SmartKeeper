@@ -77,7 +77,7 @@ export function EntryEditor({
   entry: Entry;
   onChange: (e: Entry) => void;
   onRemove?: () => void;
-  validate: (f: string, inEntry: string, scope?: "dice" | "script" | "config") => Promise<{ problems: { code: string }[]; names: string[] }>;
+  validate: (f: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
   /** 玩家写的条目要给效果填计算顺序；规则包的固定条目按定义顺序，不用填 */
   withPriority?: boolean;
   mover?: ReactNode;
@@ -86,8 +86,9 @@ export function EntryEditor({
   const fields = group.fields ?? [];
   const v = useCallback((f: string) => validate(f, group.name), [validate, group.name]);
   const vDice = useCallback((f: string) => validate(f, group.name, "dice"), [validate, group.name]);
-  const vScript = useCallback((f: string) => validate(f, group.name, "script"), [validate, group.name]);
-  const vConfig = useCallback((f: string) => validate(f, group.name, "config"), [validate, group.name]);
+  // 设置和脚本可以互相引用名字：校验一边时带上另一边
+  const vScript = useCallback((f: string) => validate(f, group.name, "script", entry.config ?? ""), [validate, group.name, entry.config]);
+  const vConfig = useCallback((f: string) => validate(f, group.name, "config", entry.script ?? ""), [validate, group.name, entry.script]);
   return (
     <div className="sk-entry">
       {mover && <div className="sk-row sk-row-end">{mover}</div>}

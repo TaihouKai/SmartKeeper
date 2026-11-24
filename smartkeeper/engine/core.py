@@ -1488,7 +1488,15 @@ class Engine:
 
             # 技能脚本：现在就掷骰算好；每一步记下落在哪个实体身上
             steps = self._rules.plan_script(
-                pack, parsed.script, self._dice.faces, template, sheet, fields, peers, tgt
+                pack,
+                parsed.script,
+                self._dice.faces,
+                template,
+                sheet,
+                fields,
+                peers,
+                tgt,
+                parsed.config,
             )
             actions: list[JsonValue] = [
                 {"entity": source if st.who == "self" else target, **st.model_dump(mode="json")}
@@ -1515,7 +1523,9 @@ class Engine:
     def _cfg(self, row: dict[str, JsonValue]) -> SkillConfig:
         """角色卡上一个条目的技能设置；写错的（校验会报）当作默认设置。"""
         try:
-            return self._rules.skill_config(str(row.get("config") or ""))
+            return self._rules.skill_config(
+                str(row.get("config") or ""), str(row.get("script") or "")
+            )
         except ValidationFailed:
             return SkillConfig()
 

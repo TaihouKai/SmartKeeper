@@ -62,33 +62,63 @@ def _number(s: f.Setting, arg: str, text: str) -> float:
     return node.value
 
 
-def settings(text: str) -> tuple[f.Setting, ...]:
-    """解析设置，并把公式里引用的前面的设置换成那一项的公式（像 Python 一样，只能引用写在上面的项）。"""
+def names(config: str, script: str) -> dict[str, f.Node]:
+    """一个条目里起了名字的公式：设置的各项、技能脚本最外层的局部变量（if 里面的只在脚本里用）。
+    写错的部分跳过（由各自的检查报）。设置和变量同名时用设置的。"""
     env: dict[str, f.Node] = {}
+    try:
+        for n in f.parse_script(script):
+            if isinstance(n, f.Let):
+                env[n.name] = f.parse(n.value)
+    except f.FormulaError:
+        pass
+    try:
+        for s in f.parse_config(config):
+            if s.call is None and s.value.strip():
+                env[s.name] = f.parse(s.value)
+    except f.FormulaError:
+        pass
+    return env
+
+
+def expand(node: f.Node, env: dict[str, f.Node], own: str | None = None) -> f.Node:
+    """把公式里条目内起了名字的公式换进去（可以层层引用，成环报 formula.cycle）。own 是这条公式自己的名字。"""
+
+    def go(n: f.Node, seen: tuple[str, ...]) -> f.Node:
+        def fn(name: str) -> f.Node | None:
+            if name not in env:
+                return None
+            if name in seen:
+                raise f.FormulaError("formula.cycle", name=" -> ".join([*seen, name]))
+            return go(env[name], (*seen, name))
+
+        return f.substitute(n, fn)
+
+    return go(node, (own,) if own else ())
+
+
+def settings(text: str, script: str = "") -> tuple[f.Setting, ...]:
+    """解析设置，并把公式里引用的其他设置和脚本里的变量换成它们的公式（不分先后，不能绕成圈）。"""
+    env = names(text, script)
     out: list[f.Setting] = []
-
-    def expand(text_: str) -> str:
-        if not text_.strip() or not env:
-            return text_
-        return f.to_text(f.substitute(f.parse(text_), env.get))
-
     for s in f.parse_config(text):
+
+        def link(text_: str, own: str = s.name) -> str:
+            return f.to_text(expand(f.parse(text_), env, own)) if text_.strip() else text_
+
         try:
-            value = expand(s.value)
-            args = tuple((a, expand(v)) for a, v in s.args)
+            value = link(s.value)
+            args = tuple((a, link(v)) for a, v in s.args)
         except f.FormulaError as e:
             raise f.FormulaError(e.code, **{"line": s.line, **e.params}) from None
-        s = f.Setting(line=s.line, name=s.name, value=value, call=s.call, args=args)
-        out.append(s)
-        if s.call is None and s.value.strip():
-            env[s.name] = f.parse(s.value)
+        out.append(f.Setting(line=s.line, name=s.name, value=value, call=s.call, args=args))
     return tuple(out)
 
 
-def read_config(text: str) -> SkillConfig:
-    """解析并检查名字和值的类型；没写的项取默认。"""
+def read_config(text: str, script: str = "") -> SkillConfig:
+    """解析并检查名字和值的类型；没写的项取默认。script 是同一条目的技能脚本（设置可以用里面的变量）。"""
     out: dict[str, object] = {}
-    for s in settings(text):
+    for s in settings(text, script):
         kind = KEYS.get(s.name)
         if kind is None:
             raise _err("config.unknown_key", s)
@@ -146,10 +176,10 @@ def read_config(text: str) -> SkillConfig:
     return SkillConfig.model_validate(out)
 
 
-def formulas(text: str) -> list[tuple[int, str, str]]:
+def formulas(text: str, script: str = "") -> list[tuple[int, str, str]]:
     """设置里要按公式检查的值：(行号, 名字, 公式文本)。设置物的参数也算。语法错时返回空（由 read_config 报）。"""
     try:
-        found = settings(text)
+        found = settings(text, script)
     except f.FormulaError:
         return []
     out: list[tuple[int, str, str]] = []

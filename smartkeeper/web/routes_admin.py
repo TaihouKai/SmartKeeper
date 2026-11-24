@@ -99,6 +99,7 @@ class ScriptTryIn(BaseModel):
 
     pack: RulePack
     script: str
+    config: str = ""
     template: str
     sheet: dict[str, JsonValue]
     entry: dict[str, JsonValue] = {}
@@ -119,6 +120,7 @@ class FormulaIn(BaseModel):
     template: str | None = None
     in_entry: str | None = None
     scope: FormulaScope | None = None
+    other: str = ""  # 条目的另一半（技能设置 / 技能脚本），两边可以互相引用名字
 
 
 class FormulaOut(BaseModel):
@@ -365,7 +367,15 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
                 values["target"] = _values(s, body.pack, body.target_template, tsheet)
                 target = (body.target_template, tsheet, None)
             steps = s.rules.plan_script(
-                body.pack, body.script, s.dice.faces, body.template, sheet, body.entry, None, target
+                body.pack,
+                body.script,
+                s.dice.faces,
+                body.template,
+                sheet,
+                body.entry,
+                None,
+                target,
+                body.config,
             )
         except ValidationFailed as err:
             found = err.problems or [Problem(code=err.code, params=err.params)]
@@ -376,7 +386,7 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
     def formula(body: FormulaIn) -> FormulaOut:
         return FormulaOut(
             problems=s.rules.validate_formula(
-                body.pack, body.template, body.formula, body.in_entry, body.scope
+                body.pack, body.template, body.formula, body.in_entry, body.scope, body.other
             ),
             names=s.rules.complete_names(body.pack, body.template, body.scope),
         )

@@ -168,14 +168,16 @@ class Rules(Protocol):
         entry: dict[str, JsonValue],
         peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
+        config: str = "",
     ) -> tuple[ScriptStep, ...]:
-        """技能脚本：在使用者的角色卡和这个条目（entry 是它的列，含这次使用时填写的数）上，
+        """技能脚本（config 是同一条目的技能设置，脚本里可以用它的各项）：在使用者的角色卡和这个条目（entry 是它的列，含这次使用时填写的数）上，
         掷骰算好每一句的数值；modify 的公式除了被修正的推导值自己，其余名字都换成此刻的值。
         没有对象（target 为 None）时跳过作用在 target 上的句子。出错抛 ValidationFailed。"""
         ...
 
-    def skill_config(self, config: str) -> SkillConfig:
-        """条目的技能设置文本解析成 SkillConfig（没写的项取默认）。写错抛 ValidationFailed。"""
+    def skill_config(self, config: str, script: str = "") -> SkillConfig:
+        """条目的技能设置文本解析成 SkillConfig（没写的项取默认；script 是同一条目的技能脚本，
+        设置里可以用它最外层的变量）。写错抛 ValidationFailed。"""
         ...
 
     def resolve_check(

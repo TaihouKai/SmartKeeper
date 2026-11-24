@@ -185,6 +185,7 @@ export function TryPanel({ pack, doc, onGoSamples }: { pack: Pack; doc: Doc | nu
             body: {
               pack,
               script: String(getAt(pack, `${doc.path}.script`) ?? ""),
+              config: String(getAt(pack, `${doc.path}.config`) ?? ""),
               template: me.s.template,
               sheet: me.s.sheet as Record<string, unknown>,
               entry: entry as Schemas["ScriptTryIn"]["entry"],

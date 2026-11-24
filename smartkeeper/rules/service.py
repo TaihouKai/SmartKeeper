@@ -39,14 +39,16 @@ class RulesService:
         formula: str,
         in_entry: str | None = None,
         scope: FormulaScope | None = None,
+        other: str = "",
     ) -> list[Problem]:
+        """other：条目的另一半（校验技能设置时是它的脚本，校验脚本时是它的设置），两边可以互相引用名字。"""
         if scope == "script":
             tpl = pack.template(template) if template else None
             if tpl is None:
                 return []
             grp = next((g for g in tpl.groups if g.name == in_entry), None)
             return validation.check_script(
-                pack, tpl, formula, "script", [x.name for x in grp.fields] if grp else []
+                pack, tpl, formula, "script", [x.name for x in grp.fields] if grp else [], other
             )
         if scope == "config":
             tpl = pack.template(template) if template else None
@@ -54,7 +56,13 @@ class RulesService:
                 return []
             grp = next((g for g in tpl.groups if g.name == in_entry), None)
             return validation.check_config(
-                pack, tpl, grp, formula, "config", [x.name for x in grp.fields] if grp else []
+                pack,
+                tpl,
+                grp,
+                formula,
+                "config",
+                [x.name for x in grp.fields] if grp else [],
+                other,
             )
         if scope == "dice" and template is not None:
             # 掷骰公式字段：在这个模板（和条目）上求值，可以掷骰
@@ -104,12 +112,15 @@ class RulesService:
         entry: dict[str, JsonValue],
         peers: Peers | None = None,
         target: tuple[str, JsonValue, Peers | None] | None = None,
+        config: str = "",
     ) -> tuple[ScriptStep, ...]:
-        return scripts.plan_script(pack, script, faces, template, sheet, entry, peers, target)
+        return scripts.plan_script(
+            pack, script, faces, template, sheet, entry, peers, target, config
+        )
 
-    def skill_config(self, config: str) -> SkillConfig:
+    def skill_config(self, config: str, script: str = "") -> SkillConfig:
         try:
-            return skillconfig.read_config(config)
+            return skillconfig.read_config(config, script)
         except f.FormulaError as e:
             raise ValidationFailed(e.code, **e.params) from e
 
