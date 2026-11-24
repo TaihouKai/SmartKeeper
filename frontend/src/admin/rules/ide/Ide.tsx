@@ -3,7 +3,7 @@ import { useI18n } from "../../../i18n";
 import { CodeEditor, type CodeEditorHandle } from "../../../ui/CodeEditor";
 import { FormulaHelpBody } from "../../../ui/FormulaHelp";
 import type { Validate } from "../../fieldCard";
-import { describePath, docFor, getAt, setAt, shortTitle, type Pack } from "../model";
+import { describeName, describePath, docFor, getAt, setAt, shortTitle, type Pack } from "../model";
 import { NamesPanel, SearchPanel, TryPanel } from "./panels";
 
 type Tool = "names" | "try" | "search" | "help";
@@ -68,6 +68,8 @@ export function Ide({
     [validate, doc?.template, doc?.inEntry, text],
   );
   const allProblems = entry ? [...configProblems, ...problems] : problems;
+  // 悬停提示：字段、推导值、本条目的设置和变量的说明
+  const describe = (w: string) => describeName(t, pack, doc, w, { config: configText, script: entry ? text : "" });
   const titles = useMemo(() => Object.fromEntries(docs.map((p) => [p, describePath(t, pack, p)])), [docs, pack, t]);
 
   const drag = (e: React.PointerEvent) => {
@@ -122,6 +124,7 @@ export function Ide({
                     check={checkConfig}
                     onChange={(v) => setPack((p) => setAt(p, `${active}.config`, v))}
                     onProblems={setConfigProblems}
+                    describe={describe}
                   />
                 </div>
               )}
@@ -136,6 +139,7 @@ export function Ide({
                   placeholder={entry ? t("script.ph") : t("rules.ph.formula")}
                   onChange={(v) => setPack((p) => setAt(p, mainPath!, v))}
                   onProblems={setProblems}
+                  describe={describe}
                 />
               </div>
               {allProblems.length > 0 && (

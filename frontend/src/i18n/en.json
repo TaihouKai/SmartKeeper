@@ -246,6 +246,59 @@
     "picked_point": "Picked point {lon}, {lat}",
     "title": "Map component demo (fake data)"
   },
+  "doc": {
+    "field": {
+      "derived": "Derived value",
+      "formula": "Named formula",
+      "table": "Table",
+      "target": "The target's",
+      "this": "This entry's column",
+      "variable": "A variable in the skill script"
+    },
+    "kw": {
+      "and": "1 if both hold; stops at the first that doesn't",
+      "if": "A branch (if cond: with an indented block) or a choice of value (a if cond else b)",
+      "none": "Unset (the default is used)",
+      "not": "1 if it doesn't hold, 0 if it does",
+      "or": "1 if either holds; stops at the first that does",
+      "pass": "Do nothing (an empty branch)",
+      "self": "The user: self.hp is your value, self.add(…) acts on you",
+      "target": "The chosen target: target.hp is its value, target.damage(…) acts on it",
+      "this": "This entry: this.column is one of its columns, including chosen-on-use ones"
+    },
+    "p": {
+      "amount_dice": "Amount: a formula, may roll dice, e.g. 2d6 + this.level",
+      "angle": "Opening angle in degrees (a number)",
+      "charges": "How many times it can trigger; unset means unlimited",
+      "derived": "The derived value to modify, e.g. move_speed",
+      "duration": "Minutes it lasts; unset means until removed",
+      "height_m": "Height in metres (a number)",
+      "length_m": "Length in metres (a number)",
+      "minutes": "How many minutes it lasts",
+      "modify_formula": "New value: the derived value's own name is the bearer's value, other names are frozen at use",
+      "notify": "Whether the owner is told when it triggers: True / False, default True",
+      "perceive": "Others notice it within their perception radius × this; 0 means never. Default 1",
+      "placement_radius": "Trigger radius in metres; required; may be a formula",
+      "radius_m": "Radius in metres (a number)",
+      "runtime_field": "Name of a runtime value (number or resource) on the receiver, e.g. hp, mp",
+      "timed_minutes": "Optional; makes it timed, lasting this many minutes",
+      "width_m": "Width in metres (a number)"
+    },
+    "placement": "This skill places a trap or ward: it stays on the map and triggers when someone enters its radius",
+    "shape": {
+      "box": "A box",
+      "capsule": "A line with a width (beam)",
+      "cone": "A cone opening from the user toward a direction",
+      "sphere": "A sphere"
+    },
+    "verb": {
+      "add": "Add to a runtime value; with minutes it's timed and what's left is taken back. Clamped to its limits",
+      "damage": "Take damage: shield first, then hp",
+      "modify": "Modify a derived value for a while",
+      "set": "Set a runtime value, clamped to its limits",
+      "sub": "Subtract from a runtime value, clamped to its limits"
+    }
+  },
   "event": {
     "anonymous": "Anonymous",
     "approved": "Character approved",

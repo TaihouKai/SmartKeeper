@@ -294,3 +294,64 @@ export function shortTitle(t: (k: string) => string, pack: Pack, path: string): 
   const what = segs[segs.length - 2] === "fields" || label === `rules.path.${last}` ? last : label;
   return name ? `${name} · ${what}` : what;
 }
+
+/** 本条目里技能设置的项、技能脚本的变量：名字 -> 公式文本（悬停提示用）。 */
+function entryNames(config: string, script: string): Map<string, { value: string; setting: boolean }> {
+  const out = new Map<string, { value: string; setting: boolean }>();
+  for (const [text, setting] of [
+    [script, false],
+    [config, true],
+  ] as const) {
+    for (const m of text.matchAll(/^[ \t]*([A-Za-z_]\w*)[ \t]*=(?!=)[ \t]*(.*)$/gm)) {
+      const value = (m[2] ?? "").replace(/#.*$/, "").trim();
+      if (value && value !== "None") out.set(m[1]!, { value, setting });
+    }
+  }
+  return out;
+}
+
+/** 公式里一个名字的说明：字段、推导值、命名公式、查表、这一条的列、本条目的设置和变量。 */
+export function describeName(
+  t: (k: string, p?: Record<string, string>) => string,
+  pack: Pack,
+  doc: Doc | null,
+  word: string,
+  texts: { config: string; script: string } = { config: "", script: "" },
+): { title: string; body: string } | null {
+  const parts = word.split(".");
+  const last = parts[parts.length - 1]!;
+  const kind = (k: string) => t(`rules.kind.${k}`);
+  const field = (f: Field, prefix: string) => ({
+    title: f.label ? `${word} — ${f.label}` : word,
+    body: [prefix, kind(f.kind), f.description].filter(Boolean).join(" · "),
+  });
+  const group = doc?.entry ? pack.templates[doc.entry.t]?.groups?.[doc.entry.g] : undefined;
+  if (parts[0] === "this" && parts.length === 2 && group) {
+    const f = (group.fields ?? []).find((x) => x.name === last);
+    if (!f) return null;
+    const v = (group.presets?.[doc!.entry!.r]?.fields ?? {})[last];
+    const info = field(f, t("doc.field.this"));
+    return v === undefined || v === "" ? info : { ...info, body: `${info.body} · = ${String(v)}` };
+  }
+  if (parts.length === 1) {
+    const own = entryNames(texts.config, texts.script).get(word);
+    if (own) return { title: `${word} = ${own.value}`, body: own.setting ? t(`config.c.${word}`) : t("doc.field.variable") };
+  }
+  const head = parts.length > 1 ? parts[0]! : "";
+  const mine = doc?.template ? pack.templates.find((x) => x.name === doc.template) : undefined;
+  const tpls = head && pack.templates.some((x) => x.name === head) ? pack.templates.filter((x) => x.name === head) : [...(mine ? [mine] : []), ...pack.templates.filter((x) => x !== mine)];
+  if (parts.length > 2 || (head && head !== "self" && head !== "target" && !pack.templates.some((x) => x.name === head))) return null;
+  const prefix = head === "target" ? t("doc.field.target") : "";
+  for (const tpl of tpls) {
+    const f = (tpl.fields ?? []).find((x) => x.name === last);
+    if (f) return field(f, prefix);
+    const d = (tpl.derived ?? []).find((x) => x.name === last);
+    if (d) return { title: d.label ? `${word} — ${d.label}` : word, body: [prefix, t("doc.field.derived"), d.formula].filter(Boolean).join(" · ") };
+  }
+  if (!head) {
+    const nf = (pack.formulas ?? []).find((x) => x.name === word);
+    if (nf) return { title: word, body: `${t("doc.field.formula")} · ${nf.formula}` };
+    if ((pack.tables ?? []).some((x) => x.name === word)) return { title: word, body: t("doc.field.table") };
+  }
+  return null;
+}

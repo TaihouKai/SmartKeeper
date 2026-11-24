@@ -1265,6 +1265,113 @@ T: dict[str, tuple[str, str]] = {
         "this.column: inside an entry (modifiers, skill script, cast time…) a column of that entry; dice-formula columns expand to their formula",
     ),
     "fh.script": ("技能脚本", "Skill scripts"),
+    "doc.verb.damage": (
+        "受到伤害：先扣护盾 shield，剩下的扣生命值 hp",
+        "Take damage: shield first, then hp",
+    ),
+    "doc.verb.add": (
+        "增加一个运行值；写了分钟就是限时的，到期扣回加上去还剩下的部分。结果不超过上下限",
+        "Add to a runtime value; with minutes it's timed and what's left is taken back. Clamped to its limits",
+    ),
+    "doc.verb.sub": (
+        "减少一个运行值，结果不低于下限",
+        "Subtract from a runtime value, clamped to its limits",
+    ),
+    "doc.verb.set": (
+        "把一个运行值设为某个数，结果在上下限之内",
+        "Set a runtime value, clamped to its limits",
+    ),
+    "doc.verb.modify": ("限时修正一个推导值，到期消失", "Modify a derived value for a while"),
+    "doc.p.amount_dice": (
+        "数量，公式，可以掷骰，例如 2d6 + this.level",
+        "Amount: a formula, may roll dice, e.g. 2d6 + this.level",
+    ),
+    "doc.p.runtime_field": (
+        "对象身上的运行值（数值或资源）的名字，例如 hp、mp",
+        "Name of a runtime value (number or resource) on the receiver, e.g. hp, mp",
+    ),
+    "doc.p.timed_minutes": (
+        "可不写；写了就是限时的，持续这么多分钟",
+        "Optional; makes it timed, lasting this many minutes",
+    ),
+    "doc.p.derived": (
+        "要修正的推导值的名字，例如 move_speed",
+        "The derived value to modify, e.g. move_speed",
+    ),
+    "doc.p.modify_formula": (
+        "新值的公式：写这个推导值自己的名字指带着修正的角色的值，其余名字取使用那一刻的值",
+        "New value: the derived value's own name is the bearer's value, other names are frozen at use",
+    ),
+    "doc.p.minutes": ("持续多少分钟", "How many minutes it lasts"),
+    "doc.shape.sphere": ("球形范围", "A sphere"),
+    "doc.shape.cone": (
+        "扇形（锥形）范围，从施法者朝一个方向张开",
+        "A cone opening from the user toward a direction",
+    ),
+    "doc.shape.capsule": ("线形范围（光束、射线），有宽度", "A line with a width (beam)"),
+    "doc.shape.box": ("长方体范围", "A box"),
+    "doc.placement": (
+        "这个技能放下的是设置物（陷阱、结界）：放在地图上，有人进入范围就触发",
+        "This skill places a trap or ward: it stays on the map and triggers when someone enters its radius",
+    ),
+    "doc.p.radius_m": ("半径（米），数字", "Radius in metres (a number)"),
+    "doc.p.length_m": ("长度（米），数字", "Length in metres (a number)"),
+    "doc.p.width_m": ("宽度（米），数字", "Width in metres (a number)"),
+    "doc.p.height_m": ("高度（米），数字", "Height in metres (a number)"),
+    "doc.p.angle": ("张开的角度（度），数字", "Opening angle in degrees (a number)"),
+    "doc.p.placement_radius": (
+        "触发范围（米），必填，可以写公式",
+        "Trigger radius in metres; required; may be a formula",
+    ),
+    "doc.p.perceive": (
+        "别人发现它的距离 = 那人的感知半径 × 这个数；0 表示发现不了。不写是 1",
+        "Others notice it within their perception radius × this; 0 means never. Default 1",
+    ),
+    "doc.p.charges": (
+        "能触发几次；不写表示无限",
+        "How many times it can trigger; unset means unlimited",
+    ),
+    "doc.p.duration": (
+        "持续多少分钟；不写表示一直存在，直到被移除",
+        "Minutes it lasts; unset means until removed",
+    ),
+    "doc.p.notify": (
+        "被触发时是否通知施术者：True / False，不写是 True",
+        "Whether the owner is told when it triggers: True / False, default True",
+    ),
+    "doc.kw.if": (
+        "条件分支（脚本里写 if 条件: 换行缩进），或数值二选一（a if 条件 else b）",
+        "A branch (if cond: with an indented block) or a choice of value (a if cond else b)",
+    ),
+    "doc.kw.and": (
+        "都成立得 1，否则 0；前面不成立就不算后面",
+        "1 if both hold; stops at the first that doesn't",
+    ),
+    "doc.kw.or": (
+        "有一个成立得 1，否则 0；前面成立就不算后面",
+        "1 if either holds; stops at the first that does",
+    ),
+    "doc.kw.not": ("不成立得 1，成立得 0", "1 if it doesn't hold, 0 if it does"),
+    "doc.kw.none": ("不设（这一项用默认）", "Unset (the default is used)"),
+    "doc.kw.pass": ("什么都不做（空着的分支）", "Do nothing (an empty branch)"),
+    "doc.kw.self": (
+        "使用者自己：self.hp 是自己的值，self.add(…) 作用在自己身上",
+        "The user: self.hp is your value, self.add(…) acts on you",
+    ),
+    "doc.kw.target": (
+        "使用时选的对象：target.hp 是对象的值，target.damage(…) 作用在对象身上",
+        "The chosen target: target.hp is its value, target.damage(…) acts on it",
+    ),
+    "doc.kw.this": (
+        "这一条（技能）：this.列 是这一条的列，包括使用时填写的数",
+        "This entry: this.column is one of its columns, including chosen-on-use ones",
+    ),
+    "doc.field.this": ("这一条的列", "This entry's column"),
+    "doc.field.target": ("对象的", "The target's"),
+    "doc.field.formula": ("命名公式", "Named formula"),
+    "doc.field.derived": ("推导值", "Derived value"),
+    "doc.field.table": ("查表", "Table"),
+    "doc.field.variable": ("技能脚本里的变量", "A variable in the skill script"),
     "fh.s.damage": (
         "对象受到伤害：先扣护盾 shield，再扣生命值 hp",
         "The target takes damage: shield first, then hp",

@@ -4,15 +4,19 @@ import { python } from "@codemirror/lang-python";
 import { HighlightStyle, bracketMatching, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { forceLinting, linter, lintGutter, type Diagnostic } from "@codemirror/lint";
 import { EditorState, type Extension } from "@codemirror/state";
-import { EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, placeholder as cmPlaceholder } from "@codemirror/view";
+import { EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, hoverTooltip, keymap, lineNumbers, placeholder as cmPlaceholder } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useI18n } from "../i18n";
+import { builtinDoc } from "./codeDocs";
 import { suggest } from "./complete";
 import { translateCode } from "./errors";
 
 export type CodeProblem = { code: string; params?: Record<string, unknown> | null };
 export type CodeCheck = (text: string) => Promise<{ problems: CodeProblem[]; names: string[] }>;
+/** 名字的说明（悬停提示）：标题和一段文字，已经翻译好。 */
+export type NameInfo = { title: string; body: string };
+
 export type CodeEditorHandle = {
   /** 在光标处插入（替换选中的文字），插完把光标放到插入内容后面。 */
   insert: (text: string) => void;
@@ -51,6 +55,14 @@ const theme = EditorView.theme({
   ".cm-completionDetail": { color: "var(--muted)", fontStyle: "normal", marginLeft: "6px" },
   ".cm-diagnostic-error": { borderLeft: "3px solid var(--warn)" },
   ".cm-lintRange-error": { backgroundImage: "none", textDecoration: "underline wavy var(--warn)", textUnderlineOffset: "3px" },
+  ".cm-tooltip-hover": { maxWidth: "460px" },
+  ".cm-doc": { padding: "8px 10px", fontSize: "12.5px", lineHeight: "1.5" },
+  ".cm-doc-sig": { display: "block", fontFamily: "ui-monospace, Consolas, monospace", color: "var(--cm-call)", marginBottom: "4px", whiteSpace: "pre-wrap" },
+  ".cm-doc-desc": { color: "var(--fg)" },
+  ".cm-doc-params": { display: "grid", gridTemplateColumns: "auto 1fr", gap: "2px 10px", margin: "6px 0 0", paddingTop: "6px", borderTop: "1px solid var(--line)" },
+  ".cm-doc-params dt": { fontFamily: "ui-monospace, Consolas, monospace", color: "var(--cm-prop)" },
+  ".cm-doc-params dd": { margin: "0", color: "var(--muted)" },
+  ".cm-doc-params .current": { color: "var(--fg)", fontWeight: "600" },
   ".cm-matchingBracket": { backgroundColor: "color-mix(in srgb, var(--ok) 25%, transparent)", outline: "none" },
 });
 
@@ -69,15 +81,17 @@ export const CodeEditor = forwardRef<
     minLines?: number;
     /** 每次校验完把问题（已翻译、带行号）交出去 */
     onProblems?: (messages: string[]) => void;
+    /** 内置说明里没有的名字（字段、推导值……）的说明，悬停时显示 */
+    describe?: (word: string) => NameInfo | null;
     className?: string;
   }
->(function CodeEditor({ value, onChange, check, placeholder, minLines, onProblems, className }, ref) {
+>(function CodeEditor({ value, onChange, check, placeholder, minLines, onProblems, describe, className }, ref) {
   const { t, lang } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   // 回调和数据放在 ref 里：编辑器只建一次，扩展里读最新的
-  const latest = useRef({ onChange, check, onProblems, lang, t });
-  latest.current = { onChange, check, onProblems, lang, t };
+  const latest = useRef({ onChange, check, onProblems, describe, lang, t });
+  latest.current = { onChange, check, onProblems, describe, lang, t };
   const names = useRef<string[]>([]);
 
   useEffect(() => {
@@ -130,6 +144,31 @@ export const CodeEditor = forwardRef<
         options: items.map((s, i) => ({ label: s.label, apply: s.insert, detail: s.more ? "." : undefined, boost: -i, type: s.more ? "namespace" : "variable" })),
       };
     };
+    const hover = hoverTooltip((v, pos) => {
+      const line = v.state.doc.lineAt(pos);
+      const text = line.text;
+      let a = pos - line.from;
+      let b = a;
+      const part = /[\p{L}\p{N}_.]/u;
+      while (a > 0 && part.test(text[a - 1]!)) a--;
+      while (b < text.length && part.test(text[b]!)) b++;
+      const word = text.slice(a, b).replace(/^\.+|\.+$/g, "");
+      if (!word || /^\d/.test(word) || inComment(text, a)) return null;
+      const keyword = /^\s*=(?!=)/.test(text.slice(b));
+      const call = enclosingCall(v.state.doc.toString(), line.from + a);
+      const { t: tr, describe: more } = latest.current;
+      // 构造的参数名（placement(notify=…)）用内置说明；别的名字先看规则包和这一条里有没有（字段、变量、设置的值），再看内置的
+      const hit = builtinDoc(word, call, keyword);
+      // 后面紧跟着括号的是调用（函数、动作、构造），用内置说明
+      const isCall = /^\s*\(/.test(text.slice(b));
+      const info = hit?.param || (isCall && hit) ? null : more?.(word);
+      let dom: HTMLElement | null = null;
+      if (info) dom = docDom(info.title, info.body, [], undefined);
+      else if (hit) dom = docDom(hit.doc.sig, tr(hit.doc.desc), (hit.doc.params ?? []).map(([n, d]) => [n, tr(d)]), hit.param);
+      if (!dom) return null;
+      const el = dom;
+      return { pos: line.from + a, end: line.from + b, above: true, create: () => ({ dom: el }) };
+    });
     const exts: Extension[] = [
       lineNumbers(),
       highlightActiveLineGutter(),
@@ -146,6 +185,7 @@ export const CodeEditor = forwardRef<
       autocompletion({ override: [complete], icons: false }),
       lint,
       lintGutter(),
+      hover,
       keymap.of([{ key: "Tab", run: acceptCompletion }, ...closeBracketsKeymap, ...completionKeymap, ...historyKeymap, indentWithTab, ...defaultKeymap]),
       theme,
       EditorView.lineWrapping,
@@ -207,3 +247,67 @@ export const CodeEditor = forwardRef<
 
   return <div ref={host} className={className ? `sk-code-editor ${className}` : "sk-code-editor"} />;
 });
+
+/** 这个位置是不是在 # 注释里（引号里的 # 不算）。 */
+function inComment(line: string, at: number): boolean {
+  let quote = "";
+  for (let i = 0; i < at; i++) {
+    const c = line[i]!;
+    if (quote) {
+      if (c === "\\") i++;
+      else if (c === quote) quote = "";
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === "#") return true;
+  }
+  return false;
+}
+
+/** 从 pos 往回找，它所在的那个还没关上的调用的名字：placement(radius=3, |notify=…) 里是 placement。 */
+function enclosingCall(text: string, pos: number): string | null {
+  let depth = 0;
+  for (let i = pos - 1; i >= 0 && i >= pos - 2000; i--) {
+    const c = text[i];
+    if (c === ")") depth++;
+    else if (c === "(") {
+      if (depth === 0) {
+        const m = /([\p{L}_][\p{L}\p{N}_]*)\s*$/u.exec(text.slice(Math.max(0, i - 80), i));
+        return m ? m[1]! : null;
+      }
+      depth--;
+    }
+  }
+  return null;
+}
+
+/** 悬停提示的内容：签名、说明、参数表（当前参数加粗）。 */
+function docDom(sig: string, desc: string, params: [string, string][], current: string | undefined): HTMLElement {
+  const box = document.createElement("div");
+  box.className = "cm-doc";
+  const head = document.createElement("code");
+  head.className = "cm-doc-sig";
+  head.textContent = sig;
+  box.appendChild(head);
+  if (desc) {
+    const p = document.createElement("div");
+    p.className = "cm-doc-desc";
+    p.textContent = desc;
+    box.appendChild(p);
+  }
+  if (params.length) {
+    const list = document.createElement("dl");
+    list.className = "cm-doc-params";
+    for (const [name, d] of params) {
+      const dt = document.createElement("dt");
+      dt.textContent = name;
+      const dd = document.createElement("dd");
+      dd.textContent = d;
+      if (name === current) {
+        dt.className = "current";
+        dd.className = "current";
+      }
+      list.append(dt, dd);
+    }
+    box.appendChild(list);
+  }
+  return box;
+}
