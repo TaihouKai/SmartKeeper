@@ -146,6 +146,7 @@ target.modify(move_speed,
 | `hero.fireball` | `<模板>.<条目ID>`：有没有这一条（1 / 0） |
 | `hero.fireball.level` | `<模板>.<条目ID>.<列>`：那一条的某一列；没有这一条按 0 算；“使用时填写”的列不能引用 |
 | `target.hp` | 技能的对象的值（只在使用技能时有） |
+| `target.template`、`self.template`、`<模板>.template` | 那个角色的模板名（文字），例如 `if(target.template == "servant", 2, 1)` |
 | `roll`、`target`、`difficulty`、`opp_roll`、`opp_target` | 只在检定的结果条件里有 |
 
 字段名不能叫 `d`、`d6` 这种会被当成掷骰的名字。条目 ID 不能叫 `self`、`this`、`target`、`template`。
