@@ -55,6 +55,8 @@ def resolve_check(
             "difficulty": float(difficulty) if difficulty is not None else 0.0,
             "opp_roll": 0.0,
             "opp_target": 0.0,
+            "self.template": template,
+            "opponent.template": "",
         }
         opp_target: float | None = None
         if opponent is not None:
@@ -64,6 +66,7 @@ def resolve_check(
             opp_target = context(pack, opp_tpl, opp_sheet).eval_num(odef.target)
             variables["opp_roll"] = float(opp_roll.total)
             variables["opp_target"] = opp_target
+            variables["opponent.template"] = opp_tpl
             if difficulty is None:
                 # 对抗：难度就是对方的点数，同一条 roll > difficulty 两种情况都能用
                 variables["difficulty"] = float(opp_roll.total)

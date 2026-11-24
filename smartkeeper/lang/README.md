@@ -221,6 +221,7 @@ opposed_by = "perception"      # 对抗时对方掷什么；None 是同一个检
 
 - 结果固定四个，按顺序判断：大成功、大失败、成功，第一条成立的就是结果，都不成立是失败。
 - 条件里能用：`roll`（总点数）、`natural`（骰子本身的点数）、`target`、`difficulty`（KP 给的难度；对抗时是对方掷出的点数，所以 `roll > difficulty` 两种情况都能用）、`opp_roll`、`opp_target`。
+- 按模板分情况：`dice`、`target` 里能用 `self.template`（做检定的人的模板），结果条件里还能用 `opponent.template`（对抗时对方的模板，没有对手是空的）。例如 `dice = 1d20 + per if self.template == "master" else 1d20 + agi`。各模板属性不同时，也可以让每个模板定义同名的推导值（例如 `perception_mod`），检定只写这个名字。
 
 ---
 

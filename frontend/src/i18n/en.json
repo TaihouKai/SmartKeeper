@@ -78,7 +78,13 @@
       "natural": "the dice alone without modifiers, e.g. natural == 20",
       "opp_roll": "the opponent's roll",
       "opp_target": "the opponent's target",
-      "roll": "the total rolled"
+      "opponent": {
+        "template": "the opponent's template when opposed (empty otherwise); only in the result conditions"
+      },
+      "roll": "the total rolled",
+      "self": {
+        "template": "the checking character's template, e.g. dice = 1d20 + per if self.template == \"master\" else 1d20 + agi"
+      }
     },
     "vars": "In the result conditions"
   },

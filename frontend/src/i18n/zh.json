@@ -78,7 +78,13 @@
       "natural": "骰子本身的点数（不含加值），大成功常用 natural == 20",
       "opp_roll": "对抗时对方的点数",
       "opp_target": "对抗时对方的目标值",
-      "roll": "这次掷出的总点数"
+      "opponent": {
+        "template": "对抗时对方的模板（没有对手是空的），只能用在结果条件里"
+      },
+      "roll": "这次掷出的总点数",
+      "self": {
+        "template": "做检定的人的模板，例如 dice = 1d20 + per if self.template == \"master\" else 1d20 + agi"
+      }
     },
     "vars": "结果条件里能用的"
   },

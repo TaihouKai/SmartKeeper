@@ -44,7 +44,7 @@ export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; d
         </section>
         <section>
           <h5>{t("check.vars")}</h5>
-          {["roll", "natural", "target", "difficulty", "opp_roll", "opp_target"].map((k) => (
+          {["roll", "natural", "target", "difficulty", "opp_roll", "opp_target", "self.template", "opponent.template"].map((k) => (
             <Item key={k} code={k} note={t(k === "target" ? "check.c.target" : `check.v.${k}`)} onClick={() => insert(k)} />
           ))}
           {(pack.checks ?? [])

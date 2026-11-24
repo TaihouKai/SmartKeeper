@@ -69,6 +69,8 @@ def check_formula(
         ref = name
         if name.startswith("self.") and template is not None:
             ref = f"{template.name}.{name[5:]}"  # self.x：自己的，和写自己的模板名一样
+        if name in allowed:
+            continue  # 调用方明确允许的名字（例如检定条件里的 opponent.template）
         if "." in name and not name.startswith("this."):
             bad = _check_dotted(pack, ref, set(extra))
             if bad:
@@ -565,7 +567,7 @@ def check_check(pack: RulePack, text: str, path: str) -> list[Problem]:
         line = lines.get(key, 1)
         problems.extend(p.model_copy(update={"params": {**p.params, "line": line}}) for p in found)
 
-    fields = all_field_names(pack)
+    fields = all_field_names(pack) | set(checkconfig.SELF_NAMES)
     if not spec.dice.strip():
         at("dice", [Problem(code="pack.check_needs_dice", path=path)])
     else:

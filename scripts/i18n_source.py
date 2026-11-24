@@ -940,6 +940,14 @@ T: dict[str, tuple[str, str]] = {
     ),
     "check.v.opp_roll": ("对抗时对方的点数", "the opponent's roll"),
     "check.v.opp_target": ("对抗时对方的目标值", "the opponent's target"),
+    "check.v.self.template": (
+        '做检定的人的模板，例如 dice = 1d20 + per if self.template == "master" else 1d20 + agi',
+        'the checking character\'s template, e.g. dice = 1d20 + per if self.template == "master" else 1d20 + agi',
+    ),
+    "check.v.opponent.template": (
+        "对抗时对方的模板（没有对手是空的），只能用在结果条件里",
+        "the opponent's template when opposed (empty otherwise); only in the result conditions",
+    ),
     "doc.verb.negate": (
         "当反应时：让打在自己身上的这次攻击无效（平时没有效果）",
         "As a reaction: void the attack on you (does nothing otherwise)",

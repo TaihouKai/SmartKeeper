@@ -72,7 +72,7 @@ const KEYWORDS: Record<string, Doc> = {
 /** 检定的代码：各项和结果条件里能用的变量（只在编辑检定时用）。 */
 export const CHECK_DOCS: Record<string, Doc> = Object.fromEntries([
   ...["label", "dice", "target", "critical_success", "critical_failure", "success", "opposed_by"].map((k) => [k, { sig: `${k} = …`, desc: `check.c.${k}` }]),
-  ...["roll", "natural", "difficulty", "opp_roll", "opp_target"].map((k) => [k, { sig: k, desc: `check.v.${k}` }]),
+  ...["roll", "natural", "difficulty", "opp_roll", "opp_target", "self.template", "opponent.template"].map((k) => [k, { sig: k, desc: `check.v.${k}` }]),
 ]);
 
 const FUNCS: Record<string, Doc> = Object.fromEntries(FUNCTION_SIGNATURES.map(([name, sig]) => [name, { sig, desc: `fh.fn.${name}` }]));

@@ -30,8 +30,19 @@ KEYS: dict[str, Kind] = {
     "success": "formula",
     "opposed_by": "check",
 }
-# 结果条件里能用的变量
-VARS = ("roll", "natural", "target", "difficulty", "opp_roll", "opp_target")
+# 结果条件里能用的变量。self.template 是做检定的人的模板，opponent.template 是对抗时对方的模板（没有对手是空文字）
+VARS = (
+    "roll",
+    "natural",
+    "target",
+    "difficulty",
+    "opp_roll",
+    "opp_target",
+    "self.template",
+    "opponent.template",
+)
+# 骰子和目标值在做检定的人身上算：除了字段和推导值，还能用自己的模板名分情况
+SELF_NAMES = ("self.template",)
 
 
 def read_check(text: str) -> CheckSpec:

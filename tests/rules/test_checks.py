@@ -96,3 +96,26 @@ def test_fixed_order_and_opposed_difficulty(rules: RulesService) -> None:
     # 对抗：难度就是对方的点数
     assert level(5, difficulty=None, opp=44) == "success"
     assert level(5, difficulty=None, opp=46) == "failure"
+
+
+def test_checks_can_branch_on_templates(rules: RulesService) -> None:
+    from smartkeeper.contracts import CheckDef
+
+    pack = load_pack("single")
+    code = (
+        'dice = 1d20 + per if self.template == "person" else 1d20\n'
+        'success = roll > difficulty + (5 if opponent.template == "person" else 0)'
+    )
+    assert rules.validate_formula(pack, None, code, None, "check") == []
+    bad = rules.validate_formula(
+        pack, None, "dice = 1d20 + opponent.template\nsuccess = True", None, "check"
+    )
+    assert [p.code for p in bad] == ["formula.unknown_name"]  # 掷骰时还不知道对手
+    pack = pack.model_copy(update={"checks": (*pack.checks, CheckDef(name="t", config=code))})
+    s = sheet()
+    r = DiceResult(expr="x", rolls=(10,), total=12)
+    opp = DiceResult(expr="x", rolls=(5,), total=9)
+    kw = {"entity": "a", "template": "person", "sheet": s, "check": "t", "roll": r}
+    # 对手是 person：难度 9 + 5，打不过
+    assert rules.resolve_check(pack, opponent=("b", "person", s, opp), **kw).level == "failure"  # type: ignore[arg-type]
+    assert rules.resolve_check(pack, difficulty=9, **kw).level == "success"  # type: ignore[arg-type]
