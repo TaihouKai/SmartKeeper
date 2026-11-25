@@ -93,6 +93,16 @@ export function FieldsSection({ tpl, onChange, onRemove, validate, mover, base }
           </label>
         </div>
         <p className="wb-hint">{t("rules.template_hint")}</p>
+        <div className="wb-form wb-form-3">
+          <label title={t("rules.t.name_label_hint")}>
+            {t("rules.t.name_label")}
+            <input value={tpl.name_label ?? ""} placeholder={t("character.name")} onChange={(e) => onChange({ ...tpl, name_label: e.target.value })} />
+          </label>
+          <label title={t("rules.t.name_label_hint")}>
+            {t("rules.t.name_hint")}
+            <input value={tpl.name_hint ?? ""} placeholder={t("character.name_hint")} onChange={(e) => onChange({ ...tpl, name_hint: e.target.value })} />
+          </label>
+        </div>
         <label title={t("rules.t.description_hint")}>
           {t("rules.t.description")}
           <textarea rows={2} value={tpl.description ?? ""} placeholder={t("rules.ph.ref_hint")} onChange={(e) => onChange({ ...tpl, description: e.target.value })} />

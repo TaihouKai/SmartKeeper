@@ -135,6 +135,10 @@ class EntityTemplate(Frozen):
     label: str = ""
     description: str = ""  # 建角说明（这张卡怎么做），可以用 [[规则书的标题]] 引用规则书的一节
     appearance_field: str = "appearance"  # 外观描述字段名，供生成代号使用
+    # 角色卡的“名字”在建角页上叫什么、怎么解释（例如“称呼：自己人怎么叫他”）。名字只有自己和 KP 看得到，
+    # 别人看到的是按外观起的代号。空表示用默认的“角色名”
+    name_label: str = ""
+    name_hint: str = ""
     fields: tuple[FieldDef, ...] = ()
     groups: tuple[GroupDef, ...] = ()
     derived: tuple[DerivedDef, ...] = ()

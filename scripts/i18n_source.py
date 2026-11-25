@@ -348,6 +348,16 @@ T: dict[str, tuple[str, str]] = {
     "join.status.approved": ("审核通过", "Approved"),
     "join.status.rejected": ("需要修改", "Changes requested"),
     "character.name": ("角色名", "Name"),
+    "character.name_hint": (
+        "只有你和 KP 看得到；别人看到的是按外观起的代号，要打听或你自我介绍了才知道",
+        "Only you and the KP see it; others see a code name from your looks until they learn your name",
+    ),
+    "rules.t.name_label": ("名字一栏叫什么", "Label of the name box"),
+    "rules.t.name_hint": ("名字一栏的说明", "Hint under the name box"),
+    "rules.t.name_label_hint": (
+        "建角页上名字那一栏的标题和说明，例如“称呼：自己人怎么叫他”；空着用默认的“角色名”",
+        "Title and hint of the name box on the character page, e.g. 'What you call them'; empty uses the default",
+    ),
     "character.appearance_hint": (
         "（别人会根据外观描述给你起代号）",
         "(others will refer to you by this description)",

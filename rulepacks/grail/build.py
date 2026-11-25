@@ -852,6 +852,8 @@ SERVANT = {
     "label": "英灵",
     "description": "你的英灵：想好他是谁，按他的事迹定参数，再选职阶。[[英灵的构成]] [[英灵参数]]",
     "appearance_field": "appearance",
+    "name_label": "称呼",
+    "name_hint": "你和御主平时怎么叫他，例如 Saber、骑士大人；只有你们和 KP 看得到。不是真名：真名写在下面的“真名”里，那个才是要保密、会被揭穿的",
     "fields": [
         field("appearance", "外观", "text", description="别人看到的样子（不要写出真名）"),
         field(

@@ -105,7 +105,7 @@ export function SheetWorkbench({
         {sec.key === "identity" && (
           <>
             <Described text={template.description} className="cf-lead" />
-            <FieldRow label={t("character.name")} required missing={!value.name.trim()}>
+            <FieldRow label={template.name_label || t("character.name")} required missing={!value.name.trim()} desc={template.name_hint || t("character.name_hint")}>
               {(id) => <input id={id} value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} />}
             </FieldRow>
             {identity.map((f) =>

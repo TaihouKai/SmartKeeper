@@ -16,6 +16,8 @@
         "label": "御主",
         "description": "你的御主：先想好出身和来历，再分配属性点。[[出身]] [[属性点]]",
         "appearance_field": "appearance",
+        "name_label": "",
+        "name_hint": "",
         "fields": [
           {
             "name": "appearance",
@@ -703,6 +705,8 @@
         "label": "英灵",
         "description": "你的英灵：想好他是谁，按他的事迹定参数，再选职阶。[[英灵的构成]] [[英灵参数]]",
         "appearance_field": "appearance",
+        "name_label": "称呼",
+        "name_hint": "你和御主平时怎么叫他，例如 Saber、骑士大人；只有你们和 KP 看得到。不是真名：真名写在下面的“真名”里，那个才是要保密、会被揭穿的",
         "fields": [
           {
             "name": "appearance",
@@ -2064,6 +2068,8 @@
         "label": "使魔",
         "description": "",
         "appearance_field": "appearance",
+        "name_label": "",
+        "name_hint": "",
         "fields": [
           {
             "name": "appearance",
@@ -2235,6 +2241,8 @@
         "label": "召唤兵团",
         "description": "",
         "appearance_field": "appearance",
+        "name_label": "",
+        "name_hint": "",
         "fields": [
           {
             "name": "appearance",

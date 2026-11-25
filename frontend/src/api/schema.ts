@@ -1513,6 +1513,16 @@ export interface components {
             /** Name */
             name: string;
             /**
+             * Name Hint
+             * @default
+             */
+            name_hint: string;
+            /**
+             * Name Label
+             * @default
+             */
+            name_label: string;
+            /**
              * On Death
              * @default
              */
