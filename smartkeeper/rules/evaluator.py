@@ -24,6 +24,10 @@ from smartkeeper.contracts import (
 from smartkeeper.rules import skillconfig
 from smartkeeper.rules.bonus import effects_of
 
+# 公式里的钟点：time 是一天里的几点（小时），day 是第几天。引擎把它们放在同伴里的 $clock
+CLOCK_KEY = "$clock"
+CLOCK_VARS = ("time", "day")
+
 
 def open_columns(g: GroupDef, p: GroupPreset) -> list[FieldDef]:
     """固定条目里规则包没写、要玩家建角时填的列（“使用时填写”的列和运行中会变的列不算）。"""
@@ -202,9 +206,23 @@ class EntityContext:
                 return self.member(name[5:].split("."), name)
             if "." in name:
                 return self.dotted(name)
+            if (
+                name in CLOCK_VARS
+                and name not in self._derived
+                and all(x.name != name for x in self.template.fields)
+            ):
+                return self.clock(name)
             return self.value_of(name)
 
         return resolve
+
+    def clock(self, name: str) -> float:
+        """此刻的钟点（引擎放在同伴里的 $clock）；没有时（例如建卡预览）time 是 12:00、day 是 1。"""
+        raw = self.peers.get(CLOCK_KEY)
+        v = raw.get(name) if isinstance(raw, dict) else None
+        if isinstance(v, int | float) and not isinstance(v, bool):
+            return float(v)
+        return 12.0 if name == "time" else 1.0
 
     # ---- 引用别的实体和条目 ----
 

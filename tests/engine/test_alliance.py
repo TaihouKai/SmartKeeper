@@ -267,3 +267,39 @@ def test_new_script_syntax_runs() -> None:
     u = e.use_entry(t.game_id, e0, "slow", e1, {}, "x")
     ops = [a["op"] for a in cast(list[dict[str, Any]], u.payload["actions"])]  # type: ignore[index]
     assert ops == ["subtract", "modify"]
+
+
+def test_bonus_can_depend_on_the_time_of_day() -> None:
+    """time 是游戏里的钟点（剧本 20:00 开始），14:00 这种写法是时刻；过了时间加成就没了。"""
+    from smartkeeper.engine.space import peers_of
+
+    t, _players, (e0, _e1, _e2) = table()
+    add_entries(
+        t,
+        e0,
+        [
+            {
+                "name": "night",
+                "fields": {"level": 1},
+                "bonus": "if time >= 19:00 or time < 6:00:\n    self.str += 5",
+            }
+        ],
+    )
+    next_round(t)
+    rules = RulesService()
+
+    def now() -> float:
+        st = t.engine.world_state(t.game_id)
+        sheet = st["entities"][e0]["sheet"]  # type: ignore[index]
+        return next(
+            d.value
+            for d in rules.derive(area_pack(), "person", sheet, peers_of(st, e0))
+            if d.name == "str"
+        )
+
+    st = t.engine.world_state(t.game_id)
+    assert st["clock"] == 20 * 3600
+    base = float(cast(float, st["entities"][e0]["sheet"]["fields"]["str"]))  # type: ignore[index]
+    assert now() == base + 5  # 20:00 多
+    t.engine.admin_patch(t.game_id, [PatchOp(op="replace", path="/game_seconds", value=12 * 3600)])
+    assert now() == base  # 第二天 08:00

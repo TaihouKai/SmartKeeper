@@ -33,14 +33,25 @@ def _obj(v: JsonValue) -> dict[str, JsonValue]:
     return cast(dict[str, JsonValue], v) if isinstance(v, dict) else {}
 
 
+CLOCK_KEY = "$clock"
+
+
+def clock_of(state: State) -> dict[str, JsonValue]:
+    """此刻的钟点：time 是一天里的几点（小时，带小数），day 是第几天（从 1 开始）。"""
+    start = state.get("clock")
+    secs = (start if isinstance(start, int) else 0) + int(cast(int, state.get("game_seconds", 0)))
+    return {"time": round((secs % 86400) / 3600, 6), "day": secs // 86400 + 1}
+
+
 def peers_of(state: State, entity_id: str) -> dict[str, JsonValue | None]:
-    """同一个玩家控制的其他实体：模板名 -> 角色卡。同一个模板有不止一个时为 None（引用会报错）。"""
+    """同一个玩家控制的其他实体：模板名 -> 角色卡。同一个模板有不止一个时为 None（引用会报错）。
+    另外带着此刻的钟点（键 $clock），公式里的 time / day 从这里取。"""
     ents = _obj(state.get("entities"))
+    out: dict[str, JsonValue | None] = {CLOCK_KEY: clock_of(state)}
     for ctl in _obj(state.get("controls")).values():
         mine = [str(e) for e in ctl] if isinstance(ctl, list) else []
         if entity_id not in mine:
             continue
-        out: dict[str, JsonValue | None] = {}
         for other in mine:
             if other == entity_id:
                 continue
@@ -48,7 +59,7 @@ def peers_of(state: State, entity_id: str) -> dict[str, JsonValue | None]:
             tpl = str(ent.get("template", ""))
             out[tpl] = None if tpl in out else ent.get("sheet")
         return out
-    return {}
+    return out
 
 
 def partners_of(state: State, entity_id: str) -> dict[str, str]:

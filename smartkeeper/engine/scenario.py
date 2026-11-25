@@ -41,6 +41,15 @@ class PublicMeta(Frozen):
         return v.isoformat() if isinstance(v, datetime | date) else v
 
 
+def start_clock(scenario_public: str) -> int | None:
+    """剧本的起始时刻是一天里的第几秒；没写或写错是 None。"""
+    try:
+        start = datetime.fromisoformat(public_meta(scenario_public).start_time)
+    except (ValueError, ValidationFailed):
+        return None
+    return start.hour * 3600 + start.minute * 60 + start.second
+
+
 class KpMeta(Frozen):
     npcs: tuple[NpcSpec, ...] = ()
     initial_positions: dict[str, Place] = {}

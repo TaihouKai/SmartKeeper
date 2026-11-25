@@ -1576,6 +1576,15 @@ T: dict[str, tuple[str, str]] = {
     "doc.kw.opp_level": ("对方的等级（没对抗是 0）", "the other side's level (0 if unopposed)"),
     "doc.kw.opposed": ("这次被对抗了（对方掷了检定）", "True when the other side rolled a check"),
     "doc.kw.saved": ("对象的豁免成功了（技能设置了 save）", "True when the target made its save"),
+    "doc.kw.time": (
+        "游戏里此刻是一天中的几点，按小时算（13:15 是 13.25）。和 14:00 这种时刻比，例如 time >= 10:00 and time < 14:00；跨午夜写 time >= 22:00 or time < 2:00",
+        "The in-game time of day in hours (13:15 is 13.25). Compare with clock times like 14:00, e.g. time >= 10:00 and time < 14:00; across midnight: time >= 22:00 or time < 2:00",
+    ),
+    "doc.kw.day": ("游戏里的第几天，从 1 开始", "The in-game day, starting at 1"),
+    "fh.b.clock": (
+        "时刻：14:00 是下午两点，和 time 比；跨午夜用 or",
+        "Clock times: 14:00 is 2 pm, compare with time; use or across midnight",
+    ),
     "doc.kw.boost": (
         "这次用的效果倍数：选了的参数的倍数乘起来，没选是 1；伤害和增加的数值已经自动乘过",
         "This use's effect multiplier: the product of the chosen parameters' multipliers (1 if none); damage and additions are already scaled",

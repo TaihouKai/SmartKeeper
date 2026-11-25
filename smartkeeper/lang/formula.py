@@ -177,7 +177,8 @@ def _sides(text: str, i: int, space: bool) -> tuple[str, int] | None:
 
 def desugar(text: str) -> str:
     """掷骰写法改成函数：3d6 -> dice(3, 6)，d20 -> dice(1, 20)，d% -> dice(1, 100)，
-    2d(str + 1)、1d str、1dstr 也一样。字符串和注释里的不动；改写不跨行，行号不变。"""
+    2d(str + 1)、1d str、1dstr 也一样。时刻 14:00 换成小时数 14.0（14:30 -> 14.5），和 time 比。
+    字符串和注释里的不动；改写不跨行，行号不变。"""
     out: list[str] = []
     i = 0
     n = len(text)
@@ -198,6 +199,12 @@ def desugar(text: str) -> str:
         m = _NUM.match(text, i)
         if m and not (prev.isalnum() or prev in ("_", ".")):
             end = m.end()
+            clock = _CLOCK.match(text, i)
+            if clock is not None:
+                hours = int(clock.group(1)) + int(clock.group(2)) / 60
+                out.append(repr(round(hours, 6)))
+                i = clock.end()
+                continue
             if end < n and text[end] in "dD":
                 got = _sides(text, end + 1, space=True)
                 if got is not None:
@@ -223,6 +230,9 @@ def desugar(text: str) -> str:
         i += 1
     return "".join(out)
 
+
+# 时刻：14:00、9:30（小时 0～24，分钟两位），后面不能紧跟数字或字母
+_CLOCK = re.compile(r"(\d{1,2}):([0-5]\d)(?![\w])")
 
 _IF_CALL = re.compile(r"(?<![\w.])(?:el)?if\s*\(")
 

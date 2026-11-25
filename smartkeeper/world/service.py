@@ -32,6 +32,7 @@ TOP_LEVEL = (
     "clues",
     "flags",
     "kp_notes",
+    "clock",  # 游戏开始那一刻是一天里的第几秒（剧本的起始时刻）；公式里的 time / day 由它算
 )
 
 
@@ -75,6 +76,7 @@ class WorldService:
             "clues": {},
             "flags": {},
             "kp_notes": "",
+            "clock": 0,
         }
 
     def apply(self, state: State, ops: Sequence[PatchOp]) -> State:
@@ -101,6 +103,8 @@ class WorldService:
             problems.append(Problem(code="state.type", path="/game_seconds"))
         if not isinstance(state["kp_notes"], str):
             problems.append(Problem(code="state.type", path="/kp_notes"))
+        if not isinstance(state["clock"], int) or isinstance(state["clock"], bool):
+            problems.append(Problem(code="state.type", path="/clock"))
         for key in ("clues", "flags"):
             if _obj(state[key]) is None:
                 problems.append(Problem(code="state.type", path=f"/{key}"))

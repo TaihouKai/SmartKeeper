@@ -30,7 +30,7 @@ from smartkeeper.contracts import (
 )
 from smartkeeper.rules import checkconfig, choices, skillconfig, stealth
 from smartkeeper.rules.bonus import effects_of
-from smartkeeper.rules.evaluator import EntityContext, open_columns
+from smartkeeper.rules.evaluator import CLOCK_VARS, EntityContext, open_columns
 from smartkeeper.rules.sheets import init_sheet
 
 # 受到伤害的公式里能用的：原始伤害和伤害类型
@@ -46,7 +46,7 @@ def _keyword(name: str) -> bool:
 
 
 def known_names(pack: RulePack, template: EntityTemplate | None) -> set[str]:
-    out = {x.name for x in pack.formulas}
+    out = {x.name for x in pack.formulas} | set(CLOCK_VARS)
     if template is not None:
         out |= {x.name for x in template.fields}
         out |= {x.name for x in template.derived}

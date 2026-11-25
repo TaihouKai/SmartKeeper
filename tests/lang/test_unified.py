@@ -84,3 +84,10 @@ def test_bonus_code_limits(text: str, code: str) -> None:
     with pytest.raises(f.FormulaError) as err:
         f.parse_bonus(text)
     assert err.value.code == code
+
+
+def test_clock_literals() -> None:
+    """14:00 是小时数 14，14:30 是 14.5；和 time 比较。"""
+    assert f.to_text(f.parse("time < 14:00 and time > 10:30")) == "time < 14 and time > 10.5"
+    assert f.desugar('if time >= 22:00:\n    x = "12:00"') == 'if time >= 22.0:\n    x = "12:00"'
+    assert f.desugar("with minutes(10):") == "with minutes(10):"

@@ -112,6 +112,7 @@ _BASICS: tuple[tuple[str, str, str], ...] = (
     ("template", 'target.template == "monster"', "fh.b.template"),
     ("count", "count(companion.traits.rank, 3)", "fh.b.count"),
     ("sum", "sum(talents.cost)", "fh.b.sum"),
+    ("clock", "time >= 10:00 and time < 14:00    time >= 22:00 or time < 2:00", "fh.b.clock"),
 )
 _DICE: tuple[tuple[str, str, str], ...] = (
     ("dice_basic", "3d6", "fh.d.basic"),
@@ -141,6 +142,8 @@ _KEYWORDS: tuple[tuple[str, str, str], ...] = (
     ("self", "self", "doc.kw.self"),
     ("target", "target", "doc.kw.target"),
     ("this", "this", "doc.kw.this"),
+    ("time", "time", "doc.kw.time"),
+    ("day", "day", "doc.kw.day"),
     ("and", "a and b", "doc.kw.and"),
     ("or", "a or b", "doc.kw.or"),
     ("not", "not a", "doc.kw.not"),

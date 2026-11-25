@@ -577,6 +577,10 @@ class Engine:
             pack = self.rulepack(game_id)
             state = self._state(game_id)
             ops: list[PatchOp] = []
+            # 钟点：剧本的起始时刻是一天里的第几秒（公式里的 time / day 从这里算）
+            start = scenario.start_clock(g.scenario_public)
+            if start is not None:
+                ops.append(PatchOp(op="replace", path="/clock", value=start))
             for npc in meta.npcs:
                 if npc.id in _obj(state.get("entities")):
                     raise ValidationFailed("opening.npc_id_taken", id=npc.id)
