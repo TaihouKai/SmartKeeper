@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import Field, JsonValue
 
 from smartkeeper.contracts.base import Frozen
-from smartkeeper.contracts.sheet import GroupEntry
+from smartkeeper.contracts.sheet import EntryUse, GroupEntry
 
 # 引擎必需的推导值。每个实体模板都必须为它们提供公式。
 REQUIRED_DERIVED: tuple[str, ...] = (
@@ -52,10 +52,14 @@ class FieldDef(Frozen):
     - kind=boolean：是/否。公式里是 1/0。没填时按“否”。
     - kind=formula：掷骰公式（例如技能的伤害 1d str）。平时不算，KP 裁定时要求引擎掷一次才算；
       在分组的条目里可以用 this.<字段> 引用这个条目的字段。
-    - kind=param：使用时填写的数（只在分组里），例如这次消耗多少魔力。不存进角色卡；KP 按玩家的行动
-      在掷骰时给出，引擎检查 min..max（公式，可以用 this.<字段>），spends 给了资源字段名时还检查够不够，
-      并在这一轮结算时从那个资源里扣掉。掷骰公式里用 this.<字段> 引用这次填的数。
-    - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定修改，初值由 initial 公式给出。
+    - kind=param：使用时填写的数（只在分组里），例如这次消耗多少魔力、要不要解放真名。不存进角色卡；KP 按玩家的行动
+      在用技能时给出，引擎检查 min..max（公式，可以用 this.<字段>），spends 给了资源字段名时还检查够不够，
+      并在这一轮结算时从那个资源里扣掉。公式和脚本里用 this.<字段> 引用这次填的数。
+      choices 非空时只能选其中的值（名字=数，例如 不解放=0、解放=1），没给时取第一个。
+      check：这次填的不是 0 时使用者要过的检定（检定名），没过就按 0 算；
+      cooldown：这次填的不是 0 时，这个条目多久之内（分钟，公式）不能再填非 0。
+    - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定或技能脚本修改，初值由 initial 公式给出。
+      分组的列也可以是 runtime：每个条目各存一份（例如护盾开着没有），脚本里写 this.<列> 改它。
     """
 
     name: str
@@ -74,6 +78,8 @@ class FieldDef(Frozen):
     # 运行值的自然变化：每分钟变化多少（公式；正数恢复、负数消耗），按上下限截断；空表示不变
     per_minute: str | None = None
     vital: bool = False  # 运行值：降到 0（或以下）时角色死亡
+    check: str | None = None  # kind=param：填了非 0 时要过的检定
+    cooldown: str | None = None  # kind=param：填了非 0 之后多久（分钟）不能再填非 0
 
 
 class ShapeDef(Frozen):
@@ -111,6 +117,8 @@ class GroupDef(Frozen):
     # 这个分组的条目在技能脚本里造成的伤害是什么类型（例如 magic）；damage(数量, "类型") 可以单独指定
     damage_kind: str = ""
     hidden: bool = False
+    # 用途的模板：建角时给条目加用途，可以从这里选一个照抄（例如“标准的光炮”），再按需要改
+    use_templates: tuple[EntryUse, ...] = ()
 
 
 class DerivedDef(Frozen):

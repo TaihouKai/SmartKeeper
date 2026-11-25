@@ -41,6 +41,9 @@ FUNCTIONS: dict[str, tuple[int, int | None]] = {
     "highest": (3, 3),
     "lowest": (3, 3),
     "dice": (2, 2),
+    # 有没有这个状态（1/0），例如 has("中毒")；inside("营地") 是“站在自己用这个条目放的设置物里”
+    "has": (1, 1),
+    "inside": (1, 1),
 }
 # if / and / or / not 是 Python 的关键字（a if c else b、a and b、not a），解析成内部的同名调用
 
@@ -600,6 +603,12 @@ class _Eval:
                 return float(len(items))
             want = self.run(args[1])
             return float(sum(1 for x in items if _same(x, want)))
+        if fn in ("has", "inside"):
+            tag = self.run(args[0])
+            if not isinstance(tag, str):
+                raise FormulaError("formula.text_arg", name=fn)
+            # 状态由调用方按名字解析：has:<状态名>（inside 是 in:<条目名> 这个状态）
+            return self.resolve(f"has:{'in:' if fn == 'inside' else ''}{tag}")
         if fn == "if":
             return self.run(args[1]) if truthy(self.run(args[0])) else self.run(args[2])
         if fn == "and":

@@ -45,12 +45,16 @@
     "fixed_entries": "From what you've filled in, you automatically get: {names}",
     "formula_field": "Dice formula, e.g. 1d6 or 1d str; rolled by the engine when used",
     "name": "Name",
+    "param_choices": "Chosen on use: {choices}",
     "param_field": "Say it in your action when used ({min} to {max})",
     "remove_entry": "Remove entry",
+    "runtime_column": "Changed by skills during play; leave empty",
     "shape": "Area shape",
     "shape_none": "None",
     "submit": "Submit character",
-    "unnamed_field": "(unnamed field)"
+    "unnamed_field": "(unnamed field)",
+    "use_from_template": "Add a use from a template…",
+    "uses_hint": "Ways to use this entry: each is a skill (its config falls back to the entry's). Text-only ones are ruled by the KP."
   },
   "chat": {
     "hint": "Chat is out-of-game talk between players. The keeper can't see it and won't act on it.",
@@ -97,7 +101,9 @@
       "unresolved_reference": "Some references couldn't be matched"
     },
     "adj": {
+      "placement_needs_building": "{entry} must be set up inside a building (the whole building becomes the placement)",
       "reaction_pending": "This use is still waiting for the target's reaction",
+      "summon_bad_sheet": "The summoned sheet is invalid ({problem}): the summon must fill the template's required fields",
       "unknown_use": "The ruling refers to an unknown skill use {seq}",
       "use_bad_field": "The target has no runtime value {name}"
     },
@@ -138,6 +144,7 @@
       "math_domain": "{name} has no result for these inputs (e.g. sqrt of a negative)",
       "single_equals": "Use two equals signs to compare: ==",
       "syntax": "Can't read this (check operators, brackets and commas)",
+      "text_arg": "{name} takes text, e.g. {name}(\"camp\")",
       "text_in_arithmetic": "Text '{value}' can't be used in arithmetic",
       "text_result": "The result is text ('{value}'); a number is needed",
       "this_outside_entry": "{name} can only be used inside an entry (it means that entry's column)",
@@ -172,7 +179,7 @@
       "check_needs_success": "A check needs a success condition",
       "choices_need_text": "Only text and number fields can have choices",
       "duplicate_name": "The name {name} is used twice",
-      "group_field_must_be_player": "Fields in a group must be player-entered",
+      "group_runtime_kind": "A changing column in a group must be a number or yes/no",
       "malformed": "Malformed: {msg}",
       "missing_appearance": "Missing the appearance field {name} (must be text)",
       "missing_can_fly": "Missing the can-fly field {name} (must be yes/no)",
@@ -180,6 +187,7 @@
       "missing_required_derived": "Missing the required derived value {name}",
       "no_player_entities": "Set which entities each player creates",
       "no_templates": "Add at least one template",
+      "option_needs_param": "Only use-time columns can have a check or a cooldown",
       "reserved_name": "{name} is reserved (a function, a check variable or dice like d6); pick another",
       "resource_needs_max": "A resource needs a maximum",
       "runtime_needs_initial": "A runtime value needs an initial value",
@@ -198,6 +206,9 @@
       "choices_mismatch": "Choose a reaction for every attack and send them together",
       "nothing_pending": "Nothing is waiting for your reaction"
     },
+    "roll": {
+      "param_not_a_choice": "{name} must be one of {choices} (got {value})"
+    },
     "round": {
       "illegal_transition": "Not allowed in this phase ({status})",
       "not_ready": "Some players haven't submitted",
@@ -214,18 +225,24 @@
       "empty_block": "if / elif / else needs indented lines under it",
       "field_arg": "The first argument of {name} must be a field name, e.g. hp",
       "if_call": "if isn't a function. To do different things, write if cond: on its own line with the actions indented below, then else:; to pick between two values write a if cond else b",
-      "not_derived": "{name} isn't a derived value; modify only works on derived values",
+      "name_arg": "{name} takes a name here (a template, or self / target / a companion's template)",
+      "not_derived": "{name} can't be modified: modify works on derived values, player-entered number fields or this.<column>",
       "not_runtime": "{name} isn't a runtime value (number or resource) and can't be changed by a script",
       "setting_name": "{name} is a skill setting; give the variable another name",
       "unexpected_indent": "Indentation is off: lines in one block must line up; only lines under if / elif / else are indented",
+      "unknown_column": "{name} isn't a column of this entry (this.<column> only works on self: self.set(this.col, …))",
+      "unknown_field": "The summoned template has no field {name}",
       "unknown_receiver": "{name} isn't an object: use self or target",
-      "unknown_verb": "No action {name}: use damage, add, sub, set or modify"
+      "unknown_template": "There is no template {name}",
+      "unknown_verb": "No action {name}: use damage, add, sub, set, modify, negate, summon or teleport"
     },
     "sheet": {
       "above_max": "{value} is above the maximum {max}",
+      "bad_use_name": "A use's name can't contain /",
       "below_min": "{value} is below the minimum {min}",
       "choice": "'{value}' isn't one of the choices",
       "derived_not_writable": "Derived values can't be entered",
+      "duplicate_use": "The use {name} appears twice",
       "missing_field": "Missing field",
       "placement_not_allowed": "Entries in this group can't be placements (turn it on in the group's settings)",
       "required": "Required",
@@ -254,6 +271,7 @@
       "not_in_sight": "{entry} must be placed within line of sight",
       "not_perceived": "{entry} needs the target to be perceived",
       "out_of_range": "{entry} is out of range: the target is {distance} m away, range {range} m",
+      "param_cooling_down": "The “{name}” option of {entry} is still cooling down",
       "requires": "{entry} can't be used now: its condition {formula} doesn't hold"
     }
   },
@@ -328,6 +346,7 @@
     "p": {
       "amount_dice": "Amount: a formula, may roll dice, e.g. 2d6 + this.level",
       "angle": "Opening angle in degrees (a number)",
+      "building": "True: the whole building the setter is in becomes the placement (no radius needed)",
       "charges": "How many times it can trigger; unset means unlimited",
       "damage_kind": "damage type, e.g. \"magic\"; defaults to the group's damage type. The one hurt applies their template's damage-taken formula",
       "derived": "The derived value to modify, e.g. move_speed",
@@ -341,6 +360,10 @@
       "placement_radius": "Trigger radius in metres; required; may be a formula",
       "radius_m": "Radius in metres (a number)",
       "runtime_field": "Name of a runtime value (number or resource) on the receiver, e.g. hp, mp",
+      "summon_count": "How many",
+      "summon_minutes": "How many minutes they stay; omit for good",
+      "summon_template": "Which template (its ID)",
+      "teleport_to": "Next to whom: self, target or a companion's template",
       "timed_minutes": "Optional; makes it timed, lasting this many minutes",
       "width_m": "Width in metres (a number)"
     },
@@ -354,10 +377,12 @@
     "verb": {
       "add": "Add to a runtime value; with minutes it's timed and what's left is taken back. Clamped to its limits",
       "damage": "Take damage: shield first, then hp",
-      "modify": "Modify a derived value for a while",
+      "modify": "Modify a value for a while (a derived value, a player-entered field, or this.<column>)",
       "negate": "As a reaction: void the attack on you (does nothing otherwise)",
       "set": "Set a runtime value, clamped to its limits",
-      "sub": "Subtract from a runtime value, clamped to its limits"
+      "sub": "Subtract from a runtime value, clamped to its limits",
+      "summon": "Summon: put some characters of this template next to the receiver, controlled by the receiver's player; timed ones vanish. Add field=formula to fill their sheets",
+      "teleport": "Teleport next to another character (same spot, same building)"
     }
   },
   "event": {
@@ -416,7 +441,9 @@
       "count": "Count entries in a group: count(group) is how many, count(group.col, value) how many have that value in that column",
       "dice": "Roll n dice with s sides and add them, same as NdM",
       "floor": "Round down",
+      "has": "Whether this status is on you (1 or 0), e.g. has(\"rage\")",
       "highest": "Roll n dice with s sides, add the highest k",
+      "inside": "Whether you stand inside a placement you set with this entry (a circle or a whole building), e.g. inside(\"camp\")",
       "lookup": "Look a value up in one of the pack's tables",
       "lowest": "Roll n dice with s sides, add the lowest k",
       "max": "The largest",
@@ -501,8 +528,11 @@
       "add": "add",
       "damage": "takes damage",
       "modify": "timed modifier",
+      "negate": "void the attack",
       "set": "set",
-      "subtract": "subtract"
+      "subtract": "subtract",
+      "summon": "summon",
+      "teleport": "teleport"
     },
     "open_here": "Open in the IDE",
     "part": {
@@ -737,6 +767,7 @@
     "f": {
       "choices": "Choices",
       "cls": "Class",
+      "cls_group_hint": "A column that changes in play: each entry keeps its own value, changed by self.set(this.col, …) in a script",
       "description": "Description for players (optional)",
       "hidden": "Hidden",
       "initial": "Initial",
@@ -748,6 +779,11 @@
       "max_required": "Maximum (required)",
       "min": "Min",
       "name": "Name",
+      "param_check": "Check to pass",
+      "param_check_hint": "When set to non-zero the user must pass this check, or it counts as 0",
+      "param_check_none": "No check",
+      "param_cooldown": "Option cooldown (min)",
+      "param_cooldown_hint": "After a non-zero value, how long before this entry can use it again (e.g. once a day: 1440)",
       "per_minute": "Change per minute (+ recovers, − drains)",
       "required": "Player must fill in",
       "spends": "Spend from",
@@ -800,6 +836,7 @@
       "param_cell": "chosen on use",
       "player_fills": "Empty: the player fills it in",
       "player_fills_hint": "A column left empty on a fixed entry is filled in by each player when making the character (e.g. each one's own level). If the column is required, it must be filled whenever the entry applies.",
+      "runtime_cell": "changes in play",
       "script": "Script",
       "script_add": "+ Script",
       "script_bad": "The skill script has problems; click to see",
@@ -878,6 +915,8 @@
       "tables": "Table",
       "target": "Target",
       "templates": "Template",
+      "use_templates": "use template",
+      "uses": "use",
       "when": "Condition"
     },
     "pe": {
@@ -888,6 +927,7 @@
       "check_name": "e.g. perception",
       "choices": "e.g. red, blue, green (comma-separated; leave empty for free text)",
       "choices_number": "e.g. E=1, D=2, C=3, B=4, A=5, EX=10, or 1~5, 10 (empty for any number)",
+      "choices_param": "e.g. no=0, yes=1; one of these is chosen on use, the first if not said",
       "damage_kind": "e.g. magic; empty for none",
       "damage_taken": "e.g. max(0, amount - 5 * anti_magic) if kind == \"magic\" else amount; empty = take it as is",
       "derived_label": "e.g. Max HP",
@@ -921,6 +961,7 @@
       "max": "e.g. 100",
       "max_resource": "e.g. hp_max; empty means no limit",
       "min": "e.g. 0",
+      "param_cooldown": "e.g. 1440 (once a day); empty = none",
       "per_minute": "empty means none, e.g. 1 or con / 2",
       "sample_name": "Example name",
       "search": "e.g. 1d20 + per; empty = can't find hidden ones",
@@ -979,6 +1020,15 @@
     "try": "Try it",
     "try_run": "Calculate",
     "unsaved": "Unsaved changes; a draft is saved automatically",
+    "uses": {
+      "add": "Add a use",
+      "description": "What this use does (with no config or script, the KP rules on it from this text)",
+      "hint": "An entry can be used in several ways (e.g. a weapon swung normally, or unleashed); each use is a skill, named “entry/use”. A use's config falls back to the entry's; this.<column> in its script is the entry's column.",
+      "kp_rules": "Ruled by the KP from the text",
+      "name": "Use name",
+      "templates_hint": "Use templates: players adding uses to their own entries can copy one of these (e.g. a standard area blast) and adjust it.",
+      "title": "Uses"
+    },
     "valid": "Valid",
     "version": "Version {v}",
     "w": {

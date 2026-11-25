@@ -58,7 +58,7 @@ export function blankTemplate(name: string, t: T): Template {
 }
 
 export function blankGroup(): Group {
-  return { name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: true, timing: true, reactions: true, damage_kind: "" };
+  return { name: "", label: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: true, timing: true, reactions: true, damage_kind: "", use_templates: [] };
 }
 
 /** 以前存的规则包可能缺少后来新增的引擎必需项（能否飞行字段、飞行速度等推导值）：打开时补上默认的；必需项的显示名空着就填默认的。 */
@@ -191,8 +191,8 @@ export type Doc = {
   template: string | null;
   inEntry?: string;
   scope?: Scope;
-  /** 条目这一行（脚本试运行用）：模板序号、分组序号、行号 */
-  entry?: { t: number; g: number; r: number };
+  /** 条目这一行（脚本试运行用）：模板序号、分组序号、行号；u 是这一条的第几个用途 */
+  entry?: { t: number; g: number; r: number; u?: number };
 };
 
 const TEMPLATE_FORMULA_KEYS = new Set(["min", "max", "initial", "per_minute"]);
@@ -218,9 +218,26 @@ export function docFor(pack: Pack, path: string): Doc | null {
   if (!g) return null;
   const inEntry = g.name;
   if (s[4] === "fields" && TEMPLATE_FORMULA_KEYS.has(String(s[6]))) return { path, kind: "formula", template, inEntry };
+  // 用途的模板：和条目一样有设置和脚本
+  if (s[4] === "use_templates" && typeof s[5] === "number") {
+    if (!g.use_templates?.[s[5]]) return null;
+    if (s.length === 6) return { path, kind: "entry", template, inEntry };
+    if (s[6] === "script") return { path, kind: "script", template, inEntry, scope: "script" };
+    if (s[6] === "config") return { path, kind: "config", template, inEntry, scope: "config" };
+    return null;
+  }
   if (s[4] !== "presets" || typeof s[5] !== "number") return null;
   const entry = { t: s[1], g: s[3], r: s[5] };
   if (s.length === 6) return g.presets?.[s[5]] ? { path, kind: "entry", template, inEntry, entry } : null;
+  // 固定条目的一个用途
+  if (s[6] === "uses" && typeof s[7] === "number") {
+    const u = { ...entry, u: s[7] };
+    if (!g.presets?.[s[5]]?.uses?.[s[7]]) return null;
+    if (s.length === 8) return { path, kind: "entry", template, inEntry, entry: u };
+    if (s[8] === "script") return { path, kind: "script", template, inEntry, scope: "script", entry: u };
+    if (s[8] === "config") return { path, kind: "config", template, inEntry, scope: "config", entry: u };
+    return null;
+  }
   const key = String(s[6]);
   if (key === "script") return { path, kind: "script", template, inEntry, scope: "script", entry };
   if (key === "config") return { path, kind: "config", template, inEntry, scope: "config", entry };
@@ -236,7 +253,7 @@ export function docFor(pack: Pack, path: string): Doc | null {
 
 /** 在 IDE 里打开时用的路径：条目的设置和脚本都打开整个条目。 */
 export function openPath(path: string): string {
-  const m = /^(.*\.presets\[\d+\])\.(config|script)$/.exec(path);
+  const m = /^(.*\.(?:presets\[\d+\](?:\.uses\[\d+\])?|use_templates\[\d+\]))\.(config|script)$/.exec(path);
   return m ? m[1]! : path;
 }
 

@@ -22,8 +22,10 @@ from smartkeeper.contracts import (
 
 
 def open_columns(g: GroupDef, p: GroupPreset) -> list[FieldDef]:
-    """固定条目里规则包没写、要玩家建角时填的列（“使用时填写”的列不算）。"""
-    return [x for x in g.fields if x.kind != "param" and x.name not in p.fields]
+    """固定条目里规则包没写、要玩家建角时填的列（“使用时填写”的列和运行中会变的列不算）。"""
+    return [
+        x for x in g.fields if x.kind != "param" and x.cls != "runtime" and x.name not in p.fields
+    ]
 
 
 def table_lookup(pack: RulePack) -> f.TableLookup:
@@ -84,6 +86,7 @@ class EntityContext:
         self._lookup = table_lookup(self.pack)
         self._derived = {d.name: d for d in self.template.derived}
         self._formulas = {x.name: x for x in self.pack.formulas}
+        self._fields = {x.name: x for x in self.template.fields}
         self._groups: dict[str, tuple[GroupEntry, ...]] | None = None
         # 掷骰公式列：this.<这种列> 展开成那一列里写的公式
         self._formula_cols = {
@@ -105,7 +108,9 @@ class EntityContext:
                     except f.FormulaError:
                         continue
                 filled = self.sheet.preset_fields.get(g.name, {}).get(p.name, {})
-                cols = {x.name for x in open_columns(g, p)}
+                cols = {x.name for x in open_columns(g, p)} | {
+                    x.name for x in g.fields if x.cls == "runtime"
+                }
                 merged = {k: v for k, v in filled.items() if k in cols} | dict(p.fields)
                 data = p.model_dump(exclude={"when"}) | {"fields": merged}
                 hits.append(GroupEntry.model_validate(data))
@@ -114,13 +119,52 @@ class EntityContext:
         return out
 
     def groups(self) -> dict[str, tuple[GroupEntry, ...]]:
+        """全部条目：生效的固定条目在前。运行中会变的列没存值时补上初值，带限时修正的列按修正后的值。"""
         if self._groups is None:
             merged = dict(self.sheet.groups)
             guard = f"{self.template.name}:presets"
             for name, presets in self._guarded(guard, self.active_presets).items():
                 merged[name] = presets + merged.get(name, ())
-            self._groups = merged
+            self._groups = merged  # 先放上，算初值和修正时引用别的条目不会绕回来
+            self._groups = {
+                g: tuple(self._live_entry(g, e) for e in entries) for g, entries in merged.items()
+            }
         return self._groups
+
+    def _live_entry(self, group: str, e: GroupEntry) -> GroupEntry:
+        gdef = next((g for g in self.template.groups if g.name == group), None)
+        fields = dict(e.fields)
+        for fd in gdef.fields if gdef else ():
+            if (
+                fd.cls == "runtime"
+                and fd.name not in fields
+                and fd.kind == "boolean"
+                and not fd.initial
+            ):
+                fields[fd.name] = False  # 是/否没写初值：否
+            if fd.cls == "runtime" and fd.name not in fields and fd.initial:
+                try:
+                    v = self.eval(fd.initial, fields)
+                except f.FormulaError:
+                    continue
+                fields[fd.name] = (v != 0 and v != "") if fd.kind == "boolean" else v
+        # 限时修正 <条目名>.<列>（例如“+”让这个技能的等级 10 分钟内变高）
+        for st in self.sheet.statuses:
+            eff = st.modifier
+            if eff is None or not eff.is_mechanical or eff.target is None:
+                continue
+            head, _, col = eff.target.rpartition(".")
+            if head != e.name or not col:
+                continue
+            cur = as_value(fields.get(col))
+            if cur is None or isinstance(cur, str):
+                continue
+            assert eff.formula is not None
+            try:
+                fields[col] = self.eval_num(eff.formula, fields, overrides={f"this.{col}": cur})
+            except f.FormulaError:
+                continue
+        return e if fields == e.fields else e.model_copy(update={"fields": fields})
 
     def full_sheet(self) -> Sheet:
         """给人和 KP 看的完整角色卡：固定条目排在玩家写的条目前面。"""
@@ -136,6 +180,9 @@ class EntityContext:
         def resolve(name: str) -> f.Value:
             if overrides is not None and name in overrides:
                 return overrides[name]
+            if name.startswith("has:"):
+                tag = name[4:]
+                return 1.0 if any(st.tag == tag for st in self.sheet.statuses) else 0.0
             if name.startswith("this."):
                 if entry is None:
                     raise f.FormulaError("formula.this_outside_entry", name=name)
@@ -262,7 +309,15 @@ class EntityContext:
             v = as_value(self.sheet.fields[name])
             if v is None:
                 raise f.FormulaError("formula.bad_value", name=name)
-            return v
+            fd = self._fields.get(name)
+            if (
+                isinstance(v, str)
+                or fd is None
+                or fd.cls != "player"
+                or f"{self.template.name}:presets" in self._stack
+            ):
+                return v  # 只修正建角时填的数值；判断固定条目生不生效时用填的原值
+            return self.field_value(name, v).value
         if name in self._formulas:
             key = f"{self.template.name}.{name}"
             return self._guarded(key, lambda: self.eval(self._formulas[name].formula))
@@ -326,24 +381,29 @@ class EntityContext:
     # ---- 推导值 ----
 
     def modifiers_for(self, name: str) -> list[tuple[Effect, Mapping[str, JsonValue] | None, str]]:
-        """作用于某个推导值的全部带公式的效果，按计算顺序：(效果, 所在条目的字段, 来源说明)。
+        """作用于某个推导值（或数值字段）的全部带公式的效果，按计算顺序：(效果, 所在条目的字段, 来源说明)。
 
         固定条目（按分组和条目的定义顺序）→ 玩家写的条目（按 priority 从小到大）→ 状态（按添加先后）。
         """
         out: list[tuple[Effect, Mapping[str, JsonValue] | None, str]] = []
         presets = self._guarded(f"{self.template.name}:presets", self.active_presets)
+        # 条目的列按读卡时的值（运行中会变的列带初值和限时修正），例如“开着的时候力量 +2”
         for g in self.template.groups:
             for entry in presets.get(g.name, ()):
-                for eff in entry.effects:
-                    if eff.is_mechanical and eff.target == name:
-                        out.append((eff, entry.fields, f"{g.name}:{entry.name}"))
+                effs = [e for e in entry.effects if e.is_mechanical and e.target == name]
+                if effs:
+                    cols = self._live_entry(g.name, entry).fields
+                    out += [(eff, cols, f"{g.name}:{entry.name}") for eff in effs]
         own: list[tuple[int, int, Effect, Mapping[str, JsonValue], str]] = []
         for group, entries in sorted(self.sheet.groups.items()):
             for entry in entries:
-                for eff in entry.effects:
-                    if eff.is_mechanical and eff.target == name:
-                        prio = eff.priority if eff.priority is not None else 1 << 30
-                        own.append((prio, len(own), eff, entry.fields, f"{group}:{entry.name}"))
+                effs = [e for e in entry.effects if e.is_mechanical and e.target == name]
+                if not effs:
+                    continue
+                cols = self._live_entry(group, entry).fields
+                for eff in effs:
+                    prio = eff.priority if eff.priority is not None else 1 << 30
+                    own.append((prio, len(own), eff, cols, f"{group}:{entry.name}"))
         out += [(eff, fields, src) for _, _, eff, fields, src in sorted(own, key=lambda x: x[:2])]
         for st in self.sheet.statuses:
             eff = st.modifier
@@ -373,6 +433,38 @@ class EntityContext:
         result = self._guarded(f"{self.template.name}.{name}", compute)
         self._cache[name] = result
         return result
+
+    def field_value(self, name: str, base: float) -> DerivedValue:
+        """数值字段经过修正之后的值（例如某个技能让力量高一级、限时的飞行让“能飞”变成是）。"""
+        key = f"field:{name}"
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        def compute() -> DerivedValue:
+            value = base
+            sources: list[str] = []
+            for eff, entry, src in self.modifiers_for(name):
+                assert eff.formula is not None
+                value = self.eval_num(eff.formula, entry, overrides={name: value})
+                sources.append(src)
+            return DerivedValue(name=name, base=base, value=value, modifiers=tuple(sources))
+
+        result = self._guarded(f"{self.template.name}.{name}", compute)
+        self._cache[key] = result
+        return result
+
+    def modified_fields(self) -> list[DerivedValue]:
+        """被修正了的数值字段：原值和修正后的值。"""
+        out: list[DerivedValue] = []
+        for fd in self.template.fields:
+            v = as_value(self.sheet.fields.get(fd.name))
+            if v is None or isinstance(v, str) or fd.cls != "player":
+                continue
+            dv = self.field_value(fd.name, v)
+            if dv.modifiers:
+                out.append(dv)
+        return out
 
     def all_derived(self) -> list[DerivedValue]:
         return [self.derived(d.name) for d in self.template.derived]

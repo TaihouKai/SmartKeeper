@@ -174,7 +174,13 @@ export function DerivedSection({ tpl, onChange, validate, base }: { tpl: Templat
 }
 
 /** 一个分组：上面是设置（名字、数量、开关、范围形状），下面是条目表。 */
-export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover }: { tpl: Template; g: Group; onChange: (g: Group) => void; onRemove: () => void; validate: Validate; base: string; mover: ReactNode }) {
+/** 修正能作用的数值：推导值，和建角时填的数值、是/否字段。 */
+export function modifiable(tpl: Template): string[] {
+  const fields = (tpl.fields ?? []).filter((f) => (f.cls ?? "player") === "player" && (f.kind === "number" || f.kind === "boolean")).map((f) => f.name);
+  return [...(tpl.derived ?? []).map((d) => d.name), ...fields];
+}
+
+export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover, checks = [] }: { tpl: Template; g: Group; onChange: (g: Group) => void; onRemove: () => void; validate: Validate; base: string; mover: ReactNode; checks?: string[] }) {
   const { t } = useI18n();
   const allowed = g.shapes?.allowed ?? [];
   const [settings, setSettings] = useState(false);
@@ -262,8 +268,9 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
         validate={validate}
         template={tpl.name}
         base={base}
-        derived={(tpl.derived ?? []).map((d) => d.name)}
+        derived={modifiable(tpl)}
         spendTargets={(tpl.fields ?? []).filter((f) => f.kind === "number" || f.kind === "resource").map((f) => f.name)}
+        checks={checks}
       />
     </>
   );

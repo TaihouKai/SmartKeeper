@@ -45,12 +45,16 @@
     "fixed_entries": "按现在的填写，会自动获得：{names}",
     "formula_field": "掷骰公式，例如 1d6 或 1d str；用的时候由引擎掷",
     "name": "角色名",
+    "param_choices": "用的时候选：{choices}",
     "param_field": "使用时在行动里说（{min} ～ {max}）",
     "remove_entry": "删除这一条",
+    "runtime_column": "游戏中由技能改变，不用填",
     "shape": "范围形状",
     "shape_none": "无",
     "submit": "提交角色卡",
-    "unnamed_field": "（这个字段还没起名字）"
+    "unnamed_field": "（这个字段还没起名字）",
+    "use_from_template": "从模板加一个用途…",
+    "uses_hint": "这个条目的几种用法：每种用法是一个技能（设置没写的项沿用上面条目的）。只写说明的由 KP 裁定。"
   },
   "chat": {
     "hint": "闲聊是玩家之间的场外聊天，KP 看不到，也不据此裁定。游戏内的事请走 KP 或广播。",
@@ -97,7 +101,9 @@
       "unresolved_reference": "有对应不上的指代"
     },
     "adj": {
+      "placement_needs_building": "{entry} 要在建筑里才能放（整栋建筑做成设置物）",
       "reaction_pending": "这次使用还在等对象应对",
+      "summon_bad_sheet": "召唤出来的角色卡不合法（{problem}）：召唤脚本要给齐这个模板必填的字段",
       "unknown_use": "裁定引用了不存在的技能使用 {seq}",
       "use_bad_field": "作用对象没有运行值 {name}"
     },
@@ -138,6 +144,7 @@
       "math_domain": "{name} 算不出结果（例如负数开平方）",
       "single_equals": "比较相等要写两个等号：==",
       "syntax": "写法不对，看不懂（检查运算符、括号和逗号）",
+      "text_arg": "{name} 的参数要是文字，例如 {name}(\"营地\")",
       "text_in_arithmetic": "文字“{value}”不能参与计算",
       "text_result": "结果是文字“{value}”，这里需要数字",
       "this_outside_entry": "{name} 只能在条目里用（指这一条的列）",
@@ -172,7 +179,7 @@
       "check_needs_success": "检定要写 success（成功的条件）",
       "choices_need_text": "只有文字和数值字段能设可选值",
       "duplicate_name": "名字 {name} 重复了",
-      "group_field_must_be_player": "分组里的字段只能是玩家填写的",
+      "group_runtime_kind": "分组里运行中会变的列只能是数值或是/否",
       "malformed": "格式不对：{msg}",
       "missing_appearance": "缺少外观描述字段 {name}（必须是文字）",
       "missing_can_fly": "缺少“能否飞行”字段 {name}（必须是“是/否”类型）",
@@ -180,6 +187,7 @@
       "missing_required_derived": "缺少引擎必需的推导值 {name}",
       "no_player_entities": "还没设置玩家建角时要创建的实体",
       "no_templates": "至少要有一个模板",
+      "option_needs_param": "只有“使用时填写”的列能设检定和冷却",
       "reserved_name": "{name} 是保留名字（函数名、检定变量或 d6 这样的骰子写法），请换一个",
       "resource_needs_max": "资源必须填上限",
       "runtime_needs_initial": "运行值必须填初值",
@@ -198,6 +206,9 @@
       "choices_mismatch": "要对每次攻击都选一个应对，一次交齐",
       "nothing_pending": "现在没有要你应对的攻击"
     },
+    "roll": {
+      "param_not_a_choice": "{name} 只能填可选值之一（{choices}），填的是 {value}"
+    },
     "round": {
       "illegal_transition": "当前阶段不能这样做（{status}）",
       "not_ready": "还有玩家没有提交行动",
@@ -214,18 +225,24 @@
       "empty_block": "if / elif / else 下面要有缩进的几行",
       "field_arg": "{name} 的第一个参数要写字段名，例如 hp",
       "if_call": "if 不能当函数写。要按条件做不同的事，写成 if 条件: 换行，下面缩进写动作，再接 else:；只是数值二选一的话写成 a if 条件 else b",
-      "not_derived": "{name} 不是推导值，modify 只能修正推导值",
+      "name_arg": "{name} 的参数要写名字（模板名，或 self / target / 同伴的模板名）",
+      "not_derived": "{name} 不能修正：modify 只能修正推导值、建角时填的数值字段，或 this.<列>",
       "not_runtime": "{name} 不是运行值（数值或资源），不能在脚本里改",
       "setting_name": "{name} 是技能设置的项，变量换个名字",
       "unexpected_indent": "缩进不对：同一段里的行要对齐，只有 if / elif / else 下面的几行才缩进",
+      "unknown_column": "{name} 不是这个条目的列（this.<列> 只能对自己用：self.set(this.列, …)）",
+      "unknown_field": "召唤的模板没有字段 {name}",
       "unknown_receiver": "{name} 不是对象：只能写 self（自己）或 target（对象）",
-      "unknown_verb": "没有 {name} 这个动作：可以用 damage、add、sub、set、modify"
+      "unknown_template": "没有 {name} 这个模板",
+      "unknown_verb": "没有 {name} 这个动作：可以用 damage、add、sub、set、modify、negate、summon、teleport"
     },
     "sheet": {
       "above_max": "{value} 超过上限 {max}",
+      "bad_use_name": "用途的名字里不能有 /",
       "below_min": "{value} 低于下限 {min}",
       "choice": "“{value}”不在可选值里",
       "derived_not_writable": "推导值不能直接填",
+      "duplicate_use": "用途 {name} 重复了",
       "missing_field": "缺少字段",
       "placement_not_allowed": "这个分组的条目不能是设置物（在分组的更多设置里打开）",
       "required": "必须填写",
@@ -254,6 +271,7 @@
       "not_in_sight": "{entry} 要放在看得见的地方",
       "not_perceived": "{entry} 要看得见（察觉得到）对象才能用",
       "out_of_range": "{entry} 够不着：对象在 {distance} 米外，射程 {range} 米",
+      "param_cooling_down": "{entry} 的“{name}”还在冷却，这次不能选",
       "requires": "{entry} 现在不能用：使用条件 {formula} 不成立"
     }
   },
@@ -328,6 +346,7 @@
     "p": {
       "amount_dice": "数量，公式，可以掷骰，例如 2d6 + this.level",
       "angle": "张开的角度（度），数字",
+      "building": "True：设置者所在的整栋建筑就是这个设置物（不用写 radius）",
       "charges": "能触发几次；不写表示无限",
       "damage_kind": "伤害类型，例如 \"magic\"；不写就用这个技能所在分组的伤害类型。受伤的一方按自己模板的“受到伤害的公式”减免",
       "derived": "要修正的推导值的名字，例如 move_speed",
@@ -341,6 +360,10 @@
       "placement_radius": "触发范围（米），必填，可以写公式",
       "radius_m": "半径（米），数字",
       "runtime_field": "对象身上的运行值（数值或资源）的名字，例如 hp、mp",
+      "summon_count": "召唤几个",
+      "summon_minutes": "存在几分钟；不写是一直在",
+      "summon_template": "召唤哪个模板（模板 ID）",
+      "teleport_to": "到谁身边：self、target 或同伴的模板名",
       "timed_minutes": "可不写；写了就是限时的，持续这么多分钟",
       "width_m": "宽度（米），数字"
     },
@@ -354,10 +377,12 @@
     "verb": {
       "add": "增加一个运行值；写了分钟就是限时的，到期扣回加上去还剩下的部分。结果不超过上下限",
       "damage": "受到伤害：先扣护盾 shield，剩下的扣生命值 hp",
-      "modify": "限时修正一个推导值，到期消失",
+      "modify": "限时修正一个数值（推导值、建角时填的字段，或 this.<列>），到期消失",
       "negate": "当反应时：让打在自己身上的这次攻击无效（平时没有效果）",
       "set": "把一个运行值设为某个数，结果在上下限之内",
-      "sub": "减少一个运行值，结果不低于下限"
+      "sub": "减少一个运行值，结果不低于下限",
+      "summon": "召唤：在接收者身边放几个这个模板的角色，归接收者的玩家控制；限时的到期消失。后面写 字段=公式 填新角色卡",
+      "teleport": "瞬间移动到另一个角色身边（同一个位置、同一栋建筑）"
     }
   },
   "event": {
@@ -416,7 +441,9 @@
       "count": "数一个分组里的条目：count(分组) 是条目数，count(分组.列, 值) 是这一列等于这个值的条目数",
       "dice": "掷 n 颗 s 面骰求和，和 NdM 一样",
       "floor": "向下取整",
+      "has": "身上有没有这个状态（1 或 0），例如 has(\"中毒\")",
       "highest": "掷 n 颗 s 面骰，取最高的 k 颗之和",
+      "inside": "是不是站在自己用这个条目放下的设置物里（圆形范围或整栋建筑），例如 inside(\"营地\")",
       "lookup": "在规则包的表里查值",
       "lowest": "掷 n 颗 s 面骰，取最低的 k 颗之和",
       "max": "最大的一个",
@@ -501,8 +528,11 @@
       "add": "增加",
       "damage": "受到伤害",
       "modify": "限时修正",
+      "negate": "作废攻击",
       "set": "设为",
-      "subtract": "减少"
+      "subtract": "减少",
+      "summon": "召唤",
+      "teleport": "瞬间移动"
     },
     "open_here": "在 IDE 里打开",
     "part": {
@@ -737,6 +767,7 @@
     "f": {
       "choices": "可选值",
       "cls": "类别",
+      "cls_group_hint": "运行中会变的列：每个条目各存一份，技能脚本里 self.set(this.列, …) 改它（例如开着没有、还剩几发）",
       "description": "给玩家看的说明（可不填）",
       "hidden": "对玩家隐藏",
       "initial": "初值",
@@ -748,6 +779,11 @@
       "max_required": "上限（必填）",
       "min": "下限",
       "name": "名字",
+      "param_check": "要过的检定",
+      "param_check_hint": "填了非 0 时使用者要过这个检定，没过就按 0 算（例如发动的时候要靠运气）",
+      "param_check_none": "不用检定",
+      "param_cooldown": "选项冷却（分钟）",
+      "param_cooldown_hint": "填了非 0 之后，这个条目多久之内不能再填非 0（例如每天一次：1440）",
       "per_minute": "每分钟自然变化（正数恢复，负数消耗）",
       "required": "玩家必须填写",
       "spends": "从哪个资源扣",
@@ -800,6 +836,7 @@
       "param_cell": "使用时填写",
       "player_fills": "留空：玩家建角时填",
       "player_fills_hint": "固定条目里留空的列，由每个玩家建角时自己填（例如每个角色的对魔力等级不同）。这一列必填时，条目生效就必须填。",
+      "runtime_cell": "运行中会变",
       "script": "脚本",
       "script_add": "+ 脚本",
       "script_bad": "技能脚本有问题，点开看",
@@ -878,6 +915,8 @@
       "tables": "查表",
       "target": "目标值",
       "templates": "模板",
+      "use_templates": "用途模板",
+      "uses": "用途",
       "when": "生效条件"
     },
     "pe": {
@@ -888,6 +927,7 @@
       "check_name": "例如 perception",
       "choices": "例如 红、蓝、绿（用顿号或逗号分隔；留空表示自由填写）",
       "choices_number": "例如 E=1, D=2, C=3, B=4, A=5, EX=10，或 1~5, 10（留空表示随便填）",
+      "choices_param": "例如 不解放=0, 解放=1；用的时候只能选其中一个，没说时取第一个",
       "damage_kind": "例如 magic；空着表示没有类型",
       "damage_taken": "例如 max(0, amount - 5 * anti_magic) if kind == \"magic\" else amount；空着就是原样受伤",
       "derived_label": "例如 生命值上限",
@@ -921,6 +961,7 @@
       "max": "例如 100",
       "max_resource": "例如 hp_max；留空表示没有上限",
       "min": "例如 0",
+      "param_cooldown": "例如 1440（每天一次）；空着是没有冷却",
       "per_minute": "留空表示不变，例如 1 或 con / 2",
       "sample_name": "例题名",
       "search": "例如 1d20 + per；空着是发现不了隐匿的角色",
@@ -979,6 +1020,15 @@
     "try": "试算",
     "try_run": "计算",
     "unsaved": "有修改，几秒后自动存为草稿",
+    "uses": {
+      "add": "加一个用途",
+      "description": "说明：这种用法是什么（只写说明、不写设置和脚本的由 KP 按说明裁定）",
+      "hint": "一个条目可以有几种用法（例如一件装备平时当武器、解放之后放大招），每种用法是一个技能：用的时候写“条目名/用途名”。用途的设置没写的项沿用条目的；脚本里 this.<列> 是条目的列。",
+      "kp_rules": "由 KP 按说明裁定",
+      "name": "用途名",
+      "templates_hint": "用途的模板：玩家给自己写的条目加用途时可以选一个照抄（例如标准的大范围攻击），再按需要改。",
+      "title": "用途"
+    },
     "valid": "校验通过",
     "version": "第 {v} 版",
     "w": {

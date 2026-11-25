@@ -26,7 +26,11 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
   const { t } = useI18n();
   const [preview, setPreview] = useState<Schemas["PreviewOut"] | null>(null);
   const fields = (template.fields ?? []).filter((f) => f.cls !== "runtime");
-  const derived = (template.derived ?? []).map((d) => d.name);
+  // 修正能作用的数值：推导值，和建角时填的数值、是/否字段
+  const derived = [
+    ...(template.derived ?? []).map((d) => d.name),
+    ...(template.fields ?? []).filter((f) => (f.cls ?? "player") === "player" && (f.kind === "number" || f.kind === "boolean")).map((f) => f.name),
+  ];
   const validate = useCallback(
     (formula: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string) =>
       call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config", other: other ?? "" } })),
@@ -71,7 +75,7 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
             {(preview?.presets?.[g.name] ?? []).map((pname) => {
               // 固定条目里规则包留空的列：玩家自己填（例如这个角色的对魔力等级）
               const p = (g.presets ?? []).find((x) => x.name === pname);
-              const open = p ? (g.fields ?? []).filter((x) => x.kind !== "param" && !(x.name in (p.fields ?? {}))) : [];
+              const open = p ? (g.fields ?? []).filter((x) => x.kind !== "param" && x.cls !== "runtime" && !(x.name in (p.fields ?? {}))) : [];
               if (!open.length) return null;
               const mine = value.preset_fields?.[g.name]?.[pname] ?? {};
               const set = (col: string, v: Value) =>

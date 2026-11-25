@@ -1223,8 +1223,8 @@ T: dict[str, tuple[str, str]] = {
         "{name} isn't an object: use self or target",
     ),
     "codes.script.unknown_verb": (
-        "没有 {name} 这个动作：可以用 damage、add、sub、set、modify",
-        "No action {name}: use damage, add, sub, set or modify",
+        "没有 {name} 这个动作：可以用 damage、add、sub、set、modify、negate、summon、teleport",
+        "No action {name}: use damage, add, sub, set, modify, negate, summon or teleport",
     ),
     "codes.script.arity": (
         "{name} 的参数个数不对（写了 {count} 个）",
@@ -1239,8 +1239,8 @@ T: dict[str, tuple[str, str]] = {
         "{name} isn't a runtime value (number or resource) and can't be changed by a script",
     ),
     "codes.script.not_derived": (
-        "{name} 不是推导值，modify 只能修正推导值",
-        "{name} isn't a derived value; modify only works on derived values",
+        "{name} 不能修正：modify 只能修正推导值、建角时填的数值字段，或 this.<列>",
+        "{name} can't be modified: modify works on derived values, player-entered number fields or this.<column>",
     ),
     "codes.script.unexpected_indent": (
         "缩进不对：同一段里的行要对齐，只有 if / elif / else 下面的几行才缩进",
@@ -1285,9 +1285,48 @@ T: dict[str, tuple[str, str]] = {
         "e.g. E=1, D=2, C=3, B=4, A=5, EX=10, or 1~5, 10 (empty for any number)",
     ),
     "codes.pack.duplicate_name": ("名字 {name} 重复了", "The name {name} is used twice"),
-    "codes.pack.group_field_must_be_player": (
-        "分组里的字段只能是玩家填写的",
-        "Fields in a group must be player-entered",
+    "codes.pack.group_runtime_kind": (
+        "分组里运行中会变的列只能是数值或是/否",
+        "A changing column in a group must be a number or yes/no",
+    ),
+    "codes.roll.param_not_a_choice": (
+        "{name} 只能填可选值之一（{choices}），填的是 {value}",
+        "{name} must be one of {choices} (got {value})",
+    ),
+    "codes.use.param_cooling_down": (
+        "{entry} 的“{name}”还在冷却，这次不能选",
+        "The “{name}” option of {entry} is still cooling down",
+    ),
+    "codes.pack.option_needs_param": (
+        "只有“使用时填写”的列能设检定和冷却",
+        "Only use-time columns can have a check or a cooldown",
+    ),
+    "codes.sheet.bad_use_name": ("用途的名字里不能有 /", "A use's name can't contain /"),
+    "codes.sheet.duplicate_use": ("用途 {name} 重复了", "The use {name} appears twice"),
+    "codes.script.unknown_column": (
+        "{name} 不是这个条目的列（this.<列> 只能对自己用：self.set(this.列, …)）",
+        "{name} isn't a column of this entry (this.<column> only works on self: self.set(this.col, …))",
+    ),
+    "codes.script.name_arg": (
+        "{name} 的参数要写名字（模板名，或 self / target / 同伴的模板名）",
+        "{name} takes a name here (a template, or self / target / a companion's template)",
+    ),
+    "codes.script.unknown_template": ("没有 {name} 这个模板", "There is no template {name}"),
+    "codes.script.unknown_field": (
+        "召唤的模板没有字段 {name}",
+        "The summoned template has no field {name}",
+    ),
+    "codes.adj.summon_bad_sheet": (
+        "召唤出来的角色卡不合法（{problem}）：召唤脚本要给齐这个模板必填的字段",
+        "The summoned sheet is invalid ({problem}): the summon must fill the template's required fields",
+    ),
+    "codes.adj.placement_needs_building": (
+        "{entry} 要在建筑里才能放（整栋建筑做成设置物）",
+        "{entry} must be set up inside a building (the whole building becomes the placement)",
+    ),
+    "codes.formula.text_arg": (
+        '{name} 的参数要是文字，例如 {name}("营地")',
+        '{name} takes text, e.g. {name}("camp")',
     ),
     "codes.pack.malformed": ("格式不对：{msg}", "Malformed: {msg}"),
     "codes.pack.missing_appearance": (
@@ -1479,7 +1518,89 @@ T: dict[str, tuple[str, str]] = {
         "把一个运行值设为某个数，结果在上下限之内",
         "Set a runtime value, clamped to its limits",
     ),
-    "doc.verb.modify": ("限时修正一个推导值，到期消失", "Modify a derived value for a while"),
+    "doc.verb.modify": (
+        "限时修正一个数值（推导值、建角时填的字段，或 this.<列>），到期消失",
+        "Modify a value for a while (a derived value, a player-entered field, or this.<column>)",
+    ),
+    "doc.verb.summon": (
+        "召唤：在接收者身边放几个这个模板的角色，归接收者的玩家控制；限时的到期消失。后面写 字段=公式 填新角色卡",
+        "Summon: put some characters of this template next to the receiver, controlled by the receiver's player; timed ones vanish. Add field=formula to fill their sheets",
+    ),
+    "doc.verb.teleport": (
+        "瞬间移动到另一个角色身边（同一个位置、同一栋建筑）",
+        "Teleport next to another character (same spot, same building)",
+    ),
+    "doc.p.summon_template": ("召唤哪个模板（模板 ID）", "Which template (its ID)"),
+    "doc.p.summon_count": ("召唤几个", "How many"),
+    "doc.p.summon_minutes": (
+        "存在几分钟；不写是一直在",
+        "How many minutes they stay; omit for good",
+    ),
+    "doc.p.teleport_to": (
+        "到谁身边：self、target 或同伴的模板名",
+        "Next to whom: self, target or a companion's template",
+    ),
+    "doc.p.building": (
+        "True：设置者所在的整栋建筑就是这个设置物（不用写 radius）",
+        "True: the whole building the setter is in becomes the placement (no radius needed)",
+    ),
+    "rules.uses.title": ("用途", "Uses"),
+    "rules.uses.name": ("用途名", "Use name"),
+    "rules.uses.description": (
+        "说明：这种用法是什么（只写说明、不写设置和脚本的由 KP 按说明裁定）",
+        "What this use does (with no config or script, the KP rules on it from this text)",
+    ),
+    "rules.uses.kp_rules": ("由 KP 按说明裁定", "Ruled by the KP from the text"),
+    "rules.uses.add": ("加一个用途", "Add a use"),
+    "rules.uses.hint": (
+        "一个条目可以有几种用法（例如一件装备平时当武器、解放之后放大招），每种用法是一个技能：用的时候写“条目名/用途名”。"
+        "用途的设置没写的项沿用条目的；脚本里 this.<列> 是条目的列。",
+        "An entry can be used in several ways (e.g. a weapon swung normally, or unleashed); each use is a skill, named “entry/use”. "
+        "A use's config falls back to the entry's; this.<column> in its script is the entry's column.",
+    ),
+    "rules.uses.templates_hint": (
+        "用途的模板：玩家给自己写的条目加用途时可以选一个照抄（例如标准的大范围攻击），再按需要改。",
+        "Use templates: players adding uses to their own entries can copy one of these (e.g. a standard area blast) and adjust it.",
+    ),
+    "rules.path.uses": ("用途", "use"),
+    "rules.path.use_templates": ("用途模板", "use template"),
+    "rules.gt.runtime_cell": ("运行中会变", "changes in play"),
+    "rules.f.cls_group_hint": (
+        "运行中会变的列：每个条目各存一份，技能脚本里 self.set(this.列, …) 改它（例如开着没有、还剩几发）",
+        "A column that changes in play: each entry keeps its own value, changed by self.set(this.col, …) in a script",
+    ),
+    "rules.f.param_check": ("要过的检定", "Check to pass"),
+    "rules.f.param_check_hint": (
+        "填了非 0 时使用者要过这个检定，没过就按 0 算（例如发动的时候要靠运气）",
+        "When set to non-zero the user must pass this check, or it counts as 0",
+    ),
+    "rules.f.param_check_none": ("不用检定", "No check"),
+    "rules.f.param_cooldown": ("选项冷却（分钟）", "Option cooldown (min)"),
+    "rules.f.param_cooldown_hint": (
+        "填了非 0 之后，这个条目多久之内不能再填非 0（例如每天一次：1440）",
+        "After a non-zero value, how long before this entry can use it again (e.g. once a day: 1440)",
+    ),
+    "rules.ph.param_cooldown": (
+        "例如 1440（每天一次）；空着是没有冷却",
+        "e.g. 1440 (once a day); empty = none",
+    ),
+    "rules.ph.choices_param": (
+        "例如 不解放=0, 解放=1；用的时候只能选其中一个，没说时取第一个",
+        "e.g. no=0, yes=1; one of these is chosen on use, the first if not said",
+    ),
+    "character.param_choices": ("用的时候选：{choices}", "Chosen on use: {choices}"),
+    "character.runtime_column": (
+        "游戏中由技能改变，不用填",
+        "Changed by skills during play; leave empty",
+    ),
+    "character.uses_hint": (
+        "这个条目的几种用法：每种用法是一个技能（设置没写的项沿用上面条目的）。只写说明的由 KP 裁定。",
+        "Ways to use this entry: each is a skill (its config falls back to the entry's). Text-only ones are ruled by the KP.",
+    ),
+    "character.use_from_template": ("从模板加一个用途…", "Add a use from a template…"),
+    "ide.op.summon": ("召唤", "summon"),
+    "ide.op.teleport": ("瞬间移动", "teleport"),
+    "ide.op.negate": ("作废攻击", "void the attack"),
     "doc.p.damage_kind": (
         '伤害类型，例如 "magic"；不写就用这个技能所在分组的伤害类型。受伤的一方按自己模板的“受到伤害的公式”减免',
         "damage type, e.g. \"magic\"; defaults to the group's damage type. The one hurt applies their template's damage-taken formula",
@@ -1682,6 +1803,14 @@ T: dict[str, tuple[str, str]] = {
     "fh.b.sum": (
         "自己 talents 分组里 cost 列的总和",
         "Total of the cost column in your talents group",
+    ),
+    "fh.fn.has": (
+        '身上有没有这个状态（1 或 0），例如 has("中毒")',
+        'Whether this status is on you (1 or 0), e.g. has("rage")',
+    ),
+    "fh.fn.inside": (
+        '是不是站在自己用这个条目放下的设置物里（圆形范围或整栋建筑），例如 inside("营地")',
+        'Whether you stand inside a placement you set with this entry (a circle or a whole building), e.g. inside("camp")',
     ),
     "fh.fn.highest": (
         "掷 n 颗 s 面骰，取最高的 k 颗之和",

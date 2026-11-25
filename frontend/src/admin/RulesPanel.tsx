@@ -280,6 +280,7 @@ export function RulesPanel() {
           tpl={tpl}
           g={g}
           base={`${base}.groups[${s.g}]`}
+          checks={(pack.checks ?? []).map((c) => c.name).filter(Boolean)}
           validate={validate}
           onChange={(x) => setTemplate(s.t, { ...tpl, groups: groups.map((y, j) => (j === s.g ? x : y)) })}
           onRemove={() => {

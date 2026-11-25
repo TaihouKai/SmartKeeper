@@ -45,8 +45,9 @@ SHAPES: dict[str, tuple[str, ...]] = {
 CONFIG_VARS = ("distance", "unseen")
 HIT_VARS = (*CONFIG_VARS, "level", "opp_level", "opposed")
 SCRIPT_VARS = (*HIT_VARS, "saved", "reacting")
-# 设置物的参数：radius 必填；perceive 是别人发现它的距离系数；duration 按分钟
-PLACEMENT_ARGS = ("radius", "perceive", "charges", "duration", "notify")
+# 设置物的参数：radius 必填（building=True 时不用：设置者所在的整栋建筑就是设置物）；
+# perceive 是别人发现它的距离系数；duration 按分钟
+PLACEMENT_ARGS = ("radius", "perceive", "charges", "duration", "notify", "building")
 
 
 def _err(code: str, s: f.Setting, **params: str) -> f.FormulaError:
@@ -166,11 +167,13 @@ def read_config(text: str, script: str = "") -> SkillConfig:
                 for a in args:
                     if a not in PLACEMENT_ARGS:
                         raise _err("config.bad_arg", s, arg=a)
-                if not args.get("radius", "").strip():
+                building = _bool(s, args["building"]) if "building" in args else False
+                if not building and not args.get("radius", "").strip():
                     raise _err("config.missing_arg", s, arg="radius")
                 dur = args.get("duration", "").strip()
                 out["placement"] = PlacementSpec(
-                    radius=args["radius"],
+                    radius=args.get("radius", ""),
+                    building=building,
                     perceive_multiplier=args.get("perceive", "").strip() or "1",
                     charges=args.get("charges", ""),
                     duration=f"({dur}) * 60" if dur else "",  # 设置里按分钟，设置物按秒
@@ -239,5 +242,9 @@ def formulas(text: str, script: str = "") -> list[tuple[int, str, str]]:
         if KEYS.get(s.name) == "formula" and s.value.strip():
             out.append((s.line, s.name, s.value))
         if KEYS.get(s.name) == "placement" and s.call == "placement":
-            out += [(s.line, f"{s.name}.{a}", v) for a, v in s.args if a != "notify" and v.strip()]
+            out += [
+                (s.line, f"{s.name}.{a}", v)
+                for a, v in s.args
+                if a not in ("notify", "building") and v.strip()
+            ]
     return out

@@ -106,8 +106,10 @@ from smartkeeper.contracts.rulepack import (
     WorldInfo,
 )
 from smartkeeper.contracts.sheet import (
+    USE_SEP,
     DerivedValue,
     Effect,
+    EntryUse,
     Grant,
     GroupEntry,
     Item,
@@ -154,6 +156,7 @@ __all__ = [
     "PUBLIC",
     "REQUIRED_DERIVED",
     "SHIELD_FIELD",
+    "USE_SEP",
     "ActionItem",
     "Activity",
     "AdHocCheck",
@@ -175,6 +178,7 @@ __all__ = [
     "Effect",
     "Encounter",
     "EntityTemplate",
+    "EntryUse",
     "Event",
     "EventLog",
     "EventType",

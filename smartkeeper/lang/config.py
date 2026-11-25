@@ -89,3 +89,30 @@ def parse_config(text: str) -> tuple[Setting, ...]:
         else:
             out.append(Setting(line=s.lineno, name=name, value=_formula(v, s.lineno)))
     return tuple(out)
+
+
+def merge_config(base: str, over: str) -> str:
+    """用途的设置：over 里写了的项覆盖 base（条目自己的设置），没写的沿用 base。写错的一边原样拼上，由解析时报错。"""
+    if not base.strip():
+        return over
+    if not over.strip():
+        return base
+    try:
+        mine = {s.name for s in parse_config(over)}
+        src = desugar(base)
+        tree = ast.parse(src, mode="exec")
+    except (FormulaError, SyntaxError):
+        return f"{base}\n{over}"
+    kept: list[str] = []
+    for s in tree.body:
+        if (
+            isinstance(s, ast.Assign)
+            and len(s.targets) == 1
+            and isinstance(s.targets[0], ast.Name)
+            and s.targets[0].id in mine
+        ):
+            continue
+        seg = ast.get_source_segment(src, s)
+        if seg:
+            kept.append(seg)
+    return "\n".join([*kept, over])

@@ -41,7 +41,36 @@ function EditButton({ path, script }: { path: string; script: string }) {
  * 技能脚本点按钮在右边的 IDE 里写；修正和范围形状放不进格子，点“更多”在这一行下面展开。
  * base 是这个分组在规则包里的路径（templates[0].groups[1]），IDE 和校验问题都按路径对应。
  */
-export function GroupTable({ g, onChange, validate, template, derived, spendTargets, base }: { g: Group; onChange: (g: Group) => void; validate: Validate; template: string; derived: string[]; spendTargets: string[]; base: string }) {
+type Use = Schemas["EntryUse"];
+
+/** 一串用途（条目的几种用法，或分组的用途模板）：名字、说明，设置和脚本点“编辑”在 IDE 里写。 */
+function UsesEditor({ uses, onChange, path, hint }: { uses: Use[]; onChange: (u: Use[]) => void; path: string; hint: string }) {
+  const { t } = useI18n();
+  const ed = useListEdit(uses, onChange);
+  return (
+    <div className="sk-effects">
+      <strong>{t("rules.uses.title")}</strong>
+      <p className="sk-hint">{hint}</p>
+      {uses.map((u, j) => (
+        <div key={j} className="sk-effect">
+          <input placeholder={t("rules.uses.name")} value={u.name} onChange={(e) => ed.update(j, { ...u, name: e.target.value })} />
+          <input className="sk-wide" placeholder={t("rules.uses.description")} value={u.description ?? ""} onChange={(e) => ed.update(j, { ...u, description: e.target.value })} />
+          <EditButton path={`${path}[${j}]`} script={u.script ?? ""} />
+          {!(u.script ?? "").trim() && !(u.config ?? "").trim() && <small className="sk-hint">{t("rules.uses.kp_rules")}</small>}
+          <Mover index={j} count={uses.length} onMove={ed.move} />
+          <button type="button" className="sk-link" onClick={() => ed.remove(j)}>
+            {t("common.remove")}
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={() => ed.add({ name: "", description: "", config: "", script: "" })}>
+        {t("rules.uses.add")}
+      </button>
+    </div>
+  );
+}
+
+export function GroupTable({ g, onChange, validate, template, derived, spendTargets, base, checks = [] }: { g: Group; onChange: (g: Group) => void; validate: Validate; template: string; derived: string[]; spendTargets: string[]; base: string; checks?: string[] }) {
   const { t } = useI18n();
   const wb = useWorkbench();
   const fields = g.fields ?? [];
@@ -151,8 +180,8 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   </td>
                   {fields.map((f, i) => (
                     <td key={i}>
-                      {f.kind === "param" ? (
-                        <span className="sk-hint">{t("rules.gt.param_cell")}</span>
+                      {f.kind === "param" || f.cls === "runtime" ? (
+                        <span className="sk-hint">{t(f.kind === "param" ? "rules.gt.param_cell" : "rules.gt.runtime_cell")}</span>
                       ) : (
                         <FieldInput
                           def={f}
@@ -162,13 +191,13 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                           onExpand={f.kind === "formula" ? () => wb.open(`${rowPath(r)}.fields.${f.name}`) : undefined}
                         />
                       )}
-                      {f.kind !== "param" && !(f.name in (p.fields ?? {})) && <small className="sk-hint" title={t("rules.gt.player_fills_hint")}>{t("rules.gt.player_fills")}</small>}
+                      {f.kind !== "param" && f.cls !== "runtime" && !(f.name in (p.fields ?? {})) && <small className="sk-hint" title={t("rules.gt.player_fills_hint")}>{t("rules.gt.player_fills")}</small>}
                     </td>
                   ))}
                   <td className="sk-nowrap">
                     {more && (
                       <button type="button" className="sk-link" onClick={() => setOpen(open === r ? null : r)}>
-                        {t("rules.gt.more", { n: String((p.effects ?? []).length) })}
+                        {t("rules.gt.more", { n: String((p.effects ?? []).length + (p.uses ?? []).length) })}
                       </button>
                     )}
                   </td>
@@ -177,6 +206,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   <tr className="sk-subrow">
                     <td colSpan={width}>
                       {g.effects !== false && <EffectsEditor effects={effectsOf(p)} derived={derived} validate={vEff} withPriority={false} onChange={(effects) => setRow(r, { effects })} />}
+                      {g.effects !== false && <UsesEditor uses={p.uses ?? []} path={`${rowPath(r)}.uses`} hint={t("rules.uses.hint")} onChange={(uses) => setRow(r, { uses })} />}
                     </td>
                   </tr>
                 )}
@@ -192,9 +222,14 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
           </tbody>
         </table>
       </div>
-      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], config: "", script: "", when: "" })}>
+      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], config: "", script: "", when: "", uses: [] })}>
         {t("rules.gt.add_row")}
       </button>
+      {g.effects !== false && (
+        <div className="sk-card">
+          <UsesEditor uses={g.use_templates ?? []} path={`${base}.use_templates`} hint={t("rules.uses.templates_hint")} onChange={(use_templates) => onChange({ ...g, use_templates })} />
+        </div>
+      )}
       {col !== null && fields[col] && (
         <div className="sk-card sk-col-edit">
           <strong>{t("rules.gt.column", { name: fieldLabel(fields[col]!, t("character.unnamed_field")) })}</strong>
@@ -207,6 +242,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
             onRemove={() => removeColumn(col)}
             mover={<Mover index={col} count={fields.length} onMove={moveColumn} />}
             spendTargets={spendTargets}
+            checks={checks}
           />
           <button type="button" className="sk-link" onClick={() => setCol(null)}>
             {t("play.close")}

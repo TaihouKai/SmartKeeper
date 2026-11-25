@@ -35,6 +35,7 @@ from smartkeeper.rules import (
     stealth,
     validation,
 )
+from smartkeeper.rules import choices as choices_
 from smartkeeper.rules.evaluator import EntityContext
 from smartkeeper.rules.render import render as render_markdown
 
@@ -156,6 +157,21 @@ class RulesService:
             damage_kind,
         )
 
+    def choice_allowed(self, choices: tuple[str, ...], value: float) -> bool:
+        try:
+            return choices_.allowed(choices, value)
+        except ValueError:
+            return False
+
+    def first_choice(self, choices: tuple[str, ...]) -> float | None:
+        try:
+            values, ranges = choices_.parse(choices)
+        except ValueError:
+            return None
+        if values:
+            return values[0][1]
+        return ranges[0][0] if ranges else None
+
     def skill_config(self, config: str, script: str = "") -> SkillConfig:
         try:
             return skillconfig.read_config(config, script)
@@ -259,7 +275,8 @@ class RulesService:
             pack, self._tpl(pack, template), Sheet.model_validate(sheet), peers=peers or {}
         )
         try:
-            return ctx.all_derived()
+            # 被修正了的数值字段也列出来（例如被技能提高了的力量），排在推导值后面
+            return ctx.all_derived() + ctx.modified_fields()
         except f.FormulaError as e:
             raise ValidationFailed(e.code, **e.params) from e
 
@@ -275,7 +292,12 @@ class RulesService:
             pack, self._tpl(pack, template), Sheet.model_validate(sheet), peers=peers or {}
         )
         try:
-            return ctx.derived(name).value
+            if any(d.name == name for d in ctx.template.derived):
+                return ctx.derived(name).value
+            v = ctx.value_of(name)  # 字段：经过修正之后的值
+            if isinstance(v, str):
+                raise f.FormulaError("formula.text_result", value=v)
+            return v
         except f.FormulaError as e:
             raise ValidationFailed(e.code, **e.params) from e
 

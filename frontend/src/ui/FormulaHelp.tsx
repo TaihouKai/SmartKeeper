@@ -72,6 +72,8 @@ export const FUNCTION_SIGNATURES: [string, string][] = [
   ["highest", "highest(n, s, k)"],
   ["lowest", "lowest(n, s, k)"],
   ["dice", "dice(n, s)"],
+  ["has", "has(\"status\")"],
+  ["inside", "inside(\"entry\")"],
 ];
 
 function Rows({ rows }: { rows: [string, string][] }) {

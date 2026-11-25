@@ -155,7 +155,7 @@ class WorldService:
             return [Problem(code="state.type", path=base)]
         problems: list[Problem] = []
         for key in ent:
-            if key not in ("template", "pos", "inside", "sheet", "detected_by"):
+            if key not in ("template", "pos", "inside", "sheet", "detected_by", "summoned"):
                 problems.append(Problem(code="state.unknown_key", path=f"{base}/{key}"))
         template = ent.get("template")
         if not isinstance(template, str) or pack.template(template) is None:
@@ -174,6 +174,14 @@ class WorldService:
         ):
             # 隐匿的角色：已经发现了它的观察者
             problems.append(Problem(code="state.type", path=f"{base}/detected_by"))
+        summoned = ent.get("summoned")
+        if summoned is not None and not (
+            isinstance(summoned, dict)
+            and isinstance(summoned.get("by"), str)
+            and (summoned.get("until") is None or _num(summoned.get("until")))
+        ):
+            # 召唤出来的角色：谁召唤的、存在到游戏内第几秒（None 是一直在）
+            problems.append(Problem(code="state.type", path=f"{base}/summoned"))
         for p in self._rules.validate_sheet(pack, template, ent.get("sheet"), peers):
             path = "/" + p.path.replace(".", "/") if p.path else ""
             problems.append(p.model_copy(update={"path": f"{base}/sheet{path}"}))

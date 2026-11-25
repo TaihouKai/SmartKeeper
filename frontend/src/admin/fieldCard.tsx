@@ -55,6 +55,7 @@ export function FieldCard({
   inGroup,
   mover,
   spendTargets = [],
+  checks = [],
 }: {
   f: Field;
   onChange: (f: Field) => void;
@@ -67,9 +68,11 @@ export function FieldCard({
   mover?: ReactNode;
   /** 角色卡上的数值/资源字段：“使用时填写”的列可以从其中一个里扣 */
   spendTargets?: string[];
+  /** 规则包里的检定：“使用时填写”的列可以要求过一个检定 */
+  checks?: string[];
 }) {
   const { t } = useI18n();
-  const cls = inGroup ? "player" : (f.cls ?? "player");
+  const cls = f.cls ?? "player";
   const numeric = f.kind === "number" || f.kind === "resource" || f.kind === "param";
   // 引擎必需的字段：名字、类型、类别都不能改，也不能删（生命值的上下限、初值可以改）
   const locked = isAppearance || isFly;
@@ -102,8 +105,8 @@ export function FieldCard({
             {inGroup && <option value="param">{t("rules.kind.param")}</option>}
           </select>
         </label>
-        {!inGroup && (
-          <label>
+        {(!inGroup || f.kind === "number" || f.kind === "boolean") && (
+          <label title={inGroup ? t("rules.f.cls_group_hint") : undefined}>
             {t("rules.f.cls")}
             <select value={cls} disabled={fixed} title={fixed ? t("rules.locked") : undefined} onChange={(e) => onChange({ ...f, cls: e.target.value as Field["cls"] })}>
               <option value="player">{t("rules.cls.player")}</option>
@@ -158,6 +161,25 @@ export function FieldCard({
             </>
           )}
           {f.kind === "param" && (
+            <>
+              <label title={t("rules.f.param_check_hint")}>
+                {t("rules.f.param_check")}
+                <select value={f.check ?? ""} onChange={(e) => onChange({ ...f, check: e.target.value || null })}>
+                  <option value="">{t("rules.f.param_check_none")}</option>
+                  {checks.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label title={t("rules.f.param_cooldown_hint")}>
+                {t("rules.f.param_cooldown")}
+                <FormulaInput value={f.cooldown ?? ""} validate={validate} placeholder={t("rules.ph.param_cooldown")} onChange={(x) => onChange({ ...f, cooldown: x || null })} />
+              </label>
+            </>
+          )}
+          {f.kind === "param" && (
             <label>
               {t("rules.f.spends")}
               <select value={f.spends ?? ""} onChange={(e) => onChange({ ...f, spends: e.target.value || null })}>
@@ -170,12 +192,12 @@ export function FieldCard({
               </select>
             </label>
           )}
-          {cls === "runtime" && (f.kind === "number" || f.kind === "resource") && (
+          {cls === "runtime" && !inGroup && (f.kind === "number" || f.kind === "resource") && (
             <label className="sk-inline">
               <input type="checkbox" checked={f.vital ?? false} onChange={(e) => onChange({ ...f, vital: e.target.checked })} /> {t("rules.f.vital")}
             </label>
           )}
-          {cls === "runtime" && (f.kind === "number" || f.kind === "resource") && (
+          {cls === "runtime" && !inGroup && (f.kind === "number" || f.kind === "resource") && (
             <label>
               {t("rules.f.per_minute")}
               <FormulaInput value={f.per_minute ?? ""} validate={validate} placeholder={t("rules.ph.per_minute")} onChange={(x) => onChange({ ...f, per_minute: x || null })} />
@@ -188,12 +210,12 @@ export function FieldCard({
               {f.kind === "boolean" && badBool(f.initial) && <small className="sk-invalid">{t("codes.pack.boolean_initial", { value: f.initial ?? "" })}</small>}
             </label>
           )}
-          {(f.kind === "text" || f.kind === "number") && cls === "player" && (
+          {(f.kind === "text" || f.kind === "number" || f.kind === "param") && cls === "player" && (
             <label className="sk-wide">
               {t("rules.f.choices")}
               <input
                 value={choicesText}
-                placeholder={t(f.kind === "number" ? "rules.ph.choices_number" : "rules.ph.choices")}
+                placeholder={t(f.kind === "number" ? "rules.ph.choices_number" : f.kind === "param" ? "rules.ph.choices_param" : "rules.ph.choices")}
                 onChange={(e) => {
                   setChoicesText(e.target.value);
                   onChange({ ...f, choices: parseChoices(e.target.value) });

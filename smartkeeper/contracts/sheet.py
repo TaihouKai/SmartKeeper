@@ -19,7 +19,8 @@ class Effect(Frozen):
     """
 
     description: str = ""
-    target: str | None = None  # 作用于哪个推导值
+    # 作用于哪个数值：推导值或数值字段（例如力量）；<条目名>.<列> 是某个条目的一列（限时修正用）
+    target: str | None = None
     formula: str | None = None
     priority: int | None = Field(default=None, ge=0)  # 玩家写的效果必填，同一张卡上不能重复
 
@@ -45,12 +46,14 @@ class ScriptStep(Frozen):
 
     - who：self 使用者，target 使用时选的对象，其他是使用者同伴的模板名
     - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值；
-      modify 给 field 这个推导值加一条限时修正（formula 是冻结好的新值公式）
+      modify 给 field 这个数值（推导值、字段）加一条限时修正（formula 是冻结好的新值公式）。
+      field 写成 this.<列> 时是使用的这个条目的列（运行中会变的列，或 modify 修正的列）；
+      summon 召唤 amount 个 field 这个模板的角色；teleport 瞬间移动到 to 身边
     - seconds：add 的限时（到期扣回加上去还剩下的部分）或 modify 的持续时间；None 表示永久
     """
 
     who: str
-    op: Literal["damage", "add", "subtract", "set", "modify", "negate"]
+    op: Literal["damage", "add", "subtract", "set", "modify", "negate", "summon", "teleport"]
     field: str | None = None
     amount: float = 0
     rolls: tuple[int, ...] = ()
@@ -59,6 +62,9 @@ class ScriptStep(Frozen):
     # damage：伤害类型和减免前的数（amount 是按对象模板的“受到伤害的公式”算过的）
     kind: str = ""
     raw: float | None = None
+    # summon：模板（field）、几个（amount）、存在多久（seconds），新角色卡上的字段；teleport：移动到谁身边（to，接收者）
+    values: dict[str, JsonValue] = {}
+    to: str | None = None
 
 
 class Grant(Frozen):
@@ -82,11 +88,28 @@ class Shape(Frozen):
 class PlacementSpec(Frozen):
     """条目是设置物（陷阱、结界等）时的参数。都是公式，在设置者的角色卡和这个条目上求值，设置时算定。"""
 
-    radius: str  # 触发范围（米），圆形
+    radius: str = ""  # 触发范围（米），圆形；building 时不用
+    building: bool = False  # 设置者所在的整栋建筑就是这个设置物（例如把一栋楼做成据点）
     perceive_multiplier: str = "1"  # 别人发现它的距离 = 那人的感知半径 × 这个系数；0 表示发现不了
     charges: str = ""  # 可触发次数；空表示无限
     duration: str = ""  # 持续多少秒；空表示一直存在，直到被移除
     notify_owner: bool = True  # 被触发时是否通知设置者
+
+
+class EntryUse(Frozen):
+    """条目的一个用途：一件东西（例如一件装备）可以有好几种用法，每种用法是一个技能。
+
+    用的时候写“条目名/用途名”。用途的技能设置在条目自己的设置上覆盖（没写的项沿用条目的），
+    脚本是用途自己的；公式里 this.<列> 是条目的列。只写说明、不写设置和脚本的用途由 KP 按说明裁定。
+    """
+
+    name: str
+    description: str = ""
+    config: str = ""
+    script: str = ""
+
+
+USE_SEP = "/"  # 条目名/用途名
 
 
 class GroupEntry(Frozen):
@@ -102,6 +125,8 @@ class GroupEntry(Frozen):
     config: str = ""
     # 技能脚本：用这个条目（并且 KP 判定生效）时执行的语句，见 smartkeeper.lang.script
     script: str = ""
+    # 这个条目的几种用法（见 EntryUse）；条目自己的设置和脚本是“直接用它”时的那一种
+    uses: tuple[EntryUse, ...] = ()
 
 
 class SkillConfig(Frozen):

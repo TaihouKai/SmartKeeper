@@ -67,3 +67,16 @@ export function fillCheck(text: string, t: (k: string) => string): string {
   const head = text.trimEnd();
   return head ? `${head}\n${lines.join("\n")}` : lines.join("\n");
 }
+
+/** 用途的设置：自己写了的项覆盖条目的（只看一行一项的写法），没写的沿用条目的。 */
+export function mergeConfig(base: string, own: string): string {
+  if (!base.trim()) return own;
+  if (!own.trim()) return base;
+  const key = (ln: string) => /^([A-Za-z_]\w*)\s*=(?!=)/.exec(ln)?.[1];
+  const mine = new Set(own.split("\n").map(key).filter(Boolean));
+  const kept = base.split("\n").filter((ln) => {
+    const k = key(ln);
+    return k === undefined || !mine.has(k);
+  });
+  return [...kept, own].join("\n");
+}

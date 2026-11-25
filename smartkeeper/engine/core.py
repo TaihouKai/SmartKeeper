@@ -84,17 +84,24 @@ from smartkeeper.contracts import (
     Talk,
     TalkMessage,
     TargetRef,
+    UseResult,
     ValidationFailed,
     Visibility,
     World,
 )
 from smartkeeper.engine import adjudication as adjv
+from smartkeeper.engine import entries as entry_refs
 from smartkeeper.engine import scenario
 from smartkeeper.engine.applier import StepApplier
 from smartkeeper.engine.duel import Duel, Side, Strike
 from smartkeeper.engine.duel import Result as DuelResult
 from smartkeeper.engine.mentions import find_mentions, replace_mentions
-from smartkeeper.engine.placements import perceived_placements, placements_of, triggers
+from smartkeeper.engine.placements import (
+    inside_tags,
+    perceived_placements,
+    placements_of,
+    triggers,
+)
 from smartkeeper.engine.repo import Repo
 from smartkeeper.engine.sheetview import build_sheet_views, visible_sheet
 from smartkeeper.engine.space import EMPTY_MAP, Space, partners_of, peers_of, point_of
@@ -1119,15 +1126,10 @@ class Engine:
             if entry is None:
                 expr = _obj(sheet.get("fields")).get(field)
             else:
-                found = [
-                    (str(gname), _obj(e))
-                    for gname, entries in _obj(sheet.get("groups")).items()
-                    for e in (entries if isinstance(entries, list) else [])
-                    if _obj(e).get("name") == entry
-                ]
-                if not found:
+                hit = entry_refs.find(sheet, entry)
+                if hit is None:
                     raise NotFound("roll.unknown_entry", entity=entity, entry=entry)
-                gname, row = found[0]
+                gname, row, _owner = hit
                 fields = dict(_obj(row.get("fields")))
                 gdef = next((g for g in tpl.groups if g.name == gname), None) if tpl else None
                 spends = self._use_params(pack, template, sheet, gdef, fields, params, entry, peers)
@@ -1225,21 +1227,15 @@ class Engine:
             template = str(ent.get("template", ""))
             peers = peers_of(cur, pin.owner)
             sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
-            found = next(
-                (
-                    (str(gname), _obj(e))
-                    for gname, entries in _obj(sheet.get("groups")).items()
-                    for e in (entries if isinstance(entries, list) else [])
-                    if _obj(e).get("name") == pin.entry and self._cfg(_obj(e)).placement
-                ),
-                None,
-            )
+            found = entry_refs.find(sheet, pin.entry)
+            if found is not None and not self._cfg(found[1]).placement:
+                found = None
             if found is None:
                 problems.append(
                     Problem(code="adj.not_a_placement", path=path, params={"entry": pin.entry})
                 )
                 continue
-            gname, row = found
+            gname, row, _owner = found
             spec = self._cfg(row).placement
             assert spec is not None
             fields = dict(_obj(row.get("fields")))
@@ -1262,15 +1258,35 @@ class Engine:
             ) -> float:
                 return self._rules.roll(pack, text, self._dice.faces, t, sh, fl, pe).total
 
+            building: str | None = None
+            at, at_inside = pin.at, pin.inside
+            if spec.building:
+                # 整栋建筑：设置者所在的那栋，放置点就是设置者的位置
+                here_in = ent.get("inside")
+                here_at = point_of(ent.get("pos"))
+                if not isinstance(here_in, str) or here_at is None:
+                    problems.append(
+                        Problem(
+                            code="adj.placement_needs_building",
+                            path=path,
+                            params={"entry": pin.entry},
+                        )
+                    )
+                    continue
+                building, at, at_inside = here_in, here_at, here_in
             try:
-                radius = val(spec.radius)
+                radius = val(spec.radius) if not spec.building else 0.0
                 mult = val(spec.perceive_multiplier) if spec.perceive_multiplier.strip() else 1.0
                 charges = int(val(spec.charges)) if spec.charges.strip() else None
                 duration = int(val(spec.duration)) if spec.duration.strip() else None
             except ValidationFailed as e:
                 problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
                 continue
-            if radius <= 0 or mult < 0 or (charges is not None and charges < 1):
+            if (
+                (radius <= 0 and not spec.building)
+                or mult < 0
+                or (charges is not None and charges < 1)
+            ):
                 problems.append(
                     Problem(code="adj.bad_placement", path=path, params={"entry": pin.entry})
                 )
@@ -1300,7 +1316,7 @@ class Engine:
                 continue
             here = point_of(ent.get("pos"))
             if reach is not None:
-                dist = self._spatial.distance(here, pin.at) if here is not None else None
+                dist = self._spatial.distance(here, at) if here is not None else None
                 if dist is None or dist > reach:
                     problems.append(
                         Problem(
@@ -1316,10 +1332,7 @@ class Engine:
                     continue
             if cfg.visible:
                 changes = [MapChange.model_validate(c) for c in _list(cur.get("map_changes"))]
-                if (
-                    here is None
-                    or not self._spatial.line_of_sight(m, changes, here, pin.at).visible
-                ):
+                if here is None or not self._spatial.line_of_sight(m, changes, here, at).visible:
                     problems.append(
                         Problem(code="use.not_in_sight", path=path, params={"entry": pin.entry})
                     )
@@ -1334,16 +1347,15 @@ class Engine:
                         ).model_dump(mode="json"),
                     )
                 )
-            problems += self._check_location(
-                m, pin.owner, Location(pos=pin.at, inside=pin.inside), path
-            )
+            problems += self._check_location(m, pin.owner, Location(pos=at, inside=at_inside), path)
             placed = Placement(
                 owner=pin.owner,
                 entry=pin.entry,
                 description=str(row.get("description", "")),
-                pos=pin.at,
-                inside=pin.inside,
+                pos=at,
+                inside=at_inside,
                 radius=radius,
+                building=building,
                 perceive_multiplier=mult,
                 charges=charges,
                 expires_at=end + duration if duration is not None else None,
@@ -1399,9 +1411,16 @@ class Engine:
         for pf in gdef.fields if gdef else ():
             if pf.kind != "param":
                 continue
-            if pf.name not in params:
+            given = params.get(pf.name)
+            if given is None and pf.choices:
+                given = self._rules.first_choice(pf.choices)  # 有可选值的没给时取第一个
+            if given is None:
                 raise ValidationFailed("roll.param_missing", entry=entry, name=pf.name)
-            v = float(params[pf.name])
+            v = float(given)
+            if pf.choices and not self._rules.choice_allowed(pf.choices, v):
+                raise ValidationFailed(
+                    "roll.param_not_a_choice", name=pf.name, value=v, choices=", ".join(pf.choices)
+                )
             for bound, op in ((pf.min, "min"), (pf.max, "max")):
                 if bound is None:
                     continue
@@ -1499,18 +1518,10 @@ class Engine:
             tpl = pack.template(template)
             peers = peers_of(state, source)
             sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
-            found = next(
-                (
-                    (str(gname), _obj(e))
-                    for gname, entries in _obj(sheet.get("groups")).items()
-                    for e in (entries if isinstance(entries, list) else [])
-                    if entry in (_obj(e).get("name"), _obj(e).get("id"))
-                ),
-                None,
-            )
+            found = entry_refs.find(sheet, entry)
             if found is None:
                 raise NotFound("roll.unknown_entry", entity=source, entry=entry)
-            gname, row = found
+            gname, row, owner = found  # owner：用途属于的那个条目
             parsed = GroupEntry.model_validate(row)
             tags = {str(_obj(s).get("tag")) for s in _list(_obj(ent.get("sheet")).get("statuses"))}
             if DEAD_TAG in tags:
@@ -1548,94 +1559,186 @@ class Engine:
                 raise ValidationFailed(
                     "use.requires", entity=source, entry=parsed.name, formula=cfg.requires
                 )
-            heard = self._reach_checks(game_id, state, pack, source, target, cfg, roll, parsed.name)
             me = Side(source, template, sheet, peers, partners_of(state, source))
-            them: Side | None = None
-            distance, unseen = 0.0, False
-            if target is not None and tgt is not None:
-                them = Side(
-                    target, tgt[0], _obj(tgt[1]), dict(tgt[2] or {}), partners_of(state, target)
-                )
-                if target != source:
-                    space = self._space_for(self._map(game_id), state, pack)
-                    a, b = space.bodies.get(source), space.bodies.get(target)
-                    if a is not None and b is not None:
+            duel = Duel(self._rules, pack, self._dice.faces)
+            param_checks, param_cds = self._param_options(
+                me, duel, gdef, fields, tags, owner, parsed.name, roll
+            )
+            heard = self._reach_checks(game_id, state, pack, source, target, cfg, roll, parsed.name)
+            space = self._space_for(self._map(game_id), state, pack)
+            # 范围技能（设置了 shape）：形状里的每个人各算一次（各自应对）；消耗、冷却、对自己的那几步只算在第一个上
+            victims = self._victims(space, source, target, cfg) if cfg.shape else [target]
+            used_params = {
+                pf.name: fields[pf.name]
+                for pf in (gdef.fields if gdef else ())
+                if pf.kind == "param" and pf.name in fields
+            }
+            rolls: tuple[tuple[str, DiceResult], ...] | None = None
+            first: Event | None = None
+            for victim in victims:
+                extra = first is not None
+                them: Side | None = None
+                distance, unseen = 0.0, False
+                if victim is not None:
+                    v_ent = self._entity(state, victim)
+                    v_tpl = str(v_ent.get("template", ""))
+                    v_peers = peers_of(state, victim)
+                    them = Side(
+                        victim,
+                        v_tpl,
+                        _obj(self._rules.full_sheet(pack, v_tpl, v_ent.get("sheet"), v_peers)),
+                        v_peers,
+                        partners_of(state, victim),
+                    )
+                    a, b = space.bodies.get(source), space.bodies.get(victim)
+                    if victim != source and a is not None and b is not None:
                         distance = self._spatial.distance(a.pos, b.pos)
                         # 对象没发现使用者（看不见、被隐匿）：躲不开，也不能应对
-                        unseen = source not in space.perceived_by(target)
-            duel = Duel(self._rules, pack, self._dice.faces)
-            strike = duel.strike(me, cfg, fields, them, distance, unseen)
-            # 打没打中由引擎判。对象能应对时（玩家选、NPC 由引擎挑最有利的），等应对之后再判、再算脚本
-            defends = (
-                them is not None
-                and target != source
-                and cfg.reactable
-                and not unseen
-                and not self._dead(state, them.entity)
-            )
-            waiting = self._owner(state, target) if defends else None
-            hit: bool | None = None
-            checked: JsonValue = None
-            saved: JsonValue = None
-            actions: list[JsonValue] = []
-            if not defends:
-                res = duel.settle(me, cfg, fields, strike, them, None)
-                hit = res.hit
-                checked = (
-                    cast(JsonValue, res.attack.model_dump(mode="json")) if res.attack else None
+                        unseen = source not in space.perceived_by(victim)
+                # 一次使用只掷一次（范围技能对每个人用同一个点数，距离和难度各算各的）
+                strike = duel.strike(me, cfg, fields, them, distance, unseen, rolls)
+                rolls = strike.rolls
+                # 打没打中由引擎判。对象能应对时（玩家选、NPC 由引擎挑最有利的），等应对之后再判、再算脚本
+                defends = (
+                    them is not None
+                    and victim != source
+                    and cfg.reactable
+                    and not unseen
+                    and not self._dead(state, them.entity)
                 )
-                if hit:
-                    saved, actions = self._strike_effects(
-                        duel, me, them, parsed, cfg, fields, res, strike, gdef
+                waiting = self._owner(state, victim) if defends else None
+                hit: bool | None = None
+                checked: JsonValue = None
+                saved: JsonValue = None
+                actions: list[JsonValue] = []
+                if not defends:
+                    res = duel.settle(me, cfg, fields, strike, them, None)
+                    hit = res.hit
+                    checked = (
+                        cast(JsonValue, res.attack.model_dump(mode="json")) if res.attack else None
                     )
-            ev = NewEvent(
-                type="entry_used",
-                actor=ENGINE,
-                visibility=Visibility.kp_only(),
-                payload={
-                    "source": source,
-                    "entry": str(parsed.name),
-                    "target": target,
-                    "params": cast(JsonValue, dict(params)),
-                    "spends": spends,
-                    "actions": actions,
-                    "cooldown": int(roll(cfg.cooldown).total * 60) if cfg.cooldown.strip() else 0,
-                    "heard_by": cast(JsonValue, heard),
-                    # 命中由引擎定，裁定里的 hit 不用；None 表示在等对象应对
-                    "hit": hit,
-                    "check": checked,
-                    "save": saved,
-                    "waiting_for": waiting,
-                    **strike.dump(),
-                    "reason": reason,
-                },
-            )
-            used = self._events.append(game_id, r.no, [ev])[0]
-            if defends and waiting is None:
-                # NPC 对象：引擎替它挑最有利的应对，和玩家选的一样结算
-                self._events.append(game_id, r.no, [self._npc_reaction(state, pack, used)])
-            elif waiting is not None and target is not None:
-                # 只告诉被攻击的玩家（看得见攻击者的话也告诉他是谁）；技能的动静另按 noise 通知
-                space = self._space_for(self._map(game_id), state, pack)
-                seen = source in space.player_perceived(waiting)
-                self._events.append(
-                    game_id,
-                    r.no,
-                    [
-                        NewEvent(
-                            type="reaction_requested",
-                            actor=ENGINE,
-                            visibility=Visibility.to(waiting),
-                            payload={
-                                "use_seq": used.seq,
-                                "entry": str(parsed.name),
-                                "defender": target,
-                                "who": self._appearance(state, pack, source) if seen else None,
-                            },
+                    if hit:
+                        saved, actions = self._strike_effects(
+                            duel, me, them, parsed, cfg, fields, res, strike, gdef, extra
                         )
-                    ],
+                cooldown = int(roll(cfg.cooldown).total * 60) if cfg.cooldown.strip() else 0
+                ev = NewEvent(
+                    type="entry_used",
+                    actor=ENGINE,
+                    visibility=Visibility.kp_only(),
+                    payload={
+                        "source": source,
+                        "entry": str(parsed.name),
+                        "target": victim,
+                        "group": gname,
+                        "owner_entry": owner,
+                        # 范围技能的其他对象：跟着第一条生效（第一条的 seq）
+                        "area_of": first.seq if first is not None else None,
+                        "params": cast(JsonValue, used_params),
+                        "param_checks": {} if extra else param_checks,
+                        "param_cooldowns": {} if extra else param_cds,
+                        "spends": {} if extra else spends,
+                        "actions": actions,
+                        "cooldown": 0 if extra else cooldown,
+                        "heard_by": [] if extra else cast(JsonValue, heard),
+                        # 命中由引擎定，裁定里的 hit 不用；None 表示在等对象应对
+                        "hit": hit,
+                        "check": checked,
+                        "save": saved,
+                        "waiting_for": waiting,
+                        **strike.dump(),
+                        "reason": reason,
+                    },
                 )
-            return used
+                used = self._events.append(game_id, r.no, [ev])[0]
+                first = first or used
+                if defends and waiting is None:
+                    # NPC 对象：引擎替它挑最有利的应对，和玩家选的一样结算
+                    self._events.append(game_id, r.no, [self._npc_reaction(state, pack, used)])
+                elif waiting is not None and victim is not None:
+                    # 只告诉被攻击的玩家（看得见攻击者的话也告诉他是谁）；技能的动静另按 noise 通知
+                    seen = source in space.player_perceived(waiting)
+                    self._events.append(
+                        game_id,
+                        r.no,
+                        [
+                            NewEvent(
+                                type="reaction_requested",
+                                actor=ENGINE,
+                                visibility=Visibility.to(waiting),
+                                payload={
+                                    "use_seq": used.seq,
+                                    "entry": str(parsed.name),
+                                    "defender": victim,
+                                    "who": self._appearance(state, pack, source) if seen else None,
+                                },
+                            )
+                        ],
+                    )
+            assert first is not None
+            return first
+
+    def _victims(
+        self, space: Space, source: str, target: str | None, cfg: SkillConfig
+    ) -> list[str | None]:
+        """范围技能打到的人：形状里除了使用者自己的每个实体，瞄准的对象排第一个。一个都没有时是 [None]。
+
+        球形以瞄准的对象为中心（没有对象时以自己为中心）；其他形状从使用者朝瞄准的对象展开。"""
+        shape = cfg.shape
+        me = space.bodies.get(source)
+        if shape is None or me is None:
+            return [target]
+        aim = space.bodies.get(target) if target is not None and target != source else None
+        if aim is None and shape.kind != "sphere":
+            raise ValidationFailed("use.needs_target", entity=source)
+        toward = aim.pos if aim is not None else me.pos
+        sweep = self._sweep_shape(
+            shape.kind,
+            me.pos,
+            toward,
+            shape.length,
+            shape.width,
+            shape.height,
+            shape.radius,
+            shape.angle,
+        )
+        hit = self._spatial.sweep(space.map, space.changes, list(space.bodies.values()), sweep)
+        found = [e for e in hit.entities if e != source]
+        found.sort(key=lambda e: (e != target, e))
+        return list[str | None](found) or [None]
+
+    def _param_options(
+        self,
+        me: Side,
+        duel: Duel,
+        gdef: GroupDef | None,
+        fields: dict[str, JsonValue],
+        tags: set[str],
+        owner: str,
+        entry: str,
+        roll: Callable[[str], DiceResult],
+    ) -> tuple[dict[str, JsonValue], dict[str, JsonValue]]:
+        """填了非 0 的参数：要过的检定（没过按 0 算，写回 fields）和它的冷却（条目本身算，不分用途）。
+        返回 (参数 -> 检定结果, 冷却状态名 -> 秒数)。还在冷却时拒绝这次使用。"""
+        checked: dict[str, JsonValue] = {}
+        cools: dict[str, JsonValue] = {}
+        for pf in gdef.fields if gdef else ():
+            v = fields.get(pf.name)
+            if pf.kind != "param" or not isinstance(v, int | float) or v == 0:
+                continue
+            tag = f"{COOLDOWN_TAG}{owner}#{pf.name}"
+            if pf.cooldown and tag in tags:
+                raise ValidationFailed(
+                    "use.param_cooling_down", entity=me.entity, entry=entry, name=pf.name
+                )
+            if pf.check:
+                res = duel.solo(me, pf.check)
+                checked[pf.name] = cast(JsonValue, res.model_dump(mode="json")) if res else None
+                if res is None or not res.success:
+                    fields[pf.name] = 0  # 没过：当作没选
+            if pf.cooldown and pf.cooldown.strip():
+                cools[tag] = int(roll(pf.cooldown).total * 60)
+        return checked, cools
 
     def _dead(self, state: State, eid: str) -> bool:
         tags = {
@@ -1655,8 +1758,10 @@ class Engine:
         res: DuelResult,
         strike: Strike,
         gdef: GroupDef | None,
+        only_target: bool = False,
     ) -> tuple[JsonValue, list[JsonValue]]:
-        """命中之后：对象做豁免（技能设置了 save 时），再算技能脚本的每一步。返回 (豁免结果, 每一步)。"""
+        """命中之后：对象做豁免（技能设置了 save 时），再算技能脚本的每一步。返回 (豁免结果, 每一步)。
+        only_target：范围技能的其他对象，只留作用在对象身上的步骤（对自己的已经算在第一个对象上）。"""
         outcome = res.outcome(strike)
         saved: JsonValue = None
         if cfg.save and them is not None:
@@ -1677,13 +1782,19 @@ class Engine:
             outcome,
             gdef.damage_kind if gdef else "",
         )
+        if only_target:
+            steps = tuple(st for st in steps if st.who == "target")
         return saved, self._step_actions(me, them, steps)
 
     @staticmethod
     def _step_actions(me: Side, them: Side | None, steps: Sequence[ScriptStep]) -> list[JsonValue]:
         """脚本的每一步落在哪个实体身上。"""
         return [
-            {"entity": me.who(st.who, them), **st.model_dump(mode="json")}
+            {
+                "entity": me.who(st.who, them),
+                **st.model_dump(mode="json"),
+                **({"to_entity": me.who(st.to, them)} if st.to else {}),
+            }
             for st in steps
             if me.who(st.who, them) is not None
         ]
@@ -1808,12 +1919,10 @@ class Engine:
         template = str(ent.get("template", ""))
         peers = peers_of(state, eid)
         sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
-        for gname, entries in _obj(sheet.get("groups")).items():
-            for e in _list(entries):
-                row = _obj(e)
-                if entry in (row.get("name"), row.get("id")):
-                    return template, sheet, peers, str(gname), row
-        return None
+        hit = entry_refs.find(sheet, entry)
+        if hit is None:
+            return None
+        return template, sheet, peers, hit[0], hit[1]
 
     def _allowed(
         self,
@@ -1845,31 +1954,31 @@ class Engine:
         peers = peers_of(state, defender)
         sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
         out: list[tuple[str, dict[str, JsonValue], GroupDef]] = []
-        for g in tpl.groups:
-            if not g.reactions:
+        allowed = {g.name: g for g in tpl.groups if g.reactions}
+        for gname, row, _owner in entry_refs.usable(sheet):
+            g = allowed.get(gname)
+            if g is None:
                 continue
-            for e in _list(_obj(sheet.get("groups")).get(g.name)):
-                row = _obj(e)
-                name = str(row.get("name", ""))
-                if not name or COOLDOWN_TAG + name in tags:
+            name = str(row.get("name", ""))
+            if not name or COOLDOWN_TAG + name in tags:
+                continue
+            cast_text = self._cfg(row).cast_time
+            if cast_text.strip():
+                try:
+                    minutes = self._rules.roll(
+                        pack,
+                        cast_text,
+                        self._dice.faces,
+                        template,
+                        sheet,
+                        _obj(row.get("fields")),
+                        peers,
+                    ).total
+                except ValidationFailed:
                     continue
-                cast_text = self._cfg(row).cast_time
-                if cast_text.strip():
-                    try:
-                        minutes = self._rules.roll(
-                            pack,
-                            cast_text,
-                            self._dice.faces,
-                            template,
-                            sheet,
-                            _obj(row.get("fields")),
-                            peers,
-                        ).total
-                    except ValidationFailed:
-                        continue
-                    if minutes >= 1:
-                        continue
-                out.append((name, row, g))
+                if minutes >= 1:
+                    continue
+            out.append((name, row, g))
         return out
 
     def reaction_prompts(self, game_id: str, player_id: str) -> list[ReactionPrompt]:
@@ -1993,7 +2102,7 @@ class Engine:
         s_tpl, s_sheet, s_peers, s_group, row = found
         cfg = self._cfg(row)
         parsed = GroupEntry.model_validate(row)
-        fields = {**_obj(row.get("fields")), **_obj(p.get("params"))}
+        fields = {**_obj(row.get("fields")), **_obj(p.get("params"))}  # params：这次实际的值
         me = Side(source, s_tpl, s_sheet, s_peers, partners_of(state, source))
         d_ent = self._entity(state, defender)
         d_tpl = str(d_ent.get("template", ""))
@@ -2070,7 +2179,7 @@ class Engine:
         actions: list[JsonValue] = []
         if res.hit:
             saved, actions = self._strike_effects(
-                duel, me, them, parsed, cfg, fields, res, strike, gdef
+                duel, me, them, parsed, cfg, fields, res, strike, gdef, p.get("area_of") is not None
             )
         return NewEvent(
             type="reaction_resolved",
@@ -2105,43 +2214,41 @@ class Engine:
         template = str(ent.get("template", ""))
         peers = peers_of(state, entity_id)
         sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
-        for entries in _obj(sheet.get("groups")).values():
-            for e in _list(entries):
-                row = _obj(e)
-                if entry not in (row.get("name"), row.get("id")):
-                    continue
-                text = self._cfg(row).cast_time
-                if not text.strip():
-                    return 0
-                fields = dict(_obj(row.get("fields")))
-                # 解析行动时还不知道这次填多少：“使用时填写”的列先按下限（没有下限按 0）
-                tpl = pack.template(template)
-                for g in tpl.groups if tpl else ():
-                    for fd in g.fields:
-                        if fd.kind == "param" and fd.name not in fields:
+        hit = entry_refs.find(sheet, entry)
+        if hit is None:
+            return 0
+        row = hit[1]
+        text = self._cfg(row).cast_time
+        if not text.strip():
+            return 0
+        fields = dict(_obj(row.get("fields")))
+        # 解析行动时还不知道这次填多少：“使用时填写”的列先按下限（没有下限按 0）
+        tpl = pack.template(template)
+        for g in tpl.groups if tpl else ():
+            for fd in g.fields:
+                if fd.kind == "param" and fd.name not in fields:
+                    low = 0.0
+                    if fd.min:
+                        try:
+                            low = self._rules.roll(
+                                pack,
+                                fd.min,
+                                self._dice.faces,
+                                template,
+                                sheet,
+                                fields,
+                                peers,
+                            ).total
+                        except ValidationFailed:
                             low = 0.0
-                            if fd.min:
-                                try:
-                                    low = self._rules.roll(
-                                        pack,
-                                        fd.min,
-                                        self._dice.faces,
-                                        template,
-                                        sheet,
-                                        fields,
-                                        peers,
-                                    ).total
-                                except ValidationFailed:
-                                    low = 0.0
-                            fields[fd.name] = low
-                try:
-                    minutes = self._rules.roll(
-                        pack, text, self._dice.faces, template, sheet, fields, peers
-                    ).total
-                except ValidationFailed:
-                    return 0
-                return int(minutes * 60) if minutes >= 1 else 0
-        return 0
+                    fields[fd.name] = low
+        try:
+            minutes = self._rules.roll(
+                pack, text, self._dice.faces, template, sheet, fields, peers
+            ).total
+        except ValidationFailed:
+            return 0
+        return int(minutes * 60) if minutes >= 1 else 0
 
     def _vital_ops(self, pack: RulePack, state: State) -> list[PatchOp]:
         """致命运行值（vital）降到 0 或以下的角色：加上死亡状态。"""
@@ -2256,9 +2363,19 @@ class Engine:
         spend_and_cool, apply_actions = ap.spend_and_cool, ap.apply_actions
         seen: set[int] = set()
 
+        # 范围技能：列了第一条，同一次使用的其他对象跟着生效
+        listed_uses: list[tuple[str, UseResult]] = []
         for i, u in enumerate(adj.uses):
-            path = f"uses[{i}]"
+            listed_uses.append((f"uses[{i}]", u))
+            listed_uses += [
+                (f"uses[{i}]", UseResult(seq=e.seq))
+                for e in attempt
+                if e.type == "entry_used" and e.payload.get("area_of") == u.seq
+            ]
+        for path, u in listed_uses:
             ev = used.get(u.seq)
+            if ev is not None and u.seq in seen and ev.payload.get("area_of") is not None:
+                continue  # 范围技能的其他对象，KP 又单独列了一次
             if ev is None or u.seq in seen:
                 problems.append(Problem(code="adj.unknown_use", path=path, params={"seq": u.seq}))
                 continue
@@ -2286,9 +2403,11 @@ class Engine:
                 listed = answer.get("actions")
                 hit = answer.get("hit")
             cur = spend_and_cool(cur, source, p.get("spends"), entry, p.get("cooldown"))
+            cur = ap.cool_tags(cur, source, p.get("param_cooldowns"))
             # 旧数据（引擎还没判命中的）按裁定里的 hit
             if hit is True or (hit is None and p.get("waiting_for") is None and u.hit):
-                cur = apply_actions(cur, listed, source, entry, path)
+                group, owner = str(p.get("group") or ""), str(p.get("owner_entry") or entry)
+                cur = apply_actions(cur, listed, source, entry, path, group, owner)
             # 对别人用了技能：隐匿的使用者暴露给对象
             target = p.get("target")
             if isinstance(target, str) and target != source:
@@ -2303,6 +2422,55 @@ class Engine:
                     ops.append(rop)
                     cur = self._world.apply(cur, [rop])
         return cur, ops, problems, ap.hurt_by
+
+    @staticmethod
+    def _inside_ops(space: Space) -> list[PatchOp]:
+        """站在自己放的设置物里的角色带着 in:<条目名> 状态（公式里 inside("条目名")，例如在自己的据点里回复得快）。
+        按这一轮结束时的位置更新。"""
+        want = inside_tags(space)
+        ops: list[PatchOp] = []
+        for eid, raw in sorted(space.entities.items()):
+            sts = _list(_obj(_obj(raw).get("sheet")).get("statuses"))
+            have = {
+                str(_obj(x).get("tag")) for x in sts if str(_obj(x).get("tag")).startswith("in:")
+            }
+            mine = want.get(eid, set())
+            for i in sorted(
+                (i for i, x in enumerate(sts) if str(_obj(x).get("tag")) in have - mine),
+                reverse=True,
+            ):
+                ops.append(PatchOp(op="remove", path=f"/entities/{eid}/sheet/statuses/{i}"))
+            for tag in sorted(mine - have):
+                ops.append(
+                    PatchOp(
+                        op="add",
+                        path=f"/entities/{eid}/sheet/statuses/-",
+                        value=Status(tag=tag, source="placement").model_dump(mode="json"),
+                    )
+                )
+        return ops
+
+    @staticmethod
+    def _summon_expiry_ops(state: State, end: int) -> list[PatchOp]:
+        """限时的召唤物到期：从世界里移除（也从玩家控制的角色里去掉）。"""
+        ents = _obj(state.get("entities"))
+        gone = sorted(
+            eid
+            for eid, raw in ents.items()
+            if isinstance(until := _obj(_obj(raw).get("summoned")).get("until"), int | float)
+            and until <= end
+        )
+        if not gone:
+            return []
+        ops: list[PatchOp] = []
+        for pid, ctl in sorted(_obj(state.get("controls")).items()):
+            mine = [str(x) for x in ctl] if isinstance(ctl, list) else []
+            for i in sorted((i for i, e in enumerate(mine) if e in gone), reverse=True):
+                ops.append(PatchOp(op="remove", path=f"/controls/{pid}/{i}"))
+        acts = _obj(state.get("activities"))
+        ops += [PatchOp(op="remove", path=f"/activities/{eid}") for eid in gone if eid in acts]
+        ops += [PatchOp(op="remove", path=f"/entities/{eid}") for eid in gone]
+        return ops
 
     def _grant_expiry_ops(self, pack: RulePack, state: State, end: int) -> list[PatchOp]:
         """到期的限时加值（例如护盾）：扣回加上去还剩下的部分。状态本身由 World.expire 移除。"""
@@ -2609,6 +2777,12 @@ class Engine:
         start_space = self._space_for(m, state, pack)
         mv_ops: list[PatchOp] = []
         kp_moved = {mv.entity for mv in adj.movements}
+        # 技能脚本瞬间移动过的角色停在移动到的地方，不再按进行中的行动推
+        kp_moved |= {
+            op.path.split("/")[2]
+            for op in use_ops
+            if op.path.startswith("/entities/") and op.path.endswith("/pos")
+        }
         # 进行中的行动：引擎把实体推到本轮结束时刻的位置；KP 的 movements 可以覆盖
         for eid, act in sorted(acts.items()):
             if eid in kp_moved or eid not in after_entities:
@@ -2728,10 +2902,18 @@ class Engine:
         if refund:
             cur = self._world.apply(cur, refund)
             groups.append(("expiry", refund))
+        gone = self._summon_expiry_ops(cur, end)
+        if gone:
+            cur = self._world.apply(cur, gone)
+            groups.append(("expiry", gone))
         expire = self._world.expire(cur, end)
         if expire:
             cur = self._world.apply(cur, expire)
             groups.append(("expiry", expire))
+        inside = self._inside_ops(self._space_for(m, cur, pack))
+        if inside:
+            cur = self._world.apply(cur, inside)
+            groups.append(("placements", inside))
         problems = self._world.validate(cur, pack) + self._check_map_changes(m, cur)
         if problems:
             raise ValidationFailed("adjudication.invalid_state", problems)
@@ -2763,11 +2945,7 @@ class Engine:
         if ability is not None:
             # 依据能力的特殊移动：只校验这个能力确实在该实体的角色卡上
             sheet = space.full_sheet(eid)
-            names: set[str] = set()
-            for entries in _obj(sheet.get("groups")).values():
-                if isinstance(entries, list):
-                    names |= {str(_obj(e).get("name")) for e in entries}
-            if ability not in names:
+            if entry_refs.find(sheet, ability) is None:
                 return [
                     Problem(code="space.unknown_ability", path=path, params={"ability": ability})
                 ]
@@ -3056,18 +3234,17 @@ class Engine:
         """实体卡上的一个条目（名字或 ID）：模板、完整角色卡、这一条的列、同伴、技能设置。"""
         ent = _obj(space.entities.get(eid))
         sheet = space.full_sheet(eid)
-        for entries in _obj(sheet.get("groups")).values():
-            for e in _list(entries):
-                row = _obj(e)
-                if entry in (row.get("name"), row.get("id")):
-                    return (
-                        str(ent.get("template", "")),
-                        sheet,
-                        dict(_obj(row.get("fields"))),
-                        peers_of(space.state, eid),
-                        self._cfg(row),
-                    )
-        return None
+        hit = entry_refs.find(sheet, entry)
+        if hit is None:
+            return None
+        row = hit[1]
+        return (
+            str(ent.get("template", "")),
+            sheet,
+            dict(_obj(row.get("fields"))),
+            peers_of(space.state, eid),
+            self._cfg(row),
+        )
 
     def _noticed_events(
         self, game_id: str, round_no: int, adj: Adjudication, seconds: int
@@ -3588,13 +3765,10 @@ class Engine:
         shape_raw: JsonValue = None
         if q.ability is not None:
             sheet = space.full_sheet(q.entity)
-            for entries in _obj(sheet.get("groups")).values():
-                for e in entries if isinstance(entries, list) else []:
-                    if _obj(e).get("name") == q.ability:
-                        found_shape = self._cfg(_obj(e)).shape
-                        shape_raw = (
-                            None if found_shape is None else found_shape.model_dump(mode="json")
-                        )
+            hit = entry_refs.find(sheet, q.ability)
+            if hit is not None:
+                found_shape = self._cfg(hit[1]).shape
+                shape_raw = None if found_shape is None else found_shape.model_dump(mode="json")
             if shape_raw is None and q.shape is None:
                 raise ValidationFailed("query.ability_without_shape", ability=q.ability)
         if shape_raw is not None:
@@ -3614,6 +3788,20 @@ class Engine:
             radius, angle = q.shape.radius, q.shape.angle
         else:
             raise ValidationFailed("query.missing", param="shape")
+        return self._sweep_shape(kind, origin, toward, length, width, height, radius, angle)
+
+    @staticmethod
+    def _sweep_shape(
+        kind: str,
+        origin: Point,
+        toward: Point,
+        length: float | None,
+        width: float | None,
+        height: float | None,
+        radius: float | None,
+        angle: float | None,
+    ) -> SweepShape:
+        """范围形状落到地图上：从 origin 朝 toward 展开（球形以 toward 为中心）。"""
         if kind == "capsule":
             dx, dy, dz = toward.x - origin.x, toward.y - origin.y, toward.z - origin.z
             n = (dx * dx + dy * dy + dz * dz) ** 0.5

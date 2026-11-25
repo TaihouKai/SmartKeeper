@@ -1391,6 +1391,32 @@ export interface components {
              */
             stealth: string;
         };
+        /**
+         * EntryUse
+         * @description 条目的一个用途：一件东西（例如一件装备）可以有好几种用法，每种用法是一个技能。
+         *
+         *     用的时候写“条目名/用途名”。用途的技能设置在条目自己的设置上覆盖（没写的项沿用条目的），
+         *     脚本是用途自己的；公式里 this.<列> 是条目的列。只写说明、不写设置和脚本的用途由 KP 按说明裁定。
+         */
+        EntryUse: {
+            /**
+             * Config
+             * @default
+             */
+            config: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Name */
+            name: string;
+            /**
+             * Script
+             * @default
+             */
+            script: string;
+        };
         /** EventOut */
         EventOut: {
             /** Actor */
@@ -1421,12 +1447,18 @@ export interface components {
          *     - kind=boolean：是/否。公式里是 1/0。没填时按“否”。
          *     - kind=formula：掷骰公式（例如技能的伤害 1d str）。平时不算，KP 裁定时要求引擎掷一次才算；
          *       在分组的条目里可以用 this.<字段> 引用这个条目的字段。
-         *     - kind=param：使用时填写的数（只在分组里），例如这次消耗多少魔力。不存进角色卡；KP 按玩家的行动
-         *       在掷骰时给出，引擎检查 min..max（公式，可以用 this.<字段>），spends 给了资源字段名时还检查够不够，
-         *       并在这一轮结算时从那个资源里扣掉。掷骰公式里用 this.<字段> 引用这次填的数。
-         *     - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定修改，初值由 initial 公式给出。
+         *     - kind=param：使用时填写的数（只在分组里），例如这次消耗多少魔力、要不要解放真名。不存进角色卡；KP 按玩家的行动
+         *       在用技能时给出，引擎检查 min..max（公式，可以用 this.<字段>），spends 给了资源字段名时还检查够不够，
+         *       并在这一轮结算时从那个资源里扣掉。公式和脚本里用 this.<字段> 引用这次填的数。
+         *       choices 非空时只能选其中的值（名字=数，例如 不解放=0、解放=1），没给时取第一个。
+         *       check：这次填的不是 0 时使用者要过的检定（检定名），没过就按 0 算；
+         *       cooldown：这次填的不是 0 时，这个条目多久之内（分钟，公式）不能再填非 0。
+         *     - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定或技能脚本修改，初值由 initial 公式给出。
+         *       分组的列也可以是 runtime：每个条目各存一份（例如护盾开着没有），脚本里写 this.<列> 改它。
          */
         FieldDef: {
+            /** Check */
+            check?: string | null;
             /**
              * Choices
              * @default []
@@ -1438,6 +1470,8 @@ export interface components {
              * @enum {string}
              */
             cls: "player" | "runtime";
+            /** Cooldown */
+            cooldown?: string | null;
             /**
              * Description
              * @default
@@ -1643,6 +1677,11 @@ export interface components {
              * @default true
              */
             timing: boolean;
+            /**
+             * Use Templates
+             * @default []
+             */
+            use_templates: components["schemas"]["EntryUse"][];
         };
         /** GroupEntry */
         GroupEntry: {
@@ -1680,6 +1719,11 @@ export interface components {
              * @default
              */
             script: string;
+            /**
+             * Uses
+             * @default []
+             */
+            uses: components["schemas"]["EntryUse"][];
         };
         /**
          * GroupPreset
@@ -1722,6 +1766,11 @@ export interface components {
              * @default
              */
             script: string;
+            /**
+             * Uses
+             * @default []
+             */
+            uses: components["schemas"]["EntryUse"][];
             /**
              * When
              * @default
@@ -2471,7 +2520,9 @@ export interface components {
          *
          *     - who：self 使用者，target 使用时选的对象，其他是使用者同伴的模板名
          *     - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值；
-         *       modify 给 field 这个推导值加一条限时修正（formula 是冻结好的新值公式）
+         *       modify 给 field 这个数值（推导值、字段）加一条限时修正（formula 是冻结好的新值公式）。
+         *       field 写成 this.<列> 时是使用的这个条目的列（运行中会变的列，或 modify 修正的列）；
+         *       summon 召唤 amount 个 field 这个模板的角色；teleport 瞬间移动到 to 身边
          *     - seconds：add 的限时（到期扣回加上去还剩下的部分）或 modify 的持续时间；None 表示永久
          */
         ScriptStep: {
@@ -2493,7 +2544,7 @@ export interface components {
              * Op
              * @enum {string}
              */
-            op: "damage" | "add" | "subtract" | "set" | "modify" | "negate";
+            op: "damage" | "add" | "subtract" | "set" | "modify" | "negate" | "summon" | "teleport";
             /** Raw */
             raw?: number | null;
             /**
@@ -2503,6 +2554,15 @@ export interface components {
             rolls: number[];
             /** Seconds */
             seconds?: number | null;
+            /** To */
+            to?: string | null;
+            /**
+             * Values
+             * @default {}
+             */
+            values: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
             /** Who */
             who: string;
         };

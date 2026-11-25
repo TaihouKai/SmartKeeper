@@ -13,8 +13,10 @@ from smartkeeper.rules import skillconfig
 from smartkeeper.rules.checks import context
 from smartkeeper.rules.evaluator import EntityContext, table_lookup
 
-type Op = Literal["damage", "add", "subtract", "set", "modify", "negate"]
+type Op = Literal["damage", "add", "subtract", "set", "modify", "negate", "summon", "teleport"]
 _OPS: dict[str, Op] = {
+    "summon": "summon",
+    "teleport": "teleport",
     "damage": "damage",
     "add": "add",
     "sub": "subtract",
@@ -122,7 +124,25 @@ def _step(
 
     if st.verb == "negate":
         return ScriptStep(who=st.receiver, op="negate")
+    if st.verb == "teleport":
+        return ScriptStep(who=st.receiver, op="teleport", to=st.to)
     seconds = int(num(st.minutes) * 60) if st.minutes is not None else None
+    if st.verb == "summon":
+        assert st.count is not None
+        given: dict[str, JsonValue] = {}
+        for k, text in st.values:
+            given[k] = f.evaluate(
+                prep(text), ctx.resolver(entry, local), lookup, record, ctx.collect
+            )
+        return ScriptStep(
+            who=st.receiver,
+            op="summon",
+            field=st.template,
+            amount=max(0.0, float(int(num(st.count)))),
+            rolls=tuple(rolls),
+            seconds=seconds if seconds else None,
+            values=given,
+        )
     if st.verb == "modify":
         assert st.formula is not None and st.field is not None
         # 被修正的推导值自己的名字留着（在带着这条修正的角色身上求值），其余名字都换成此刻的值

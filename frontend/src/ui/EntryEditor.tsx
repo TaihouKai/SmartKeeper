@@ -5,22 +5,28 @@ import type { ReactNode } from "react";
 import { FormulaInput, Mover, moved } from "./components";
 import { CodeEditor } from "./CodeEditor";
 import { numberOptions } from "./choices";
-import { fillConfig } from "./skillConfig";
+import { fillConfig, mergeConfig } from "./skillConfig";
 
 type FieldDef = Schemas["FieldDef"];
 type GroupDef = Schemas["GroupDef"];
 
 // formula 算出 target 的新值；写 target 自己的名字表示到这一步为止的值。priority 只有玩家写的效果才有
 export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null };
-export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; config?: string; script?: string };
+export type Use = { name: string; description?: string; config?: string; script?: string };
+export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; config?: string; script?: string; uses?: Use[] };
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
 export function FieldInput({ def, value, onChange, validateFormula, onExpand }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check; onExpand?: () => void }) {
   const { t } = useI18n();
   if (def.kind === "param") {
-    // 使用时填写（例如这次消耗多少魔力）：建角时不填，行动里说
+    // 使用时填写（例如这次消耗多少魔力、要不要解放）：建角时不填，行动里说
+    if (def.choices && def.choices.length) return <span className="sk-hint">{t("character.param_choices", { choices: def.choices.join("、") })}</span>;
     return <span className="sk-hint">{t("character.param_field", { min: def.min ?? "-", max: def.max ?? "-" })}</span>;
+  }
+  if (def.cls === "runtime") {
+    // 条目运行中会变的列（例如开着没有、还剩几发）：游戏里由技能改，建角时不填
+    return <span className="sk-hint">{t("character.runtime_column")}</span>;
   }
   if (def.kind === "formula") {
     // 掷骰公式（例如伤害 1d str）：平时不算，KP 裁定时才掷
@@ -130,11 +136,56 @@ export function EntryEditor({
       {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} onChange={(effects) => onChange({ ...entry, effects })} />}
       {group.effects !== false && <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />}
       {group.effects !== false && <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />}
+      {group.effects !== false && <UsesList group={group} uses={entry.uses ?? []} base={entry.config ?? ""} validate={validate} onChange={(uses) => onChange({ ...entry, uses })} />}
       {onRemove && (
         <button type="button" className="sk-link" onClick={onRemove}>
           {t("character.remove_entry")}
         </button>
       )}
+    </div>
+  );
+}
+
+/** 条目的几种用途（例如一件装备的几种用法）：各有自己的设置和脚本，设置没写的项沿用条目的。
+ * 可以从分组的用途模板里选一个照抄。只写说明的用途由 KP 按说明裁定。 */
+function UsesList({ group, uses, base, validate, onChange }: { group: GroupDef; uses: Use[]; base: string; validate: (f: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string) => Promise<{ problems: { code: string }[]; names: string[] }>; onChange: (u: Use[]) => void }) {
+  const { t } = useI18n();
+  const templates = group.use_templates ?? [];
+  const set = (j: number, u: Use) => onChange(uses.map((x, k) => (k === j ? u : x)));
+  return (
+    <div className="sk-effects">
+      <strong>{t("rules.uses.title")}</strong>
+      <p className="sk-hint">{t("character.uses_hint")}</p>
+      {uses.map((u, j) => (
+        <div key={j} className="sk-use">
+          <div className="sk-row">
+            <input placeholder={t("rules.uses.name")} value={u.name} onChange={(e) => set(j, { ...u, name: e.target.value })} />
+            <Mover index={j} count={uses.length} onMove={(from, to) => onChange(moved(uses, from, to))} />
+            <button type="button" className="sk-link" onClick={() => onChange(uses.filter((_, k) => k !== j))}>
+              {t("common.remove")}
+            </button>
+          </div>
+          <textarea rows={2} placeholder={t("rules.uses.description")} value={u.description ?? ""} onChange={(e) => set(j, { ...u, description: e.target.value })} />
+          <ConfigEditor config={u.config ?? ""} validate={(f) => validate(f, group.name, "config", u.script ?? "")} onChange={(config) => set(j, { ...u, config })} />
+          <ScriptEditor script={u.script ?? ""} validate={(f) => validate(f, group.name, "script", mergeConfig(base, u.config ?? ""))} onChange={(script) => set(j, { ...u, script })} />
+          {!(u.script ?? "").trim() && !(u.config ?? "").trim() && <p className="sk-hint">{t("rules.uses.kp_rules")}</p>}
+        </div>
+      ))}
+      <div className="sk-row">
+        <button type="button" onClick={() => onChange([...uses, { name: "", description: "", config: "", script: "" }])}>
+          {t("rules.uses.add")}
+        </button>
+        {templates.length > 0 && (
+          <select value="" onChange={(e) => e.target.value !== "" && onChange([...uses, { ...templates[Number(e.target.value)]! }])}>
+            <option value="">{t("character.use_from_template")}</option>
+            {templates.map((u, k) => (
+              <option key={k} value={String(k)}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
     </div>
   );
 }

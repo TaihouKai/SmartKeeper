@@ -4,7 +4,7 @@ import { useI18n } from "../../../i18n";
 import { ErrorBox } from "../../../ui/components";
 import { translateCode } from "../../../ui/errors";
 import { FUNCTION_SIGNATURES } from "../../../ui/FormulaHelp";
-import { CHECK_KEYS, CHECK_VARS, EXTRA_CONFIG_KEYS, OUTCOME_VARS, configKeys } from "../../../ui/skillConfig";
+import { CHECK_KEYS, CHECK_VARS, EXTRA_CONFIG_KEYS, OUTCOME_VARS, configKeys, mergeConfig } from "../../../ui/skillConfig";
 import { useAction } from "../../../ui/hooks";
 import { allFormulas, describePath, getAt, type Doc, type Pack } from "../model";
 
@@ -72,7 +72,7 @@ export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; d
             .map((c) => (
               <Item key={`check-${c.name}`} code={`"${c.name}"`} note={t("rules.checks")} onClick={() => insert(`"${c.name}"`)} />
             ))}
-          {["sphere(radius=", "cone(length=, angle=", "capsule(length=, width=", "box(length=, width=, height=", "placement(radius="].map((c) => (
+          {["sphere(radius=", "cone(length=, angle=", "capsule(length=, width=", "box(length=, width=, height=", "placement(radius=", "placement(building=True"].map((c) => (
             <Item key={c} code={`${c}…)`} note={t(c.startsWith("placement") ? "config.c.placement" : "config.c.shape")} onClick={() => insert(c)} />
           ))}
         </section>
@@ -86,6 +86,8 @@ export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; d
             ["target.sub(mp, ", "fh.s.sub"],
             ["target.set(", "ide.n.set"],
             ["target.modify(", "fh.s.modify"],
+            ["self.summon(", "doc.verb.summon"],
+            ["target.teleport(self", "doc.verb.teleport"],
           ].map(([code, key]) => (
             <Item key={code} code={`${code!}…)`} note={t(key!)} onClick={() => insert(code!)} />
           ))}
@@ -197,6 +199,9 @@ export function TryPanel({ pack, doc, onGoSamples }: { pack: Pack; doc: Doc | nu
   if (!doc || doc.kind !== "entry" || !doc.entry) return <p className="sk-hint">{t("ide.try_only_scripts")}</p>;
   const group = pack.templates[doc.entry.t]?.groups?.[doc.entry.g];
   const preset = group?.presets?.[doc.entry.r];
+  // 用途：设置在条目自己的设置上覆盖
+  const ownConfig = String(getAt(pack, `${doc.path}.config`) ?? "");
+  const config = doc.entry.u !== undefined ? mergeConfig(preset?.config ?? "", ownConfig) : ownConfig;
   const mine = samples.map((s, i) => ({ s, i })).filter(({ s }) => s.template === doc.template);
   if (!mine.length)
     return (
@@ -220,7 +225,7 @@ export function TryPanel({ pack, doc, onGoSamples }: { pack: Pack; doc: Doc | nu
             body: {
               pack,
               script: String(getAt(pack, `${doc.path}.script`) ?? ""),
-              config: String(getAt(pack, `${doc.path}.config`) ?? ""),
+              config,
               template: me.s.template,
               sheet: me.s.sheet as Record<string, unknown>,
               entry: entry as Schemas["ScriptTryIn"]["entry"],

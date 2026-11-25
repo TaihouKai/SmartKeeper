@@ -35,6 +35,16 @@ const VERBS: Record<string, Doc> = {
       ["minutes", "doc.p.minutes"],
     ],
   },
+  summon: {
+    sig: "summon(template, count, minutes=None, field=value, …)",
+    desc: "doc.verb.summon",
+    params: [
+      ["template", "doc.p.summon_template"],
+      ["count", "doc.p.summon_count"],
+      ["minutes", "doc.p.summon_minutes"],
+    ],
+  },
+  teleport: { sig: "teleport(to)", desc: "doc.verb.teleport", params: [["to", "doc.p.teleport_to"]] },
 };
 
 /** 技能设置的构造：参数和说明。和后端 rules/skillconfig.py 的 SHAPES、PLACEMENT_ARGS 对应。 */
@@ -44,7 +54,7 @@ const CALLS: Record<string, Doc> = {
   capsule: { sig: "capsule(length, width)", desc: "doc.shape.capsule", params: [["length", "doc.p.length_m"], ["width", "doc.p.width_m"]] },
   box: { sig: "box(length, width, height)", desc: "doc.shape.box", params: [["length", "doc.p.length_m"], ["width", "doc.p.width_m"], ["height", "doc.p.height_m"]] },
   placement: {
-    sig: "placement(radius, perceive=1, charges=None, duration=None, notify=True)",
+    sig: "placement(radius, perceive=1, charges=None, duration=None, notify=True, building=False)",
     desc: "doc.placement",
     params: [
       ["radius", "doc.p.placement_radius"],
@@ -52,6 +62,7 @@ const CALLS: Record<string, Doc> = {
       ["charges", "doc.p.charges"],
       ["duration", "doc.p.duration"],
       ["notify", "doc.p.notify"],
+      ["building", "doc.p.building"],
     ],
   },
 };

@@ -158,10 +158,13 @@ class Duel:
         target: Side | None,
         distance: float,
         unseen: bool,
+        rolls: tuple[tuple[str, DiceResult], ...] | None = None,
     ) -> Strike:
-        """用技能的那一刻：使用者的检定都掷好，定好的等级和难度算好。"""
+        """用技能的那一刻：使用者的检定都掷好（给了 rolls 时用它，范围技能对每个人用同一次掷骰），
+        定好的等级和难度按这个对象的距离算好。"""
         extra = {"distance": distance, "unseen": 1.0 if unseen else 0.0}
-        rolls = tuple((c, self.roll_check(side, c)) for c in cfg.check)
+        if rolls is None:
+            rolls = tuple((c, self.roll_check(side, c)) for c in cfg.check)
         auto = (
             math.floor(self.evaluate(side, cfg.auto_level, fields, target, extra))
             if cfg.auto_level.strip()
@@ -263,6 +266,22 @@ class Duel:
             opposed=opposed,
             hit=hit,
         )
+
+    def solo(self, side: Side, check: str) -> CheckResult | None:
+        """不对抗、没有难度的一次检定（例如参数要求的检定）。做不了时 None。"""
+        try:
+            roll = self.roll_check(side, check)
+            return self.rules.resolve_check(
+                self.pack,
+                entity=side.entity,
+                template=side.template,
+                sheet=side.sheet,
+                check=check,
+                roll=roll,
+                peers=side.peers,
+            )
+        except (ValidationFailed, NotFound):
+            return None
 
     def save(
         self, defender: Side, check: str, attacker: Side, strike: Strike

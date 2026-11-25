@@ -189,6 +189,14 @@ class Rules(Protocol):
         """规则包里一个检定的内容（解析它的代码）。没有这个检定抛 NotFound，代码写错抛 ValidationFailed。"""
         ...
 
+    def choice_allowed(self, choices: tuple[str, ...], value: float) -> bool:
+        """数值的可选值（E=1、1~5……）里有没有这个数。可选值写错时 False。"""
+        ...
+
+    def first_choice(self, choices: tuple[str, ...]) -> float | None:
+        """可选值里的第一个数（参数没给时用它）；没有或写错时 None。"""
+        ...
+
     def skill_config(self, config: str, script: str = "") -> SkillConfig:
         """条目的技能设置文本解析成 SkillConfig（没写的项取默认；script 是同一条目的技能脚本，
         设置里可以用它最外层的变量）。写错抛 ValidationFailed。"""

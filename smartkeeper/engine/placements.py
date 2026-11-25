@@ -1,7 +1,7 @@
 """设置物（陷阱、结界等）：谁发现得了、本轮谁触发了。全是确定性的计算。
 
 - 发现：设置者总能看到自己放的；别人按“感知半径 × 设置物的感知系数”，和实体之间的感知同一套算法（含视线）。
-- 触发：本轮有人从范围外走进范围内（圆形，三维距离）就算触发一次；设置者和设置者的玩家控制的实体不触发。
+- 触发：本轮有人从范围外走进范围内（圆形按三维距离，整栋建筑的按进没进建筑）就算触发一次；设置者和设置者的玩家控制的实体不触发。
   按进入的先后排序，剩余次数用完后面的就不算了。本轮新放下的设置物从下一轮起才会被触发。
 """
 
@@ -28,6 +28,24 @@ def placements_of(raw: JsonValue) -> dict[str, Placement]:
 
 def _dist(a: Point, b: Point) -> float:
     return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2)
+
+
+def contains(space: Space, p: Placement, pt: Point) -> bool:
+    """这个点在不在设置物的范围里：整栋建筑的看在不在建筑里，其余的看离中心的三维距离。"""
+    if p.building is not None:
+        return space.spatial.inside_feature(space.map, p.building, pt)
+    return _dist(pt, p.pos) <= p.radius
+
+
+def inside_tags(space: Space) -> dict[str, set[str]]:
+    """每个实体此刻站在自己放的哪些设置物里：实体 -> {in:<条目名>}（公式里 inside("条目名")）。"""
+    places = placements_of(space.state.get("placements"))
+    out: dict[str, set[str]] = {}
+    for p in places.values():
+        body = space.bodies.get(p.owner)
+        if body is not None and contains(space, p, body.pos):
+            out.setdefault(p.owner, set()).add(f"in:{p.entry}")
+    return out
 
 
 def perceived_placements(space: Space, entity_id: str) -> list[str]:
@@ -105,9 +123,9 @@ def triggers(
                 owner_player is not None and space.owner.get(eid) == owner_player
             ):
                 continue
-            if not pts or _dist(pts[0][1], p.pos) <= p.radius:
+            if not pts or contains(space, p, pts[0][1]):
                 continue  # 本轮开始时已经在范围里：不算“进入”
-            entered = next((t for t, pt in pts if _dist(pt, p.pos) <= p.radius), None)
+            entered = next((t for t, pt in pts if contains(space, p, pt)), None)
             if entered is not None:
                 hits.append((entered, eid))
         hits.sort()

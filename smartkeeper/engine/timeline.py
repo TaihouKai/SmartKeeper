@@ -30,8 +30,11 @@ def _obj(v: JsonValue) -> dict[str, JsonValue]:
 
 
 def can_fly(space: Space, entity_id: str) -> bool:
-    fields = _obj(_obj(_obj(space.entities.get(entity_id)).get("sheet")).get("fields"))
-    return fields.get(FLY_FIELD) is True
+    """能不能飞：“能飞”字段经过修正之后的值（例如限时的飞行魔术让它变成是）。"""
+    try:
+        return space.derived(entity_id, FLY_FIELD) != 0
+    except ValidationFailed:
+        return False
 
 
 def travel_seconds(space: Space, entity_id: str, start: Point, to: Point) -> tuple[int, bool]:

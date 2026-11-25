@@ -14,8 +14,10 @@ from smartkeeper.contracts import (
     FLY_FIELD,
     HP_FIELD,
     REQUIRED_DERIVED,
+    USE_SEP,
     Effect,
     EntityTemplate,
+    EntryUse,
     FieldDef,
     GroupDef,
     GroupEntry,
@@ -114,9 +116,15 @@ def check_script(
         x.name
         for t in pack.templates
         for x in t.fields
-        if x.cls == "runtime" and x.kind in ("number", "resource")
+        if x.cls == "runtime" and x.kind in ("number", "resource", "boolean")
     }
     derived = {d.name for t in pack.templates for d in t.derived}
+    numeric = {  # 建角时填的数值字段也能限时修正（运行值用 add 加限时）
+        x.name
+        for t in pack.templates
+        for x in t.fields
+        if x.cls == "player" and x.kind in ("number", "boolean")
+    }
     problems: list[Problem] = []
 
     def at(line: int, found: list[Problem]) -> None:
@@ -164,11 +172,52 @@ def check_script(
                 found.append(
                     Problem(code="script.unknown_receiver", path=path, params={"name": st.receiver})
                 )
-            if st.verb in ("add", "sub", "set") and st.field not in runtime:
+            if (
+                st.verb == "teleport"
+                and st.to not in f.RECEIVERS
+                and pack.template(st.to or "") is None
+            ):
+                found.append(
+                    Problem(code="script.unknown_receiver", path=path, params={"name": st.to})
+                )
+            if st.verb == "summon":
+                summoned = pack.template(st.template or "")
+                if summoned is None:
+                    found.append(
+                        Problem(
+                            code="script.unknown_template", path=path, params={"name": st.template}
+                        )
+                    )
+                else:
+                    names = {x.name for x in summoned.fields}
+                    for k, v in st.values:
+                        if k not in names:
+                            found.append(
+                                Problem(code="script.unknown_field", path=path, params={"name": k})
+                            )
+                        found += check_formula(
+                            pack,
+                            template,
+                            v,
+                            path,
+                            entry_fields=entry_fields,
+                            extra=defined,
+                            dice=True,
+                        )
+                if st.count is not None:
+                    found += check_formula(
+                        pack, template, st.count, path, entry_fields=entry_fields, extra=defined
+                    )
+            col = st.field[5:] if st.field and st.field.startswith("this.") else None
+            if col is not None and (col not in entry_fields or st.receiver != "self"):
+                found.append(
+                    Problem(code="script.unknown_column", path=path, params={"name": st.field})
+                )
+            elif col is None and st.verb in ("add", "sub", "set") and st.field not in runtime:
                 found.append(
                     Problem(code="script.not_runtime", path=path, params={"name": st.field})
                 )
-            if st.verb == "modify" and st.field not in derived:
+            if st.verb == "modify" and col is None and st.field not in derived | numeric:
                 found.append(
                     Problem(code="script.not_derived", path=path, params={"name": st.field})
                 )
@@ -250,6 +299,12 @@ def check_config(
         # 可以应对的：检定，或者规则包里写好的应对技能（ID 或名字）
         entries = {
             x for t in pack.templates for g2 in t.groups for p in g2.presets for x in (p.id, p.name)
+        } | {
+            f"{p.name}{USE_SEP}{u.name}"
+            for t in pack.templates
+            for g2 in t.groups
+            for p in g2.presets
+            for u in p.uses
         }
         for name in cfg.reactions:
             if pack.check(name) is None and name not in entries:
@@ -362,9 +417,9 @@ def _check_field_def(
     problems: list[Problem] = []
     if fd.kind == "param" and entry_fields is None:
         problems.append(Problem(code="pack.param_only_in_group", path=path))
-    if fd.choices and fd.kind not in ("text", "number"):
+    if fd.choices and fd.kind not in ("text", "number", "param"):
         problems.append(Problem(code="pack.choices_need_text", path=path))
-    if fd.choices and fd.kind == "number":
+    if fd.choices and fd.kind in ("number", "param"):
         try:
             choices.parse(fd.choices)
         except ValueError as e:
@@ -403,6 +458,16 @@ def _check_field_def(
         problems += check_formula(pack, tpl, fd.per_minute, f"{path}.per_minute")
     if fd.spends is not None and fd.kind != "param":
         problems.append(Problem(code="pack.spends_needs_param", path=path))
+    if (fd.check or fd.cooldown) and fd.kind != "param":
+        problems.append(Problem(code="pack.option_needs_param", path=path))
+    if fd.check and pack.check(fd.check) is None:
+        problems.append(
+            Problem(code="config.unknown_check", path=f"{path}.check", params={"name": fd.check})
+        )
+    if fd.cooldown and fd.cooldown.strip():
+        problems += check_formula(
+            pack, tpl, fd.cooldown, f"{path}.cooldown", entry_fields=entry_fields
+        )
     if fd.spends is not None and tpl is not None:
         target = next((x for x in tpl.fields if x.name == fd.spends), None)
         if target is None or target.kind not in ("number", "resource"):
@@ -417,10 +482,9 @@ def _check_group(pack: RulePack, tpl: EntityTemplate, g: GroupDef, path: str) ->
     for name in _dupes(x.name for x in g.fields):
         problems.append(Problem(code="pack.duplicate_name", path=path, params={"name": name}))
     for i, fd in enumerate(g.fields):
-        if fd.cls != "player":
-            problems.append(
-                Problem(code="pack.group_field_must_be_player", path=f"{path}.fields[{i}]")
-            )
+        if fd.cls == "runtime" and fd.kind not in ("number", "boolean"):
+            # 条目的运行中会变的列：只能是数或是/否（例如护盾开着没有、还剩几发）
+            problems.append(Problem(code="pack.group_runtime_kind", path=f"{path}.fields[{i}]"))
         problems += _check_field_def(
             pack, tpl, fd, f"{path}.fields[{i}]", entry_fields=[x.name for x in g.fields]
         )
@@ -438,6 +502,26 @@ def _check_group(pack: RulePack, tpl: EntityTemplate, g: GroupDef, path: str) ->
             # 条件只看这张卡的字段：固定条目会影响推导值，条件再引用推导值就绕成圈了
             problems += check_formula(pack, None, p.when, f"{pp}.when", extra=field_names)
         problems += _check_entry(pack, tpl, g, p, derived, pp, required_fields=False)
+    for i, u in enumerate(g.use_templates):
+        problems += _check_use(pack, tpl, g, "", u, f"{path}.use_templates[{i}]")
+    return problems
+
+
+def _check_use(
+    pack: RulePack, tpl: EntityTemplate, g: GroupDef, base: str, u: EntryUse, path: str
+) -> list[Problem]:
+    """条目的一个用途：设置（在条目的设置上覆盖之后）和脚本。"""
+    problems: list[Problem] = []
+    cols = [x.name for x in g.fields]
+    if not u.name.strip():
+        problems.append(Problem(code="sheet.required", path=f"{path}.name"))
+    elif USE_SEP in u.name:
+        problems.append(Problem(code="sheet.bad_use_name", path=f"{path}.name"))
+    config = f.merge_config(base, u.config)
+    if u.script.strip():
+        problems += check_script(pack, tpl, u.script, f"{path}.script", cols, config)
+    if u.config.strip():
+        problems += check_config(pack, tpl, g, config, f"{path}.config", cols, u.script)
     return problems
 
 
@@ -812,6 +896,8 @@ def _check_preset_fields(tpl: EntityTemplate, sheet: Sheet) -> list[Problem]:
         for pname, values in sorted(by_name.items()):
             p = next((x for x in g.presets if x.name == pname), None) if g else None
             cols = {x.name: x for x in open_columns(g, p)} if g and p else {}
+            if g and p:
+                cols |= {x.name: x for x in g.fields if x.cls == "runtime"}
             for col, v in sorted(values.items()):
                 path = f"preset_fields.{gname}.{pname}.{col}"
                 fd = cols.get(col)
@@ -932,7 +1018,7 @@ def _check_entry(
     for name, fd in fdefs.items():
         if name in entry.fields:
             problems += _check_value(None, fd, entry.fields[name], f"{ep}.fields.{name}")
-        elif fd.required and required_fields and fd.kind != "param":
+        elif fd.required and required_fields and fd.kind != "param" and fd.cls != "runtime":
             problems.append(Problem(code="sheet.missing_field", path=f"{ep}.fields.{name}"))
     problems += _check_formula_fields(pack, tpl, g.fields, entry.fields, ep, in_entry=True)
     if entry.effects and not g.effects:
@@ -945,6 +1031,12 @@ def _check_entry(
         problems += check_config(
             pack, tpl, g, entry.config, f"{ep}.config", list(fdefs), entry.script
         )
+    for name in sorted(_dupes(u.name for u in entry.uses)):
+        problems.append(Problem(code="sheet.duplicate_use", path=ep, params={"name": name}))
+    if entry.uses and not g.effects:
+        problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
+    for j, u in enumerate(entry.uses):
+        problems += _check_use(pack, tpl, g, entry.config, u, f"{ep}.uses[{j}]")
     return problems
 
 
@@ -963,8 +1055,12 @@ def _check_effect(
     if eff.target is None or eff.formula is None:
         return [Problem(code="sheet.effect_incomplete", path=path)]
     problems: list[Problem] = []
-    if eff.target not in derived:
+    numeric = {x.name for x in tpl.fields if x.cls == "player" and x.kind in ("number", "boolean")}
+    on_entry = entry_fields is None and "." in eff.target  # 状态：<条目名>.<列>
+    if eff.target not in derived and eff.target not in numeric and not on_entry:
         problems.append(Problem(code="sheet.effect_target", path=path, params={"name": eff.target}))
+    if on_entry:
+        return problems  # 限时修正的公式是技能脚本冻结好的
     problems += check_formula(
         pack,
         tpl,

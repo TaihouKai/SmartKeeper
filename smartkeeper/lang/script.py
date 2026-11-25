@@ -4,6 +4,8 @@
     self.add(hp, 5)                          # 加；第三个参数是持续分钟数，到期扣回剩下的部分
     target.sub(mp, 10); target.set(stance, 0)
     target.modify(move_speed, move_speed * 0.5, 10)   # 限时修正：推导值的新值公式，持续分钟数
+    self.summon(familiar, 3, 60, hp=1)       # 召唤：模板、几个、存在几分钟，新角色卡上的字段
+    companion.teleport(self)                 # 瞬间移动到某人身边
 
     if target.template == "monster":         # 条件分支：缩进的几行是它的内容
         target.add(mp, 2 * this.mp_spent)
@@ -15,7 +17,7 @@
 - 语法就是 Python：一行一句，也可以用 ; 隔开；括号没关上时可以换行接着写；# 后面是注释；pass 什么都不做。
 - 每句是 <对象>.<动作>(参数, ...)。对象：self 是使用者自己，target 是使用时选的对象（也可以是自己），
   也可以写同一个玩家控制的同伴的模板名（例如 companion.add(mp, 5)）。认不认识这个名字由调用方检查。
-- 字段参数写名字；其余参数和条件是公式（见 formula.py）。
+- 字段参数写名字；this.<列> 是用的这个条目的一列（运行中会变的列，例如护盾开着没有）；其余参数和条件是公式（见 formula.py）。
 - if / elif / else 后面写冒号，下面缩进的几行是这一支（缩进多少都行，同一支里要对齐）；可以套着写。
 
 用 ast 解析（不执行），只认上面这些写法。这里只管语法：解析出语句，参数写成公式文本（formula.to_text），
@@ -40,6 +42,10 @@ VERBS: dict[str, tuple[str, ...]] = {
     "set": ("field", "amount"),
     "modify": ("field", "formula", "minutes"),
     "negate": (),  # 当反应时：让打在自己身上的这次攻击无效
+    # 召唤：在接收者身边放 count 个这个模板的角色，归接收者的玩家控制（NPC 召唤的也是 NPC）；
+    # minutes 是存在多久（不写是一直在）；名字=公式 是新角色卡上的字段，例如 summon(familiar, 3, 60, hp=1)
+    "summon": ("template", "count", "minutes?"),
+    "teleport": ("to",),  # 瞬间移动到另一个角色身边：to 是 self、target 或同伴的模板名
 }
 
 
@@ -68,6 +74,10 @@ class Statement:
     formula: str | None = None
     minutes: str | None = None
     kind: str | None = None  # damage 的伤害类型（公式，通常是一段文字）
+    template: str | None = None  # summon：召唤哪个模板
+    count: str | None = None  # summon：几个
+    values: tuple[tuple[str, str], ...] = ()  # summon：新角色卡上的字段（名字, 公式）
+    to: str | None = None  # teleport：移动到谁身边
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +129,8 @@ def _statement(call: ast.Call, line: int, src: str) -> Statement:
     args = call.args
     need = sum(1 for s in spec if not s.endswith("?"))
     if (
-        call.keywords
+        (call.keywords and verb != "summon")
+        or any(k.arg is None for k in call.keywords)
         or any(isinstance(a, ast.Starred) for a in args)
         or not need <= len(args) <= len(spec)
     ):
@@ -129,10 +140,22 @@ def _statement(call: ast.Call, line: int, src: str) -> Statement:
     got: dict[str, str] = {}
     for kind, arg in zip(spec, args, strict=False):
         kind = kind.rstrip("?")
-        if kind == "field":
+        if kind in ("template", "to"):
             if not isinstance(arg, ast.Name):
-                raise FormulaError("script.field_arg", line=line, name=verb)
+                raise FormulaError("script.name_arg", line=line, name=verb)
             got[kind] = arg.id
+            continue
+        if kind == "field":
+            if isinstance(arg, ast.Name):
+                got[kind] = arg.id
+            elif (
+                isinstance(arg, ast.Attribute)
+                and isinstance(arg.value, ast.Name)
+                and arg.value.id == "this"
+            ):
+                got[kind] = f"this.{arg.attr}"  # 这个条目的一列
+            else:
+                raise FormulaError("script.field_arg", line=line, name=verb)
         else:
             got[kind] = _arg(arg, line)
     return Statement(
@@ -144,6 +167,10 @@ def _statement(call: ast.Call, line: int, src: str) -> Statement:
         formula=got.get("formula"),
         minutes=got.get("minutes"),
         kind=got.get("kind"),
+        template=got.get("template"),
+        count=got.get("count"),
+        values=tuple((str(k.arg), _arg(k.value, line)) for k in call.keywords),
+        to=got.get("to"),
     )
 
 

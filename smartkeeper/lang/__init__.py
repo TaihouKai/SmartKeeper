@@ -1,6 +1,6 @@
 """公式与技能脚本语言：语法、解析、求值框架。不认识角色卡和规则包，名字怎么解析、骰子怎么掷都由调用方传进来。"""
 
-from smartkeeper.lang.config import Setting, parse_config
+from smartkeeper.lang.config import Setting, merge_config, parse_config
 from smartkeeper.lang.formula import (
     FUNCTIONS,
     LIST_FUNCTIONS,
@@ -72,6 +72,7 @@ __all__ = [
     "has_dice",
     "is_die_name",
     "lists",
+    "merge_config",
     "names",
     "parse",
     "parse_config",

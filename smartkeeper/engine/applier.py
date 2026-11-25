@@ -31,6 +31,17 @@ def _obj(v: JsonValue) -> dict[str, JsonValue]:
     return cast(dict[str, JsonValue], v) if isinstance(v, dict) else {}
 
 
+def _ptr(key: str) -> str:
+    """JSON 指针里的一段（~ 和 / 要转义）。"""
+    return key.replace("~", "~0").replace("/", "~1")
+
+
+def _num(v: JsonValue) -> float | None:
+    if isinstance(v, bool):
+        return 1.0 if v else 0.0
+    return float(v) if isinstance(v, int | float) else None
+
+
 class StepApplier:
     def __init__(
         self, world: World, rules: Rules, faces: f.Faces, pack: RulePack, end: int
@@ -103,10 +114,171 @@ class StepApplier:
             )
         return state
 
-    def apply_actions(
-        self, state: State, listed: JsonValue, source: str, entry: str, path: str
+    def cool_tags(self, state: State, who: str, tags: JsonValue) -> State:
+        """另外的冷却（例如参数的冷却）：状态名 -> 秒数。"""
+        for tag, sec in sorted(_obj(tags).items()):
+            if isinstance(sec, int) and sec > 0 and who in _obj(state.get("entities")):
+                state = self.add_status(
+                    state, who, Status(tag=tag, source=who, expires_at=self.end + sec)
+                )
+        return state
+
+    def _column(
+        self, state: State, who: str, group: str, owner: str, col: str
+    ) -> tuple[str, float | None, list[PatchOp]]:
+        """条目的一列在角色卡上的位置：(JSON 指针, 现在的值, 要先建好的上层)。
+        玩家写的条目在 groups 里；固定条目存在 preset_fields 里（没存过时值取读卡时算出的初值）。"""
+        sheet = _obj(_obj(_obj(state.get("entities")).get(who)).get("sheet"))
+        base = f"/entities/{who}/sheet"
+        rows = sheet.get("groups")
+        for i, e in enumerate(cast(list[JsonValue], _obj(rows).get(group)) or []):
+            row = _obj(e)
+            if row.get("name") == owner:
+                v = _obj(row.get("fields")).get(col)
+                return f"{base}/groups/{_ptr(group)}/{i}/fields/{_ptr(col)}", _num(v), []
+        made: list[PatchOp] = []
+        pf = _obj(sheet.get("preset_fields"))
+        if "preset_fields" not in sheet:
+            made.append(PatchOp(op="add", path=f"{base}/preset_fields", value={}))
+        if group not in pf:
+            made.append(PatchOp(op="add", path=f"{base}/preset_fields/{_ptr(group)}", value={}))
+        if owner not in _obj(pf.get(group)):
+            made.append(
+                PatchOp(
+                    op="add", path=f"{base}/preset_fields/{_ptr(group)}/{_ptr(owner)}", value={}
+                )
+            )
+        v = _obj(_obj(pf.get(group)).get(owner)).get(col)
+        if v is None:
+            ent = _obj(_obj(state.get("entities")).get(who))
+            full = _obj(
+                self.rules.full_sheet(
+                    self.pack, str(ent.get("template", "")), ent.get("sheet"), peers_of(state, who)
+                )
+            )
+            for e in cast(list[JsonValue], _obj(full.get("groups")).get(group)) or []:
+                if _obj(e).get("name") == owner:
+                    v = _obj(_obj(e).get("fields")).get(col)
+        path = f"{base}/preset_fields/{_ptr(group)}/{_ptr(owner)}/{_ptr(col)}"
+        return path, _num(v), made
+
+    def _put_column(
+        self, state: State, who: str, group: str, owner: str, col: str, op: str, amount: float
     ) -> State:
-        """脚本算好的每一步（{entity, op, field, amount, seconds, formula}）。"""
+        path, have, made = self._column(state, who, group, owner, col)
+        cur = have or 0.0
+        value = amount if op == "set" else cur - amount if op == "subtract" else cur + amount
+        gdef = next(
+            (
+                g
+                for t in self.pack.templates
+                for g in t.groups
+                if g.name == group
+                and t.name == _obj(_obj(state.get("entities")).get(who)).get("template")
+            ),
+            None,
+        )
+        fd = next((x for x in gdef.fields if x.name == col), None) if gdef else None
+        v: JsonValue
+        if fd is not None and fd.kind == "boolean":
+            v = value != 0
+        else:
+            value = round(value, 2)
+            v = int(value) if value.is_integer() else value
+        ops = [*made, PatchOp(op="add", path=path, value=v)]
+        self.ops += ops
+        return self.world.apply(state, ops)
+
+    def _teleport(self, state: State, who: str, to: JsonValue) -> State:
+        """瞬间移动到另一个角色身边（同一个位置、同一栋建筑里）。"""
+        dest = _obj(_obj(state.get("entities")).get(to)) if isinstance(to, str) else {}
+        if not dest or dest.get("pos") is None:
+            return state
+        ops = [
+            PatchOp(op="replace", path=f"/entities/{who}/pos", value=dest.get("pos")),
+            PatchOp(op="replace", path=f"/entities/{who}/inside", value=dest.get("inside")),
+        ]
+        self.ops += ops
+        return self.world.apply(state, ops)
+
+    def _summon(
+        self,
+        state: State,
+        who: str,
+        template: str,
+        count: int,
+        seconds: JsonValue,
+        values: dict[str, JsonValue],
+    ) -> State:
+        """在召唤者身边放 count 个新角色，归召唤者的玩家控制；限时的到期后由引擎移除。"""
+        ents = _obj(state.get("entities"))
+        me = _obj(ents.get(who))
+        tpl = self.pack.template(template)
+        if not me or tpl is None or count <= 0:
+            return state
+        label = tpl.label or tpl.name
+        ops: list[PatchOp] = []
+        made: list[str] = []
+        n = 1
+        while len(made) < count:
+            eid = f"{who}_{template}_{n}"
+            if eid not in ents:
+                made.append(eid)
+            n += 1
+        controls = _obj(state.get("controls"))
+        player = next(
+            (pid for pid, ctl in controls.items() if isinstance(ctl, list) and who in ctl), None
+        )
+        for eid in made:
+            sheet: JsonValue = {
+                "name": f"{label}{eid.rsplit('_', 1)[-1]}",
+                "fields": dict(values),
+            }
+            sheet = self.rules.init_sheet(self.pack, template, sheet, peers_of(state, who))
+            bad = self.rules.validate_sheet(self.pack, template, sheet)
+            if bad:
+                # 召唤脚本给的字段不全或不合法：这次召唤不算（规则包的问题，由裁定报出来）
+                self.problems.append(
+                    Problem(
+                        code="adj.summon_bad_sheet",
+                        path=f"summon.{template}",
+                        params={"problem": f"{bad[0].code} {bad[0].path}"},
+                    )
+                )
+                return state
+            ops.append(
+                PatchOp(
+                    op="add",
+                    path=f"/entities/{eid}",
+                    value={
+                        "template": template,
+                        "pos": me.get("pos"),
+                        "inside": me.get("inside"),
+                        "sheet": sheet,
+                        "summoned": {
+                            "by": who,
+                            "until": self.end + seconds if isinstance(seconds, int) else None,
+                        },
+                    },
+                )
+            )
+            if player is not None:
+                ops.append(PatchOp(op="add", path=f"/controls/{player}/-", value=eid))
+        self.ops += ops
+        return self.world.apply(state, ops)
+
+    def apply_actions(
+        self,
+        state: State,
+        listed: JsonValue,
+        source: str,
+        entry: str,
+        path: str,
+        group: str = "",
+        owner: str = "",
+    ) -> State:
+        """脚本算好的每一步（{entity, op, field, amount, seconds, formula}）。group、owner 是用的那个条目
+        所在的分组和条目名：field 写成 this.<列> 的步骤改的是它的列。"""
         for raw in cast(list[JsonValue], listed) if isinstance(listed, list) else []:
             a = _obj(raw)
             who = a.get("entity")
@@ -115,7 +287,20 @@ class StepApplier:
                 continue
             amount = float(cast(float, a.get("amount", 0)))
             dur = a.get("seconds")
+            field = str(a.get("field") or "")
+            if op == "teleport":
+                state = self._teleport(state, who, a.get("to_entity"))
+                continue
+            if op == "summon":
+                state = self._summon(state, who, field, int(amount), dur, _obj(a.get("values")))
+                continue
+            if field.startswith("this.") and op != "modify":
+                if who == source and group and owner and op in ("set", "add", "subtract"):
+                    state = self._put_column(state, who, group, owner, field[5:], str(op), amount)
+                continue
             if op == "modify":
+                if field.startswith("this."):
+                    field = f"{owner}.{field[5:]}"  # 这个条目的一列：<条目名>.<列>
                 state = self.add_status(
                     state,
                     who,
@@ -125,7 +310,7 @@ class StepApplier:
                         expires_at=self.end + dur if isinstance(dur, int) else None,
                         modifier=Effect(
                             description=entry,
-                            target=str(a.get("field")),
+                            target=field,
                             formula=str(a.get("formula")),
                         ),
                     ),
