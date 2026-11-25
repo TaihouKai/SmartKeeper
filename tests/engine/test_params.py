@@ -229,3 +229,27 @@ def test_text_only_entry_keeps_its_target_and_missing_params_default_to_zero() -
     u = t.engine.use_entry(t.game_id, a, "tough", b, {}, "x")
     assert u.payload["target"] == b  # 只有说明的条目：对象是 KP 给的那个，不是自己
     assert cast(dict[str, Any], u.payload["params"])["ley"] == 0
+
+
+def test_an_entry_param_overrides_only_what_it_writes() -> None:
+    """条目上和默认参数同名的参数：写了的项覆盖，没写的（扣哪个资源）沿用默认的。"""
+    pack = param_pack()
+    cost = PackParam(name="cost", min="1", max="10", spends="hp", groups=("skills",))
+    pack = pack.model_copy(update={"params": (*pack.params, cost)})
+    t = setup_table("single", 2, pack=pack)
+    a, b = (t.entities(p)[0] for p in t.players)
+    fixed = {"name": "cost", "choices": ["three=3"]}
+    t.engine.admin_patch(
+        t.game_id,
+        [
+            PatchOp(
+                op="add",
+                path=f"/entities/{a}/sheet/groups/skills/-",
+                value={"name": "zap", "fields": {"level": 1}, "params": [fixed]},
+            )
+        ],
+    )
+    begin(t)
+    u = t.engine.use_entry(t.game_id, a, "zap", b, {}, "x")
+    assert cast(dict[str, Any], u.payload["params"])["cost"] == 3
+    assert u.payload["spends"] == {"hp": 3}

@@ -1463,7 +1463,8 @@ class Engine:
 
     @staticmethod
     def _params_of(pack: RulePack, group: str, row: dict[str, JsonValue]) -> list[ParamDef]:
-        """一次使用实际有的参数：规则包的默认参数（适用于这个分组的）+ 条目上加的 + 用途上加的（同名的后者覆盖前者）。"""
+        """一次使用实际有的参数：规则包的默认参数（适用于这个分组的）+ 条目上加的 + 用途上加的。
+        同名的后者覆盖前者，但只覆盖写了的项：没写的（例如从哪个资源里扣）沿用前面的。"""
         out: dict[str, ParamDef] = {}
         for p in pack.params:
             if group in p.groups:
@@ -1473,7 +1474,10 @@ class Engine:
                 prm = ParamDef.model_validate(raw)
             except PydanticError:
                 continue
-            out.pop(prm.name, None)
+            base = out.pop(prm.name, None)
+            if base is not None:
+                given = {k: v for k, v in prm.model_dump().items() if v not in ("", None, [], ())}
+                prm = base.model_copy(update=given)
             out[prm.name] = prm
         return list(out.values())
 
