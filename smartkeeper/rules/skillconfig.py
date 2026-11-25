@@ -36,6 +36,7 @@ KEYS: dict[str, Kind] = {
     "shape": "shape",
     "affects": "affects",
     "aura": "shape",
+    "guard": "bool",
     "placement": "placement",
 }
 AFFECTS = ("all", "allies", "other_allies", "enemies")

@@ -1563,6 +1563,16 @@ T: dict[str, tuple[str, str]] = {
         "光环：sphere(radius=米)。被动生效：圈里符合 affects 的人（包括自己）一直带着这一条的常驻加成，进圈就有、出圈就没",
         "aura: sphere(radius=m). Passive: everyone inside who matches affects (you too) has this entry's bonuses while inside",
     ),
+    "config.c.guard": (
+        "守护（和光环一起用）：圈里符合 affects 的人受你守护，敌人对他们用的技能（包括范围技能）落到你身上",
+        "Guard (with an aura): those inside who match affects are guarded by you; enemy skills aimed at them (areas too) land on you",
+    ),
+    "docs.v.guard.0": (
+        "守护：敌人对圈里的人用技能时，对象换成你；范围技能里几个受守护的只落到你身上一次",
+        "guard: enemy skills aimed at those inside land on you instead; in an area you are hit once",
+    ),
+    "docs.v.guard.1": ("不守护（默认）", "no guard (default)"),
+    "codes.config.guard_needs_aura": ("guard 要和 aura（光环）一起用", "guard needs an aura"),
     "config.c.save": (
         "命中后对象做的豁免检定（检定名，对 difficulty）；脚本里 saved 是结果",
         "a save the target makes after a hit (a check name, against difficulty); saved in the script",

@@ -1734,6 +1734,17 @@ class Engine:
                         for v in victims
                         if v is not None and _affects(cfg.affects, source, v, ally_of(v))
                     ] or [None]
+            # 守护：敌人对受守护的人用技能，落到守护者身上（范围里几个受守护的也只落到守护者身上一次）
+            guarded_from: dict[str, str] = {}
+            redirected: list[str | None] = []
+            for v in victims:
+                g = self._guardian(state, source, v) if v is not None and not ally_of(v) else None
+                if g is not None and v is not None:
+                    guarded_from.setdefault(g, v)
+                    v = g
+                if v not in redirected:
+                    redirected.append(v)
+            victims = redirected
             used_params = {pf.name: fields[pf.name] for pf in prms if pf.name in fields}
             # 察觉到的人知不知道用的是什么：规则包在分组上定（玩家写条目时改不了）
             revealed = (
@@ -1811,6 +1822,8 @@ class Engine:
                         "owner_entry": owner,
                         # 范围技能的其他对象：跟着第一条生效（第一条的 seq）
                         "area_of": first.seq if first is not None else None,
+                        # 被守护：原来的对象是谁（落到了守护者身上）
+                        "guarded_from": guarded_from.get(victim) if victim is not None else None,
                         "params": cast(JsonValue, used_params),
                         "boost": boost,
                         "turning_on": turning_on,
@@ -4044,6 +4057,16 @@ class Engine:
                     friend = self._allied(state, pacts, src, eid)
                     if not _affects(cfg.affects, src, eid, friend):
                         continue
+                    if cfg.guard and eid != src:
+                        want[eid].append(
+                            Status(
+                                tag=f"aura:{src}:{label}:guard",
+                                source=src,
+                                modifier=Effect(
+                                    description=f"{label}：受 {src} 守护，敌人对他用的技能落到 {src} 身上"
+                                ),
+                            ).model_dump(mode="json")
+                        )
                     for i, eff in enumerate(effects):
                         if eff.target is None or eff.formula is None:
                             mod = Effect(description=f"{label}：{eff.description}")
@@ -4075,6 +4098,18 @@ class Engine:
             self._events.append(
                 game_id, round_no, [self._patch_event(ops, cause="aura", actor=ENGINE)]
             )
+
+    def _guardian(self, state: State, source: str, victim: str) -> str | None:
+        """守护 victim 的人（光环发的守护状态）；守护者是使用者自己、已经死了或不在了的不算。"""
+        ents = _obj(state.get("entities"))
+        for st in _list(_obj(_obj(ents.get(victim)).get("sheet")).get("statuses")):
+            s = _obj(st)
+            tag, g = str(s.get("tag", "")), str(s.get("source", ""))
+            if not (tag.startswith("aura:") and tag.endswith(":guard")):
+                continue
+            if g and g not in (victim, source) and g in ents and not self._dead(state, g):
+                return g
+        return None
 
     @staticmethod
     def _aura_formula(formula: str, cols: Mapping[str, JsonValue]) -> str | None:

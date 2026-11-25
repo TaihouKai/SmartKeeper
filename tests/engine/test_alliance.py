@@ -400,3 +400,84 @@ def test_aura_on_a_toggle_use_works_while_it_is_on() -> None:
     publish(t, t.players, uses=[UseResult(seq=u.seq)])
     next_round(t)
     assert str_of(t, e1) == base[e1] and statuses(e1) == []
+
+
+def test_guard_redirects_enemy_skills_to_the_guardian() -> None:
+    """守护光环：敌人对受守护的人用技能，落到守护者身上；范围技能里几个受守护的只落到守护者身上一次；友军不受影响。"""
+    t = setup_table("single", 4, pack=area_pack())
+    ents = [t.entities(p)[0] for p in t.players]
+    t.engine.admin_patch(
+        t.game_id,
+        [
+            PatchOp(op="replace", path=f"/entities/{x}/pos", value={"x": 10 * i, "y": 0, "z": 0})
+            for i, x in enumerate(ents)
+        ],
+    )
+    t.engine.refresh_handles(t.game_id)
+    (p0, p1, p2, _p3), (g0, a1, a2, foe) = t.players, ents
+    add_entries(
+        t,
+        g0,
+        [
+            {
+                "name": "wall",
+                "fields": {"level": 1},
+                "config": 'aura = sphere(radius=50)\naffects = "other_allies"\nguard = True',
+                "bonus": "# 城墙",
+            }
+        ],
+    )
+    add_entries(
+        t,
+        foe,
+        [
+            {
+                "name": "stab",
+                "fields": {"level": 1},
+                "config": "range = 1000",
+                "script": "target.hp -= 1",
+            },
+            {
+                "name": "blast",
+                "fields": {"level": 1},
+                "config": 'target = "none"\nshape = sphere(radius=200)',
+                "script": "target.hp -= 1",
+            },
+        ],
+    )
+    add_entries(
+        t,
+        a2,
+        [
+            {
+                "name": "pat",
+                "fields": {"level": 1},
+                "config": "range = 1000",
+                "script": "target.hp += 0",
+            }
+        ],
+    )
+    ally(t, p0, p1, a1)
+    ally(t, p0, p2, a2)
+    ally(t, p1, p2, a2)  # 结盟不传递：1 和 2 也要结
+    next_round(t)
+    begin(t)
+    e = t.engine
+    u = e.use_entry(t.game_id, foe, "stab", a1, {}, "x")
+    assert u.payload["target"] == g0 and u.payload["guarded_from"] == a1
+    first = e.use_entry(t.game_id, foe, "blast", None, {}, "x")
+    hits = [
+        x
+        for x in e.current_attempt(t.game_id, e.game(t.game_id).current_round)
+        if x.type == "entry_used"
+    ]
+    area = [
+        x.payload["target"]
+        for x in hits
+        if x.seq == first.seq or x.payload.get("area_of") == first.seq
+    ]
+    # 三个人都在范围里：受守护的两个换成守护者，守护者只挨一次（范围里的 NPC 照样挨）
+    assert area.count(g0) == 1 and a1 not in area and a2 not in area
+    # 友军对受守护的人用技能，不转移
+    u = e.use_entry(t.game_id, a2, "pat", a1, {}, "x")
+    assert u.payload["target"] == a1 and u.payload["guarded_from"] is None

@@ -202,6 +202,7 @@
       "bad_value": "Bad value for {name}; expected {expected}",
       "call_keywords": "Arguments of {name}(…) must be name=value",
       "duplicate": "{name} is set twice",
+      "guard_needs_aura": "guard needs an aura",
       "list_of_text": "{name} must be a list of names, e.g. [\"dodge\", \"block\"]",
       "missing_arg": "{name} is missing {arg}",
       "unknown_check": "No check named {name} (add it under Checks)",
@@ -408,6 +409,7 @@
       "check": "the user's check (a check name); best(\"a\", \"b\") rolls several and keeps the best; None / True always hits",
       "cooldown": "cooldown in minutes",
       "difficulty": "the user's difficulty (a formula; distance is available)",
+      "guard": "Guard (with an aura): those inside who match affects are guarded by you; enemy skills aimed at them (areas too) land on you",
       "hit": "hit condition (level, opp_level, opposed); None: success, and above the opponent when opposed",
       "noise": "noise radius in metres; None = silent",
       "placement": "placement, e.g. placement(radius=3, charges=1)",
@@ -587,6 +589,10 @@
       "difficulty": {
         "0": "your side's difficulty; may use distance (metres)",
         "1": "no difficulty (default)"
+      },
+      "guard": {
+        "0": "guard: enemy skills aimed at those inside land on you instead; in an area you are hit once",
+        "1": "no guard (default)"
       },
       "hit": {
         "0": "hit condition; may use level, opp_level, opposed",

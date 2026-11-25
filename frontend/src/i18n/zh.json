@@ -202,6 +202,7 @@
       "bad_value": "{name} 的值不对，应该是 {expected}",
       "call_keywords": "{name}(…) 的参数要写成 参数=值",
       "duplicate": "{name} 写了两次",
+      "guard_needs_aura": "guard 要和 aura（光环）一起用",
       "list_of_text": "{name} 要写成文字列表，例如 [\"dodge\", \"block\"]",
       "missing_arg": "{name} 少了参数 {arg}",
       "unknown_check": "没有叫 {name} 的检定（在“检定”里加）",
@@ -408,6 +409,7 @@
       "check": "使用者做的检定（检定名）；几个时写 best(\"a\", \"b\")，都掷、取等级高的；None / True 是不掷骰、必中",
       "cooldown": "冷却（分钟）",
       "difficulty": "使用者这一方的难度（公式，可以用 distance）",
+      "guard": "守护（和光环一起用）：圈里符合 affects 的人受你守护，敌人对他们用的技能（包括范围技能）落到你身上",
       "hit": "命中条件（公式，可用 level、opp_level、opposed）；None 是：成功，被对抗时等级高过对方",
       "noise": "动静范围（米），None 表示悄无声息",
       "placement": "设置物，例如 placement(radius=3, charges=1)",
@@ -587,6 +589,10 @@
       "difficulty": {
         "0": "你这一方的难度，可以用 distance（距离，米）",
         "1": "没有难度（默认）"
+      },
+      "guard": {
+        "0": "守护：敌人对圈里的人用技能时，对象换成你；范围技能里几个受守护的只落到你身上一次",
+        "1": "不守护（默认）"
       },
       "hit": {
         "0": "命中条件，可以用 level、opp_level、opposed",

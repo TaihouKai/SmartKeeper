@@ -220,6 +220,10 @@ _CONFIG_VALUES: dict[str, tuple[tuple[str, str], ...]] = {
         ("sphere(radius=…)", "docs.v.aura.0"),
         ("None", "docs.v.aura.1"),
     ),
+    "guard": (
+        ("True", "docs.v.guard.0"),
+        ("False", "docs.v.guard.1"),
+    ),
     "placement": (
         ("placement(radius=…, …)", "docs.v.placement.0"),
         ("None", "docs.v.placement.1"),
@@ -242,6 +246,7 @@ _CONFIG_EXAMPLES: dict[str, str] = {
     "shape": "shape = cone(length=10, angle=60)",
     "affects": 'affects = "allies"',
     "aura": "aura = sphere(radius=50)",
+    "guard": "guard = True",
     "placement": "placement = placement(radius=3, charges=1)",
 }
 

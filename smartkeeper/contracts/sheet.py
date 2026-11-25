@@ -191,6 +191,8 @@ class SkillConfig(Frozen):
     # 光环（被动）：以自己为中心的球（只能 sphere），里面符合 affects 的人（包括自己）一直带着这一条的常驻加成；
     # 每轮开始时按位置重算，进圈就有、出圈就没。光环条目的常驻加成不再按普通方式只加在自己身上
     aura: Shape | None = None
+    # 守护（和光环一起用）：圈里符合 affects 的人受光环主人守护，敌人对他们用的技能（单体和范围）落到光环主人身上
+    guard: bool = False
     placement: PlacementSpec | None = None  # 是设置物（陷阱、结界）时的参数
     # 打没打中由引擎判：使用者做 check 里的检定（几个时都掷，取等级高的；空 = 不掷骰）。
     # auto_level 是不掷骰、直接定下的等级（公式）。等级见 CheckSpec：1 起是成功。

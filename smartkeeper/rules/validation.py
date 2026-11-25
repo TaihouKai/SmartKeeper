@@ -299,6 +299,8 @@ def check_config(
             off("shape", "sheet.shape_not_allowed")
         if cfg.placement is not None and not g.placements:
             off("placement", "sheet.placement_not_allowed")
+        if cfg.guard and cfg.aura is None:
+            off("guard", "config.guard_needs_aura")
         for key, name in [*(("check", x) for x in cfg.check), ("save", cfg.save)]:
             if name and pack.check(name) is None:
                 problems.append(
