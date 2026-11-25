@@ -423,7 +423,7 @@
                 "description": "没有视觉效果的魔术，把自己的魔力分给对方（给英灵时 1MP 换 2MP）",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 150\nvisible = True\nrequires = not silenced",
+                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = not silenced",
                 "script": "if target.template == \"servant\":\n    target.add(mp, 2 * this.mp_spent)\nelse:\n    target.add(mp, this.mp_spent)",
                 "uses": [],
                 "when": "background != \"普通人\""

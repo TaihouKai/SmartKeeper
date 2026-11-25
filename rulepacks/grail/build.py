@@ -476,7 +476,7 @@ MASTER = {
                     "没有视觉效果的魔术，把自己的魔力分给对方（给英灵时 1MP 换 2MP）",
                     """
                     target = "single"
-                    range = 150
+                    range = 10
                     visible = True
                     requires = not silenced
                     """,
