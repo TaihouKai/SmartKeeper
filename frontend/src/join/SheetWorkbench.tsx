@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { numberOptions } from "../ui/choices";
@@ -474,10 +474,21 @@ function PresetView({ p, g, defaults, canCopy, onCopy, onClose }: { p: Schemas["
 function Clamp({ text }: { text: string }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  // 真的被截掉了才给“展开”：量收起时的高度，宽度变了再量
+  const [long, setLong] = useState(false);
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = box.current?.firstElementChild as HTMLElement | null | undefined;
+    if (!el || open) return;
+    const measure = () => setLong(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text, open]);
   if (!text.trim()) return null;
-  const long = text.length > 60;
   return (
-    <span className={`cf-clamp${open || !long ? " open" : ""}`}>
+    <span ref={box} className={`cf-clamp${open ? " open" : ""}`}>
       <Described text={text} className="" />
       {long && (
         <button type="button" className="sk-link" onClick={() => setOpen(!open)}>
