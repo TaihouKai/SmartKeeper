@@ -359,7 +359,7 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
         />
       )}
       {edited && editing !== null && (
-        <aside className="sk-drawer cf-drawer" aria-label={t("cf.edit")}>
+        <aside key={editing} className="sk-drawer cf-drawer" aria-label={t("cf.edit")}>
           <div className="sk-drawer-head">
             <h3>{edited.name || t("cf.unnamed")}</h3>
             <button type="button" className="sk-primary" onClick={() => setEditing(null)}>

@@ -2896,6 +2896,28 @@ class Engine:
             )[0]
             return res.model_copy(update={"roll": roll.model_copy(update={"seq": ev.seq})})
 
+    def _remote_sensing(
+        self, game_id: str, round_no: int, adj: Adjudication, controls: Mapping[str, set[str]]
+    ) -> set[str]:
+        """本轮成功用了不选对象、带检定的技能（占卜、千里眼这类）的玩家：可以得到关于没见过的人的情报。
+        要裁定里列了这次使用（真的发生了）、引擎掷的检定成功。"""
+        listed = {u.seq for u in adj.uses}
+        owner = {eid: pid for pid, ents in controls.items() for eid in ents}
+        out: set[str] = set()
+        for e in self.current_attempt(game_id, round_no):
+            p = e.payload
+            if (
+                e.type == "entry_used"
+                and e.seq in listed
+                and p.get("target") is None
+                and p.get("check") is not None
+                and p.get("hit") is True
+            ):
+                pid = owner.get(str(p.get("source")))
+                if pid is not None:
+                    out.add(pid)
+        return out
+
     @staticmethod
     def _items(acts: dict[str, Activity]) -> dict[str, adjv.ItemInfo]:
         """进行中的行动里的全部条目（包括前几轮确认、还没做完的）。"""
@@ -2992,13 +3014,15 @@ class Engine:
                     )
         before = self._space_for(m, cur, pack)
         start_space = self._space_for(m, state, pack)
+        sensed = self._remote_sensing(game_id, r.no, adj, controls)
         problems += adjv.check_intel(
             adj,
             players=set(players),
             entities=entities,
             controls=controls,
             met=lambda pid, eid: (
-                self._handles.get(pid, eid) is not None
+                pid in sensed
+                or self._handles.get(pid, eid) is not None
                 or eid in start_space.player_perceived(pid)
                 or eid in before.player_perceived(pid)
             ),

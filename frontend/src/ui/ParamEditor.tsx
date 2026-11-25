@@ -87,6 +87,8 @@ export function ParamsEditor({
 function ParamCard({ p, onChange, onRemove, validate, validateScript, checks, spendTargets, mover }: { p: Param; onChange: (p: Param) => void; onRemove: () => void; validate: Check; validateScript: Check; checks: readonly string[]; spendTargets: readonly string[]; mover: ReactNode }) {
   const { t } = useI18n();
   const [text, setText] = useState(choicesText(p));
+  // 外面换了参数（换了一条、挪了位置）：显示的文字跟着换
+  if (parseChoices(text).join("、") !== choicesText(p)) setText(choicesText(p));
   const more = Boolean(p.requires || p.check || p.cooldown || p.spends || p.script || p.multiplier || p.duration || p.min || p.max);
   return (
     <div className="sk-param">

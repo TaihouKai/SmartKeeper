@@ -18,7 +18,7 @@ from smartkeeper.contracts import (
 )
 from smartkeeper.rules import RulesService
 from tests.engine.harness import Table, setup_table
-from tests.engine.test_timeline import publish, wait
+from tests.engine.test_timeline import apart, publish, wait
 from tests.fixtures import load_pack
 
 
@@ -212,3 +212,42 @@ def test_descriptions_may_cite_rulebook_sections_that_exist() -> None:
         p for p in RulesService().validate_pack(bad) if p.code == "pack.unknown_handbook_section"
     ]
     assert [p.params["name"] for p in probs] == ["Nowhere"]
+
+
+def test_a_successful_untargeted_checked_use_may_learn_about_someone_never_met() -> None:
+    """占卜、远视这类：本轮成功用了不选对象、带检定的技能，可以得到关于没见过的人的情报。"""
+    pack = intel_pack()
+    tpl = pack.templates[0]
+    g = tpl.groups[0]
+    divine = GroupPreset(
+        name="divine",
+        fields={"level": 1},
+        config='target = "none"\ncheck = "spot"\ndifficulty = -100',
+    )
+    g = g.model_copy(update={"presets": (*g.presets, divine)})
+    pack = pack.model_copy(
+        update={"templates": (tpl.model_copy(update={"groups": (g, *tpl.groups[1:])}),)}
+    )
+    t = setup_table("single", 2, pack=pack)
+    a, b = (t.entities(p)[0] for p in t.players)
+    p0 = t.players[0]
+    far = dict(t.engine.world_state(t.game_id)["entities"][b])  # type: ignore[arg-type]
+    apart(t)
+    far["pos"] = {"x": 190, "y": -90, "z": 0}
+    t.engine.admin_patch(t.game_id, [PatchOp(op="add", path="/entities/npc_far", value=far)])
+    clue = IntelIn(player=p0, about="npc_far", text="far away")
+
+    for p in t.players:
+        wait(t, p, 10)
+    t.engine.close_round(t.game_id)
+    with pytest.raises(ValidationFailed) as err:
+        t.engine.apply_adjudication(
+            t.game_id, t.simple_adjudication().model_copy(update={"intel": (clue,)})
+        )
+    assert "adj.intel_not_met" in [p.code for p in err.value.problems]
+
+    t.engine.begin_plan(t.game_id)
+    u = t.engine.use_entry(t.game_id, a, "divine", None, {}, "divine")
+    assert u.payload["target"] is None and u.payload["hit"] is True
+    publish(t, t.players, uses=[UseResult(seq=u.seq)], intel=[clue])
+    assert known(t, p0, "npc_far")["notes"]
