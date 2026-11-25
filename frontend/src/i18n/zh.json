@@ -202,6 +202,10 @@
       "unknown_check": "没有叫 {name} 的检定（在“检定”里加）",
       "unknown_key": "没有 {name} 这一项设置（见 IDE 的“速查”）"
     },
+    "effects": {
+      "bad_line": "要写成 self.名字 = 公式（或者 # 说明）",
+      "unknown_target": "{name} 不是能加成的数值（推导值或数值字段）"
+    },
     "formula": {
       "arity": "{name} 的参数个数不对（给了 {count} 个）",
       "bad_value": "{name} 的值不能用于计算",
@@ -518,6 +522,10 @@
     "search": "搜名字或说明，例如 光环、aura、伤害",
     "title": "语法手册",
     "verb_note": "动作写在“生效时发生什么”里，前面是落在谁身上：self.（自己）或 target.（对象）。"
+  },
+  "effects": {
+    "ph": "例如\nself.str = self.str + 2  # 力量 +2\n# 敌人看到会心生畏惧",
+    "short": "一行一条，一直生效：self.名字 = 新值的公式（公式里写这个名字自己是加成前的值），行尾 # 后面写说明；只写 # 说明的一行由 KP 理解。"
   },
   "event": {
     "alliance": "结盟",

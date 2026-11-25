@@ -321,6 +321,22 @@ T: dict[str, tuple[str, str]] = {
     "docs.kind.group": ("分组", "group"),
     "docs.kind.param": ("参数", "parameter"),
     "docs.kind.check": ("检定", "check"),
+    "effects.short": (
+        "一行一条，一直生效：self.名字 = 新值的公式（公式里写这个名字自己是加成前的值），行尾 # 后面写说明；只写 # 说明的一行由 KP 理解。",
+        "One per line, always on: self.name = formula for the new value (the name itself is the value before), # note at the end; a line with only # note is for the KP.",
+    ),
+    "effects.ph": (
+        "例如\nself.str = self.str + 2  # 力量 +2\n# 敌人看到会心生畏惧",
+        "e.g.\nself.str = self.str + 2  # +2 strength\n# enemies feel dread",
+    ),
+    "codes.effects.bad_line": (
+        "要写成 self.名字 = 公式（或者 # 说明）",
+        "Write self.name = formula (or # note)",
+    ),
+    "codes.effects.unknown_target": (
+        "{name} 不是能加成的数值（推导值或数值字段）",
+        "{name} isn't a value that bonuses can change (a derived value or number field)",
+    ),
     "config.short": (
         "每行一项“名字 = 值”，告诉引擎这个技能怎么用（对象、射程、检定、范围、光环……）。",
         "One 'name = value' per line: who it targets, range, check, area, aura…",

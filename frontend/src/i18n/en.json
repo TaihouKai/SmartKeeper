@@ -202,6 +202,10 @@
       "unknown_check": "No check named {name} (add it under Checks)",
       "unknown_key": "There is no setting {name} (see Reference in the IDE)"
     },
+    "effects": {
+      "bad_line": "Write self.name = formula (or # note)",
+      "unknown_target": "{name} isn't a value that bonuses can change (a derived value or number field)"
+    },
     "formula": {
       "arity": "{name} got the wrong number of arguments ({count})",
       "bad_value": "{name} has a value that can't be used here",
@@ -518,6 +522,10 @@
     "search": "Search names or descriptions, e.g. aura, damage",
     "title": "Syntax guide",
     "verb_note": "Actions go in the script, after who they act on: self. or target."
+  },
+  "effects": {
+    "ph": "e.g.\nself.str = self.str + 2  # +2 strength\n# enemies feel dread",
+    "short": "One per line, always on: self.name = formula for the new value (the name itself is the value before), # note at the end; a line with only # note is for the KP."
   },
   "event": {
     "alliance": "Alliance",

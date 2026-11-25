@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import type { ReactNode } from "react";
@@ -7,6 +7,7 @@ import { CodeEditor } from "./CodeEditor";
 import { numberOptions } from "./choices";
 import { Described } from "./markdown";
 import { DocsLink } from "./docs";
+import { fromCode, parseCode, toCode } from "./effectsCode";
 import { DefaultParams, ParamsEditor, type Param } from "./ParamEditor";
 import { fillConfig, mergeConfig } from "./skillConfig";
 
@@ -150,6 +151,7 @@ export function EntryEditor({
     </label>
   );
   const item = group.uses === true;
+  const effectsBox = <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} title={simple ? t("character.effects_simple") : undefined} onChange={(effects) => onChange({ ...entry, effects })} />;
   const params = (
     <ParamsEditor
       params={entry.params ?? []}
@@ -183,7 +185,7 @@ export function EntryEditor({
           <FieldInput def={f} value={entry.fields[f.name]} validateFormula={vDice} onChange={(val) => onChange({ ...entry, fields: { ...entry.fields, [f.name]: val } })} />
         </label>
       ))}
-      {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} title={simple ? t("character.effects_simple") : undefined} onChange={(effects) => onChange({ ...entry, effects })} />}
+      {group.effects !== false && item && effectsBox}
       <DefaultParams params={defaults} />
       {group.effects !== false && item && (
         <>
@@ -203,9 +205,10 @@ export function EntryEditor({
         (simple ? (
           <>
             <p className="sk-hint">{t("character.engine_rules_hint")}</p>
-            <details className="sk-engine" open={Boolean((entry.config ?? "").trim() || (entry.script ?? "").trim() || (entry.params ?? []).length)}>
-              <summary>{t((entry.config ?? "").trim() || (entry.script ?? "").trim() || (entry.params ?? []).length ? "character.action_rules_filled" : "character.action_rules")}</summary>
+            <details className="sk-engine" open={Boolean((entry.config ?? "").trim() || (entry.script ?? "").trim() || (entry.params ?? []).length || entry.effects.length)}>
+              <summary>{t((entry.config ?? "").trim() || (entry.script ?? "").trim() || (entry.params ?? []).length || entry.effects.length ? "character.action_rules_filled" : "character.action_rules")}</summary>
               <ConfigEditor title={t("character.config_simple")} config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />
+              {effectsBox}
               <ScriptEditor title={t("character.script_simple")} script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />
               {params}
               {idField}
@@ -214,6 +217,7 @@ export function EntryEditor({
         ) : (
           <>
             <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />
+            {effectsBox}
             <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />
             {params}
           </>
@@ -332,55 +336,62 @@ export function EffectsEditor({
   effects,
   derived,
   validate,
-  withPriority,
   onChange,
   title,
 }: {
   effects: Effect[];
   derived: string[];
   validate: Check;
-  withPriority: boolean;
+  /** 已经不用填计算顺序（按写的先后算）；留着参数是为了调用的地方不用改 */
+  withPriority?: boolean;
   onChange: (effects: Effect[]) => void;
   title?: string;
 }) {
   const { t } = useI18n();
-  const set = (i: number, patch: Partial<Effect>) => onChange(effects.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const [problems, setProblems] = useState<string[]>([]);
+  const [text, setText] = useState(() => toCode(effects));
+  // 外面换了（换了一条、复制了预设）：显示的代码跟着换；自己正在打的字不动
+  if (toCode(fromCode(text, effects)) !== toCode(effects)) setText(toCode(effects));
+  const allowed = useMemo(() => new Set(derived), [derived]);
+  // 校验：每行是不是“self.名字 = 公式”，名字能不能改，公式对不对（问题带行号）
+  const check = useCallback(
+    async (code: string) => {
+      const out: { code: string; params?: Record<string, unknown> }[] = [];
+      let names: string[] = [];
+      for (const row of parseCode(code)) {
+        if ("error" in row) {
+          out.push({ code: row.error, params: { line: row.line } });
+          continue;
+        }
+        const e = row.effect;
+        if (!e.target || e.formula === null || e.formula === undefined) continue;
+        if (!allowed.has(e.target)) out.push({ code: "effects.unknown_target", params: { line: row.line, name: e.target } });
+        const r = await validate(e.formula);
+        names = r.names;
+        out.push(...r.problems.map((p) => ({ ...p, params: { ...((p as { params?: Record<string, unknown> }).params ?? {}), line: row.line } })));
+      }
+      if (!names.length) names = (await validate("0")).names;
+      return { problems: out, names };
+    },
+    [validate, allowed],
+  );
   return (
-    <div className="sk-effects">
+    <div className="sk-effects sk-script">
       <strong>{title ?? t("character.effects")}</strong>
-      {effects.map((ef, i) => (
-        <div key={i} className="sk-effect">
-          <input placeholder={t("character.effect_description")} value={ef.description} onChange={(e) => set(i, { description: e.target.value })} />
-          <select value={ef.target ?? ""} onChange={(e) => set(i, { target: e.target.value || null, formula: e.target.value ? (ef.formula ?? e.target.value) : null })}>
-            <option value="">{t("character.effect_conceptual")}</option>
-            {derived.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-          {ef.target && (
-            <>
-              <span className="sk-hint sk-eq">=</span>
-              <FormulaInput value={ef.formula ?? ""} validate={validate} placeholder={t("character.effect_formula", { name: ef.target })} onChange={(val) => set(i, { formula: val })} />
-              {withPriority && (
-                <label className="sk-inline sk-priority">
-                  {t("character.effect_priority")}
-                  <input type="number" min={0} className="sk-small" value={ef.priority ?? ""} onChange={(e) => set(i, { priority: e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value))) })} />
-                </label>
-              )}
-            </>
-          )}
-          <Mover index={i} count={effects.length} onMove={(from, to) => onChange(moved(effects, from, to))} />
-          <button type="button" className="sk-link" onClick={() => onChange(effects.filter((_, j) => j !== i))}>
-            {t("common.remove")}
-          </button>
-        </div>
-      ))}
-      <button type="button" onClick={() => onChange([...effects, { description: "", target: null, formula: null, priority: null }])}>
-        {t("character.add_effect")}
-      </button>
-      {effects.some((x) => x.target) && <p className="sk-hint">{t(withPriority ? "character.effect_hint" : "character.effect_hint_fixed")}</p>}
+      <CodeEditor
+        className="sk-code-inline"
+        value={text}
+        check={check}
+        placeholder={t("effects.ph")}
+        minLines={2}
+        onProblems={setProblems}
+        onChange={(code) => {
+          setText(code);
+          onChange(fromCode(code, effects) as Effect[]);
+        }}
+      />
+      {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
+      <DocsLink text={t("effects.short")} query="modify" />
     </div>
   );
 }

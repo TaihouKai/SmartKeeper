@@ -166,14 +166,15 @@ def test_player_effects_run_by_priority_and_may_use_anything(rules: RulesService
     assert rules.validate_sheet(pack, "person", filled) == []
 
 
-def test_player_effect_priority_required_and_unique(rules: RulesService) -> None:
+def test_player_effect_priority_optional_but_unique(rules: RulesService) -> None:
     pack = load_pack("single")
 
     def codes(*skills: dict[str, JsonValue]) -> set[str]:
         sheet = rules.init_sheet(pack, "person", {**BASE, "groups": {"skills": list(skills)}})
         return {p.code for p in rules.validate_sheet(pack, "person", sheet)}
 
-    assert "sheet.effect_priority_missing" in codes(skill("a", "move_speed + 1", None))
+    # 不填：按分组、条目、写的先后算
+    assert codes(skill("a", "move_speed + 1", None), skill("b", "move_speed * 2", None)) == set()
     assert "sheet.effect_priority_duplicate" in codes(
         skill("a", "move_speed + 1", 3), skill("b", "move_speed * 2", 3)
     )

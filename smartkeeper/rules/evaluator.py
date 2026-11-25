@@ -176,8 +176,12 @@ class EntityContext:
         overrides: Mapping[str, f.Value] | None = None,
     ) -> f.Resolver:
         def resolve(name: str) -> f.Value:
-            if overrides is not None and name in overrides:
-                return overrides[name]
+            if overrides is not None:
+                if name in overrides:
+                    return overrides[name]
+                # 写了 self. 前缀的也是同一个（例如修正公式里的 self.move_speed 是到上一步为止的值）
+                if name.startswith("self.") and name[5:] in overrides:
+                    return overrides[name[5:]]
             if name.startswith("has:"):
                 tag = name[4:]
                 return 1.0 if any(st.tag == tag for st in self.sheet.statuses) else 0.0

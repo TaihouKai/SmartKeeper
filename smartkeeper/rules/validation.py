@@ -1159,7 +1159,7 @@ def _check_formula_fields(
 
 
 def _check_priorities(sheet: Sheet) -> list[Problem]:
-    """玩家写的带公式的效果必须有 priority，同一张卡上不能重复。"""
+    """玩家写的效果的 priority 可以不填（按分组、条目、写的先后算）；填了的同一张卡上不能重复。"""
     problems: list[Problem] = []
     seen: dict[int, str] = {}
     for gname, entries in sorted(sheet.groups.items()):
@@ -1169,8 +1169,8 @@ def _check_priorities(sheet: Sheet) -> list[Problem]:
                     continue
                 path = f"groups.{gname}[{i}].effects[{j}].priority"
                 if eff.priority is None:
-                    problems.append(Problem(code="sheet.effect_priority_missing", path=path))
-                elif eff.priority in seen:
+                    continue
+                if eff.priority in seen:
                     problems.append(
                         Problem(
                             code="sheet.effect_priority_duplicate",
