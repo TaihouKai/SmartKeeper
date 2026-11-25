@@ -374,14 +374,16 @@ MASTER = {
             "number",
             min="0",
             max="12",
-            description="近战武器的伤害骰面数（1d 几），空手填 0。不是越高越好。[[武器]]",
+            description="近战时拿武器（或礼装）砸人、砍人的物理伤害：伤害骰面数（1d 几），空手填 0。不是越高越好。"
+            "礼装的特殊能力（扇出风刃、展开结界……）不算在这里，写在“魔术”里。[[武器]]",
         ),
         field(
             "weapon_mystic",
             "武器是魔术礼装",
             "boolean",
             required=False,
-            description="普通的武器伤不到英灵；魔术礼装、附了魔的武器、黑键可以（由 KP 审核）",
+            description="勾了以后近战这一下带神秘：伤得到英灵（灵体化的也碰得到），不被对魔力减免。"
+            "普通的武器伤不到英灵；魔术礼装、附了魔的武器、黑键可以（由 KP 审核）。[[神秘]]",
         ),
         field("silenced", "沉默", "boolean", "runtime", initial="False", hidden=True),
     ],
@@ -554,7 +556,7 @@ MASTER = {
                     f"""
                     # 平手（被反击时）只造成一半伤害
                     half = opposed and level == opp_level
-                    target.damage(({MASTER_MELEE_DMG}) / (2 if half else 1), "magic" if weapon_mystic else "mundane")
+                    target.damage(({MASTER_MELEE_DMG}) / (2 if half else 1), "mystic" if weapon_mystic else "mundane")
                     """,
                 ),
                 preset(
@@ -629,10 +631,11 @@ STEALTH = code(
     )
     """
 )
-# 神秘：普通的攻击伤不到英灵；灵体化时只有魔力伤害碰得到；对魔力挡掉一部分魔力伤害
+# 神秘：普通的攻击伤不到英灵；灵体化时只有魔力伤害和带神秘的物理伤害（mystic，例如礼装）碰得到；
+# 对魔力只挡魔力伤害（魔术），不挡带神秘的物理伤害
 SERVANT_DAMAGE = code(
     """
-    0 if kind == "mundane" or (spirit_form and kind != "magic") else max(0, amount - 5 * servant.anti_magic.level) if kind == "magic" else amount
+    0 if kind == "mundane" or (spirit_form and kind != "magic" and kind != "mystic") else max(0, amount - 5 * servant.anti_magic.level) if kind == "magic" else amount
     """
 )
 RANGED = """
@@ -688,7 +691,6 @@ def beam(name: str, shape: str, desc: str) -> dict[str, Any]:
         """,
         f"""
         cost = {NP_COST}
-        self.sub(mp, cost)
         target.damage({NP_DAMAGE})
         """,
     )
@@ -743,7 +745,6 @@ NP_TEMPLATES = [
         """,
         f"""
         cost = {NP_COST}
-        self.sub(mp, cost)
         self.summon(squad, 1, 60, appearance="宝具召唤出的军势", can_fly=False, rank=this.level, size=10)
         """,
     ),
@@ -758,7 +759,6 @@ NP_TEMPLATES = [
         """,
         f"""
         cost = {NP_COST}
-        self.sub(mp, cost)
         """,
     ),
     KP_USE,
@@ -1457,9 +1457,12 @@ PARAMS = [
     param(
         "release",
         "解放真名",
-        "这次要不要解放真名：解放才能用宝具的全力，但附近的人会听到宝具的名字，看得见你的人会知道你的真名",
+        "这次要不要解放真名：解放才能用宝具的全力，但附近的人会听到宝具的名字，看得见你的人会知道你的真名。"
+        "解放就要耗魔（技能消耗按宝具等级 × 类型倍数），打没打中都扣",
         ["noble_phantasm"],
         choices=["不解放=0", "解放=1"],
+        requires=f"mp >= {NP_COST}",
+        script=f"self.sub(mp, {NP_COST})",
     ),
     param(
         "use_plus",

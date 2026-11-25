@@ -192,6 +192,31 @@ def main() -> int:
         )
     publish(t, [punch, zap])
     heal(t, s1)
+    # 礼装：带神秘的物理伤害，伤得到英灵，不被对魔力减免
+    patch(
+        t,
+        [
+            PatchOp(op="replace", path=f"/entities/{m0}/sheet/fields/weapon_mystic", value=True),
+            PatchOp(op="replace", path=f"/entities/{m0}/sheet/fields/weapon_db", value=6),
+        ],
+    )
+    begin(t)
+    fan = e.use_entry(g, m0, "近战攻击", s1, {}, "礼装扇子")
+    e.react(g, p1, [ReactionChoice(seq=fan.seq)])
+    p = planned(t, fan.seq)
+    dmg = [x for x in p["actions"] if x["op"] == "damage"]
+    if p["hit"]:
+        ok(
+            dmg[0]["kind"] == "mystic" and dmg[0]["amount"] == dmg[0]["raw"] > 0,
+            f"礼装打英灵：带神秘的物理伤害 {dmg[0]['raw']}，对魔力 A 不减免 → {dmg[0]['amount']}",
+        )
+    else:
+        print("  礼装这一下没打中（骰子），跳过")
+    publish(t, [fan])
+    heal(t, s1)
+    patch(
+        t, [PatchOp(op="replace", path=f"/entities/{m0}/sheet/fields/weapon_mystic", value=False)]
+    )
     place(t, m0, -80, -40)
 
     print("\n3. 宝具：平时当武器用不暴露名字；不解放真名用不了光炮；解放真名时附近的人听到名字")
@@ -232,7 +257,8 @@ def main() -> int:
         ok(all([s.entry for s in prompt[k].skills] == ["闪避"] for k in prompt), "只能闪避")
         if prompt:
             e.react(g, pid, [ReactionChoice(seq=k, kind="skill", entry="闪避") for k in prompt])
-    spent = [x["amount"] for x in planned(t, beam.seq)["actions"] if x["op"] == "subtract"]
+    # 解放真名的耗魔：参数“选了就执行的句子”，打没打中都扣
+    spent = [x["amount"] for x in planned(t, beam.seq)["param_costs"] if x["op"] == "subtract"]
     publish(t, [beam])
     kill = 5 if "dead" in tags(t, m1) else 0  # 杀了人回 5 点
     ok(
@@ -366,7 +392,7 @@ def main() -> int:
         f"  p0 英灵魔力 {mp_before} → {fields(t, s0)['mp']}（对魔力 A + 风王结界开着：每天 2 + 2 + 1 = 5）"
     )
 
-    print("\n12. 参数：没有＋不能用＋；令咒加强让被动的对魔力 10 分钟内 ×3，扣御主一划令咒")
+    print("\n11. 参数：没有＋不能用＋；令咒加强让被动的对魔力 10 分钟内 ×3，扣御主一划令咒")
     begin(t)
     try:
         e.use_entry(g, s0, "对魔力", None, {"use_plus": 1}, "没有＋")
@@ -389,7 +415,7 @@ def main() -> int:
     )
     ok(am["fields"]["level"] == 15, f"对魔力等级 5 → {am['fields']['level']}（10 分钟内）")
 
-    print("\n11. 情报：KP 判定的线索；没见过的人不能给")
+    print("\n12. 情报：KP 判定的线索；没见过的人不能给")
     begin(t)
     adj = t.simple_adjudication().model_copy(
         update={

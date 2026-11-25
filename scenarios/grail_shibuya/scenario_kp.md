@@ -70,7 +70,6 @@ npcs:
                   auto_level = 3 if distance <= 100 else 2
                 script: |
                   cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)
-                  self.sub(mp, cost)
                   target.damage(dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level))
     location: {place: セルリアンタワー, floor: 30}
   - id: npc_father
