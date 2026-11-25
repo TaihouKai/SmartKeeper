@@ -38,7 +38,8 @@ const highlight = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  "&": { backgroundColor: "var(--card)", color: "var(--fg)", fontSize: "13px", height: "100%" },
+  // isolation：行号栏自带很高的 z-index，关在编辑器自己里面，不盖住外面固定的标题栏
+  "&": { backgroundColor: "var(--card)", color: "var(--fg)", fontSize: "13px", height: "100%", isolation: "isolate" },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: "ui-monospace, 'Cascadia Code', Consolas, monospace", lineHeight: "1.6" },
   ".cm-content": { caretColor: "var(--accent)", padding: "6px 0" },
