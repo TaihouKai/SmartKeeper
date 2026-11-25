@@ -17,6 +17,7 @@ from smartkeeper.contracts import (
     FormulaScope,
     IdentityRules,
     Intent,
+    NotFound,
     PackParam,
     Player,
     Point,
@@ -107,6 +108,8 @@ class PreviewOut(BaseModel):
     derived: list[DerivedValue]
     problems: list[Problem]
     presets: dict[str, list[str]] = {}  # 分组名 -> 按当前填写会生效的固定条目名
+    # 上下限是公式的字段（例如随出身变的范围）：按当前填写算出来的 [下限, 上限]，算不出的是 null
+    ranges: dict[str, list[float | None]] = {}
 
 
 class FormulaIn(BaseModel):
@@ -210,6 +213,43 @@ class ReactIn(BaseModel):
 
 class OkOut(BaseModel):
     ok: bool = True
+
+
+def _no_dice(count: int, sides: int) -> tuple[int, ...]:
+    """上下限不掷骰；万一写了骰子就按最小值。"""
+    return tuple(1 for _ in range(count))
+
+
+def _ranges(
+    rules: Rules, pack: RulePack, template: str, sheet: JsonValue
+) -> dict[str, list[float | None]]:
+    """上下限写成公式的数值字段，按这张卡现在的填写算出来（例如随出身变的范围）。"""
+    tpl = pack.template(template)
+    out: dict[str, list[float | None]] = {}
+    for fd in tpl.fields if tpl else ():
+        if fd.cls != "player" or fd.kind not in ("number", "resource"):
+            continue
+        texts = (fd.min, fd.max)
+        if all(x is None or _literal(x) for x in texts):
+            continue
+        vals: list[float | None] = []
+        for text in texts:
+            try:
+                vals.append(
+                    rules.roll(pack, text, _no_dice, template, sheet).total if text else None
+                )
+            except (ValidationFailed, NotFound):
+                vals.append(None)
+        out[fd.name] = vals
+    return out
+
+
+def _literal(text: str) -> bool:
+    try:
+        float(text)
+    except ValueError:
+        return False
+    return True
 
 
 def _presets(rules: Rules, pack: RulePack, template: str, sheet: JsonValue) -> dict[str, list[str]]:
@@ -366,7 +406,10 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
             except ValidationFailed:
                 presets = {}
             return PreviewOut(
-                derived=[], problems=[Problem(code=err.code, params=err.params)], presets=presets
+                derived=[],
+                problems=[Problem(code=err.code, params=err.params)],
+                presets=presets,
+                ranges=_ranges(s.rules, pack, body.template, body.sheet),
             )
         problems = s.rules.validate_sheet(pack, body.template, sheet)
         derived: list[DerivedValue] = []
@@ -376,6 +419,7 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
             derived=derived,
             problems=problems,
             presets=_presets(s.rules, pack, body.template, sheet),
+            ranges=_ranges(s.rules, pack, body.template, sheet),
         )
 
     @r.post("/formula/validate")

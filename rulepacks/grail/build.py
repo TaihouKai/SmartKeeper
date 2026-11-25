@@ -361,11 +361,12 @@ MASTER = {
             "mp_mult",
             "魔力倍数",
             "number",
-            min="1",
-            max="30",
+            # 范围随出身：魔术师 3~4、人造人 20~30、魔术使 2~3；代行者和其他由 KP 审核（1~30）
+            min='lookup(mp_mult_min, background) if background != "" else 1',
+            max='lookup(mp_mult_max, background) if background != "" else 30',
             required=False,
-            initial="1",
-            description="魔力回路的多少，按出身填（不填按 1 算，由 KP 审核）。[[出身]]",
+            initial='lookup(mp_mult_min, background) if background != "" else 1',
+            description="魔力回路的多少，范围随出身（不填按出身的下限算，由 KP 审核）。[[出身]]",
         ),
         field(
             "weapon_db",
@@ -1341,6 +1342,9 @@ TABLES = [
     # 技能施放的魔力：E~A 1~5，EX 8
     table("skill_cost", by_rank([1, 2, 3, 4, 5, 8]), kind="range"),
     table("np_cost", [("对人", 1), ("对军", 3), ("对城", 5), ("对界", 10)]),
+    # 魔力倍数的范围（按出身）
+    table("mp_mult_min", list(zip(BACKGROUNDS, [1, 3, 20, 2, 1, 1], strict=True))),
+    table("mp_mult_max", list(zip(BACKGROUNDS, [1, 4, 30, 3, 30, 30], strict=True))),
     table("np_dice_count", by_rank([3, 3, 4, 5, 5, 6]), kind="range"),
     table("np_dice_sides", by_rank([6, 10, 10, 10, 12, 12]), kind="range"),
     table("np_bonus", by_rank([1, 3, 5, 7, 9, 15]), kind="range"),

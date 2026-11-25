@@ -43,7 +43,7 @@ export type Entry = { name: string; id?: string; description: string; fields: Re
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
-export function FieldInput({ def, value, onChange, validateFormula, onExpand }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check; onExpand?: () => void }) {
+export function FieldInput({ def, value, onChange, validateFormula, onExpand, range }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check; onExpand?: () => void; range?: readonly (number | null)[] }) {
   const { t } = useI18n();
   if (def.cls === "runtime") {
     // 条目运行中会变的列（例如开着没有、还剩几发）：游戏里由技能改，建角时不填
@@ -88,14 +88,14 @@ export function FieldInput({ def, value, onChange, validateFormula, onExpand }: 
       </select>
     );
   }
-  const lo = def.min && /^\s*-?\d+(\.\d+)?\s*$/.test(def.min) ? Number(def.min) : undefined;
-  const hi = def.max && /^\s*-?\d+(\.\d+)?\s*$/.test(def.max) ? Number(def.max) : undefined;
+  const lo = def.min && /^\s*-?\d+(\.\d+)?\s*$/.test(def.min) ? Number(def.min) : (range?.[0] ?? undefined);
+  const hi = def.max && /^\s*-?\d+(\.\d+)?\s*$/.test(def.max) ? Number(def.max) : (range?.[1] ?? undefined);
   return (
     <input
       type="number"
       min={lo}
       max={hi}
-      placeholder={rangeText(def)}
+      placeholder={rangeText(def, range)}
       value={value === undefined ? "" : String(value)}
       onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
     />
@@ -103,11 +103,13 @@ export function FieldInput({ def, value, onChange, validateFormula, onExpand }: 
 }
 
 /** 数值字段的范围（下限～上限，只认写死的数）；没有时是空。带可选值的字段下拉里已经列出来了，不再显示。 */
-export function rangeText(def: { kind?: string; min?: string | null; max?: string | null; choices?: readonly string[] | null }): string {
+export function rangeText(def: { kind?: string; min?: string | null; max?: string | null; choices?: readonly string[] | null }, computed?: readonly (number | null)[]): string {
   if (def.kind !== "number" || (def.choices && def.choices.length)) return "";
   const num = (x: string | null | undefined) => (x && /^\s*-?\d+(\.\d+)?\s*$/.test(x) ? x.trim() : "");
-  const lo = num(def.min);
-  const hi = num(def.max);
+  // 上下限是公式的（例如随出身变）：用按当前填写算出来的
+  const shown = (x: number | null | undefined) => (x === null || x === undefined ? "" : String(Math.round(x * 100) / 100));
+  const lo = num(def.min) || shown(computed?.[0]);
+  const hi = num(def.max) || shown(computed?.[1]);
   if (!lo && !hi) return "";
   return `${lo || "…"} ～ ${hi || "…"}`;
 }

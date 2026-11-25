@@ -62,10 +62,10 @@ export function SheetEditor({ template, value, onChange, params = [], checks = [
       {fields.map((f) => (
         <label key={f.name}>
           {fieldLabel(f, t("character.unnamed_field"))}
-          {rangeText(f) && <span className="sk-range"> {t("character.range", { range: rangeText(f) })}</span>}
+          {rangeText(f, preview?.ranges?.[f.name]) && <span className="sk-range"> {t("character.range", { range: rangeText(f, preview?.ranges?.[f.name]) })}</span>}
           {f.name === template.appearance_field && <small> {t("character.appearance_hint")}</small>}
           <Described text={f.description} />
-          <FieldInput def={f} value={value.fields[f.name]} validateFormula={topDice} onChange={(v) => onChange({ ...value, fields: { ...value.fields, [f.name]: v } })} />
+          <FieldInput def={f} value={value.fields[f.name]} validateFormula={topDice} range={preview?.ranges?.[f.name]} onChange={(v) => onChange({ ...value, fields: { ...value.fields, [f.name]: v } })} />
         </label>
       ))}
       {(template.groups ?? []).map((g) => {

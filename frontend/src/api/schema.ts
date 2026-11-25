@@ -2640,6 +2640,13 @@ export interface components {
             };
             /** Problems */
             problems: components["schemas"]["Problem"][];
+            /**
+             * Ranges
+             * @default {}
+             */
+            ranges: {
+                [key: string]: (number | null)[];
+            };
         };
         /**
          * Problem
