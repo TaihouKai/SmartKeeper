@@ -8,7 +8,7 @@ export type Param = Schemas["ParamDef"];
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
 export function blankParam(): Param {
-  return { name: "", label: "", description: "", choices: [], requires: "", script: "", multiplier: "", duration: "" };
+  return { name: "", label: "", description: "", choices: [], requires: "", script: "", multiplier: "", duration: "", by_kp: false };
 }
 
 function choicesText(p: Param): string {
@@ -36,6 +36,7 @@ export function DefaultParams({ params }: { params: readonly Param[] }) {
         {params.map((p) => (
           <li key={p.name}>
             <strong>{p.label || p.name}</strong>
+            {p.by_kp && <span className="cf-tag">{t("params.by_kp")}</span>}
             {(p.choices ?? []).length > 0 && <span className="sk-hint">（{(p.choices ?? []).join("、")}）</span>}
             <Described text={p.description} />
           </li>
@@ -92,6 +93,9 @@ function ParamCard({ p, onChange, onRemove, validate, validateScript, checks, sp
       <div className="sk-row">
         <input className="sk-small-input" value={p.name} placeholder={t("params.name")} onChange={(e) => onChange({ ...p, name: e.target.value.trim() })} />
         <input value={p.label ?? ""} placeholder={t("params.label")} onChange={(e) => onChange({ ...p, label: e.target.value })} />
+        <label className="sk-inline" title={t("params.by_kp_hint")}>
+          <input type="checkbox" checked={p.by_kp ?? false} onChange={(e) => onChange({ ...p, by_kp: e.target.checked })} /> {t("params.by_kp")}
+        </label>
         <input
           className="sk-grow"
           value={text}

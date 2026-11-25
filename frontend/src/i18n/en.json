@@ -28,6 +28,7 @@
   "cf": {
     "auto": "You get automatically",
     "complete": "All filled in",
+    "copy_this": "Copy this",
     "done": "Done",
     "edit": "Edit",
     "identity": "Identity",
@@ -36,6 +37,7 @@
     "more": "More",
     "none_yet": "None yet: add one below.",
     "numbers": "Numbers",
+    "params": "Parameters chosen when used",
     "remove_sheet": "Remove this sheet",
     "review": "Check",
     "review_lead": "{name}: what is missing or wrong; click to go there.",
@@ -45,6 +47,7 @@
     "stats_empty": "Fill in the attributes to see hit points, mana and so on here.",
     "unnamed": "(unnamed)",
     "uses_n": "{n} uses",
+    "view": "View",
     "yours": "Your own"
   },
   "character": {
@@ -752,6 +755,8 @@
   },
   "params": {
     "add": "Add a parameter",
+    "by_kp": "KP decides",
+    "by_kp_hint": "Not chosen by the player: the KP sets it from the situation (e.g. how strong the local ley lines are)",
     "check": "Check to pass",
     "check_hint": "Rolled when chosen; on failure it counts as not chosen",
     "choices": "Choices, e.g. no=0, yes=1",

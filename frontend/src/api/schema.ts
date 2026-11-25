@@ -2383,6 +2383,11 @@ export interface components {
          * @description 规则包的默认参数：适用于 groups 里这些分组（分组名，哪个模板的都算）的每个条目。
          */
         PackParam: {
+            /**
+             * By Kp
+             * @default false
+             */
+            by_kp: boolean;
             /** Check */
             check?: string | null;
             /**
@@ -2450,8 +2455,14 @@ export interface components {
          *     - script：选了就执行的句子（例如扣同伴身上的资源：mentor.sub(charges, 1)），不管这次打没打中都执行；
          *     - multiplier：效果倍数（公式），这次使用的伤害、治疗、增加的数值自动乘上去（消耗不乘），脚本里 boost 是总倍数；
          *     - duration：用在被动的条目（没有设置也没有脚本）上时，接下来多少分钟里这个条目的数值列乘上倍数；空表示不行。
+         *     by_kp：这个数由 KP 按局面定（例如所在地的地脉强弱），不是使用者自己选的。
          */
         ParamDef: {
+            /**
+             * By Kp
+             * @default false
+             */
+            by_kp: boolean;
             /** Check */
             check?: string | null;
             /**

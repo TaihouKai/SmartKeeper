@@ -216,6 +216,7 @@ function Stats({ template, preview }: { template: Template; preview: Preview | n
 function GroupPanel({ template, g, value, onChange, preview, params, checks }: { template: Template; g: Group; value: SheetDraft; onChange: (s: SheetDraft) => void; preview: Preview | null; params: readonly Schemas["PackParam"][]; checks: readonly string[] }) {
   const { t } = useI18n();
   const [editing, setEditing] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
   const entries = value.groups[g.name] ?? [];
   const setEntries = (es: Entry[]) => onChange({ ...value, groups: { ...value.groups, [g.name]: es } });
   const fixed = preview?.presets?.[g.name] ?? [];
@@ -274,6 +275,11 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
                       </span>
                     ))}
                     <Clamp text={p?.description ?? ""} />
+                  </div>
+                  <div className="cf-item-actions">
+                    <button type="button" onClick={() => setViewing(pname)}>
+                      {t("cf.view")}
+                    </button>
                   </div>
                   {open.length > 0 && (
                     <div className="cf-item-fill">
@@ -339,6 +345,19 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
           )}
         </>
       )}
+      {viewing !== null && (g.presets ?? []).some((x) => x.name === viewing) && (
+        <PresetView
+          p={(g.presets ?? []).find((x) => x.name === viewing)!}
+          g={g}
+          defaults={params.filter((x) => (x.groups ?? []).includes(g.name))}
+          canCopy={canAdd}
+          onCopy={(p) => {
+            setViewing(null);
+            add(copyOf(p));
+          }}
+          onClose={() => setViewing(null)}
+        />
+      )}
       {edited && editing !== null && (
         <aside className="sk-drawer cf-drawer" aria-label={t("cf.edit")}>
           <div className="sk-drawer-head">
@@ -361,6 +380,93 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
         </aside>
       )}
     </>
+  );
+}
+
+/** 规则包写好的条目的细节（只读）：说明、列、常驻加成、怎么用、生效时发生什么、参数、用途。可以照着写一条。 */
+function PresetView({ p, g, defaults, canCopy, onCopy, onClose }: { p: Schemas["GroupPreset"]; g: Group; defaults: readonly Schemas["PackParam"][]; canCopy: boolean; onCopy: (p: Schemas["GroupPreset"]) => void; onClose: () => void }) {
+  const { t } = useI18n();
+  const cols = (g.fields ?? []).filter((c) => (p.fields ?? {})[c.name] !== undefined);
+  const params = [...defaults, ...(p.params ?? [])];
+  const code = (title: string, text: string | undefined) =>
+    text && text.trim() ? (
+      <>
+        <h4>{title}</h4>
+        <pre className="sk-code">{text.trim()}</pre>
+      </>
+    ) : null;
+  return (
+    <aside className="sk-drawer cf-drawer" aria-label={p.name}>
+      <div className="sk-drawer-head">
+        <h3>{p.name}</h3>
+        <span className="sk-row">
+          {canCopy && (
+            <button type="button" className="sk-primary" onClick={() => onCopy(p)}>
+              {t("cf.copy_this")}
+            </button>
+          )}
+          <button type="button" className="sk-link" onClick={onClose}>
+            {t("play.close")}
+          </button>
+        </span>
+      </div>
+      <Described text={p.description} className="cf-lead" />
+      {!p.config?.trim() && !p.script?.trim() && (p.uses ?? []).length === 0 && <p className="sk-hint">{t("rules.uses.kp_rules")}</p>}
+      {cols.length > 0 && (
+        <p>
+          {cols.map((c) => (
+            <span key={c.name} className="cf-tag">
+              {c.label || c.name} {String((p.fields ?? {})[c.name])}
+            </span>
+          ))}
+        </p>
+      )}
+      {(p.effects ?? []).length > 0 && (
+        <>
+          <h4>{t("character.effects_simple")}</h4>
+          <ul>
+            {(p.effects ?? []).map((e, i) => (
+              <li key={i}>
+                {e.description}
+                {e.target && e.formula && (
+                  <code>
+                    {" "}
+                    {e.target} = {e.formula}
+                  </code>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {code(t("character.config_simple"), p.config)}
+      {code(t("character.script_simple"), p.script)}
+      {params.length > 0 && (
+        <>
+          <h4>{t("cf.params")}</h4>
+          <ul>
+            {params.map((x) => (
+              <li key={x.name}>
+                <strong>{x.label || x.name}</strong>
+                {x.by_kp && <span className="cf-tag">{t("params.by_kp")}</span>}
+                {(x.choices ?? []).length > 0 && <span className="sk-hint">（{(x.choices ?? []).join("、")}）</span>}
+                <Described text={x.description} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {(p.uses ?? []).map((u) => (
+        <div key={u.name}>
+          <h4>
+            {t("rules.uses.title")}：{u.name}
+          </h4>
+          <Described text={u.description} />
+          {code(t("character.config_simple"), u.config)}
+          {code(t("character.script_simple"), u.script)}
+        </div>
+      ))}
+    </aside>
   );
 }
 

@@ -152,7 +152,7 @@ def test_passive_entry_is_boosted_for_a_while() -> None:
     t, a, _b = table()
     begin(t)
     u = t.engine.use_entry(t.game_id, a, "tough", None, {"power": 1}, "x")
-    assert u.payload["target"] == a  # 被动的条目对自己发动
+    assert u.payload["target"] is None  # 只有说明的条目：对象由 KP 给，可以没有
     publish(t, t.players, uses=[UseResult(seq=u.seq)])
     view = t.engine.sheets(t.game_id, t.players[0])[0]
     tough = next(
@@ -217,3 +217,15 @@ def test_uses_belong_to_item_groups_only() -> None:
         update={"templates": (tpl.model_copy(update={"groups": (skills, usable)}),)}
     )
     assert "sheet.item_not_usable" in {p.code for p in RulesService().validate_pack(bad)}
+
+
+def test_text_only_entry_keeps_its_target_and_missing_params_default_to_zero() -> None:
+    pack = param_pack()
+    free = PackParam(name="ley", groups=("skills",))  # 没有可选值也没有下限
+    pack = pack.model_copy(update={"params": (*pack.params, free)})
+    t = setup_table("single", 2, pack=pack)
+    a, b = (t.entities(p)[0] for p in t.players)
+    begin(t)
+    u = t.engine.use_entry(t.game_id, a, "tough", b, {}, "x")
+    assert u.payload["target"] == b  # 只有说明的条目：对象是 KP 给的那个，不是自己
+    assert cast(dict[str, Any], u.payload["params"])["ley"] == 0

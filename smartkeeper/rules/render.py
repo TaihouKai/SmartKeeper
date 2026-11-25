@@ -115,6 +115,8 @@ def render(pack: RulePack, include_hidden: bool = True) -> str:
                     bits.append(f"{key}={v}")
             if p.script.strip():
                 bits.append(f"script={p.script.strip()!r}")
+            if p.by_kp:
+                bits.append("by_kp")
             if p.description:
                 bits.append(f"— {p.description}")
             out.append(" ".join(bits))

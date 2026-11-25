@@ -28,6 +28,7 @@
   "cf": {
     "auto": "自动获得",
     "complete": "都填好了",
+    "copy_this": "照着它写一条",
     "done": "完成",
     "edit": "编辑",
     "identity": "身份",
@@ -36,6 +37,7 @@
     "more": "展开",
     "none_yet": "还没有，点下面添加。",
     "numbers": "数值",
+    "params": "用的时候可以选的参数",
     "remove_sheet": "删除这张卡",
     "review": "检查",
     "review_lead": "{name}：还缺什么、哪里不对，点了跳过去改。",
@@ -45,6 +47,7 @@
     "stats_empty": "填完属性以后，这里会算出生命值、魔力值这些数。",
     "unnamed": "（未命名）",
     "uses_n": "{n} 种用法",
+    "view": "查看",
     "yours": "自己写的"
   },
   "character": {
@@ -752,6 +755,8 @@
   },
   "params": {
     "add": "加一个参数",
+    "by_kp": "由 KP 定",
+    "by_kp_hint": "这个数不是玩家自己选的，由 KP 按局面定（例如所在地的地脉强弱）",
     "check": "要过的检定",
     "check_hint": "选了非 0 要过的检定，没过就当没选",
     "choices": "可选值，例如 不用=0、用=1",

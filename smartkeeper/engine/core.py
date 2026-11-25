@@ -1501,7 +1501,7 @@ class Engine:
                     pack, pf.min, self._dice.faces, template, sheet, fields, peers
                 ).total
             if given is None:
-                raise ValidationFailed("roll.param_missing", entry=entry, name=pf.name)
+                given = 0.0  # 既没有可选值也没有下限：没给就是 0
             v = float(given)
             if pf.choices and not self._rules.choice_allowed(pf.choices, v):
                 raise ValidationFailed(
@@ -1630,13 +1630,16 @@ class Engine:
             if gdef is not None and gdef.uses and not row.get("is_use"):
                 # 物品本身不能直接用，只能用它的用途
                 raise ValidationFailed("use.item_needs_use", entity=source, entry=parsed.name)
-            # 被动的条目（没有设置也没有脚本）：用一下就是对自己发动（例如用参数让它限时变强）
+            # 没有设置也没有脚本的条目：由 KP 按说明裁定，对象由 KP 给（可以没有）；
+            # 也可以是被动的条目，用参数让它限时变强（放大的句子落在自己身上）
             passive = not parsed.script.strip() and not parsed.config.strip()
             # 对象由技能设置决定：只能对自己用的没有选择，没有对象的不要对象
-            if cfg.target == "self" or passive:
+            if cfg.target == "self":
                 target = source
             elif cfg.target == "none":
                 target = None
+            elif passive:
+                pass
             elif target is None:
                 raise ValidationFailed("use.needs_target", entity=source, entry=parsed.name)
             fields = dict(parsed.fields)
