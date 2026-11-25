@@ -24,6 +24,9 @@ def test_legacy_db_is_stamped(tmp_path: Path) -> None:
     with db.begin() as c:  # 0003 之前回合时间是分钟
         c.exec_driver_sql("ALTER TABLE round RENAME COLUMN started_second TO started_minute")
         c.exec_driver_sql("ALTER TABLE round RENAME COLUMN ended_second TO ended_minute")
+        # 0009 才加的列
+        c.exec_driver_sql("ALTER TABLE player DROP COLUMN character_draft")
+        c.exec_driver_sql("ALTER TABLE player DROP COLUMN character_draft_at")
     migrate(db)
     assert "rule_pack_draft" in sa.inspect(db).get_table_names()
     assert "alembic_version" in sa.inspect(db).get_table_names()

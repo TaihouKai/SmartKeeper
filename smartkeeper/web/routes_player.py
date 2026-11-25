@@ -169,6 +169,19 @@ class LangIn(BaseModel):
     lang: str
 
 
+class NameIn(BaseModel):
+    name: str
+
+
+class DraftIn(BaseModel):
+    sheets: JsonValue  # 建角表单的原样内容，不校验
+
+
+class DraftOut(BaseModel):
+    sheets: JsonValue = None
+    updated_at: str | None = None
+
+
 class ProjectOut(BaseModel):
     x: float
     y: float
@@ -246,6 +259,12 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
             has_identity=has_identity,
         )
 
+    @r.post("/me/name")
+    def rename(p: Annotated[Player, Depends(require_player)], body: NameIn) -> OkOut:
+        """改自己的玩家昵称（不是角色名）。"""
+        e.rename_player(p.id, body.name)
+        return OkOut()
+
     @r.post("/lang")
     def lang(p: Annotated[Player, Depends(require_player)], body: LangIn) -> OkOut:
         e.set_ui_language(p.id, body.lang)
@@ -308,6 +327,17 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         e.submit_character(p.id, body.sheets)
         bg.add_task(background(s.kp.review_character, p.id))
         return OkOut()
+
+    @r.get("/character/draft")
+    def draft(p: Annotated[Player, Depends(require_player)]) -> DraftOut:
+        got = e.character_draft(p.id)
+        return DraftOut(sheets=got[0], updated_at=got[1]) if got else DraftOut()
+
+    @r.put("/character/draft")
+    def save_draft(p: Annotated[Player, Depends(require_player)], body: DraftIn) -> DraftOut:
+        """建角表单自动保存：存到服务器，换浏览器、换设备也接得上。"""
+        at = e.save_character_draft(p.id, body.sheets)
+        return DraftOut(sheets=body.sheets, updated_at=at)
 
     @r.get("/character")
     def submitted(p: Annotated[Player, Depends(require_player)]) -> list[SheetSubmission]:

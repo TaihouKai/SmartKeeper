@@ -30,6 +30,7 @@
     "add_entity": "Add another",
     "add_entry": "Add entry",
     "appearance_hint": "(others will refer to you by this description)",
+    "autosaved": "Saved automatically ({time})",
     "derived": "Derived values (preview)",
     "effect_conceptual": "(description only, interpreted by the keeper)",
     "effect_description": "Modifier description",
@@ -117,6 +118,7 @@
       "player_required": "Join a game from the home page first"
     },
     "character": {
+      "draft_too_big": "The character sheet is too large to save",
       "invalid": "The character sheet is invalid"
     },
     "config": {
@@ -208,6 +210,9 @@
       "unknown_group": "No group named {name}",
       "unknown_template": "No template named {name}",
       "vital_needs_runtime": "Only runtime values (number or resource) can be vital"
+    },
+    "player": {
+      "bad_name": "A nickname needs 1 to 64 characters"
     },
     "rate": {
       "kp_chat": "Too fast; wait a minute",
@@ -603,6 +608,7 @@
     "identity": "Identity",
     "invalid": "This invite link is invalid or revoked. Ask the admin for a new one.",
     "no_session": "This browser is not in a game yet. Pick a game in the room list to join, or press Continue on one you joined.",
+    "rename": "Change nickname",
     "review": "Keeper's review",
     "rules": "Rules and scenario",
     "status": {

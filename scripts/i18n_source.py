@@ -90,6 +90,13 @@ T: dict[str, tuple[str, str]] = {
     "codes.lobby.no_seat": ("这个浏览器没有加入过这一局", "This browser has not joined this game"),
     "codes.rate.lobby": ("操作太频繁，稍后再试", "Too many attempts; try again later"),
     "join.hello": ("玩家：{name}", "Player: {name}"),
+    "join.rename": ("改昵称", "Change nickname"),
+    "codes.player.bad_name": ("昵称要 1 到 64 个字", "A nickname needs 1 to 64 characters"),
+    "character.autosaved": ("已自动保存（{time}）", "Saved automatically ({time})"),
+    "codes.character.draft_too_big": (
+        "角色卡太大了，存不下",
+        "The character sheet is too large to save",
+    ),
     "join.game_started": ("游戏已经开始。", "The game has started."),
     "join.go_play": ("进入游戏界面", "Go to the game"),
     "join.rules": ("规则与剧本", "Rules and scenario"),

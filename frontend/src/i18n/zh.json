@@ -30,6 +30,7 @@
     "add_entity": "再加一个",
     "add_entry": "添加一条",
     "appearance_hint": "（别人会根据外观描述给你起代号）",
+    "autosaved": "已自动保存（{time}）",
     "derived": "推导值（试算）",
     "effect_conceptual": "（只有描述，由 KP 理解）",
     "effect_description": "修正描述",
@@ -117,6 +118,7 @@
       "player_required": "请先在首页选一局加入"
     },
     "character": {
+      "draft_too_big": "角色卡太大了，存不下",
       "invalid": "角色卡没有通过校验"
     },
     "config": {
@@ -208,6 +210,9 @@
       "unknown_group": "没有叫 {name} 的分组",
       "unknown_template": "没有叫 {name} 的模板",
       "vital_needs_runtime": "只有运行值（数值或资源）能设成致命"
+    },
+    "player": {
+      "bad_name": "昵称要 1 到 64 个字"
     },
     "rate": {
       "kp_chat": "发得太快了，请稍等一分钟",
@@ -603,6 +608,7 @@
     "identity": "身份",
     "invalid": "邀请链接无效或已作废，请向管理员要一个新的。",
     "no_session": "这个浏览器还没有进入哪一局。去房间列表选一局加入，或者点“继续”回到你加入过的局。",
+    "rename": "改昵称",
     "review": "KP 的审核意见",
     "rules": "规则与剧本",
     "status": {

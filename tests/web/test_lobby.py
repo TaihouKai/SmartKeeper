@@ -87,3 +87,35 @@ def test_closed_and_ended_games_are_not_listed(site: Site) -> None:
     gid2 = new_game(site, "ended")
     site.services.engine.end_game(gid2)
     assert gid2 not in rooms(c)
+
+
+def test_players_rename_themselves_and_names_stay_unique(site: Site) -> None:
+    gid = new_game(site, "names")
+    a, b = site.client(), site.client()
+    a.post("/api/lobby/join", json={"game_id": gid, "name": "A"})
+    b.post("/api/lobby/join", json={"game_id": gid, "name": "B"})
+    assert a.post("/api/me/name", json={"name": "Alice"}).status_code == 200
+    assert a.get("/api/me").json()["display_name"] == "Alice"
+    assert (
+        b.post("/api/me/name", json={"name": "Alice"}).json()["detail"]["code"]
+        == "lobby.name_taken"
+    )
+    assert b.post("/api/me/name", json={"name": "  "}).json()["detail"]["code"] == "player.bad_name"
+
+
+def test_character_form_draft_is_kept_on_the_server(site: Site) -> None:
+    gid = new_game(site, "draft")
+    c = site.client()
+    c.post("/api/lobby/join", json={"game_id": gid, "name": "A"})
+    assert c.get("/api/character/draft").json() == {"sheets": None, "updated_at": None}
+    draft = [
+        {"template": "person", "sheet": {"name": "half done", "fields": {"str": ""}, "groups": {}}}
+    ]
+    r = c.put("/api/character/draft", json={"sheets": draft})
+    assert r.status_code == 200 and r.json()["updated_at"]
+    # 另一个浏览器用个人链接进来，接着改
+    link = c.post("/api/lobby/enter", json={"game_id": gid}).json()["link"]
+    other = site.client()
+    other.get(link.replace("http://testserver", ""), follow_redirects=False)
+    assert other.get("/api/character/draft").json()["sheets"] == draft
+    assert c.put("/api/character/draft", json={"sheets": "x" * 600_000}).status_code == 422

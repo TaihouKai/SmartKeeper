@@ -38,6 +38,9 @@ player = sa.Table(
     sa.Column("ui_language", sa.String, nullable=False, default="zh"),
     sa.Column("active", sa.Boolean, nullable=False, default=True),
     sa.Column("created_at", sa.String, nullable=False),
+    # 没提交的角色卡（建角表单自动保存的，原样存 JSON，不校验）
+    sa.Column("character_draft", sa.Text, nullable=True),
+    sa.Column("character_draft_at", sa.String, nullable=True),
 )
 
 round_ = sa.Table(
@@ -183,6 +186,21 @@ class Repo:
                 .order_by(player.c.created_at, player.c.id)
             ).all()
         return [_player(r._mapping) for r in rows]  # pyright: ignore[reportPrivateUsage]
+
+    def character_draft(self, player_id: str) -> tuple[JsonValue, str] | None:
+        with self.db.connect() as c:
+            row = c.execute(
+                sa.select(player.c.character_draft, player.c.character_draft_at).where(
+                    player.c.id == player_id
+                )
+            ).first()
+        if row is None or row[0] is None:
+            return None
+        return json.loads(row[0]), str(row[1])
+
+    def set_character_draft(self, player_id: str, draft: JsonValue | None, at: str | None) -> None:
+        body = None if draft is None else json.dumps(draft, ensure_ascii=False)
+        self.update_player(player_id, character_draft=body, character_draft_at=at)
 
     def update_player(self, player_id: str, **values: Any) -> None:
         with self.db.begin() as c:

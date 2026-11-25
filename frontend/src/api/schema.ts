@@ -652,6 +652,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/character/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Draft */
+        get: operations["draft_api_character_draft_get"];
+        /**
+         * Save Draft
+         * @description 建角表单自动保存：存到服务器，换浏览器、换设备也接得上。
+         */
+        put: operations["save_draft_api_character_draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/character/preview": {
         parameters: {
             query?: never;
@@ -919,6 +940,26 @@ export interface paths {
         get: operations["me_api_me_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rename
+         * @description 改自己的玩家昵称（不是角色名）。
+         */
+        post: operations["rename_api_me_name_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1335,6 +1376,16 @@ export interface components {
             name: string;
             /** Value */
             value: number;
+        };
+        /** DraftIn */
+        DraftIn: {
+            sheets: components["schemas"]["JsonValue"];
+        };
+        /** DraftOut */
+        DraftOut: {
+            sheets?: components["schemas"]["JsonValue"];
+            /** Updated At */
+            updated_at?: string | null;
         };
         /** EchoItem */
         EchoItem: {
@@ -2194,6 +2245,11 @@ export interface components {
             /** Inside */
             inside?: string | null;
             to: components["schemas"]["Point"];
+        };
+        /** NameIn */
+        NameIn: {
+            /** Name */
+            name: string;
         };
         /** NewGameIn */
         NewGameIn: {
@@ -4708,6 +4764,59 @@ export interface operations {
             };
         };
     };
+    draft_api_character_draft_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftOut"];
+                };
+            };
+        };
+    };
+    save_draft_api_character_draft_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     preview_api_character_preview_post: {
         parameters: {
             query?: never;
@@ -5201,6 +5310,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeOut"];
+                };
+            };
+        };
+    };
+    rename_api_me_name_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NameIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

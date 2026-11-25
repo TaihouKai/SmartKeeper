@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 import secrets
 import threading
 from collections.abc import Callable, Sequence
@@ -297,6 +298,20 @@ class Engine:
                 raise ValidationFailed("lobby.name_taken", name=name)
             return self.add_player(game_id, name)
 
+    def rename_player(self, player_id: str, display_name: str) -> Player:
+        """玩家改自己的昵称（不是角色名）。同一局里不能和别的玩家重名。"""
+        with self._lock:
+            p = self.player(player_id)
+            name = display_name.strip()
+            if not name or len(name) > 64:
+                raise ValidationFailed("player.bad_name")
+            if any(
+                q.display_name == name and q.id != p.id for q in self._active_players(p.game_id)
+            ):
+                raise ValidationFailed("lobby.name_taken", name=name)
+            self._repo.update_player(player_id, display_name=name)
+            return self.player(player_id)
+
     def revoke_player(self, player_id: str) -> None:
         self._repo.update_player(player_id, active=False)
 
@@ -387,6 +402,23 @@ class Engine:
         raw = evs[-1].payload.get("sheets")
         assert isinstance(raw, list)
         return [SheetSubmission.model_validate(x) for x in raw]
+
+    def character_draft(self, player_id: str) -> tuple[JsonValue, str] | None:
+        """建角表单自动保存的草稿（原样的 JSON）和保存时间；没有是 None。"""
+        return self._repo.character_draft(player_id)
+
+    def save_character_draft(self, player_id: str, draft: JsonValue) -> str:
+        """存建角表单的草稿：只在建角阶段、角色还没通过时；不校验内容，只限大小。返回保存时间。"""
+        p = self.player(player_id)
+        if self.game(p.game_id).status != "characters":
+            raise IllegalState("game.not_in_character_phase")
+        if self.character_status(player_id) == "approved":
+            raise IllegalState("character.already_approved")
+        if len(json.dumps(draft, ensure_ascii=False)) > 500_000:
+            raise ValidationFailed("character.draft_too_big")
+        at = _now()
+        self._repo.set_character_draft(player_id, draft, at)
+        return at
 
     def submit_character(self, player_id: str, sheets: Sequence[SheetSubmission]) -> Event:
         with self._lock:

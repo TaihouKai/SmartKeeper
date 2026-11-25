@@ -47,7 +47,7 @@ export function JoinPage() {
     <main className="sk-page">
       <header className="sk-top">
         <h1>{m.game_name}</h1>
-        <span>{t("join.hello", { name: m.display_name })}</span>
+        <NickName name={m.display_name} onSaved={refresh} />
         <LangSwitch onChange={(l) => void api.POST("/api/lang", { body: { lang: l } })} />
       </header>
 
@@ -128,5 +128,40 @@ export function JoinPage() {
         </Section>
       )}
     </main>
+  );
+}
+
+/** 玩家昵称（不是角色名）：点“改”就地改。 */
+function NickName({ name, onSaved }: { name: string; onSaved: () => void }) {
+  const { t } = useI18n();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+  const act = useAction();
+  if (!editing)
+    return (
+      <span>
+        {t("join.hello", { name })}{" "}
+        <button className="sk-link" onClick={() => { setValue(name); setEditing(true); }}>
+          {t("join.rename")}
+        </button>
+      </span>
+    );
+  const save = () =>
+    void act.run(async () => {
+      await call(api.POST("/api/me/name", { body: { name: value } }));
+      setEditing(false);
+      onSaved();
+    });
+  return (
+    <span className="sk-row">
+      <input value={value} maxLength={64} placeholder={t("lobby.name_ph")} onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && value.trim() && save()} />
+      <button className="sk-primary" disabled={act.busy || !value.trim()} onClick={save}>
+        {t("common.save")}
+      </button>
+      <button className="sk-link" onClick={() => setEditing(false)}>
+        {t("common.cancel")}
+      </button>
+      <ErrorBox error={act.error} />
+    </span>
   );
 }

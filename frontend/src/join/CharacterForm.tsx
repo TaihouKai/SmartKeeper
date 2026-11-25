@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, Mover, moved } from "../ui/components";
@@ -153,10 +153,56 @@ export function CharacterForm({
   const [subs, setSubs] = useState<Submission[]>(() => initialSubmissions(playerEntities));
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  // 自动保存：打开时先取回服务器上的草稿（没有草稿但提交过的，从上次提交的内容接着改）
+  const [loaded, setLoaded] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<unknown>(null);
+  const lastSaved = useRef("");
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const d = await call(api.GET("/api/character/draft"));
+        if (!alive) return;
+        if (Array.isArray(d.sheets) && d.sheets.length > 0) {
+          setSubs(d.sheets as unknown as Submission[]);
+          lastSaved.current = JSON.stringify(d.sheets);
+          setSavedAt(d.updated_at ?? null);
+        } else {
+          const prev = await call(api.GET("/api/character"));
+          if (alive && prev.length > 0) setSubs(prev.map((x) => ({ template: x.template, sheet: x.sheet as unknown as SheetDraft })));
+        }
+      } catch {
+        // 取不到就从空白开始
+      } finally {
+        if (alive) setLoaded(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const saveNow = useCallback(async (value: Submission[]) => {
+    const text = JSON.stringify(value);
+    if (text === lastSaved.current) return;
+    const d = await call(api.PUT("/api/character/draft", { body: { sheets: value as never } }));
+    lastSaved.current = text;
+    setSavedAt(d.updated_at ?? null);
+    setSaveError(null);
+  }, []);
+  // 停手 2 秒后自动存
+  useEffect(() => {
+    if (!loaded) return;
+    const id = window.setTimeout(() => {
+      saveNow(subs).catch((e: unknown) => setSaveError(e));
+    }, 2000);
+    return () => window.clearTimeout(id);
+  }, [subs, loaded, saveNow]);
   const submit = async () => {
     setBusy(true);
     setError(null);
     try {
+      await saveNow(subs).catch(() => undefined);
       const clean = subs.map((s) => ({
         template: s.template,
         sheet: {
@@ -181,6 +227,7 @@ export function CharacterForm({
       setBusy(false);
     }
   };
+  if (!loaded) return <p>{t("common.loading")}</p>;
   return (
     <div>
       {playerEntities.map((pe) => {
@@ -211,9 +258,11 @@ export function CharacterForm({
         );
       })}
       <ErrorBox error={error} />
+      <ErrorBox error={saveError} />
       <button className="sk-primary" disabled={busy} onClick={() => void submit()}>
         {t("character.submit")}
       </button>
+      {savedAt && <span className="sk-hint"> {t("character.autosaved", { time: new Date(savedAt).toLocaleTimeString() })}</span>}
     </div>
   );
 }
