@@ -401,7 +401,7 @@
   "config": {
     "best": "roll several checks, keep the best level",
     "c": {
-      "affects": "who it affects: \"all\" (default), \"allies\" or \"enemies\"; filters an area, and a single target must match",
+      "affects": "who it affects: \"all\" (default), \"allies\" (you too), \"other_allies\" (not you), \"enemies\"; filters an area or aura, and a single target must match",
       "aura": "aura: sphere(radius=m). Passive: everyone inside who matches affects (you too) has this entry's bonuses while inside",
       "auto_level": "a fixed level instead of a roll (a formula), e.g. 2 for an automatic hard success",
       "cast_time": "cast time in minutes; under 1 is instant",
@@ -539,7 +539,8 @@
       "affects": {
         "0": "everyone (default)",
         "1": "allies only: your side and allied players' characters",
-        "2": "only those who aren't allies"
+        "2": "only those who aren't allies",
+        "3": "allies other than yourself (e.g. an aura only for your companions)"
       },
       "aura": {
         "0": "aura: everyone inside who matches affects (you too) has this entry's bonuses",

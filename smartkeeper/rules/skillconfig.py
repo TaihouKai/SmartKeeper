@@ -38,7 +38,7 @@ KEYS: dict[str, Kind] = {
     "aura": "shape",
     "placement": "placement",
 }
-AFFECTS = ("all", "allies", "enemies")
+AFFECTS = ("all", "allies", "other_allies", "enemies")
 # 范围形状 -> 要写的参数（米、度）
 SHAPES: dict[str, tuple[str, ...]] = {
     "capsule": ("length", "width"),

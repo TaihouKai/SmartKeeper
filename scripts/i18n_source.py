@@ -374,6 +374,10 @@ T: dict[str, tuple[str, str]] = {
         "只有友军：自己这一方和结了盟的玩家的角色",
         "allies only: your side and allied players' characters",
     ),
+    "docs.v.affects.3": (
+        "只有除了自己以外的友军（例如只给队友加的光环）",
+        "allies other than yourself (e.g. an aura only for your companions)",
+    ),
     "docs.v.affects.2": ("只有不是友军的", "only those who aren't allies"),
     "docs.v.aura.0": (
         "光环：圈里符合 affects 的人（包括自己）一直带着这一条的常驻加成",
@@ -1552,8 +1556,8 @@ T: dict[str, tuple[str, str]] = {
         "a fixed level instead of a roll (a formula), e.g. 2 for an automatic hard success",
     ),
     "config.c.affects": (
-        '影响谁："all" 所有人（默认）、"allies" 只有友军、"enemies" 只有敌人；范围技能按它筛选，单体技能对象不符合时不能用',
-        'who it affects: "all" (default), "allies" or "enemies"; filters an area, and a single target must match',
+        '影响谁："all" 所有人（默认）、"allies" 友军（包括自己）、"other_allies" 除了自己的友军、"enemies" 只有敌人；范围技能和光环按它筛选，单体技能对象不符合时不能用',
+        'who it affects: "all" (default), "allies" (you too), "other_allies" (not you), "enemies"; filters an area or aura, and a single target must match',
     ),
     "config.c.aura": (
         "光环：sphere(radius=米)。被动生效：圈里符合 affects 的人（包括自己）一直带着这一条的常驻加成，进圈就有、出圈就没",

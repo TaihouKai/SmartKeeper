@@ -1718,13 +1718,20 @@ class Engine:
                 return v is not None and self._allied(state, pacts, source, v)
 
             if cfg.affects != "all":
-                want = cfg.affects == "allies"
-                if not cfg.shape and target is not None and ally_of(target) != want:
+                if (
+                    not cfg.shape
+                    and target is not None
+                    and not _affects(cfg.affects, source, target, ally_of(target))
+                ):
                     raise ValidationFailed(
                         "use.wrong_side", entity=source, entry=parsed.name, affects=cfg.affects
                     )
                 if cfg.shape:
-                    victims = [v for v in victims if v is not None and ally_of(v) == want] or [None]
+                    victims = [
+                        v
+                        for v in victims
+                        if v is not None and _affects(cfg.affects, source, v, ally_of(v))
+                    ] or [None]
             used_params = {pf.name: fields[pf.name] for pf in prms if pf.name in fields}
             # 察觉到的人知不知道用的是什么：规则包在分组上定（玩家写条目时改不了）
             revealed = (
@@ -1760,7 +1767,7 @@ class Engine:
                     them is not None
                     and victim != source
                     and cfg.reactable
-                    and cfg.affects != "allies"  # 只对友军的技能不用抵抗
+                    and cfg.affects not in ("allies", "other_allies")  # 只对友军的技能不用抵抗
                     and not unseen
                     and not self._dead(state, them.entity)
                 )
@@ -4022,7 +4029,7 @@ class Engine:
                     if self._spatial.distance(body.pos, other.pos) > cfg.aura.radius:
                         continue
                     friend = self._allied(state, pacts, src, eid)
-                    if cfg.affects != "all" and friend != (cfg.affects == "allies"):
+                    if not _affects(cfg.affects, src, eid, friend):
                         continue
                     for i, eff in enumerate(effects):
                         assert eff.target is not None and eff.formula is not None
@@ -4810,6 +4817,17 @@ class Engine:
                 seq = e.seq
             self._state_cache[game_id] = (seq, state)
             return state
+
+
+def _affects(affects: str, source: str, other: str, ally: bool) -> bool:
+    """技能设置的 affects：all 所有人；allies 友军（包括自己）；other_allies 除了自己的友军；enemies 不是友军的。"""
+    if affects == "all":
+        return True
+    if affects == "enemies":
+        return not ally
+    if affects == "other_allies":
+        return ally and other != source
+    return ally
 
 
 def _list(v: JsonValue | None) -> list[JsonValue]:

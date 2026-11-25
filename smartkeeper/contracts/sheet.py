@@ -184,9 +184,10 @@ class SkillConfig(Frozen):
     cast_time: str = ""  # 施放时间（分钟）：不到 1 分钟算瞬发；用这个技能的行动至少要这么久
     cooldown: str = ""  # 冷却时间（分钟）：用过之后这么久之内不能再用
     shape: Shape | None = None  # 范围形状
-    # 影响谁：all 所有人；allies 只有友军（自己这一方和结盟的玩家的角色）；enemies 只有不是友军的。
+    # 影响谁：all 所有人；allies 友军（自己这一方和结盟的玩家的角色，包括自己）；other_allies 除了自己以外的友军；
+    # enemies 只有不是友军的。
     # 范围技能按它筛选形状里的人；单体技能的对象不符合时不能用
-    affects: Literal["all", "allies", "enemies"] = "all"
+    affects: Literal["all", "allies", "other_allies", "enemies"] = "all"
     # 光环（被动）：以自己为中心的球（只能 sphere），里面符合 affects 的人（包括自己）一直带着这一条的常驻加成；
     # 每轮开始时按位置重算，进圈就有、出圈就没。光环条目的常驻加成不再按普通方式只加在自己身上
     aura: Shape | None = None

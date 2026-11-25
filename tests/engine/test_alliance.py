@@ -303,3 +303,35 @@ def test_bonus_can_depend_on_the_time_of_day() -> None:
     assert now() == base + 5  # 20:00 多
     t.engine.admin_patch(t.game_id, [PatchOp(op="replace", path="/game_seconds", value=12 * 3600)])
     assert now() == base  # 第二天 08:00
+
+
+def test_other_allies_leaves_the_holder_out() -> None:
+    """other_allies：光环只给除了自己以外的友军；单体技能不能对自己用。"""
+    t, (p0, p1, _p2), (e0, e1, _e2) = table()
+    base = {x: str_of(t, x) for x in (e0, e1)}
+    add_entries(
+        t,
+        e0,
+        [
+            {
+                "name": "lead",
+                "fields": {"level": 1},
+                "config": 'aura = sphere(radius=50)\naffects = "other_allies"',
+                "bonus": "self.str += 2",
+            },
+            {
+                "name": "bless",
+                "fields": {"level": 1},
+                "config": 'affects = "other_allies"',
+                "script": "target.hp += 0",
+            },
+        ],
+    )
+    ally(t, p0, p1, e1)
+    next_round(t)
+    assert str_of(t, e0) == base[e0]
+    assert str_of(t, e1) == base[e1] + 2
+    begin(t)
+    with pytest.raises(ValidationFailed):
+        t.engine.use_entry(t.game_id, e0, "bless", e0, {}, "x")
+    t.engine.use_entry(t.game_id, e0, "bless", e1, {}, "x")

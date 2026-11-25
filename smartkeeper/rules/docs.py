@@ -213,6 +213,7 @@ _CONFIG_VALUES: dict[str, tuple[tuple[str, str], ...]] = {
     "affects": (
         ('"all"', "docs.v.affects.0"),
         ('"allies"', "docs.v.affects.1"),
+        ('"other_allies"', "docs.v.affects.3"),
         ('"enemies"', "docs.v.affects.2"),
     ),
     "aura": (
