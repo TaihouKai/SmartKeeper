@@ -25,6 +25,28 @@
     "hint": "广播所有人都能看到，是游戏内的公开发言。",
     "send": "发送"
   },
+  "cf": {
+    "auto": "自动获得",
+    "complete": "都填好了",
+    "done": "完成",
+    "edit": "编辑",
+    "identity": "身份",
+    "less": "收起",
+    "missing": "还缺 {n} 处",
+    "more": "展开",
+    "none_yet": "还没有，点下面添加。",
+    "numbers": "数值",
+    "remove_sheet": "删除这张卡",
+    "review": "检查",
+    "review_lead": "{name}：还缺什么、哪里不对，点了跳过去改。",
+    "save_failed": "自动保存失败",
+    "sections": "这张卡的各部分",
+    "stats": "数值速览",
+    "stats_empty": "填完属性以后，这里会算出生命值、魔力值这些数。",
+    "unnamed": "（未命名）",
+    "uses_n": "{n} 种用法",
+    "yours": "自己写的"
+  },
   "character": {
     "action_rules": "用的时候的效果：对象、射程、耗魔、伤害、参数……（可选，点开写）",
     "action_rules_filled": "用的时候的效果（已写好，点开看或改）",

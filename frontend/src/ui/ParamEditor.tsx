@@ -27,8 +27,11 @@ export function DefaultParams({ params }: { params: readonly Param[] }) {
   const { t } = useI18n();
   if (!params.length) return null;
   return (
-    <div className="sk-default-params">
-      <span className="sk-hint">{t("params.defaults")}</span>
+    <details className="sk-default-params">
+      <summary className="sk-hint">
+        {t("params.defaults")}
+        {params.map((p) => p.label || p.name).join("、")}
+      </summary>
       <ul>
         {params.map((p) => (
           <li key={p.name}>
@@ -38,7 +41,7 @@ export function DefaultParams({ params }: { params: readonly Param[] }) {
           </li>
         ))}
       </ul>
-    </div>
+    </details>
   );
 }
 

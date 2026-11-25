@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { useI18n } from "../i18n";
 
 /** [[标题]]：引用规则书里这个标题下的一节。 */
@@ -67,15 +67,42 @@ export function Markdown({ text, refBase = "" }: { text: string; refBase?: strin
   return <div className="sk-md" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-/** 建卡页上的说明用到的规则书：正文和规则书页面的地址。 */
-export const HandbookContext = createContext<{ text: string; href: string }>({ text: "", href: "" });
+/** 建卡页上的说明用到的规则书：正文、规则书页面的地址，和“在侧边打开某一节”（没有时就地展开）。 */
+type Book = { text: string; href: string; open?: (title: string) => void };
+export const HandbookContext = createContext<Book>({ text: "", href: "" });
 
+/** 提供规则书；说明里的 [[标题]] 点了以后在右边的侧栏里显示那一节。 */
 export function HandbookProvider({ text, href, children }: { text: string; href: string; children: ReactNode }) {
-  const value = useMemo(() => ({ text, href }), [text, href]);
-  return <HandbookContext.Provider value={value}>{children}</HandbookContext.Provider>;
+  const { t } = useI18n();
+  const [shown, setShown] = useState<string | null>(null);
+  const value = useMemo(() => ({ text, href, open: setShown }), [text, href]);
+  const body = shown === null ? null : section(text, shown);
+  return (
+    <HandbookContext.Provider value={value}>
+      {children}
+      {shown !== null && (
+        <aside className="sk-drawer sk-ref-drawer" aria-label={t("handbook.title")}>
+          <div className="sk-drawer-head">
+            <h3>{shown}</h3>
+            <button type="button" className="sk-link" onClick={() => setShown(null)}>
+              {t("play.close")}
+            </button>
+          </div>
+          {body === null ? <p className="sk-hint">{t("handbook.missing", { title: shown })}</p> : <Markdown text={body} refBase={href} />}
+          {href && (
+            <p>
+              <a href={`${href}#${encodeURIComponent(slug(shown))}`} target="_blank" rel="noreferrer">
+                {t("handbook.open")}
+              </a>
+            </p>
+          )}
+        </aside>
+      )}
+    </HandbookContext.Provider>
+  );
 }
 
-/** 一段说明：普通文字原样显示，[[标题]] 变成一个可以展开的“规则书：标题”，展开就是规则书里那一节。 */
+/** 一段说明：普通文字原样显示，[[标题]] 变成一个小链接“规则书：标题”，点了在侧栏显示规则书里那一节。 */
 export function Described({ text, className = "sk-field-desc" }: { text: string | null | undefined; className?: string }) {
   const { t } = useI18n();
   const book = useContext(HandbookContext);
@@ -93,20 +120,18 @@ export function Described({ text, className = "sk-field-desc" }: { text: string 
   return (
     <span className={className}>
       {plain}
-      {refs.map((r) => {
-        const body = section(book.text, r);
-        return (
+      {refs.map((r) =>
+        book.open ? (
+          <button key={r} type="button" className="sk-link sk-ref-link" onClick={() => book.open?.(r)}>
+            {t("handbook.ref", { title: r })}
+          </button>
+        ) : (
           <details key={r} className="sk-ref">
             <summary>{t("handbook.ref", { title: r })}</summary>
-            {body === null ? <span className="sk-hint">{t("handbook.missing", { title: r })}</span> : <Markdown text={body} refBase={book.href} />}
-            {book.href && (
-              <a href={`${book.href}#${encodeURIComponent(slug(r))}`} target="_blank" rel="noreferrer">
-                {t("handbook.open")}
-              </a>
-            )}
+            <Markdown text={section(book.text, r) ?? ""} refBase={book.href} />
           </details>
-        );
-      })}
+        ),
+      )}
     </span>
   );
 }

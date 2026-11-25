@@ -1,18 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { ErrorBox, Mover, moved } from "../ui/components";
-import { EntryEditor, FieldInput, fieldLabel, rangeText, type Entry } from "../ui/EntryEditor";
-import { translateCode } from "../ui/errors";
-import { Described } from "../ui/markdown";
+import { ErrorBox } from "../ui/components";
+import { SheetWorkbench, type SheetDraft } from "./SheetWorkbench";
+
+export type { SheetDraft } from "./SheetWorkbench";
 
 type Template = Schemas["EntityTemplate"];
 type Value = string | number | boolean;
-/** preset_fields：固定条目里规则包留空的列（分组 -> 固定条目名 -> 列 -> 值），由玩家填。 */
-export type SheetDraft = { name: string; fields: Record<string, Value>; groups: Record<string, Entry[]>; preset_fields?: Record<string, Record<string, Record<string, Value>>> };
+export type Submission = { template: string; sheet: SheetDraft };
 
 const dropEmpty = (o: Record<string, Value>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== ""));
-export type Submission = { template: string; sheet: SheetDraft };
 
 function emptySheet(): SheetDraft {
   return { name: "", fields: {}, groups: {} };
@@ -23,171 +21,7 @@ export function initialSubmissions(playerEntities: { template: string; min: numb
   return playerEntities.flatMap((pe) => Array.from({ length: Math.max(pe.min, 1) }, () => ({ template: pe.template, sheet: emptySheet() })));
 }
 
-/** 一张角色卡：按模板生成表单，实时试算推导值。 */
-export function SheetEditor({ template, value, onChange, params = [], checks = [] }: { template: Template; value: SheetDraft; onChange: (s: SheetDraft) => void; params?: readonly Schemas["PackParam"][]; checks?: readonly string[] }) {
-  const { t, lang } = useI18n();
-  const [preview, setPreview] = useState<Schemas["PreviewOut"] | null>(null);
-  const fields = (template.fields ?? []).filter((f) => f.cls !== "runtime");
-  // 修正能作用的数值：推导值，和建角时填的数值、是/否字段
-  const derived = [
-    ...(template.derived ?? []).map((d) => d.name),
-    ...(template.fields ?? []).filter((f) => (f.cls ?? "player") === "player" && (f.kind === "number" || f.kind === "boolean")).map((f) => f.name),
-  ];
-  const validate = useCallback(
-    (formula: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string, names?: string[]) =>
-      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config", other: other ?? "", names: names ?? [] } })),
-    [template.name],
-  );
-  const spendTargets = (template.fields ?? []).filter((f) => f.kind === "number" || f.kind === "resource").map((f) => f.name);
-  const topDice = useCallback(
-    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true, script: false, config: false, other: "", names: [] } })),
-    [template.name],
-  );
-  const body = useMemo(() => JSON.stringify(value), [value]);
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      call(api.POST("/api/character/preview", { body: { template: template.name, sheet: JSON.parse(body) } }))
-        .then(setPreview)
-        .catch(() => setPreview(null));
-    }, 500);
-    return () => window.clearTimeout(id);
-  }, [body, template.name]);
-  return (
-    <div className="sk-sheet-editor">
-      <Described text={template.description} className="sk-template-desc" />
-      <label>
-        {t("character.name")}
-        <input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} />
-      </label>
-      {fields.map((f) => (
-        <label key={f.name}>
-          {fieldLabel(f, t("character.unnamed_field"))}
-          {rangeText(f, preview?.ranges?.[f.name]) && <span className="sk-range"> {t("character.range", { range: rangeText(f, preview?.ranges?.[f.name]) })}</span>}
-          {f.name === template.appearance_field && <small> {t("character.appearance_hint")}</small>}
-          <Described text={f.description} />
-          <FieldInput def={f} value={value.fields[f.name]} validateFormula={topDice} range={preview?.ranges?.[f.name]} onChange={(v) => onChange({ ...value, fields: { ...value.fields, [f.name]: v } })} />
-        </label>
-      ))}
-      {(template.groups ?? []).map((g) => {
-        const entries = value.groups[g.name] ?? [];
-        const setEntries = (es: Entry[]) => onChange({ ...value, groups: { ...value.groups, [g.name]: es } });
-        const fixed = preview?.presets?.[g.name] ?? [];
-        const canAdd = g.max_count === null || g.max_count === undefined || entries.length < g.max_count;
-        // 玩家不能写、也没有自动获得的条目的分组不显示（例如还没满足条件的固定条目）
-        if (g.hidden || (!fixed.length && !entries.length && g.max_count === 0)) return null;
-        return (
-          <fieldset key={g.name}>
-            <legend>{g.label || g.name}</legend>
-            <Described text={g.description} />
-            {fixed.length > 0 && <p className="sk-hint">{t("character.fixed_entries_head")}</p>}
-            {fixed.map((pname) => {
-              // 自动获得的条目：名字和说明；规则包留空的列由玩家填（例如这个角色的对魔力等级）
-              const p = (g.presets ?? []).find((x) => x.name === pname);
-              const open = p ? (g.fields ?? []).filter((x) => x.cls !== "runtime" && !(x.name in (p.fields ?? {}))) : [];
-              const mine = value.preset_fields?.[g.name]?.[pname] ?? {};
-              const set = (col: string, v: Value) =>
-                onChange({
-                  ...value,
-                  preset_fields: { ...value.preset_fields, [g.name]: { ...value.preset_fields?.[g.name], [pname]: { ...mine, [col]: v } } },
-                });
-              return (
-                <div key={pname} className="sk-preset-fill">
-                  <strong>{pname}</strong>
-                  <Described text={p?.description} />
-                  {open.map((fd) => (
-                    <label key={fd.name}>
-                      {fieldLabel(fd, t("character.unnamed_field"))}
-                      {rangeText(fd) && <span className="sk-range"> {t("character.range", { range: rangeText(fd) })}</span>}
-                      <Described text={fd.description} />
-                      <FieldInput def={fd} value={mine[fd.name]} validateFormula={topDice} onChange={(v) => set(fd.name, v)} />
-                    </label>
-                  ))}
-                </div>
-              );
-            })}
-            {entries.map((en, i) => (
-              <EntryEditor
-                key={i}
-                group={g}
-                derived={derived}
-                entry={en}
-                validate={validate}
-                simple
-                defaults={params.filter((x) => (x.groups ?? []).includes(g.name))}
-                checks={checks}
-                spendTargets={spendTargets}
-                onChange={(e) => setEntries(entries.map((x, j) => (j === i ? e : x)))}
-                onRemove={() => setEntries(entries.filter((_, j) => j !== i))}
-                mover={<Mover index={i} count={entries.length} onMove={(from, to) => setEntries(moved(entries, from, to))} />}
-              />
-            ))}
-            {canAdd && (
-              <div className="sk-row">
-                <button type="button" onClick={() => setEntries([...entries, { name: "", id: "", description: "", fields: {}, effects: [] }])}>
-                  {t("character.add_entry")}
-                </button>
-                {(g.presets ?? []).length > 0 && (
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      const p = (g.presets ?? [])[Number(e.target.value)];
-                      if (!p) return;
-                      // 照着规则包写好的一条：抄它的说明、列、修正、设置、脚本、参数，名字自己起
-                      const copy: Entry = {
-                        name: "",
-                        id: "",
-                        description: p.description ?? "",
-                        fields: { ...(p.fields ?? {}) } as Entry["fields"],
-                        effects: (p.effects ?? []).map((x) => ({ description: x.description ?? "", target: x.target ?? null, formula: x.formula ?? null, priority: null })),
-                        config: p.config ?? "",
-                        script: p.script ?? "",
-                        params: p.params ?? [],
-                        uses: (p.uses ?? []) as unknown as Entry["uses"],
-                      };
-                      setEntries([...entries, copy]);
-                    }}
-                  >
-                    <option value="">{t("character.copy_preset")}</option>
-                    {(g.presets ?? []).map((p, k) => (
-                      <option key={k} value={String(k)}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            )}
-          </fieldset>
-        );
-      })}
-      {preview && (
-        <div className="sk-preview">
-          <strong>{t("character.derived")}</strong>
-          <ul>
-            {preview.derived.map((d) => (
-              <li key={d.name}>
-                {d.name}: {Math.round(d.value * 100) / 100}
-              </li>
-            ))}
-          </ul>
-          {preview.derived.length === 0 && preview.problems.length > 0 ? (
-            // 还没填完：算不出数值，不用把内部的错误代码给玩家看
-            <p className="sk-hint">{t("character.preview_incomplete")}</p>
-          ) : (
-            preview.problems.length > 0 && (
-              <ul className="sk-problems">
-                {preview.problems.map((p, i) => (
-                  <li key={i}>{translateCode(lang, p.code, p.params)}</li>
-                ))}
-              </ul>
-            )
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
+/** 建卡：上面是每张卡一个标签，中间是这张卡的工作台，底下一条固定的栏（自动保存、还缺几处、提交）。 */
 export function CharacterForm({
   templates,
   playerEntities,
@@ -204,6 +38,8 @@ export function CharacterForm({
 }) {
   const { t } = useI18n();
   const [subs, setSubs] = useState<Submission[]>(() => initialSubmissions(playerEntities));
+  const [tab, setTab] = useState(0);
+  const [missing, setMissing] = useState<Record<number, number>>({});
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   // 自动保存：打开时先取回服务器上的草稿（没有草稿但提交过的，从上次提交的内容接着改）
@@ -251,6 +87,7 @@ export function CharacterForm({
     }, 2000);
     return () => window.clearTimeout(id);
   }, [subs, loaded, saveNow]);
+  const statusOf = useCallback((i: number) => (n: number) => setMissing((m) => (m[i] === n ? m : { ...m, [i]: n })), []);
   const submit = async () => {
     setBusy(true);
     setError(null);
@@ -281,41 +118,70 @@ export function CharacterForm({
     }
   };
   if (!loaded) return <p>{t("common.loading")}</p>;
+  const current = Math.min(tab, subs.length - 1);
+  const count = (name: string) => subs.filter((s) => s.template === name).length;
+  const limit = (name: string) => playerEntities.find((pe) => pe.template === name);
+  const totalMissing = subs.reduce((n, _s, i) => n + (missing[i] ?? 0), 0);
   return (
-    <div>
-      {playerEntities.map((pe) => {
-        const tpl = templates.find((x) => x.name === pe.template);
-        if (!tpl) return null;
-        const mine = subs.map((s, i) => [s, i] as const).filter(([s]) => s.template === pe.template);
+    <div className="cf-wrap">
+      <div className="cf-tabs" role="tablist">
+        {subs.map((s, i) => {
+          const tp = templates.find((x) => x.name === s.template);
+          return (
+            <button key={i} type="button" role="tab" aria-selected={i === current} className={i === current ? "active" : ""} onClick={() => setTab(i)}>
+              <span>{tp?.label || s.template}</span>
+              {s.sheet.name && <span className="cf-tab-name">{s.sheet.name}</span>}
+              {(missing[i] ?? 0) > 0 ? <span className="cf-badge">{missing[i]}</span> : <span className="cf-ok">✓</span>}
+            </button>
+          );
+        })}
+        {playerEntities
+          .filter((pe) => count(pe.template) < pe.max)
+          .map((pe) => (
+            <button key={pe.template} type="button" className="cf-tab-add" onClick={() => {
+              setSubs([...subs, { template: pe.template, sheet: emptySheet() }]);
+              setTab(subs.length);
+            }}>
+              + {templates.find((x) => x.name === pe.template)?.label || pe.template}
+            </button>
+          ))}
+      </div>
+      {/* 每张卡都挂着（只显示当前这张），这样没打开过的卡也能算出还缺几处 */}
+      {subs.map((s, i) => {
+        const tp = templates.find((x) => x.name === s.template);
+        if (!tp) return null;
         return (
-          <div key={pe.template} className="sk-card">
-            <h3>
-              {tpl.label || tpl.name} ({pe.min}–{pe.max})
-            </h3>
-            {mine.map(([s, i]) => (
-              <div key={i}>
-                <SheetEditor template={tpl} value={s.sheet} params={params} checks={checks} onChange={(sheet) => setSubs(subs.map((x, j) => (j === i ? { ...x, sheet } : x)))} />
-                {mine.length > pe.min && (
-                  <button type="button" className="sk-link" onClick={() => setSubs(subs.filter((_, j) => j !== i))}>
-                    {t("common.remove")}
+          <div key={i} hidden={i !== current}>
+            <SheetWorkbench
+              template={tp}
+              value={s.sheet}
+              params={params}
+              checks={checks}
+              onStatus={statusOf(i)}
+              onChange={(sheet) => setSubs(subs.map((x, j) => (j === i ? { ...x, sheet } : x)))}
+              extra={
+                count(s.template) > (limit(s.template)?.min ?? 1) ? (
+                  <button type="button" className="sk-link wb-danger" onClick={() => {
+                    setSubs(subs.filter((_, j) => j !== i));
+                    setMissing({});
+                    setTab(0);
+                  }}>
+                    {t("cf.remove_sheet")}
                   </button>
-                )}
-              </div>
-            ))}
-            {mine.length < pe.max && (
-              <button type="button" onClick={() => setSubs([...subs, { template: pe.template, sheet: emptySheet() }])}>
-                {t("character.add_entity")}
-              </button>
-            )}
+                ) : null
+              }
+            />
           </div>
         );
       })}
+      <div className="cf-footer">
+        <span className="sk-hint">{saveError ? t("cf.save_failed") : savedAt ? t("character.autosaved", { time: new Date(savedAt).toLocaleTimeString() }) : ""}</span>
+        <span className={totalMissing > 0 ? "cf-footer-todo" : "cf-footer-ok"}>{totalMissing > 0 ? t("cf.missing", { n: String(totalMissing) }) : t("cf.complete")}</span>
+        <button className="sk-primary" disabled={busy} onClick={() => void submit()}>
+          {t("character.submit")}
+        </button>
+      </div>
       <ErrorBox error={error} />
-      <ErrorBox error={saveError} />
-      <button className="sk-primary" disabled={busy} onClick={() => void submit()}>
-        {t("character.submit")}
-      </button>
-      {savedAt && <span className="sk-hint"> {t("character.autosaved", { time: new Date(savedAt).toLocaleTimeString() })}</span>}
     </div>
   );
 }

@@ -43,7 +43,7 @@ export type Entry = { name: string; id?: string; description: string; fields: Re
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
-export function FieldInput({ def, value, onChange, validateFormula, onExpand, range }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check; onExpand?: () => void; range?: readonly (number | null)[] }) {
+export function FieldInput({ def, value, onChange, validateFormula, onExpand, range, id }: { id?: string; def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check; onExpand?: () => void; range?: readonly (number | null)[] }) {
   const { t } = useI18n();
   if (def.cls === "runtime") {
     // 条目运行中会变的列（例如开着没有、还剩几发）：游戏里由技能改，建角时不填
@@ -54,16 +54,16 @@ export function FieldInput({ def, value, onChange, validateFormula, onExpand, ra
     return validateFormula ? (
       <FormulaInput value={typeof value === "string" ? value : ""} validate={validateFormula} placeholder={t("rules.ph.dice")} onChange={(v) => onChange(v)} onExpand={onExpand} />
     ) : (
-      <input value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)} />
+      <input id={id} value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)} />
     );
   }
   if (def.kind === "boolean") {
-    return <input type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />;
+    return <input id={id} type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />;
   }
   if (def.kind === "text") {
     if (def.choices && def.choices.length) {
       return (
-        <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+        <select id={id} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
           <option value="" />
           {def.choices.map((c) => (
             <option key={c} value={c}>
@@ -73,12 +73,12 @@ export function FieldInput({ def, value, onChange, validateFormula, onExpand, ra
         </select>
       );
     }
-    return <textarea rows={2} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;
+    return <textarea id={id} rows={2} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;
   }
   if (def.choices && def.choices.length) {
     // 数值的可选值（例如 E=1 … EX=10）：下拉选，存的是数
     return (
-      <select value={value === undefined || value === "" ? "" : String(value)} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}>
+      <select id={id} value={value === undefined || value === "" ? "" : String(value)} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}>
         <option value="" />
         {numberOptions(def.choices).map((o) => (
           <option key={o.value} value={String(o.value)}>
@@ -92,6 +92,7 @@ export function FieldInput({ def, value, onChange, validateFormula, onExpand, ra
   const hi = def.max && /^\s*-?\d+(\.\d+)?\s*$/.test(def.max) ? Number(def.max) : (range?.[1] ?? undefined);
   return (
     <input
+      id={id}
       type="number"
       min={lo}
       max={hi}
@@ -208,7 +209,9 @@ export function EntryEditor({
       <DefaultParams params={defaults} />
       {group.effects !== false && item && (
         <>
-          {params}
+          <Fold simple={simple} filled={(entry.params ?? []).length > 0} label={t("params.item_own")}>
+            {params}
+          </Fold>
           <UsesList group={group} uses={entry.uses ?? []} derived={derived} validate={validate} own={own} checks={checks} spendTargets={spendTargets} simple={simple} onChange={(uses) => onChange({ ...entry, uses })} />
           {simple && (
             <Fold simple filled={Boolean(entry.id)}>
@@ -247,12 +250,12 @@ export function EntryEditor({
 }
 
 /** 建卡时把设置、脚本、参数收在“让引擎自动执行”里（默认收起；写了东西的标一下）。 */
-function Fold({ simple, filled, children }: { simple: boolean; filled: boolean; children: ReactNode }) {
+function Fold({ simple, filled, children, label }: { simple: boolean; filled: boolean; children: ReactNode; label?: string }) {
   const { t } = useI18n();
   if (!simple) return <>{children}</>;
   return (
     <details className="sk-engine">
-      <summary>{t(filled ? "character.engine_rules_filled" : "character.engine_rules")}</summary>
+      <summary>{label ?? t(filled ? "character.engine_rules_filled" : "character.engine_rules")}</summary>
       {children}
     </details>
   );

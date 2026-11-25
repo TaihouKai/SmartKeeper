@@ -63,15 +63,19 @@ async function placePlayers(browser: Browser, gameId: string, where: Record<stri
 async function createCharacter(page: Page, i: number) {
   await page.getByRole("button", { name: "Draw an identity" }).click();
   await expect(page.getByText("Identity").first()).toBeVisible();
-  const form = page.locator(".sk-sheet-editor").first();
+  const form = page.locator(".cf").first();
   await expect(form).toBeVisible();
+  // 身份一节：名字、外观、职业
   await form.getByLabel("Name", { exact: true }).fill(`Hero ${i}`);
   await form.getByLabel("appearance").fill(i % 2 ? "tall, grey coat" : "short, red scarf");
   await form.getByLabel("occupation").selectOption("reporter");
+  // 数值一节
+  await form.locator(".cf-nav").getByRole("button", { name: /Numbers/ }).click();
   await form.getByLabel("str").fill("50");
   await form.getByLabel("dex").fill("60");
   await form.getByLabel("per").fill("40");
-  await expect(page.locator(".sk-preview")).toContainText("perception_radius");
+  await expect(page.locator(".cf-side")).toContainText("perception_radius");
+  await expect(page.locator(".cf-footer")).toContainText("All filled in");
   await page.getByRole("button", { name: "Submit character" }).click();
   await expect(page.getByText("Approved").first()).toBeVisible({ timeout: 20_000 });
 }

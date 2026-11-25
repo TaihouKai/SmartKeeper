@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { ErrorBox, LangSwitch, MarkdownView, Section } from "../ui/components";
+import { ErrorBox, LangSwitch, Section } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { HandbookProvider } from "../ui/markdown";
 import { CharacterForm } from "./CharacterForm";
@@ -14,7 +14,6 @@ export function JoinPage() {
   const rules = usePoll(() => call(api.GET("/api/rules")), 600_000);
   const events = usePoll(() => call(api.GET("/api/events")), 10_000);
   const choose = useAction();
-  const [showRules, setShowRules] = useState(false);
   const [editing, setEditing] = useState(false);
 
   if (invalid || (me.error && !me.data)) {
@@ -45,10 +44,16 @@ export function JoinPage() {
   };
 
   return (
-    <main className="sk-page">
-      <header className="sk-top">
+    <main className="sk-page sk-join">
+      <header className="sk-top cf-top">
         <h1>{m.game_name}</h1>
         <NickName name={m.display_name} onSaved={refresh} />
+        <a href="/rulebook" target="_blank" rel="noreferrer">
+          {t("handbook.title")}
+        </a>
+        <a href="/rulebook#scenario" target="_blank" rel="noreferrer">
+          {t("handbook.scenario")}
+        </a>
         <LangSwitch onChange={(l) => void api.POST("/api/lang", { body: { lang: l } })} />
       </header>
 
@@ -57,22 +62,6 @@ export function JoinPage() {
           {t("join.game_started")} <a href="/play">{t("join.go_play")}</a>
         </p>
       ) : null}
-
-      <Section
-        title={t("join.rules")}
-        actions={
-          <button className="sk-link" onClick={() => setShowRules(!showRules)}>
-            {t(showRules ? "common.hide" : "common.show")}
-          </button>
-        }
-      >
-        <p>
-          <a className="sk-button" href="/rulebook" target="_blank" rel="noreferrer">
-            {t("handbook.title")}
-          </a>
-        </p>
-        {showRules && <MarkdownView text={r.scenario} />}
-      </Section>
 
       {r.identities.options.length > 0 && (
         <Section title={t("join.identity")}>
@@ -105,8 +94,8 @@ export function JoinPage() {
       )}
 
       {!needIdentity && (
-        <Section title={t("join.character")}>
-          <p className="sk-status">{t(`join.status.${status}`)}</p>
+        <>
+          {status !== "none" && <p className="sk-status">{t(`join.status.${status}`)}</p>}
           {lastReview && (
             <div className={lastReview.type === "character_rejected" ? "sk-card sk-warn" : "sk-card"}>
               <strong>{t("join.review")}</strong>
@@ -129,7 +118,7 @@ export function JoinPage() {
           ) : status === "submitted" ? (
             <p>{t("join.waiting_review")}</p>
           ) : null}
-        </Section>
+        </>
       )}
     </main>
   );

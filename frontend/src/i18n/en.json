@@ -25,6 +25,28 @@
     "hint": "Everyone sees broadcasts; they are public in-game speech.",
     "send": "Send"
   },
+  "cf": {
+    "auto": "You get automatically",
+    "complete": "All filled in",
+    "done": "Done",
+    "edit": "Edit",
+    "identity": "Identity",
+    "less": "Less",
+    "missing": "{n} left to fill",
+    "more": "More",
+    "none_yet": "None yet: add one below.",
+    "numbers": "Numbers",
+    "remove_sheet": "Remove this sheet",
+    "review": "Check",
+    "review_lead": "{name}: what is missing or wrong; click to go there.",
+    "save_failed": "Autosave failed",
+    "sections": "Parts of this sheet",
+    "stats": "At a glance",
+    "stats_empty": "Fill in the attributes to see hit points, mana and so on here.",
+    "unnamed": "(unnamed)",
+    "uses_n": "{n} uses",
+    "yours": "Your own"
+  },
   "character": {
     "action_rules": "What it does when used: target, range, cost, damage, parameters… (optional; open to write)",
     "action_rules_filled": "What it does when used (filled in; open to see or change)",
