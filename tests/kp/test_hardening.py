@@ -162,3 +162,22 @@ def test_plan_ignores_extra_query_keys() -> None:
         '{"checks": [], "queries": [{"query_id": "q1", "kind": "distance", "reason": "why"}]}',
     )
     assert plan.queries[0].query_id == "q1"
+
+
+def test_feedback_writer_sees_the_looks_of_who_it_writes_about() -> None:
+    """写反馈的模型拿到本轮提到的人和玩家自己角色的外观，人称、相貌按外观写，不按名字猜。"""
+    g = new_game(2)
+    seen: list[str] = []
+
+    def write(c: FakeCall) -> str:
+        seen.append(c.prompt)
+        return "你四处看了看。"
+
+    g.llm.on("feedback", write)
+    g.play_round()
+    assert seen
+    for prompt in seen:
+        assert "出场人物的外观" in prompt
+        assert "性别" in prompt  # 写作要求里有按外观写人称
+    own = [g.engine.appearance_of(g.game_id, e) for p in g.players for e in g.ents(p)]
+    assert any(a and any(a in p for p in seen) for a in own)

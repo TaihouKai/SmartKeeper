@@ -451,6 +451,14 @@ class Contexts:
             if x.player == player_id
         ]
         public = [replace_entity_tokens(x, {}, unknown) for x in adj.public_events]
+        # 本轮反馈里提到的人（和他自己的角色）的外观：性别、相貌照这个写，不按名字和传说猜
+        told = dumps([mine, seen, learned, public])
+        own = set(self.e.controlled(game_id, player_id))
+        looks = {
+            label: player_text(self.e.appearance_of(game_id, eid) or "（没有描述）", "sheet")
+            for eid, label in sorted(labels.items(), key=lambda kv: kv[1])
+            if eid in own or label in told
+        }
         view = self.e.view_for(game_id, player_id)
         user = "\n".join(
             [
@@ -471,6 +479,10 @@ class Contexts:
                     dumps(learned),
                 ),
                 section("公共事件", dumps(public)),
+                section(
+                    "出场人物的外观（性别、相貌、人称以此为准）",
+                    "\n".join(f"- {k}：{v}" for k, v in looks.items()) or "（无）",
+                ),
             ]
         )
         system = templates.render(
