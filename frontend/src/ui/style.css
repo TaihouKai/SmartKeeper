@@ -312,3 +312,5 @@ tr.inactive { opacity: 0.5; }
 .sk-docs-item dd { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
 .sk-docs-item dd ul { margin: 4px 0 0; padding-left: 18px; }
 .sk-docs-link { margin: 4px 0; }
+.sk-docs-tab { position: fixed; left: 0; top: 40%; z-index: 16; writing-mode: vertical-rl; padding: 14px 7px; border-radius: 0 8px 8px 0; border: 1px solid var(--accent); border-left: none; background: var(--accent); color: #fff; font-size: 14px; letter-spacing: 2px; cursor: pointer; box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2); }
+.sk-docs-tab:hover { filter: brightness(1.1); }

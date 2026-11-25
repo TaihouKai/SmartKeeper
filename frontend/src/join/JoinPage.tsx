@@ -4,11 +4,13 @@ import { useI18n } from "../i18n";
 import { ErrorBox, LangSwitch, Section } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { HandbookProvider } from "../ui/markdown";
+import { DocsTab, useDocs } from "../ui/docs";
 import { CharacterForm } from "./CharacterForm";
 
 /** /join：阅读规则，按剧本抽取或选择身份，按模板填写并提交角色卡，查看 KP 的审核意见。 */
 export function JoinPage() {
   const { t } = useI18n();
+  const docs = useDocs();
   const invalid = new URLSearchParams(window.location.search).has("invalid");
   const me = usePoll(() => call(api.GET("/api/me")), 10_000);
   const rules = usePoll(() => call(api.GET("/api/rules")), 600_000);
@@ -54,6 +56,12 @@ export function JoinPage() {
         <a href="/rulebook#scenario" target="_blank" rel="noreferrer">
           {t("handbook.scenario")}
         </a>
+        {docs && (
+          <button type="button" className="sk-link" onClick={() => docs.open()}>
+            {t("docs.title")}
+          </button>
+        )}
+        <DocsTab />
         <LangSwitch onChange={(l) => void api.POST("/api/lang", { body: { lang: l } })} />
       </header>
 

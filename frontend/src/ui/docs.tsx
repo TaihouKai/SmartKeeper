@@ -51,6 +51,8 @@ type Ctx = {
   open: (opts?: { query?: string; category?: DocCategory }) => void;
   /** 当前页面的规则包名字（建卡页、规则编辑器各自设） */
   setPackNames: (names: PackName[]) => void;
+  /** 手册现在开着没有 */
+  shown: boolean;
 };
 
 const DocsContext = createContext<Ctx | null>(null);
@@ -76,14 +78,27 @@ export function DocsProvider({ children }: { children: ReactNode }) {
     () => ({
       open: (o) => setShown({ query: o?.query ?? "", category: o?.category ?? "all" }),
       setPackNames: setPack,
+      shown: shown !== null,
     }),
-    [],
+    [shown],
   );
   return (
     <DocsContext.Provider value={ctx}>
       {children}
       {shown && <DocsPanel initial={shown} pack={pack} onClose={() => setShown(null)} />}
     </DocsContext.Provider>
+  );
+}
+
+/** 页面左边缘固定的“语法手册”标签：滚到哪里都看得见，手册开着时不显示。 */
+export function DocsTab() {
+  const { t } = useI18n();
+  const docs = useDocs();
+  if (!docs || docs.shown) return null;
+  return (
+    <button type="button" className="sk-docs-tab" onClick={() => docs.open()}>
+      {t("docs.title")}
+    </button>
   );
 }
 
