@@ -47,10 +47,7 @@ T: dict[str, tuple[str, str]] = {
         "This browser is not in a game yet. Pick a game in the room list to join, or press Continue on one you joined.",
     ),
     "join.to_lobby": ("去房间列表", "Go to the room list"),
-    "lobby.intro": (
-        "选一局加入：填个名字就行，不用邀请链接。加入过的局点“继续”回去。",
-        "Pick a game and type a name to join; no invite link needed. Press Continue to return to a game you joined.",
-    ),
+    "lobby.intro": ("选一局游戏加入", "Pick a game to join"),
     "lobby.empty": ("现在没有可以加入的局。", "No games to join right now."),
     "lobby.status.setup": ("准备中", "Setting up"),
     "lobby.status.characters": ("建角中", "Making characters"),
@@ -1201,7 +1198,7 @@ T: dict[str, tuple[str, str]] = {
     "codes.rate.login": ("尝试太多次，请稍后再试", "Too many attempts; try later"),
     "codes.auth.bad_password": ("密码不对", "Wrong password"),
     "codes.auth.admin_required": ("需要管理员登录", "Admin login required"),
-    "codes.auth.player_required": ("需要用邀请链接进入", "Use your invite link to join"),
+    "codes.auth.player_required": ("请先在首页选一局加入", "Join a game from the home page first"),
     "codes.round.illegal_transition": (
         "当前阶段不能这样做（{status}）",
         "Not allowed in this phase ({status})",

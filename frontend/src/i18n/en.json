@@ -114,7 +114,7 @@
     "auth": {
       "admin_required": "Admin login required",
       "bad_password": "Wrong password",
-      "player_required": "Use your invite link to join"
+      "player_required": "Join a game from the home page first"
     },
     "character": {
       "invalid": "The character sheet is invalid"
@@ -649,7 +649,7 @@
     "continue": "Continue",
     "empty": "No games to join right now.",
     "go": "Make your character",
-    "intro": "Pick a game and type a name to join; no invite link needed. Press Continue to return to a game you joined.",
+    "intro": "Pick a game to join",
     "join": "Join",
     "joined": "You have joined.",
     "link_hint": "This is your personal link. This browser remembers you; use the link to come back from another browser or device. Do not share it: anyone with it can play as you.",
