@@ -292,6 +292,118 @@ T: dict[str, tuple[str, str]] = {
     "cf.uses_n": ("{n} 种用法", "{n} uses"),
     "cf.edit": ("编辑", "Edit"),
     "docs.title": ("语法手册", "Syntax guide"),
+    "docs.v.target.0": ("要选一个对象（默认）", "must pick one target (default)"),
+    "docs.v.target.1": ("只能对自己用", "only on yourself"),
+    "docs.v.target.2": (
+        "没有对象（例如占卜、往脚下布置结界）",
+        "no target (e.g. divination, a ward at your feet)",
+    ),
+    "docs.v.range.0": (
+        "射程，算出米数，例如 30 + this.level * 5",
+        "range in metres, e.g. 30 + this.level * 5",
+    ),
+    "docs.v.range.1": ("不限射程（默认）", "unlimited (default)"),
+    "docs.v.visible.0": (
+        "对象必须在你此刻的感知里（看得见或察觉得到）",
+        "the target must be in your perception right now",
+    ),
+    "docs.v.visible.1": ("不用（默认）", "not needed (default)"),
+    "docs.v.requires.0": (
+        "成立才能用，例如 self.mp >= 5 and not self.silenced",
+        "usable only when true, e.g. self.mp >= 5 and not self.silenced",
+    ),
+    "docs.v.requires.1": ("随时能用（默认）", "always usable (default)"),
+    "docs.v.noise.0": (
+        "多少米内的人会察觉到你在用",
+        "people within this many metres notice the use",
+    ),
+    "docs.v.noise.1": ("悄无声息（默认）", "silent (default)"),
+    "docs.v.cast_time.0": (
+        "要准备多少分钟，不到 1 分钟算瞬发",
+        "minutes to prepare; under 1 is instant",
+    ),
+    "docs.v.cast_time.1": ("瞬发（默认）", "instant (default)"),
+    "docs.v.cooldown.0": ("用过以后多少分钟内不能再用", "minutes before it can be used again"),
+    "docs.v.cooldown.1": ("没有冷却（默认）", "no cooldown (default)"),
+    "docs.v.check.0": (
+        "你做的检定，决定打没打中（检定名见规则包）",
+        "the check you roll to hit (names are in the rule pack)",
+    ),
+    "docs.v.check.1": ("几个检定都掷，取等级高的", "roll several, keep the best level"),
+    "docs.v.check.2": ("不掷骰，必中（默认）", "no roll, always hits (default)"),
+    "docs.v.auto_level.0": (
+        "不掷骰，直接定下的检定等级（1 起是成功）",
+        "a fixed check level without rolling (1+ succeeds)",
+    ),
+    "docs.v.difficulty.0": (
+        "你这一方的难度，可以用 distance（距离，米）",
+        "your side's difficulty; may use distance (metres)",
+    ),
+    "docs.v.difficulty.1": ("没有难度（默认）", "no difficulty (default)"),
+    "docs.v.hit.0": (
+        "命中条件，可以用 level、opp_level、opposed",
+        "hit condition; may use level, opp_level, opposed",
+    ),
+    "docs.v.hit.1": (
+        "成功、并且被对抗时等级高过对方（默认）",
+        "success, and beating an opposed roll (default)",
+    ),
+    "docs.v.reactions.0": (
+        "对方可以从这些里选一个应对（检定名、应对技能的名字或 ID）",
+        "the target picks one of these to respond (check names, reaction skill names or IDs)",
+    ),
+    "docs.v.reactions.1": ("对方可以用任何应对技能", "any reaction skill"),
+    "docs.v.reactions.2": ("不能应对（默认）", "no response allowed (default)"),
+    "docs.v.save.0": (
+        "命中后对象做的豁免检定（对 difficulty），脚本里 saved 是结果",
+        "a save the target makes after a hit (against difficulty); saved in the script",
+    ),
+    "docs.v.shape.0": (
+        "球：以对象为中心（没有对象时以自己为中心）",
+        "ball centred on the target (or you)",
+    ),
+    "docs.v.shape.1": ("扇形：从自己朝对象展开", "cone from you toward the target"),
+    "docs.v.shape.2": ("长条：从自己朝对象", "strip from you toward the target"),
+    "docs.v.shape.3": ("长方体：从自己朝对象", "box from you toward the target"),
+    "docs.v.shape.4": ("单体（默认）", "single target (default)"),
+    "docs.v.affects.0": ("所有人（默认）", "everyone (default)"),
+    "docs.v.affects.1": (
+        "只有友军：自己这一方和结了盟的玩家的角色",
+        "allies only: your side and allied players' characters",
+    ),
+    "docs.v.affects.2": ("只有不是友军的", "only those who aren't allies"),
+    "docs.v.aura.0": (
+        "光环：圈里符合 affects 的人（包括自己）一直带着这一条的常驻加成",
+        "aura: everyone inside who matches affects (you too) has this entry's bonuses",
+    ),
+    "docs.v.aura.1": ("不是光环（默认）", "not an aura (default)"),
+    "docs.v.placement.0": (
+        "设置物（陷阱、结界），参数见“范围与设置物”",
+        "a placement (trap, ward); arguments under Areas and placements",
+    ),
+    "docs.v.placement.1": ("不是设置物（默认）", "not a placement (default)"),
+    "docs.v.check_label.0": ("界面上显示的名字", "the name shown in the interface"),
+    "docs.v.check_dice.0": (
+        "掷什么，在做检定的角色身上算，例如 1d20 + self.per",
+        "what to roll, on the checking character, e.g. 1d20 + self.per",
+    ),
+    "docs.v.check_target.0": (
+        "目标值，例如技能值；用不到就是 0（默认）",
+        "target value, e.g. a skill value; 0 if unused (default)",
+    ),
+    "docs.v.check_success.0": (
+        "只分成功、失败时写：成立是等级 1，不成立是 0",
+        "two results only: level 1 if true, else 0",
+    ),
+    "docs.v.check_level.0": (
+        "分档时写：算出等级，0 及以下失败，1 起成功，越大越好",
+        "graded results: the level; 0 or below fails, 1+ succeeds, higher is better",
+    ),
+    "docs.v.check_levels.0": ("各等级的名字，下标就是等级", "level names by index"),
+    "docs.v.check_opposed_by.0": ("对抗时对方掷的检定", "the check the opponent rolls"),
+    "docs.v.check_opposed_by.1": ("和自己一样（默认）", "the same check (default)"),
+    "docs.values": ("能填", "Values"),
+    "docs.example": ("例子", "Example"),
     "docs.open": ("语法手册", "Syntax guide"),
     "docs.search": (
         "搜名字或说明，例如 光环、aura、伤害",

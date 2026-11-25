@@ -1522,6 +1522,11 @@ export interface components {
             category: "basics" | "config" | "shape" | "verb" | "script" | "function" | "variable" | "check";
             /** Desc */
             desc: string;
+            /**
+             * Example
+             * @default
+             */
+            example: string;
             /** Name */
             name: string;
             /**
@@ -1534,6 +1539,14 @@ export interface components {
             ][];
             /** Sig */
             sig: string;
+            /**
+             * Values
+             * @default []
+             */
+            values: [
+                string,
+                string
+            ][];
         };
         /** DraftIn */
         DraftIn: {

@@ -509,6 +509,7 @@
       "variable": "Variables and keywords",
       "verb": "Script actions"
     },
+    "example": "Example",
     "kind": {
       "check": "check",
       "derived": "derived",
@@ -521,6 +522,104 @@
     "prefix_rule": "Always prefix names: self. (your sheet), target. (the target's sheet), this. (this entry's columns and parameters).",
     "search": "Search names or descriptions, e.g. aura, damage",
     "title": "Syntax guide",
+    "v": {
+      "affects": {
+        "0": "everyone (default)",
+        "1": "allies only: your side and allied players' characters",
+        "2": "only those who aren't allies"
+      },
+      "aura": {
+        "0": "aura: everyone inside who matches affects (you too) has this entry's bonuses",
+        "1": "not an aura (default)"
+      },
+      "auto_level": {
+        "0": "a fixed check level without rolling (1+ succeeds)"
+      },
+      "cast_time": {
+        "0": "minutes to prepare; under 1 is instant",
+        "1": "instant (default)"
+      },
+      "check": {
+        "0": "the check you roll to hit (names are in the rule pack)",
+        "1": "roll several, keep the best level",
+        "2": "no roll, always hits (default)"
+      },
+      "check_dice": {
+        "0": "what to roll, on the checking character, e.g. 1d20 + self.per"
+      },
+      "check_label": {
+        "0": "the name shown in the interface"
+      },
+      "check_level": {
+        "0": "graded results: the level; 0 or below fails, 1+ succeeds, higher is better"
+      },
+      "check_levels": {
+        "0": "level names by index"
+      },
+      "check_opposed_by": {
+        "0": "the check the opponent rolls",
+        "1": "the same check (default)"
+      },
+      "check_success": {
+        "0": "two results only: level 1 if true, else 0"
+      },
+      "check_target": {
+        "0": "target value, e.g. a skill value; 0 if unused (default)"
+      },
+      "cooldown": {
+        "0": "minutes before it can be used again",
+        "1": "no cooldown (default)"
+      },
+      "difficulty": {
+        "0": "your side's difficulty; may use distance (metres)",
+        "1": "no difficulty (default)"
+      },
+      "hit": {
+        "0": "hit condition; may use level, opp_level, opposed",
+        "1": "success, and beating an opposed roll (default)"
+      },
+      "noise": {
+        "0": "people within this many metres notice the use",
+        "1": "silent (default)"
+      },
+      "placement": {
+        "0": "a placement (trap, ward); arguments under Areas and placements",
+        "1": "not a placement (default)"
+      },
+      "range": {
+        "0": "range in metres, e.g. 30 + this.level * 5",
+        "1": "unlimited (default)"
+      },
+      "reactions": {
+        "0": "the target picks one of these to respond (check names, reaction skill names or IDs)",
+        "1": "any reaction skill",
+        "2": "no response allowed (default)"
+      },
+      "requires": {
+        "0": "usable only when true, e.g. self.mp >= 5 and not self.silenced",
+        "1": "always usable (default)"
+      },
+      "save": {
+        "0": "a save the target makes after a hit (against difficulty); saved in the script"
+      },
+      "shape": {
+        "0": "ball centred on the target (or you)",
+        "1": "cone from you toward the target",
+        "2": "strip from you toward the target",
+        "3": "box from you toward the target",
+        "4": "single target (default)"
+      },
+      "target": {
+        "0": "must pick one target (default)",
+        "1": "only on yourself",
+        "2": "no target (e.g. divination, a ward at your feet)"
+      },
+      "visible": {
+        "0": "the target must be in your perception right now",
+        "1": "not needed (default)"
+      }
+    },
+    "values": "Values",
     "verb_note": "Actions go in the script, after who they act on: self. or target."
   },
   "effects": {

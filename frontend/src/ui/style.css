@@ -314,3 +314,6 @@ tr.inactive { opacity: 0.5; }
 .sk-docs-link { margin: 4px 0; }
 .sk-docs-tab { position: fixed; left: 0; top: 40%; z-index: 16; writing-mode: vertical-rl; padding: 14px 7px; border-radius: 0 8px 8px 0; border: 1px solid var(--accent); border-left: none; background: var(--accent); color: #fff; font-size: 14px; letter-spacing: 2px; cursor: pointer; box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2); }
 .sk-docs-tab:hover { filter: brightness(1.1); }
+.sk-docs-values { margin-top: 4px; }
+.sk-docs-values ul { margin: 2px 0 0; padding-left: 18px; }
+.sk-docs-label { font-weight: 600; color: var(--fg); font-size: 12px; }

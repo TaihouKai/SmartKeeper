@@ -190,6 +190,9 @@ class DocEntry(Frozen):
     sig: str
     desc: str
     params: tuple[tuple[str, str], ...] = ()
+    # 能填什么：每种写法（代码）和它的意思（翻译键）；example 是一行例子（代码）
+    values: tuple[tuple[str, str], ...] = ()
+    example: str = ""
 
 
 class AllianceItem(Frozen):

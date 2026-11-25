@@ -23,6 +23,7 @@ function splitComment(text: string): [string, string] {
 
 export function toCode(effects: readonly EffectLike[]): string {
   return effects
+    .filter((e) => e.target || e.description.trim())  // 空白的（旧界面加了没填的）不显示
     .map((e) => {
       const note = e.description.trim();
       if (!e.target) return `# ${note}`;

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import type { ReactNode } from "react";
@@ -350,8 +350,14 @@ export function EffectsEditor({
   const { t } = useI18n();
   const [problems, setProblems] = useState<string[]>([]);
   const [text, setText] = useState(() => toCode(effects));
-  // 外面换了（换了一条、复制了预设）：显示的代码跟着换；自己正在打的字不动
-  if (toCode(fromCode(text, effects)) !== toCode(effects)) setText(toCode(effects));
+  // 外面换了（换了一条、复制了预设）：显示的代码跟着换。只比较“上次是不是自己改出来的”，
+  // 不拿文字和列表互相转换来比（空白的旧加成转不回来，会来回同步把页面卡死）
+  const mine = useRef(JSON.stringify(effects));
+  const cur = JSON.stringify(effects);
+  if (cur !== mine.current) {
+    mine.current = cur;
+    setText(toCode(effects));
+  }
   const allowed = useMemo(() => new Set(derived), [derived]);
   // 校验：每行是不是“self.名字 = 公式”，名字能不能改，公式对不对（问题带行号）
   const check = useCallback(
@@ -387,7 +393,9 @@ export function EffectsEditor({
         onProblems={setProblems}
         onChange={(code) => {
           setText(code);
-          onChange(fromCode(code, effects) as Effect[]);
+          const next = fromCode(code, effects) as Effect[];
+          mine.current = JSON.stringify(next);
+          onChange(next);
         }}
       />
       {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}

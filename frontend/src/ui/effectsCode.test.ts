@@ -20,3 +20,11 @@ describe("effects as code", () => {
     expect(parseCode("self.a == 1")[0]).toEqual({ line: 1, error: "effects.bad_line" });
   });
 });
+
+describe("blank leftovers", () => {
+  it("are hidden and dropped instead of bouncing back and forth", () => {
+    const blank = [{ description: "", target: null, formula: null, priority: null }];
+    expect(toCode(blank)).toBe("");
+    expect(fromCode(toCode(blank), blank)).toEqual([]);
+  });
+});

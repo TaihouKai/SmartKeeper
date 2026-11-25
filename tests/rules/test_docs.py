@@ -23,6 +23,9 @@ def test_every_part_of_the_language_is_documented() -> None:
     assert names("shape") == {*skillconfig.SHAPES, "placement"}
     assert set(skillconfig.SCRIPT_VARS) <= names("variable")
     assert {*checkconfig.KEYS, *checkconfig.VARS} == names("check")
+    for d in RulesService().docs():
+        if d.category in ("config", "check") and d.sig.endswith("= …"):
+            assert d.values and d.example.startswith(f"{d.name} ="), d.name
     placement = next(
         d for d in RulesService().docs() if d.name == "placement" and d.category == "shape"
     )
@@ -40,7 +43,7 @@ def lookup(table: dict[str, Any], key: str) -> object:
 
 def test_every_description_is_translated() -> None:
     keys = {d.desc for d in RulesService().docs()}
-    keys |= {k for d in RulesService().docs() for _, k in d.params}
+    keys |= {k for d in RulesService().docs() for _, k in (*d.params, *d.values)}
     for lang in ("zh", "en"):
         table = json.loads((I18N / f"{lang}.json").read_text(encoding="utf-8"))
         missing = sorted(k for k in keys if not isinstance(lookup(table, k), str))

@@ -153,7 +153,13 @@ export function DocsBody({ initial = { query: "", category: "all" }, pack = [] }
   const q = query.trim().toLowerCase();
   // 搜名字、写法、说明（翻译后的文字）和参数
   const builtins = entries.filter(
-    (d) => !q || has(d.name, q) || has(d.sig, q) || has(t(d.desc), q) || (d.params ?? []).some(([p, k]) => has(p, q) || has(t(k), q)),
+    (d) =>
+      !q ||
+      has(d.name, q) ||
+      has(d.sig, q) ||
+      has(t(d.desc), q) ||
+      has(d.example ?? "", q) ||
+      [...(d.params ?? []), ...(d.values ?? [])].some(([p, k]) => has(p, q) || has(t(k), q)),
   );
   const own = pack.filter((p) => !q || has(p.name, q) || has(p.sig, q) || has(p.text, q) || has(p.kind, q));
   const groups = CATEGORIES.map((c) => ({
@@ -189,6 +195,23 @@ export function DocsBody({ initial = { query: "", category: "all" }, pack = [] }
                 </dt>
                 <dd>
                   {t(d.desc)}
+                  {(d.values ?? []).length > 0 && (
+                    <div className="sk-docs-values">
+                      <span className="sk-docs-label">{t("docs.values")}</span>
+                      <ul>
+                        {(d.values ?? []).map(([code, k]) => (
+                          <li key={code}>
+                            <code>{code}</code>：{t(k)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {d.example && (
+                    <div className="sk-docs-values">
+                      <span className="sk-docs-label">{t("docs.example")}</span> <code>{d.example}</code>
+                    </div>
+                  )}
                   {(d.params ?? []).length > 0 && (
                     <ul>
                       {(d.params ?? []).map(([p, k]) => (
