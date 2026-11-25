@@ -22,6 +22,7 @@ from smartkeeper.contracts import (
     Sheet,
 )
 from smartkeeper.rules import skillconfig
+from smartkeeper.rules.bonus import effects_of
 
 
 def open_columns(g: GroupDef, p: GroupPreset) -> list[FieldDef]:
@@ -418,7 +419,11 @@ class EntityContext:
             for entry in presets.get(g.name, ()):
                 if is_aura(entry.config, entry.script):
                     continue
-                effs = [e for e in entry.effects if e.is_mechanical and e.target == name]
+                effs = [
+                    e
+                    for e in effects_of(entry.bonus, entry.effects)
+                    if e.is_mechanical and e.target == name
+                ]
                 if effs:
                     cols = self._live_entry(g.name, entry).fields
                     out += [(eff, cols, f"{g.name}:{entry.name}") for eff in effs]
@@ -427,7 +432,11 @@ class EntityContext:
             for entry in entries:
                 if is_aura(entry.config, entry.script):
                     continue
-                effs = [e for e in entry.effects if e.is_mechanical and e.target == name]
+                effs = [
+                    e
+                    for e in effects_of(entry.bonus, entry.effects)
+                    if e.is_mechanical and e.target == name
+                ]
                 if not effs:
                     continue
                 cols = self._live_entry(group, entry).fields
@@ -441,7 +450,11 @@ class EntityContext:
                 for u in entry.uses:
                     if not u.toggle or not self.is_on(entry.name, u.name, u.default_on):
                         continue
-                    effs = [e for e in u.effects if e.is_mechanical and e.target == name]
+                    effs = [
+                        e
+                        for e in effects_of(u.bonus, u.effects)
+                        if e.is_mechanical and e.target == name
+                    ]
                     if effs:
                         cols = self._live_entry(g.name, entry).fields
                         out += [(eff, cols, f"{g.name}:{entry.name}/{u.name}") for eff in effs]

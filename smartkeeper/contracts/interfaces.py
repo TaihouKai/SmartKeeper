@@ -19,7 +19,7 @@ from smartkeeper.contracts.rulepack import (
     RulePackInfo,
     RulePackVersion,
 )
-from smartkeeper.contracts.sheet import DerivedValue, ScriptStep, SkillConfig
+from smartkeeper.contracts.sheet import DerivedValue, Effect, ScriptStep, SkillConfig
 from smartkeeper.contracts.spatial import (
     Body,
     DocEntry,
@@ -113,6 +113,10 @@ class Rules(Protocol):
         self, pack: RulePack, template: str | None, scope: FormulaScope | None = None
     ) -> list[str]:
         """公式输入框可补全的名字（scope=script 时加上脚本的语句开头）。"""
+        ...
+
+    def bonus_effects(self, bonus: str) -> tuple[Effect, ...]:
+        """常驻加成的代码编译成一串修正（写错的是空）。"""
         ...
 
     def docs(self) -> tuple[DocEntry, ...]:
@@ -313,7 +317,7 @@ type Faces = Callable[[int, int], tuple[int, ...]]
 # 同一个玩家控制的其他实体：模板名 -> 角色卡；同一个模板有不止一个时为 None（引用它会报错）
 type Peers = Mapping[str, JsonValue | None]
 type FormulaScope = Literal[
-    "any_entity", "dice", "script", "config", "check", "damage", "stealth", "search"
+    "any_entity", "dice", "script", "config", "check", "damage", "stealth", "search", "bonus"
 ]
 
 

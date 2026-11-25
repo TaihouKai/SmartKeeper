@@ -186,6 +186,11 @@
       "bad_password": "密码不对",
       "player_required": "请先在首页选一局加入"
     },
+    "bonus": {
+      "no_action": "常驻加成里不能写动作（{name}）；动作写在“生效时发生什么”里",
+      "no_minutes": "常驻加成一直生效，不能写 with minutes",
+      "self_only": "常驻加成只能改自己：self.名字"
+    },
     "character": {
       "draft_too_big": "角色卡太大了，存不下",
       "invalid": "角色卡没有通过校验"
@@ -201,10 +206,6 @@
       "missing_arg": "{name} 少了参数 {arg}",
       "unknown_check": "没有叫 {name} 的检定（在“检定”里加）",
       "unknown_key": "没有 {name} 这一项设置（见 IDE 的“速查”）"
-    },
-    "effects": {
-      "bad_line": "要写成 self.名字 = 公式（或者 # 说明）",
-      "unknown_target": "{name} 不是能加成的数值（推导值或数值字段）"
     },
     "formula": {
       "arity": "{name} 的参数个数不对（给了 {count} 个）",
@@ -317,17 +318,22 @@
       "version_in_use": "这个版本正在被某一局使用，不能删除"
     },
     "script": {
+      "action_in_minutes": "with minutes(…) 里只能改数值；伤害、召唤这类动作写在外面",
       "arity": "{name} 的参数个数不对（写了 {count} 个）",
       "bad_statement": "这一句不是动作：{text}。每句写成 对象.动作(参数)，例如 target.damage(5)；或者 if / elif / else / pass",
+      "bad_target": "只能改 self.、target.、同伴或 this. 的数值，例如 target.hp -= 10",
       "bad_variable": "{name} 不能当变量名（self、target、this 有固定的意思）",
+      "bad_with": "限时要写成 with minutes(分钟数):",
       "empty_block": "if / elif / else 下面要有缩进的几行",
       "field_arg": "{name} 的第一个参数要写字段名，例如 hp",
       "field_prefix": "第 {line} 行：{who}.{name} 改的是 {who} 的值，第一个参数要写 {who}.<名字>（或者不写前缀），不能写 {prefix}.",
       "if_call": "if 不能当函数写。要按条件做不同的事，写成 if 条件: 换行，下面缩进写动作，再接 else:；只是数值二选一的话写成 a if 条件 else b",
       "name_arg": "{name} 的参数要写名字（模板名，或 self / target / 同伴的模板名）",
+      "needs_minutes": "{name} 不是会变动的数值，只能限时改：写在 with minutes(…): 里",
       "not_derived": "{name} 不能修正：modify 只能修正推导值、建角时填的数值字段，或 this.<列>",
       "not_runtime": "{name} 不是运行值（数值或资源），不能在脚本里改",
       "setting_name": "{name} 是技能设置的项，变量换个名字",
+      "timed_runtime": "限时改 {name} 只能用 += 或 -=（到期扣回还剩下的部分）",
       "unexpected_indent": "缩进不对：同一段里的行要对齐，只有 if / elif / else 下面的几行才缩进",
       "unknown_column": "{name} 不是这个条目的列（this.<列> 只能对自己用：self.set(this.列, …)）",
       "unknown_field": "召唤的模板没有字段 {name}",
@@ -479,6 +485,11 @@
       "width_m": "宽度（米），数字"
     },
     "placement": "这个技能放下的是设置物（陷阱、结界）：放在地图上，有人进入范围就触发",
+    "s": {
+      "bonus": "常驻加成：同一种写法，一直生效。只能改自己（self.），可以有 if 和局部变量，不能写动作和 with minutes；行尾 # 后面是说明，只有 # 说明的一行由 KP 理解",
+      "change": "改数值：= 设成、+= 加、-= 减、*= 乘、/= 除。生命、魔力、护盾这类会变动的数值直接改（不超过上下限）；属性、推导值只能限时改，写在 with minutes(…): 里",
+      "minutes": "限时：下面缩进的几行 N 分钟后自动恢复。属性、推导值是限时修正；会变动的数值只能 += / -=，到期扣回还剩下的部分。里面不能写伤害、召唤这类动作"
+    },
     "shape": {
       "box": "长方体范围",
       "capsule": "线形范围（光束、射线），有宽度",
@@ -486,12 +497,12 @@
       "sphere": "球形范围"
     },
     "verb": {
-      "add": "增加一个运行值；写了分钟就是限时的，到期扣回加上去还剩下的部分。结果不超过上下限",
+      "add": "旧写法，现在写 target.hp += 10（限时：写在 with minutes(…): 里）。增加一个运行值，结果不超过上下限",
       "damage": "受到伤害：先扣护盾 shield，剩下的扣生命值 hp",
-      "modify": "限时修正一个数值（推导值、建角时填的字段，或 this.<列>），到期消失",
+      "modify": "旧写法，现在写在 with minutes(10): 里，例如 target.str -= 2。限时修正一个数值，到期消失",
       "negate": "当反应时：让打在自己身上的这次攻击无效（平时没有效果）",
-      "set": "把一个运行值设为某个数，结果在上下限之内",
-      "sub": "减少一个运行值，结果不低于下限",
+      "set": "旧写法，现在写 self.hp = 0。把一个运行值设为某个数，结果在上下限之内",
+      "sub": "旧写法，现在写 self.mp -= 5。减少一个运行值，结果不低于下限",
       "summon": "召唤：在接收者身边放几个这个模板的角色，归接收者的玩家控制；限时的到期消失。后面写 字段=公式 填新角色卡",
       "teleport": "瞬间移动到另一个角色身边（同一个位置、同一栋建筑）"
     }
@@ -620,11 +631,11 @@
       }
     },
     "values": "能填",
-    "verb_note": "动作写在“生效时发生什么”里，前面是落在谁身上：self.（自己）或 target.（对象）。"
+    "verb_note": "动作是函数，前面写落在谁身上：self.（自己）或 target.（对象）。改数值不用函数，直接写 target.hp -= 10（见“脚本写法”）。"
   },
   "effects": {
-    "ph": "例如\nself.str = self.str + 2  # 力量 +2\n# 敌人看到会心生畏惧",
-    "short": "一行一条，一直生效：self.名字 = 新值的公式（公式里写这个名字自己是加成前的值），行尾 # 后面写说明；只写 # 说明的一行由 KP 理解。"
+    "ph": "例如\nself.str += 2  # 力量 +2\nif self.template == \"master\":\n    self.move_speed *= 1.2\n# 敌人看到会心生畏惧",
+    "short": "和“生效时发生什么”同一种写法，只是一直生效：self.str += 2、self.move_speed *= 1.2，可以写 if；行尾 # 后面写说明，只写 # 说明的一行由 KP 理解。"
   },
   "event": {
     "alliance": "结盟",
@@ -963,7 +974,7 @@
     "requires_ph": "例如 this.plus > 0",
     "script": "选了就执行的句子",
     "script_hint": "打没打中都执行，例如扣同伴身上的资源",
-    "script_ph": "例如 self.sub(self.hp, 5)",
+    "script_ph": "例如 self.hp -= 5",
     "spends": "从哪个资源里扣",
     "spends_hint": "扣的数就是选的数（例如投入多少魔力）",
     "use_own": "只有这个用途有的参数（可选）"
@@ -1418,10 +1429,10 @@
     "world": "世界观"
   },
   "script": {
-    "hint": "技能生效时，引擎一行一行执行。名字一律写前缀：self.（你自己卡上的）、target.（对象卡上的）、this.（这一条自己的列和参数）。常用的写法：\n- target.damage(2d6)：对象受到 2d6 伤害（先扣护盾再扣生命）\n- target.add(target.hp, 10)：对象恢复 10 点生命\n- self.sub(self.mp, this.mp_spent)：自己扣掉这次投入的魔力\n- target.add(target.shield, 10, 30)：对象得到 10 点护盾，持续 30 分钟\n- self.modify(self.str, self.str + 1, 10)：10 分钟内自己的力量 +1\n- if self.mp > 5:：下面缩进的几行只在条件成立时执行",
+    "hint": "技能生效时，引擎一行一行执行。名字一律写前缀：self.（你自己卡上的）、target.（对象卡上的）、this.（这一条自己的列和参数）。改数值用 = += -= *= /=，动作用函数，限时写在 with minutes(…): 里。",
     "line": "第 {n} 行",
-    "ph": "例如\ntarget.damage(this.damage)\nself.add(hp, 5)",
-    "short": "生效时引擎一行一行执行，例如 target.damage(2d6)、self.sub(self.mp, 5)。",
+    "ph": "例如\ntarget.damage(this.damage)\nself.mp -= this.mp_spent\nwith minutes(10):\n    target.move_speed *= 0.5",
+    "short": "生效时引擎一行一行执行。改数值：target.hp -= 10、self.mp -= this.mp_spent；动作：target.damage(2d6)；限时写在 with minutes(10): 里。",
     "title": "技能脚本（使用时）"
   },
   "shape": {

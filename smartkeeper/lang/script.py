@@ -1,18 +1,24 @@
 """技能脚本：用技能时执行的一串语句。
 
-    target.damage(2d6 + this.level)          # 受到伤害（先扣护盾再扣生命值，由调用方决定怎么扣）
-    self.add(hp, 5)                          # 加；第三个参数是持续分钟数，到期扣回剩下的部分
-    target.sub(mp, 10); target.set(stance, 0)
-    target.modify(move_speed, move_speed * 0.5, 10)   # 限时修正：推导值的新值公式，持续分钟数
-    self.summon(familiar, 3, 60, hp=1)       # 召唤：模板、几个、存在几分钟，新角色卡上的字段
-    companion.teleport(self)                 # 瞬间移动到某人身边
+    self.mp -= this.mp_spent                 # 改数值：= += -= *= /=
+    target.hp += 2d6
+    target.damage(2d6 + this.level)          # 动作：受到伤害（先扣护盾再扣生命值，由调用方决定怎么扣）
+    with minutes(10):                        # 限时：下面缩进的几行 10 分钟后自动恢复
+        target.str -= 2
+        target.move_speed *= 0.5
+    self.summon(familiar, 3, 60, hp=1)       # 动作：召唤（模板、几个、存在几分钟，新角色卡上的字段）
+    companion.teleport(self)                 # 动作：瞬间移动到某人身边
 
     if target.template == "monster":         # 条件分支：缩进的几行是它的内容
-        target.add(mp, 2 * this.mp_spent)
+        target.mp += 2 * this.mp_spent
     elif target.template == "boss":
-        target.add(mp, this.mp_spent)
+        target.mp += this.mp_spent
     else:
-        self.add(mp, this.mp_spent)
+        self.mp += this.mp_spent
+
+旧写法 add / sub / set / modify（self.add(hp, 5)、target.modify(move_speed, move_speed * 0.5, 10)）照样能用。
+改数值的句子解析成 verb="change"（op 是 = += -= *= /=，minutes 是外面 with minutes(…) 的时长），
+由调用方按字段是不是运行值换成 add / sub / set / modify（lower）。
 
 - 语法就是 Python：一行一句，也可以用 ; 隔开；括号没关上时可以换行接着写；# 后面是注释；pass 什么都不做。
 - 每句是 <对象>.<动作>(参数, ...)。对象：self 是使用者自己，target 是使用时选的对象（也可以是自己），
@@ -78,6 +84,7 @@ class Statement:
     count: str | None = None  # summon：几个
     values: tuple[tuple[str, str], ...] = ()  # summon：新角色卡上的字段（名字, 公式）
     to: str | None = None  # teleport：移动到谁身边
+    op: str | None = None  # change：= += -= *= /=
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,29 +192,76 @@ def _statement(call: ast.Call, line: int, src: str) -> Statement:
     )
 
 
-def _if(node: ast.If, src: str) -> If:
+def _if(node: ast.If, src: str, minutes: str | None) -> If:
     branches: list[Branch] = []
     cur = node
     while True:
         cond = _arg(cur.test, cur.lineno)
-        branches.append(Branch(line=cur.lineno, condition=cond, body=_body(cur.body, src)))
+        branches.append(Branch(line=cur.lineno, condition=cond, body=_body(cur.body, src, minutes)))
         rest = cur.orelse
         if len(rest) == 1 and isinstance(rest[0], ast.If):
             cur = rest[0]  # elif（else: 下面只有一个 if 也一样）
             continue
         if rest:
-            branches.append(Branch(line=rest[0].lineno, condition=None, body=_body(rest, src)))
+            branches.append(
+                Branch(line=rest[0].lineno, condition=None, body=_body(rest, src, minutes))
+            )
         break
     return If(line=node.lineno, branches=tuple(branches))
 
 
-def _body(stmts: list[ast.stmt], src: str) -> tuple[ScriptNode, ...]:
+_OPS: dict[type[ast.operator], str] = {
+    ast.Add: "+=",
+    ast.Sub: "-=",
+    ast.Mult: "*=",
+    ast.Div: "/=",
+}
+
+
+def _change(
+    target: ast.expr, op: str, value: ast.expr, line: int, minutes: str | None
+) -> Statement:
+    """改数值：<对象>.<名字> op 公式；this.<列> 是这一条自己的列（落在自己身上）。"""
+    if not (isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name)):
+        raise FormulaError("script.bad_target", line=line)
+    who = target.value.id
+    field = f"this.{target.attr}" if who == "this" else target.attr
+    return Statement(
+        line=line,
+        receiver="self" if who == "this" else who,
+        verb="change",
+        field=field,
+        amount=_arg(value, line),
+        minutes=minutes,
+        op=op,
+    )
+
+
+def _minutes(s: ast.With, line: int) -> str:
+    """with minutes(N): 的 N。"""
+    if len(s.items) != 1 or s.items[0].optional_vars is not None:
+        raise FormulaError("script.bad_with", line=line)
+    call = s.items[0].context_expr
+    if not (
+        isinstance(call, ast.Call)
+        and isinstance(call.func, ast.Name)
+        and call.func.id == "minutes"
+        and len(call.args) == 1
+        and not call.keywords
+    ):
+        raise FormulaError("script.bad_with", line=line)
+    return _arg(call.args[0], line)
+
+
+def _body(stmts: list[ast.stmt], src: str, minutes: str | None = None) -> tuple[ScriptNode, ...]:
     out: list[ScriptNode] = []
     for s in stmts:
         if isinstance(s, ast.Pass):
             continue
         if isinstance(s, ast.If):
-            out.append(_if(s, src))
+            out.append(_if(s, src, minutes))
+        elif isinstance(s, ast.With):
+            out += _body(s.body, src, _minutes(s, s.lineno))
         elif (
             isinstance(s, ast.Assign) and len(s.targets) == 1 and isinstance(s.targets[0], ast.Name)
         ):
@@ -215,7 +269,14 @@ def _body(stmts: list[ast.stmt], src: str) -> tuple[ScriptNode, ...]:
             if name in (*RECEIVERS, *RESERVED):
                 raise FormulaError("script.bad_variable", line=s.lineno, name=name)
             out.append(Let(line=s.lineno, name=name, value=_arg(s.value, s.lineno)))
+        elif isinstance(s, ast.Assign) and len(s.targets) == 1:
+            out.append(_change(s.targets[0], "=", s.value, s.lineno, minutes))
+        elif isinstance(s, ast.AugAssign) and type(s.op) in _OPS:
+            out.append(_change(s.target, _OPS[type(s.op)], s.value, s.lineno, minutes))
         elif isinstance(s, ast.Expr) and isinstance(s.value, ast.Call):
+            if minutes is not None:
+                # 限时块里只能改数值（到时候恢复）；伤害、召唤这些动作写在外面
+                raise FormulaError("script.action_in_minutes", line=s.lineno)
             out.append(_statement(s.value, s.lineno, src))
         else:
             text = ast.get_source_segment(src, s) or ""
@@ -233,6 +294,68 @@ def parse_script(text: str) -> tuple[ScriptNode, ...]:
     except SyntaxError as e:
         raise syntax_error(e, src, script=True) from None
     return _body(tree.body, src)
+
+
+def lower(nodes: tuple[ScriptNode, ...], runtime: set[str]) -> tuple[ScriptNode, ...]:
+    """把改数值的句子（verb="change"）换成 add / sub / set / modify。runtime 是会变动的数值（生命、魔力……）的名字；
+    条目自己的列（this.<列>）不限时就是直接改，限时是修正。
+
+    不限时：运行值 = += -= *= /= 直接改；别的（属性、推导值）不能直接改，要写在 with minutes(…) 里。
+    限时：运行值只能 += / -=（到期扣回剩下的部分）；别的改成限时修正（公式里自己的名字是修正前的值）。"""
+    out: list[ScriptNode] = []
+    for n in nodes:
+        if isinstance(n, If):
+            out.append(
+                If(
+                    line=n.line,
+                    branches=tuple(
+                        Branch(line=b.line, condition=b.condition, body=lower(b.body, runtime))
+                        for b in n.branches
+                    ),
+                )
+            )
+            continue
+        if not isinstance(n, Statement) or n.verb != "change":
+            out.append(n)
+            continue
+        assert n.field is not None and n.amount is not None and n.op is not None
+        col = n.field.startswith("this.")
+        live = col or n.field in runtime
+        own = n.field if col else f"{n.receiver}.{n.field}"
+        value = n.amount
+        new = value if n.op == "=" else f"{own} {n.op[0]} ({value})"
+        if n.minutes is None:
+            if not live:
+                raise FormulaError("script.needs_minutes", line=n.line, name=n.field)
+            if n.op == "+=":
+                out.append(_as(n, "add", amount=value))
+            elif n.op == "-=":
+                out.append(_as(n, "sub", amount=value))
+            else:
+                out.append(_as(n, "set", amount=new))
+            continue
+        if live and not col:
+            if n.op == "+=":
+                out.append(_as(n, "add", amount=value, minutes=n.minutes))
+            elif n.op == "-=":
+                out.append(_as(n, "add", amount=f"-({value})", minutes=n.minutes))
+            else:
+                raise FormulaError("script.timed_runtime", line=n.line, name=n.field)
+            continue
+        out.append(_as(n, "modify", formula=new, minutes=n.minutes))
+    return tuple(out)
+
+
+def _as(n: Statement, verb: str, **kw: str | None) -> Statement:
+    return Statement(
+        line=n.line,
+        receiver=n.receiver,
+        verb=verb,
+        field=n.field,
+        amount=kw.get("amount"),
+        formula=kw.get("formula"),
+        minutes=kw.get("minutes"),
+    )
 
 
 def statements(nodes: tuple[ScriptNode, ...]) -> list[Statement]:

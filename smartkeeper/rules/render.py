@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from smartkeeper.contracts import EntityTemplate, FieldDef, RulePack
+from smartkeeper.rules.bonus import effects_of
 
 
 def _field(fd: FieldDef) -> str:
@@ -55,7 +56,7 @@ def _template(t: EntityTemplate, include_hidden: bool) -> list[str]:
             if p.description:
                 line += f": {p.description}"
             out.append(line)
-            for eff in p.effects:
+            for eff in effects_of(p.bonus, p.effects):
                 mech = f" `{eff.target} = {eff.formula}`" if eff.is_mechanical else ""
                 out.append(f"    - {eff.description}{mech}")
     out.append("")

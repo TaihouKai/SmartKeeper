@@ -2,7 +2,7 @@ import { Fragment, useCallback, useState } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { FormulaInput, Mover } from "../ui/components";
-import { EffectsEditor, FieldInput, fieldLabel, type Effect } from "../ui/EntryEditor";
+import { BonusEditor, FieldInput, fieldLabel } from "../ui/EntryEditor";
 import { ParamsEditor } from "../ui/ParamEditor";
 import { FieldCard, blankField, useListEdit, type Validate } from "./fieldCard";
 import { hasProblem, useWorkbench } from "./rules/ctx";
@@ -15,10 +15,6 @@ type Cell = string | number | boolean | undefined;
 /** 清空的数字框是 ""，不存进规则包。 */
 function clean(fields: Record<string, unknown>): Preset["fields"] {
   return Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== "" && v !== undefined)) as Preset["fields"];
-}
-
-function effectsOf(p: Preset): Effect[] {
-  return (p.effects ?? []).map((e) => ({ description: e.description ?? "", target: e.target ?? null, formula: e.formula ?? null }));
 }
 
 /** 一行的“编辑”按钮：在 IDE 里打开这一条的设置和效果。圆点：灰色是效果还没写，绿色是没问题，红色是有问题。 */
@@ -46,7 +42,7 @@ type Use = Schemas["EntryUse"];
 
 /** 一串用途（物品的几种用法，或分组的用途模板）：名字、说明、开关、开着时的修正、这个用途自己的参数；
  * 设置和脚本点“编辑”在 IDE 里写。 */
-function UsesEditor({ uses, onChange, path, hint, derived, validate, checks, spendTargets }: { uses: Use[]; onChange: (u: Use[]) => void; path: string; hint: string; derived: string[]; validate: (f: string) => ReturnType<Validate>; checks: string[]; spendTargets: string[] }) {
+function UsesEditor({ uses, onChange, path, hint, validate, vBonus, checks, spendTargets }: { uses: Use[]; onChange: (u: Use[]) => void; path: string; hint: string; derived: string[]; validate: (f: string) => ReturnType<Validate>; vBonus: (f: string) => ReturnType<Validate>; checks: string[]; spendTargets: string[] }) {
   const { t } = useI18n();
   const ed = useListEdit(uses, onChange);
   return (
@@ -73,11 +69,11 @@ function UsesEditor({ uses, onChange, path, hint, derived, validate, checks, spe
               {t("common.remove")}
             </button>
           </div>
-          {u.toggle && <EffectsEditor effects={(u.effects ?? []).map((e) => ({ description: e.description ?? "", target: e.target ?? null, formula: e.formula ?? null }))} derived={derived} validate={validate} withPriority={false} title={t("uses.effects")} onChange={(effects) => ed.update(j, { ...u, effects })} />}
+          {u.toggle && <BonusEditor bonus={u.bonus ?? ""} legacy={u.effects ?? []} validate={vBonus} title={t("uses.effects")} onChange={(bonus) => ed.update(j, { ...u, bonus, effects: [] })} />}
           <ParamsEditor params={u.params ?? []} onChange={(params) => ed.update(j, { ...u, params })} validate={validate} checks={checks} spendTargets={spendTargets} title={t("params.use_own")} />
         </div>
       ))}
-      <button type="button" onClick={() => ed.add({ name: "", description: "", config: "", script: "", params: [], toggle: false, default_on: false, effects: [] })}>
+      <button type="button" onClick={() => ed.add({ name: "", description: "", config: "", script: "", params: [], toggle: false, default_on: false, effects: [], bonus: "" })}>
         {t("rules.uses.add")}
       </button>
     </div>
@@ -97,6 +93,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
   const vWhen = useCallback((f: string) => validate(f, template), [validate, template]);
   const vDice = useCallback((f: string) => validate(f, template, g.name, "dice"), [validate, template, g.name]);
   const vEff = useCallback((f: string) => validate(f, template, g.name), [validate, template, g.name]);
+  const vBonus = useCallback((f: string) => validate(f, template, g.name, "bonus"), [validate, template, g.name]);
   const setRow = (r: number, patch: Partial<Preset>) => pre.update(r, { ...presets[r]!, ...patch });
   const rowPath = (r: number) => `${base}.presets[${r}]`;
   const scripts = g.effects !== false;
@@ -219,9 +216,9 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                 {open === r && (
                   <tr className="sk-subrow">
                     <td colSpan={width}>
-                      {g.effects !== false && <EffectsEditor effects={effectsOf(p)} derived={derived} validate={vEff} withPriority={false} onChange={(effects) => setRow(r, { effects })} />}
+                      {g.effects !== false && <BonusEditor bonus={p.bonus ?? ""} legacy={p.effects ?? []} validate={vBonus} onChange={(bonus) => setRow(r, { bonus, effects: [] })} />}
                       <ParamsEditor params={p.params ?? []} onChange={(params) => setRow(r, { params })} validate={vEff} checks={checks} spendTargets={spendTargets} title={t(g.uses ? "params.item_own" : "params.own")} hint={t("params.own_hint")} />
-                      {g.uses && <UsesEditor uses={p.uses ?? []} path={`${rowPath(r)}.uses`} hint={t("rules.uses.hint")} derived={derived} validate={vEff} checks={checks} spendTargets={spendTargets} onChange={(uses) => setRow(r, { uses })} />}
+                      {g.uses && <UsesEditor uses={p.uses ?? []} path={`${rowPath(r)}.uses`} hint={t("rules.uses.hint")} derived={derived} validate={vEff} vBonus={vBonus} checks={checks} spendTargets={spendTargets} onChange={(uses) => setRow(r, { uses })} />}
                     </td>
                   </tr>
                 )}
@@ -237,12 +234,12 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
           </tbody>
         </table>
       </div>
-      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], config: "", script: "", when: "", uses: [], params: [] })}>
+      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], bonus: "", config: "", script: "", when: "", uses: [], params: [] })}>
         {t("rules.gt.add_row")}
       </button>
       {g.effects !== false && g.uses && (
         <div className="sk-card">
-          <UsesEditor uses={g.use_templates ?? []} path={`${base}.use_templates`} hint={t("rules.uses.templates_hint")} derived={derived} validate={vEff} checks={checks} spendTargets={spendTargets} onChange={(use_templates) => onChange({ ...g, use_templates })} />
+          <UsesEditor uses={g.use_templates ?? []} path={`${base}.use_templates`} hint={t("rules.uses.templates_hint")} derived={derived} validate={vEff} vBonus={vBonus} checks={checks} spendTargets={spendTargets} onChange={(use_templates) => onChange({ ...g, use_templates })} />
         </div>
       )}
       {col !== null && fields[col] && (

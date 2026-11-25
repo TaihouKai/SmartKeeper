@@ -122,8 +122,19 @@ _DICE: tuple[tuple[str, str, str], ...] = (
     ("dice_keep", "highest(4, 6, 3)", "fh.d.keep"),
 )
 _SCRIPT: tuple[tuple[str, str, str], ...] = (
+    ("change", "target.hp -= 10    self.mp -= this.mp_spent    target.shield += 5", "doc.s.change"),
+    (
+        "minutes",
+        "with minutes(10):\n    target.str -= 2\n    target.move_speed *= 0.5",
+        "doc.s.minutes",
+    ),
+    (
+        "bonus",
+        'self.str += 2  # 力量 +2\nif self.template == "master":\n    self.move_speed *= 1.2',
+        "doc.s.bonus",
+    ),
     ("let", "heal = 2 + this.level * 3", "fh.s.let"),
-    ("if", 'if target.template == "monster":', "fh.s.if"),
+    ("if", 'if target.template == "monster":\n    target.hp -= 5', "fh.s.if"),
     ("else", "elif …: / else:", "fh.s.else"),
 )
 _KEYWORDS: tuple[tuple[str, str, str], ...] = (

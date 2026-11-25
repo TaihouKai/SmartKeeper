@@ -1,5 +1,6 @@
 """公式与技能脚本语言：语法、解析、求值框架。不认识角色卡和规则包，名字怎么解析、骰子怎么掷都由调用方传进来。"""
 
+from smartkeeper.lang.bonus import BonusLine, parse_bonus
 from smartkeeper.lang.config import Setting, merge_config, parse_config
 from smartkeeper.lang.formula import (
     FUNCTIONS,
@@ -38,6 +39,7 @@ from smartkeeper.lang.script import (
     Let,
     ScriptNode,
     Statement,
+    lower,
     parse_script,
     statements,
 )
@@ -48,6 +50,7 @@ __all__ = [
     "RECEIVERS",
     "VERBS",
     "Binary",
+    "BonusLine",
     "Branch",
     "Call",
     "Collect",
@@ -72,9 +75,11 @@ __all__ = [
     "has_dice",
     "is_die_name",
     "lists",
+    "lower",
     "merge_config",
     "names",
     "parse",
+    "parse_bonus",
     "parse_config",
     "parse_script",
     "statements",

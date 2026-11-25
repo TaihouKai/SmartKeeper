@@ -9,7 +9,7 @@ from pydantic import JsonValue
 
 from smartkeeper import lang as f
 from smartkeeper.contracts import Peers, RulePack, ScriptStep, ValidationFailed
-from smartkeeper.rules import skillconfig
+from smartkeeper.rules import skillconfig, validation
 from smartkeeper.rules.checks import context
 from smartkeeper.rules.evaluator import EntityContext, table_lookup
 
@@ -42,7 +42,7 @@ def plan_script(
 ) -> tuple[ScriptStep, ...]:
     """scale：这次使用的效果倍数（参数放大的），乘在伤害（减免之前）和增加的数值上；扣、设为、修正不乘。"""
     try:
-        nodes = f.parse_script(script)
+        nodes = f.lower(f.parse_script(script), validation.runtime_names(pack))
     except f.FormulaError as e:
         raise ValidationFailed(e.code, **e.params) from e
     ctx = context(pack, template, sheet, peers)

@@ -1699,6 +1699,11 @@ export interface components {
          */
         EntryUse: {
             /**
+             * Bonus
+             * @default
+             */
+            bonus: string;
+            /**
              * Config
              * @default
              */
@@ -1848,7 +1853,7 @@ export interface components {
             problems: components["schemas"]["Problem"][];
         };
         /** @enum {string} */
-        FormulaScope: "any_entity" | "dice" | "script" | "config" | "check" | "damage" | "stealth" | "search";
+        FormulaScope: "any_entity" | "dice" | "script" | "config" | "check" | "damage" | "stealth" | "search" | "bonus";
         /** Game */
         Game: {
             /** Current Round */
@@ -2019,6 +2024,11 @@ export interface components {
         /** GroupEntry */
         GroupEntry: {
             /**
+             * Bonus
+             * @default
+             */
+            bonus: string;
+            /**
              * Config
              * @default
              */
@@ -2070,6 +2080,11 @@ export interface components {
          *     fields 里没写的列（“使用时填写”的除外）由玩家建角时填，存在角色卡的 preset_fields 里。
          */
         GroupPreset: {
+            /**
+             * Bonus
+             * @default
+             */
+            bonus: string;
             /**
              * Config
              * @default
@@ -3659,6 +3674,11 @@ export interface components {
         };
         /** FormulaIn */
         smartkeeper__web__routes_player__FormulaIn: {
+            /**
+             * Bonus
+             * @default false
+             */
+            bonus: boolean;
             /**
              * Config
              * @default false

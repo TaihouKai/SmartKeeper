@@ -222,3 +222,48 @@ def test_aura_bonus_is_worked_out_on_whoever_carries_it() -> None:
     next_round(t)
     assert str_of(t, e1) == base[e1] + 7 + 3
     assert str_of(t, e0) == base[e0] + float(cast(float, per0)) + 3
+
+
+def test_aura_written_as_bonus_code() -> None:
+    """光环的加成用常驻加成的代码写：self.str += …，可以按模板分情况。"""
+    t, (p0, p1, _p2), (e0, e1, e2) = table()
+    base = {x: str_of(t, x) for x in (e0, e1, e2)}
+    add_entries(
+        t,
+        e0,
+        [
+            {
+                "name": "lead",
+                "fields": {"level": 1},
+                "config": 'aura = sphere(radius=50)\naffects = "allies"',
+                "bonus": 'if self.template == "person":\n    self.str += 2  # 统率\nelse:\n    self.str += 1',
+            }
+        ],
+    )
+    ally(t, p0, p1, e1)
+    next_round(t)
+    assert str_of(t, e0) == base[e0] + 2
+    assert str_of(t, e1) == base[e1] + 2
+    assert str_of(t, e2) == base[e2]
+
+
+def test_new_script_syntax_runs() -> None:
+    """生效时：self.hp -= 1 直接扣；with minutes(…) 里改推导值是限时修正。"""
+    t, _players, (e0, e1, _e2) = table()
+    add_entries(
+        t,
+        e0,
+        [
+            {
+                "name": "slow",
+                "fields": {"level": 1},
+                "config": "range = 1000",
+                "script": "self.hp -= 1\nwith minutes(10):\n    target.move_speed *= 0.5",
+            }
+        ],
+    )
+    begin(t)
+    e = t.engine
+    u = e.use_entry(t.game_id, e0, "slow", e1, {}, "x")
+    ops = [a["op"] for a in cast(list[dict[str, Any]], u.payload["actions"])]  # type: ignore[index]
+    assert ops == ["subtract", "modify"]

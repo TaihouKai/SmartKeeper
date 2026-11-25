@@ -4002,9 +4002,12 @@ class Engine:
                 if cfg.aura is None or cfg.aura.radius is None:
                     continue
                 effects = [
-                    Effect.model_validate(x)
-                    for x in _list(row.get("effects"))
-                    if isinstance(x, dict)
+                    *self._rules.bonus_effects(str(row.get("bonus") or "")),
+                    *(
+                        Effect.model_validate(x)
+                        for x in _list(row.get("effects"))
+                        if isinstance(x, dict)
+                    ),
                 ]
                 effects = [x for x in effects if x.is_mechanical and "." not in (x.target or "")]
                 cols = _obj(row.get("fields"))

@@ -15,6 +15,7 @@ from smartkeeper.contracts import (
     DerivedValue,
     DiceResult,
     DocEntry,
+    Effect,
     EntityTemplate,
     Faces,
     FormulaScope,
@@ -40,6 +41,7 @@ from smartkeeper.rules import (
     validation,
 )
 from smartkeeper.rules import choices as choices_
+from smartkeeper.rules.bonus import compile_bonus
 from smartkeeper.rules.evaluator import EntityContext, as_value
 from smartkeeper.rules.render import render as render_markdown
 
@@ -75,6 +77,12 @@ class RulesService:
             return validation.check_script(pack, tpl, formula, "script", cols(grp), other)
         if scope == "check":
             return validation.check_check(pack, formula, "check")
+        if scope == "bonus":
+            tpl = pack.template(template) if template else None
+            if tpl is None:
+                return []
+            grp = next((g for g in tpl.groups if g.name == in_entry), None)
+            return validation.check_bonus(pack, tpl, formula, "bonus", cols(grp))
         if scope in ("stealth", "search"):
             return validation.check_stealth(
                 pack, pack.template(template) if template else None, formula, "formula", scope
@@ -191,6 +199,9 @@ class RulesService:
         except f.FormulaError as e:
             raise ValidationFailed(e.code, **e.params) from e
 
+    def bonus_effects(self, bonus: str) -> tuple[Effect, ...]:
+        return compile_bonus(bonus)
+
     def docs(self) -> tuple[DocEntry, ...]:
         return docs.catalog()
 
@@ -211,7 +222,7 @@ class RulesService:
             for pid, cols in validation.preset_ids(tpl).items():
                 names.add(f"self.{pid}")
                 names |= {f"self.{pid}.{c}" for c in cols}
-        if scope == "script":
+        if scope in ("script", "bonus"):
             whos = (*f.RECEIVERS, *(t.name for t in pack.templates))
             names |= {f"{who}.{verb}" for who in whos for verb in f.VERBS}
             names |= {"elif", "pass"}

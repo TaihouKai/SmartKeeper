@@ -161,7 +161,10 @@ T: dict[str, tuple[str, str]] = {
         "打没打中都执行，例如扣同伴身上的资源",
         "Runs whether or not the use lands, e.g. spend a resource elsewhere",
     ),
-    "params.script_ph": ("例如 self.sub(self.hp, 5)", "e.g. self.sub(self.hp, 5)"),
+    "params.script_ph": (
+        "例如 self.hp -= 5",
+        "e.g. self.hp -= 5",
+    ),
     "params.hint": (
         "公式里 this.<英文名> 是这次选的数。",
         "In formulas this.<name> is the number chosen this time.",
@@ -415,8 +418,8 @@ T: dict[str, tuple[str, str]] = {
     ),
     "docs.none": ("没有找到", "Nothing found"),
     "docs.verb_note": (
-        "动作写在“生效时发生什么”里，前面是落在谁身上：self.（自己）或 target.（对象）。",
-        "Actions go in the script, after who they act on: self. or target.",
+        "动作是函数，前面写落在谁身上：self.（自己）或 target.（对象）。改数值不用函数，直接写 target.hp -= 10（见“脚本写法”）。",
+        "Actions are functions after who they act on: self. or target. To change a value just write target.hp -= 10 (see Script syntax).",
     ),
     "docs.cat.all": ("全部", "All"),
     "docs.cat.basics": ("公式与骰子", "Formulas and dice"),
@@ -434,28 +437,20 @@ T: dict[str, tuple[str, str]] = {
     "docs.kind.param": ("参数", "parameter"),
     "docs.kind.check": ("检定", "check"),
     "effects.short": (
-        "一行一条，一直生效：self.名字 = 新值的公式（公式里写这个名字自己是加成前的值），行尾 # 后面写说明；只写 # 说明的一行由 KP 理解。",
-        "One per line, always on: self.name = formula for the new value (the name itself is the value before), # note at the end; a line with only # note is for the KP.",
+        "和“生效时发生什么”同一种写法，只是一直生效：self.str += 2、self.move_speed *= 1.2，可以写 if；行尾 # 后面写说明，只写 # 说明的一行由 KP 理解。",
+        "Same code as the script, but always on: self.str += 2, self.move_speed *= 1.2, if allowed; # note at the end; a line with only # note is for the KP.",
     ),
     "effects.ph": (
-        "例如\nself.str = self.str + 2  # 力量 +2\n# 敌人看到会心生畏惧",
-        "e.g.\nself.str = self.str + 2  # +2 strength\n# enemies feel dread",
-    ),
-    "codes.effects.bad_line": (
-        "要写成 self.名字 = 公式（或者 # 说明）",
-        "Write self.name = formula (or # note)",
-    ),
-    "codes.effects.unknown_target": (
-        "{name} 不是能加成的数值（推导值或数值字段）",
-        "{name} isn't a value that bonuses can change (a derived value or number field)",
+        '例如\nself.str += 2  # 力量 +2\nif self.template == "master":\n    self.move_speed *= 1.2\n# 敌人看到会心生畏惧',
+        'e.g.\nself.str += 2  # +2 strength\nif self.template == "master":\n    self.move_speed *= 1.2\n# enemies feel dread',
     ),
     "config.short": (
         "每行一项“名字 = 值”，告诉引擎这个技能怎么用（对象、射程、检定、范围、光环……）。",
         "One 'name = value' per line: who it targets, range, check, area, aura…",
     ),
     "script.short": (
-        "生效时引擎一行一行执行，例如 target.damage(2d6)、self.sub(self.mp, 5)。",
-        "Runs line by line when it takes effect, e.g. target.damage(2d6), self.sub(self.mp, 5).",
+        "生效时引擎一行一行执行。改数值：target.hp -= 10、self.mp -= this.mp_spent；动作：target.damage(2d6)；限时写在 with minutes(10): 里。",
+        "Runs line by line. Change values: target.hp -= 10, self.mp -= this.mp_spent; actions: target.damage(2d6); timed changes go in with minutes(10):.",
     ),
     "cf.view": ("查看", "View"),
     "cf.copy_this": ("照着它写一条", "Copy this"),
@@ -1250,13 +1245,13 @@ T: dict[str, tuple[str, str]] = {
     "rules.gt.edit": ("编辑", "Edit"),
     "rules.gt.skill_col": ("设置与效果", "Settings & effect"),
     "script.ph": (
-        "例如\ntarget.damage(this.damage)\nself.add(hp, 5)",
-        "e.g.\ntarget.damage(this.damage)\nself.add(hp, 5)",
+        "例如\ntarget.damage(this.damage)\nself.mp -= this.mp_spent\nwith minutes(10):\n    target.move_speed *= 0.5",
+        "e.g.\ntarget.damage(this.damage)\nself.mp -= this.mp_spent\nwith minutes(10):\n    target.move_speed *= 0.5",
     ),
     "script.line": ("第 {n} 行", "line {n}"),
     "script.hint": (
-        "技能生效时，引擎一行一行执行。名字一律写前缀：self.（你自己卡上的）、target.（对象卡上的）、this.（这一条自己的列和参数）。常用的写法：\n- target.damage(2d6)：对象受到 2d6 伤害（先扣护盾再扣生命）\n- target.add(target.hp, 10)：对象恢复 10 点生命\n- self.sub(self.mp, this.mp_spent)：自己扣掉这次投入的魔力\n- target.add(target.shield, 10, 30)：对象得到 10 点护盾，持续 30 分钟\n- self.modify(self.str, self.str + 1, 10)：10 分钟内自己的力量 +1\n- if self.mp > 5:：下面缩进的几行只在条件成立时执行",
-        "When the skill takes effect the engine runs it line by line. Always write a prefix: self. (your sheet), target. (the target's sheet), this. (this entry's columns and parameters). Common lines:\n- target.damage(2d6): the target takes 2d6 damage (shield first, then hp)\n- target.add(target.hp, 10): the target heals 10\n- self.sub(self.mp, this.mp_spent): you pay the mana chosen for this use\n- target.add(target.shield, 10, 30): the target gets a 10-point shield for 30 minutes\n- self.modify(self.str, self.str + 1, 10): +1 strength for 10 minutes\n- if self.mp > 5:: the indented lines below run only when it holds",
+        "技能生效时，引擎一行一行执行。名字一律写前缀：self.（你自己卡上的）、target.（对象卡上的）、this.（这一条自己的列和参数）。改数值用 = += -= *= /=，动作用函数，限时写在 with minutes(…): 里。",
+        "When the skill takes effect the engine runs it line by line. Always write a prefix: self., target., this. Change values with = += -= *= /=, actions are functions, timed changes go in with minutes(…):.",
     ),
     "rules.gt.id": ("ID（引用用，可不填）", "ID (for references, optional)"),
     "rules.gt.player_fills": ("留空：玩家建角时填", "Empty: the player fills it in"),
@@ -2087,25 +2082,69 @@ T: dict[str, tuple[str, str]] = {
         "this.column: inside an entry (modifiers, skill script, cast time…) a column of that entry; dice-formula columns expand to their formula",
     ),
     "fh.script": ("技能脚本", "Skill scripts"),
+    "doc.s.change": (
+        "改数值：= 设成、+= 加、-= 减、*= 乘、/= 除。生命、魔力、护盾这类会变动的数值直接改（不超过上下限）；属性、推导值只能限时改，写在 with minutes(…): 里",
+        "Change a value: = set, += add, -= subtract, *= multiply, /= divide. Runtime values (hp, mana, shield) change directly within their limits; attributes and derived values only for a while, inside with minutes(…):",
+    ),
+    "doc.s.minutes": (
+        "限时：下面缩进的几行 N 分钟后自动恢复。属性、推导值是限时修正；会变动的数值只能 += / -=，到期扣回还剩下的部分。里面不能写伤害、召唤这类动作",
+        "Timed: the indented lines below wear off after N minutes. Attributes and derived values get a timed modifier; runtime values only += / -=, and what is left is taken back. No actions inside",
+    ),
+    "doc.s.bonus": (
+        "常驻加成：同一种写法，一直生效。只能改自己（self.），可以有 if 和局部变量，不能写动作和 with minutes；行尾 # 后面是说明，只有 # 说明的一行由 KP 理解",
+        "Always-on bonuses: the same code, always in effect. Only self., may use if and variables, no actions or with minutes; # note at line end; a line with only # note is for the KP",
+    ),
+    "codes.script.bad_target": (
+        "只能改 self.、target.、同伴或 this. 的数值，例如 target.hp -= 10",
+        "Only values of self., target., a companion or this. can be changed, e.g. target.hp -= 10",
+    ),
+    "codes.script.bad_with": (
+        "限时要写成 with minutes(分钟数):",
+        "Write a timed block as with minutes(N):",
+    ),
+    "codes.script.action_in_minutes": (
+        "with minutes(…) 里只能改数值；伤害、召唤这类动作写在外面",
+        "Only value changes go inside with minutes(…); write actions outside",
+    ),
+    "codes.script.needs_minutes": (
+        "{name} 不是会变动的数值，只能限时改：写在 with minutes(…): 里",
+        "{name} isn't a runtime value; change it for a while inside with minutes(…):",
+    ),
+    "codes.script.timed_runtime": (
+        "限时改 {name} 只能用 += 或 -=（到期扣回还剩下的部分）",
+        "A timed change of {name} can only be += or -=",
+    ),
+    "codes.bonus.no_action": (
+        "常驻加成里不能写动作（{name}）；动作写在“生效时发生什么”里",
+        "No actions ({name}) in always-on bonuses; put them in the script",
+    ),
+    "codes.bonus.no_minutes": (
+        "常驻加成一直生效，不能写 with minutes",
+        "Always-on bonuses can't use with minutes",
+    ),
+    "codes.bonus.self_only": (
+        "常驻加成只能改自己：self.名字",
+        "Always-on bonuses only change self.<name>",
+    ),
     "doc.verb.damage": (
         "受到伤害：先扣护盾 shield，剩下的扣生命值 hp",
         "Take damage: shield first, then hp",
     ),
     "doc.verb.add": (
-        "增加一个运行值；写了分钟就是限时的，到期扣回加上去还剩下的部分。结果不超过上下限",
-        "Add to a runtime value; with minutes it's timed and what's left is taken back. Clamped to its limits",
+        "旧写法，现在写 target.hp += 10（限时：写在 with minutes(…): 里）。增加一个运行值，结果不超过上下限",
+        "Old form; now write target.hp += 10 (timed: inside with minutes(…):). Adds to a runtime value, clamped to its limits",
     ),
     "doc.verb.sub": (
-        "减少一个运行值，结果不低于下限",
-        "Subtract from a runtime value, clamped to its limits",
+        "旧写法，现在写 self.mp -= 5。减少一个运行值，结果不低于下限",
+        "Old form; now write self.mp -= 5. Subtracts from a runtime value, clamped to its limits",
     ),
     "doc.verb.set": (
-        "把一个运行值设为某个数，结果在上下限之内",
-        "Set a runtime value, clamped to its limits",
+        "旧写法，现在写 self.hp = 0。把一个运行值设为某个数，结果在上下限之内",
+        "Old form; now write self.hp = 0. Sets a runtime value, clamped to its limits",
     ),
     "doc.verb.modify": (
-        "限时修正一个数值（推导值、建角时填的字段，或 this.<列>），到期消失",
-        "Modify a value for a while (a derived value, a player-entered field, or this.<column>)",
+        "旧写法，现在写在 with minutes(10): 里，例如 target.str -= 2。限时修正一个数值，到期消失",
+        "Old form; now write inside with minutes(10):, e.g. target.str -= 2. Modifies a value for a while",
     ),
     "doc.verb.summon": (
         "召唤：在接收者身边放几个这个模板的角色，归接收者的玩家控制；限时的到期消失。后面写 字段=公式 填新角色卡",

@@ -84,8 +84,9 @@ def prefix_pack(pack: dict[str, Any]) -> None:
             rows = [*g.get("presets", []), *g.get("use_templates", [])]
             rows += [u for p in g.get("presets", []) for u in p.get("uses", [])]
             for row in rows:
-                for key in ("config", "script"):
-                    row[key] = prefixed(row.get(key, ""), names)
+                for key in ("config", "script", "bonus"):
+                    if key in row:
+                        row[key] = prefixed(row.get(key, ""), names)
 
 
 def check(name: str, label: str, dice: str) -> dict[str, Any]:
@@ -112,8 +113,10 @@ def derived(name: str, label: str, formula: str, unit: str | None = None) -> dic
     return {"name": name, "label": label, "formula": formula, "unit": unit, "hidden": False}
 
 
-# 持续伤害（DOT）、持续吸魔：平时是 0，技能用 modify 限时调高，例如
-# target.modify(target.hp_drain, target.hp_drain + 2, 10) 是 10 分钟里每分钟掉 2 点生命
+# 持续伤害（DOT）、持续吸魔：平时是 0，技能限时调高，例如
+#     with minutes(10):
+#         target.hp_drain += 2
+# 是 10 分钟里每分钟掉 2 点生命
 DRAIN = [
     {**derived("hp_drain", "每分钟流失生命", "0"), "hidden": True},
     {**derived("mp_drain", "每分钟流失魔力", "0"), "hidden": True},
@@ -138,16 +141,13 @@ def preset(
         "description": desc,
         "fields": kw.pop("fields", {}),
         "effects": kw.pop("effects", []),
+        "bonus": code(kw.pop("bonus", "")),
         "config": code(config),
         "script": code(script),
         "when": kw.pop("when", ""),
         "uses": kw.pop("uses", []),
         "params": kw.pop("params", []),
     }
-
-
-def effect(desc: str, target: str, formula: str) -> dict[str, Any]:
-    return {"description": desc, "target": target, "formula": formula, "priority": None}
 
 
 # 分组给建角的玩家看的说明（[[标题]] 引用规则书的一节）
@@ -279,7 +279,7 @@ def command_spell(name: str, pid: str, desc: str, script: str) -> dict[str, Any]
         requires = command_spells >= 1
         noise = 5
         """,
-        script + "\nself.sub(command_spells, 1)",
+        script + "\nself.command_spells -= 1",
     )
 
 
@@ -297,9 +297,9 @@ COMMAND_SPELLS = [
         "魔力灌注",
         "cs_mana",
         "把令咒里的魔力灌给英灵：英灵的魔力补满。",
-        "servant.add(mp, servant.mp_max)",
+        "servant.mp += servant.mp_max",
     ),
-    command_spell("自害", "cs_suicide", "命令自己的英灵自尽。", "servant.set(hp, 0)"),
+    command_spell("自害", "cs_suicide", "命令自己的英灵自尽。", "servant.hp = 0"),
 ]
 
 MASTER = {
@@ -458,12 +458,12 @@ MASTER = {
         """
         # 御主死了：英灵断了魔力供给，开始消散（有单独行动的按天数，否则 1d(幸运) 小时）
         if not servant.masterless:
-            servant.set(masterless, 1)
-            servant.set(remaining, servant.independent_minutes if servant.independent_minutes > 0 else dice(1, servant.luk) * 60)
+            servant.masterless = 1
+            servant.remaining = servant.independent_minutes if servant.independent_minutes > 0 else dice(1, servant.luk) * 60
         # 被英灵杀死的人：凶手回魔力，杀得越多收益越少
         if target.template == "servant":
-            target.add(mp, lookup(kill_mp, target.kills))
-            target.add(kills, 1)
+            target.mp += lookup(kill_mp, target.kills)
+            target.kills += 1
         """
     ),
     "groups": [
@@ -504,7 +504,7 @@ MASTER = {
                     """,
                     """
                     # 每 1MP 回复 2 + 魔术能力/2 点生命值
-                    target.add(hp, (2 + floor(ap / 2)) * this.mp_spent)
+                    target.hp += (2 + floor(self.ap / 2)) * this.mp_spent
                     """,
                     when=NOT_MUGGLE,
                 ),
@@ -521,7 +521,8 @@ MASTER = {
                     """,
                     """
                     # 每 1MP 加 5 + 魔术能力/2 点护盾，护盾持续的分钟数等于投入的 MP
-                    target.add(shield, (5 + floor(ap / 2)) * this.mp_spent, this.mp_spent)
+                    with minutes(this.mp_spent):
+                        target.shield += (5 + floor(self.ap / 2)) * this.mp_spent
                     """,
                     when=NOT_MUGGLE,
                 ),
@@ -550,9 +551,9 @@ MASTER = {
                     """,
                     """
                     if target.template == "servant":
-                        target.add(mp, 2 * this.mp_spent)
+                        target.mp += 2 * this.mp_spent
                     else:
-                        target.add(mp, this.mp_spent)
+                        target.mp += this.mp_spent
                     """,
                     when=NOT_MUGGLE,
                 ),
@@ -631,7 +632,7 @@ MASTER = {
                     """,
                     """
                     # 每天一次，花 2 小时，恢复对方魔力上限的一半
-                    target.add(mp, target.mp_max * 0.5)
+                    target.mp += target.mp_max * 0.5
                     """,
                     when=f"not ({NOT_MUGGLE})",
                 ),
@@ -647,8 +648,8 @@ MASTER = {
                     cast_time = 1
                     """,
                     """
-                    target.set(masterless, 0)
-                    target.set(remaining, 1)
+                    target.masterless = 0
+                    target.remaining = 1
                     """,
                 ),
             ],
@@ -711,7 +712,7 @@ def attr_plus(name: str, label: str) -> dict[str, Any]:
         hit = level >= 1
         cooldown = 1440
         """,
-        f"self.modify({name}, min(9, {name} * (1 + 0.5 * {name}_plus)), 10)",
+        f"with minutes(10):\n    self.{name} = min(9, self.{name} * (1 + 0.5 * self.{name}_plus))",
         when=f"{name}_plus > 0",
     )
 
@@ -778,7 +779,7 @@ NP_TEMPLATES = [
         'target = "self"',
         """
         if turning_on:
-            self.sub(mp, lookup(skill_cost, this.level))
+            self.mp -= lookup(skill_cost, this.level)
         """,
         toggle=True,
         default_on=False,
@@ -832,13 +833,20 @@ def klass_skill(name: str, pid: str, desc: str, when: str, *args: str, **kw: Any
     return preset(name, pid, desc, *args, when=when, **kw)
 
 
-MADNESS = [
-    ("str", "str + (2 if this.level >= 5 else 1)"),
-    ("con", "con + (1 if this.level >= 2 else 0)"),
-    ("agi", "agi + (1 if this.level >= 3 else 0)"),
-    ("int", "int + (1 if this.level >= 4 else -1 if this.level <= 2 else 0)"),
-    ("luk", "luk - (1 if this.level == 1 else 0)"),
-]
+# 狂化：按等级提升各项（E 力量 +1、幸运和魔力 -1；D 加耐久；C 加敏捷；B 加魔力；A 力量 +2）
+MADNESS = """
+self.str += 2 if this.level >= 5 else 1  # 狂化：筋力
+if this.level >= 2:
+    self.con += 1  # 狂化：耐久
+if this.level >= 3:
+    self.agi += 1  # 狂化：敏捷
+if this.level >= 4:
+    self.int += 1  # 狂化：魔力
+elif this.level <= 2:
+    self.int -= 1  # 狂化：魔力
+if this.level == 1:
+    self.luk -= 1  # 狂化：幸运
+"""
 ATTR_DESC = [
     "决定近战攻击和近战物理伤害",
     "决定速度、远程物理伤害、闪避",
@@ -1009,17 +1017,14 @@ SERVANT = {
                     target = "self"
                     """,
                     """
-                    self.set(spirit_form, 0 if spirit_form else 1)
-                    if not spirit_form:
-                        self.set(riding, 0)
+                    self.spirit_form = 0 if self.spirit_form else 1
+                    if not self.spirit_form:
+                        self.riding = 0
                     """,
-                    effects=[
-                        effect(
-                            "灵体化时速度提升 30%",
-                            "move_speed",
-                            "move_speed * 1.3 if spirit_form else move_speed",
-                        )
-                    ],
+                    bonus="""
+                    if self.spirit_form:
+                        self.move_speed *= 1.3  # 灵体化时速度提升 30%
+                    """,
                 ),
                 preset(
                     "近战攻击",
@@ -1068,17 +1073,14 @@ SERVANT = {
                     requires = not spirit_form
                     """,
                     script="""
-                    if not riding:
-                        self.sub(mp, lookup(skill_cost, this.level))
-                    self.set(riding, 0 if riding else 1)
+                    if not self.riding:
+                        self.mp -= lookup(skill_cost, this.level)
+                    self.riding = 0 if self.riding else 1
                     """,
-                    effects=[
-                        effect(
-                            "骑乘时速度 + 骑乘等级 × 5 米/秒",
-                            "move_speed",
-                            "move_speed + this.level * 300 if riding else move_speed",
-                        )
-                    ],
+                    bonus="""
+                    if self.riding:
+                        self.move_speed += this.level * 300  # 骑乘时速度 + 骑乘等级 × 5 米/秒
+                    """,
                 ),
                 klass_skill(
                     "对魔力",
@@ -1128,7 +1130,7 @@ SERVANT = {
                     target = "none"
                     cast_time = 60
                     """,
-                    "self.sub(mp, lookup(skill_cost, this.level))",
+                    "self.mp -= lookup(skill_cost, this.level)",
                 ),
                 klass_skill(
                     "狂化",
@@ -1137,7 +1139,7 @@ SERVANT = {
                     "B 力量、耐久、敏捷、魔力 +1 级；A 力量 +2 级，耐久、敏捷、魔力 +1 级。等级越高越难沟通，C 以上几乎不能说话。"
                     "每天的魔力消耗多出狂化等级点。等级由御主决定。",
                     is_class("Berserker"),
-                    effects=[effect(f"狂化：{n}", n, formula) for n, formula in MADNESS],
+                    bonus=MADNESS,
                 ),
             ],
             fields=SKILL_COLS,
@@ -1193,7 +1195,7 @@ SERVANT = {
                     visible = True
                     noise = 10
                     """,
-                    "target.add(hp, 10 * this.mp_spent)",
+                    "target.hp += 10 * this.mp_spent",
                     when='klass == "Caster"',
                 ),
                 preset(
@@ -1206,7 +1208,7 @@ SERVANT = {
                     visible = True
                     noise = 10
                     """,
-                    "target.add(shield, 10 * this.mp_spent, 180)",
+                    "with minutes(180):\n    target.shield += 10 * this.mp_spent",
                     when='klass == "Caster"',
                 ),
                 preset(
@@ -1245,7 +1247,7 @@ SERVANT = {
                     cast_time = 1
                     """,
                     """
-                    self.sub(mp, 5)
+                    self.mp -= 5
                     self.summon(familiar, 10, 1440, appearance="Caster 的使魔", can_fly=True, per=int)
                     """,
                     when='klass == "Caster"',
@@ -1271,7 +1273,7 @@ SERVANT = {
                     requires = this.mp_spent >= 5
                     noise = 20
                     """,
-                    "self.modify(can_fly, 1, this.mp_spent / 5)",
+                    "with minutes(this.mp_spent / 5):\n    self.can_fly = 1",
                     when='klass == "Caster"',
                 ),
                 preset(
@@ -1493,14 +1495,7 @@ SAMPLE_WIND = {
         {
             **NP_TEMPLATES[5],
             "default_on": True,
-            "effects": [
-                {
-                    "description": "开着的时候筋力像高一级",
-                    "target": "str",
-                    "formula": "str + 1",
-                    "priority": None,
-                }
-            ],
+            "bonus": "self.str += 1  # 开着的时候筋力像高一级",
         }
     ],
 }
@@ -1532,8 +1527,8 @@ PARAMS = [
         "解放就要耗魔（技能消耗按宝具等级 × 类型倍数），打没打中都扣",
         ["noble_phantasm"],
         choices=["不解放=0", "解放=1"],
-        requires=f"mp >= {NP_COST}",
-        script=f"self.sub(mp, {NP_COST})",
+        requires=f"self.mp >= {NP_COST}",
+        script=f"self.mp -= {NP_COST}",
     ),
     param(
         "use_plus",
@@ -1554,7 +1549,7 @@ PARAMS = [
         _SERVANT_SKILLS,
         choices=["不用=0", "用=1"],
         requires="master.command_spells >= 1",
-        script="master.sub(command_spells, 1)",
+        script="master.command_spells -= 1",
         multiplier="3",
         duration="10",
     ),

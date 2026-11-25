@@ -29,6 +29,7 @@ from smartkeeper.contracts import (
     Sheet,
 )
 from smartkeeper.rules import checkconfig, choices, skillconfig, stealth
+from smartkeeper.rules.bonus import effects_of
 from smartkeeper.rules.evaluator import EntityContext, open_columns
 from smartkeeper.rules.sheets import init_sheet
 
@@ -103,6 +104,16 @@ def check_formula(
     return problems
 
 
+def runtime_names(pack: RulePack) -> set[str]:
+    """会变动的数值（生命、魔力、护盾……）：脚本可以直接改；别的只能限时修正。"""
+    return {
+        x.name
+        for t in pack.templates
+        for x in t.fields
+        if x.cls == "runtime" and x.kind in ("number", "resource", "boolean")
+    }
+
+
 def check_script(
     pack: RulePack,
     template: EntityTemplate,
@@ -112,17 +123,13 @@ def check_script(
     config: str = "",
 ) -> list[Problem]:
     """技能脚本：语法，每句的字段是不是能改的值，参数公式里的名字。问题的 params 里带 line。"""
+    # 对象可以是任何模板的角色，所以字段在任何一个模板里有就行
+    runtime = runtime_names(pack)
     try:
-        nodes = f.parse_script(text)
+        # 改数值的写法（target.hp -= 10、with minutes(…)）按字段是不是运行值换成 add / sub / set / modify
+        nodes = f.lower(f.parse_script(text), runtime)
     except f.FormulaError as e:
         return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
-    # 对象可以是任何模板的角色，所以字段在任何一个模板里有就行
-    runtime = {
-        x.name
-        for t in pack.templates
-        for x in t.fields
-        if x.cls == "runtime" and x.kind in ("number", "resource", "boolean")
-    }
     derived = {d.name for t in pack.templates for d in t.derived}
     numeric = {  # 建角时填的数值字段也能限时修正（运行值用 add 加限时）
         x.name
@@ -537,12 +544,13 @@ def _check_use(
         problems += check_script(pack, tpl, u.script, f"{path}.script", names, config)
     if u.config.strip():
         problems += check_config(pack, tpl, g, config, f"{path}.config", names, u.script)
-    if u.effects and not u.toggle:
+    if (u.effects or u.bonus.strip()) and not u.toggle:
         problems.append(Problem(code="sheet.effects_need_toggle", path=path))
     fdefs = {x.name: x for x in g.fields}
     all_derived = derived if derived is not None else {d.name for d in tpl.derived}
     for j, eff in enumerate(u.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, all_derived, f"{path}.effects[{j}]")
+    problems += check_bonus(pack, tpl, u.bonus, f"{path}.bonus", list(fdefs), all_derived)
     return problems
 
 
@@ -710,7 +718,7 @@ def _check_cycles(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Proble
         deps.setdefault(x.name, set()).update(_refs(x.formula))
     for g in tpl.groups:
         for preset in g.presets:
-            for eff in preset.effects:
+            for eff in effects_of(preset.bonus, preset.effects):
                 if eff.is_mechanical and eff.target in deps:
                     assert eff.formula is not None
                     deps[eff.target] |= _refs(eff.formula) - {eff.target}
@@ -1223,7 +1231,7 @@ def _check_entry(
         in_entry=True,
         params=[*(p.name for p in group_params(pack, g.name)), *(p.name for p in entry.params)],
     )
-    if entry.effects and not g.effects:
+    if (entry.effects or entry.bonus.strip()) and not g.effects:
         problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
     # 公式和脚本里 this.<名字>：条目的列，加上这次使用的参数（默认的 + 条目上加的）
     names = [*fdefs, *(p.name for p in group_params(pack, g.name)), *(p.name for p in entry.params)]
@@ -1236,6 +1244,7 @@ def _check_entry(
         problems += check_script(pack, tpl, entry.script, f"{ep}.script", names, entry.config)
     for j, eff in enumerate(entry.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
+    problems += check_bonus(pack, tpl, entry.bonus, f"{ep}.bonus", list(fdefs), derived)
     if entry.config.strip():
         problems += check_config(pack, tpl, g, entry.config, f"{ep}.config", names, entry.script)
     for name in sorted(_dupes(u.name for u in entry.uses)):
@@ -1244,6 +1253,33 @@ def _check_entry(
         problems.append(Problem(code="sheet.uses_not_allowed", path=ep))
     for j, u in enumerate(entry.uses):
         problems += _check_use(pack, tpl, g, entry.config, u, f"{ep}.uses[{j}]", names, derived)
+    return problems
+
+
+def check_bonus(
+    pack: RulePack,
+    tpl: EntityTemplate,
+    text: str,
+    path: str,
+    entry_fields: list[str],
+    derived: set[str] | None = None,
+) -> list[Problem]:
+    """常驻加成的代码：语法，每条改的是不是能加成的数值（推导值或数值字段），公式里的名字。问题带 line。"""
+    if not text.strip():
+        return []
+    try:
+        lines = f.parse_bonus(text)
+    except f.FormulaError as e:
+        return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
+    fdefs = {x: FieldDef(name=x, kind="number") for x in entry_fields}
+    names = derived if derived is not None else {d.name for d in tpl.derived}
+    problems: list[Problem] = []
+    for b in lines:
+        if b.target is None:
+            continue
+        eff = Effect(description=b.description, target=b.target, formula=b.formula)
+        found = _check_effect(pack, tpl, eff, fdefs, names, path)
+        problems += [p.model_copy(update={"params": {**p.params, "line": b.line}}) for p in found]
     return problems
 
 

@@ -42,7 +42,7 @@ def test_optional_minutes_and_strings() -> None:
         ("target.damage 5", "formula.syntax", 1),
         ("self.heal(5)", "script.unknown_verb", 1),
         ("damage(5)", "script.bad_statement", 1),
-        ("x += 5", "script.bad_statement", 1),
+        ("x += 5", "script.bad_target", 1),
         ("self = 5", "script.bad_variable", 1),
         ("self.hp", "script.bad_statement", 1),
         ("self.add(hp)", "script.arity", 1),

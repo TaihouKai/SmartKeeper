@@ -144,7 +144,8 @@ class EntryUse(Frozen):
     params: tuple[ParamDef, ...] = ()  # 只有这个用途有的参数
     toggle: bool = False
     default_on: bool = False
-    effects: tuple[Effect, ...] = ()
+    effects: tuple[Effect, ...] = ()  # 旧格式；新写的在 bonus 里
+    bonus: str = ""  # 开着的时候的常驻加成（代码，见 smartkeeper.lang.bonus）
 
 
 USE_SEP = "/"  # 条目名/用途名
@@ -157,7 +158,9 @@ class GroupEntry(Frozen):
     id: str = ""
     description: str = ""
     fields: dict[str, JsonValue] = {}
-    effects: tuple[Effect, ...] = ()
+    effects: tuple[Effect, ...] = ()  # 旧格式；新写的在 bonus 里
+    # 常驻加成（代码，见 smartkeeper.lang.bonus）：一行一条 self.<名字> += …，可以有 if；一直生效
+    bonus: str = ""
     # 技能设置：一串赋值（目标、射程、施放时间、冷却、范围形状、设置物……），见 smartkeeper.lang.config；
     # 解析成 SkillConfig 由 rules 负责，引擎按它执行
     config: str = ""

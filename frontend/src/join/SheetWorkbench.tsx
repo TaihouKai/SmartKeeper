@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { toCode } from "../ui/effectsCode";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { numberOptions } from "../ui/choices";
@@ -224,8 +225,8 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
   const cols = g.fields ?? [];
   const derived = [...(template.derived ?? []).map((d) => d.name), ...(template.fields ?? []).filter((f) => isPlayer(f) && (f.kind === "number" || f.kind === "boolean")).map((f) => f.name)];
   const validate = useCallback(
-    (formula: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string, names?: string[]) =>
-      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config", other: other ?? "", names: names ?? [] } })),
+    (formula: string, inEntry: string, scope?: "dice" | "script" | "config" | "bonus", other?: string, names?: string[]) =>
+      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config", bonus: scope === "bonus", other: other ?? "", names: names ?? [] } })),
     [template.name],
   );
   const add = (e: Entry) => {
@@ -237,7 +238,8 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
     id: "",
     description: p.description ?? "",
     fields: { ...(p.fields ?? {}) } as Entry["fields"],
-    effects: (p.effects ?? []).map((x) => ({ description: x.description ?? "", target: x.target ?? null, formula: x.formula ?? null, priority: null })),
+    effects: [],
+    bonus: p.bonus || toCode(p.effects ?? []),
     config: p.config ?? "",
     script: p.script ?? "",
     params: p.params ?? [],
@@ -421,25 +423,8 @@ function PresetView({ p, g, defaults, canCopy, onCopy, onClose }: { p: Schemas["
           ))}
         </p>
       )}
-      {(p.effects ?? []).length > 0 && (
-        <>
-          <h4>{t("character.effects_simple")}</h4>
-          <ul>
-            {(p.effects ?? []).map((e, i) => (
-              <li key={i}>
-                {e.description}
-                {e.target && e.formula && (
-                  <code>
-                    {" "}
-                    {e.target} = {e.formula}
-                  </code>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
       {code(t("character.config_simple"), p.config)}
+      {code(t("character.effects_simple"), p.bonus || toCode(p.effects ?? []))}
       {code(t("character.script_simple"), p.script)}
       {params.length > 0 && (
         <>
@@ -463,6 +448,7 @@ function PresetView({ p, g, defaults, canCopy, onCopy, onClose }: { p: Schemas["
           </h4>
           <Described text={u.description} />
           {code(t("character.config_simple"), u.config)}
+          {code(t("uses.effects"), u.bonus || toCode(u.effects ?? []))}
           {code(t("character.script_simple"), u.script)}
         </div>
       ))}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import type { ReactNode } from "react";
@@ -7,7 +7,7 @@ import { CodeEditor } from "./CodeEditor";
 import { numberOptions } from "./choices";
 import { Described } from "./markdown";
 import { DocsLink } from "./docs";
-import { fromCode, parseCode, toCode } from "./effectsCode";
+import { toCode, type EffectLike } from "./effectsCode";
 import { DefaultParams, ParamsEditor, type Param } from "./ParamEditor";
 import { fillConfig, mergeConfig } from "./skillConfig";
 
@@ -17,8 +17,8 @@ type GroupDef = Schemas["GroupDef"];
 
 // formula 算出 target 的新值；写 target 自己的名字表示到这一步为止的值。priority 只有玩家写的效果才有
 export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null };
-export type Use = { name: string; description?: string; config?: string; script?: string; params?: Param[]; toggle?: boolean; default_on?: boolean; effects?: Effect[] };
-export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; config?: string; script?: string; uses?: Use[]; params?: Param[] };
+export type Use = { name: string; description?: string; config?: string; script?: string; params?: Param[]; toggle?: boolean; default_on?: boolean; effects?: Effect[]; bonus?: string };
+export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; bonus?: string; config?: string; script?: string; uses?: Use[]; params?: Param[] };
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
@@ -99,7 +99,7 @@ export function fieldLabel(f: { name: string; label?: string; unit?: string | nu
   return `${f.label || f.name || unnamed}${f.unit ? ` (${f.unit})` : ""}`;
 }
 
-type Validator = (f: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string, names?: string[]) => Promise<{ problems: { code: string }[]; names: string[] }>;
+type Validator = (f: string, inEntry: string, scope?: "dice" | "script" | "config" | "bonus", other?: string, names?: string[]) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
 /** 分组里的一个条目：名字、说明、字段、修正、参数，以及
  * 动作类分组：技能设置和脚本（条目本身就是一个动作）；物品类分组：几种用途（物品本身不能直接用）。 */
@@ -110,7 +110,6 @@ export function EntryEditor({
   onChange,
   onRemove,
   validate,
-  withPriority = true,
   mover,
   simple = false,
   defaults = [],
@@ -136,7 +135,6 @@ export function EntryEditor({
   const { t } = useI18n();
   const fields = group.fields ?? [];
   const own = (entry.params ?? []).map((x) => x.name).filter(Boolean);
-  const v = useCallback((f: string) => validate(f, group.name), [validate, group.name]);
   const vDice = useCallback((f: string) => validate(f, group.name, "dice"), [validate, group.name]);
   const vParam = (f: string) => validate(f, group.name, undefined, undefined, own);
   const vParamScript = (f: string) => validate(f, group.name, "script", "", own);
@@ -151,7 +149,8 @@ export function EntryEditor({
     </label>
   );
   const item = group.uses === true;
-  const effectsBox = <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} title={simple ? t("character.effects_simple") : undefined} onChange={(effects) => onChange({ ...entry, effects })} />;
+  const vBonus = (f: string) => validate(f, group.name, "bonus", "", own);
+  const effectsBox = <BonusEditor bonus={entry.bonus ?? ""} legacy={entry.effects} validate={vBonus} title={simple ? t("character.effects_simple") : undefined} onChange={(bonus) => onChange({ ...entry, bonus, effects: [] })} />;
   const params = (
     <ParamsEditor
       params={entry.params ?? []}
@@ -248,7 +247,6 @@ function Fold({ simple, filled, children, label }: { simple: boolean; filled: bo
 function UsesList({
   group,
   uses,
-  derived,
   validate,
   own,
   checks,
@@ -294,7 +292,7 @@ function UsesList({
               </button>
             </div>
             <textarea rows={2} placeholder={t("rules.uses.description")} value={u.description ?? ""} onChange={(e) => set(j, { ...u, description: e.target.value })} />
-            {u.toggle && <EffectsEditor effects={(u.effects ?? []) as Effect[]} derived={derived} validate={(f) => validate(f, group.name, undefined, undefined, names)} withPriority={false} title={t("uses.effects")} onChange={(effects) => set(j, { ...u, effects })} />}
+            {u.toggle && <BonusEditor bonus={u.bonus ?? ""} legacy={u.effects ?? []} validate={(f) => validate(f, group.name, "bonus", "", names)} title={t("uses.effects")} onChange={(bonus) => set(j, { ...u, bonus, effects: [] })} />}
             <Fold simple={simple} filled={Boolean((u.config ?? "").trim() || (u.script ?? "").trim() || (u.params ?? []).length)}>
               <ConfigEditor config={u.config ?? ""} validate={(f) => validate(f, group.name, "config", u.script ?? "", names)} onChange={(config) => set(j, { ...u, config })} />
               <ScriptEditor script={u.script ?? ""} validate={(f) => validate(f, group.name, "script", mergeConfig("", u.config ?? ""), names)} onChange={(script) => set(j, { ...u, script })} />
@@ -332,74 +330,17 @@ function UsesList({
 }
 
 /** 一个条目的修正列表（一直生效）：描述、作用于哪个推导值、新值的公式；玩家写的还要填计算顺序。 */
-export function EffectsEditor({
-  effects,
-  derived,
-  validate,
-  onChange,
-  title,
-}: {
-  effects: Effect[];
-  derived: string[];
-  validate: Check;
-  /** 已经不用填计算顺序（按写的先后算）；留着参数是为了调用的地方不用改 */
-  withPriority?: boolean;
-  onChange: (effects: Effect[]) => void;
-  title?: string;
-}) {
+/** 常驻加成：和“生效时发生什么”同一种代码，一直生效（self.str += 2、可以有 if）。旧格式的列表第一次显示成代码。 */
+export function BonusEditor({ bonus, legacy = [], validate, onChange, title }: { bonus: string; legacy?: readonly EffectLike[]; validate: Check; onChange: (bonus: string) => void; title?: string }) {
   const { t } = useI18n();
   const [problems, setProblems] = useState<string[]>([]);
-  const [text, setText] = useState(() => toCode(effects));
-  // 外面换了（换了一条、复制了预设）：显示的代码跟着换。只比较“上次是不是自己改出来的”，
-  // 不拿文字和列表互相转换来比（空白的旧加成转不回来，会来回同步把页面卡死）
-  const mine = useRef(JSON.stringify(effects));
-  const cur = JSON.stringify(effects);
-  if (cur !== mine.current) {
-    mine.current = cur;
-    setText(toCode(effects));
-  }
-  const allowed = useMemo(() => new Set(derived), [derived]);
-  // 校验：每行是不是“self.名字 = 公式”，名字能不能改，公式对不对（问题带行号）
-  const check = useCallback(
-    async (code: string) => {
-      const out: { code: string; params?: Record<string, unknown> }[] = [];
-      let names: string[] = [];
-      for (const row of parseCode(code)) {
-        if ("error" in row) {
-          out.push({ code: row.error, params: { line: row.line } });
-          continue;
-        }
-        const e = row.effect;
-        if (!e.target || e.formula === null || e.formula === undefined) continue;
-        if (!allowed.has(e.target)) out.push({ code: "effects.unknown_target", params: { line: row.line, name: e.target } });
-        const r = await validate(e.formula);
-        names = r.names;
-        out.push(...r.problems.map((p) => ({ ...p, params: { ...((p as { params?: Record<string, unknown> }).params ?? {}), line: row.line } })));
-      }
-      if (!names.length) names = (await validate("0")).names;
-      return { problems: out, names };
-    },
-    [validate, allowed],
-  );
+  const value = bonus || toCode(legacy);
   return (
     <div className="sk-effects sk-script">
       <strong>{title ?? t("character.effects")}</strong>
-      <CodeEditor
-        className="sk-code-inline"
-        value={text}
-        check={check}
-        placeholder={t("effects.ph")}
-        minLines={2}
-        onProblems={setProblems}
-        onChange={(code) => {
-          setText(code);
-          const next = fromCode(code, effects) as Effect[];
-          mine.current = JSON.stringify(next);
-          onChange(next);
-        }}
-      />
+      <CodeEditor className="sk-code-inline" value={value} check={validate} placeholder={t("effects.ph")} minLines={2} onProblems={setProblems} onChange={onChange} />
       {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
-      <DocsLink text={t("effects.short")} query="modify" />
+      <DocsLink text={t("effects.short")} category="script" />
     </div>
   );
 }
