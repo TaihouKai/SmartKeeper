@@ -122,6 +122,14 @@ DRAIN = [
     {**derived("mp_drain", "每分钟流失魔力", "0"), "hidden": True},
 ]
 
+# 伤害倍数：平时是 1，所有攻击技能的伤害都乘上它。常驻加成改它就是“近战伤害一直 ×2”，例如
+#     self.melee_mult *= 2
+MULTS = [
+    derived("melee_mult", "近战伤害倍数", "1"),
+    derived("ranged_mult", "远程伤害倍数", "1"),
+    derived("magic_mult", "魔术伤害倍数", "1"),
+]
+
 
 def use(name: str, desc: str, config: str = "", script: str = "", **kw: Any) -> dict[str, Any]:
     return {"name": name, "description": desc, "config": code(config), "script": code(script), **kw}
@@ -240,7 +248,7 @@ def counter(damage: str) -> dict[str, Any]:
         f"""
         if reacting and level >= 1 and level > opp_level:
             self.negate()
-            target.damage({damage})
+            target.damage(({damage}) * self.melee_mult)
         """,
     )
 
@@ -446,6 +454,7 @@ MASTER = {
         derived("muggle", "普通人", f"0 if {NOT_MUGGLE} else 1"),
         derived("hp_max", "生命值上限", "30 + con * 4"),
         *DRAIN,
+        *MULTS,
         derived(
             "mp_max", "魔力值上限", "0 if muggle else (10 + (max(int, per) + cha) * 2) * mp_mult"
         ),
@@ -487,7 +496,7 @@ MASTER = {
                     """,
                     """
                     # 5MP = 1d(4+魔术能力) 伤害；每满 5MP 多一颗
-                    target.damage(dice(max(1, floor(this.mp_spent / 5)), 4 + ap))
+                    target.damage(dice(max(1, floor(this.mp_spent / 5)), 4 + self.ap) * self.magic_mult)
                     """,
                     when=NOT_MUGGLE,
                 ),
@@ -606,7 +615,7 @@ MASTER = {
                     f"""
                     # 平手（被反击时）只造成一半伤害
                     half = opposed and level == opp_level
-                    target.damage(({MASTER_MELEE_DMG}) / (2 if half else 1), "mystic" if weapon_mystic else "mundane")
+                    target.damage(({MASTER_MELEE_DMG}) * self.melee_mult / (2 if half else 1), "mystic" if weapon_mystic else "mundane")
                     """,
                 ),
                 preset(
@@ -753,7 +762,7 @@ NP_TEMPLATES = [
         MELEE_CONFIG.format(requires="not spirit_form"),
         f"""
         half = opposed and level == opp_level
-        target.damage({SERVANT_MELEE_DMG} / (2 if half else 1))
+        target.damage({SERVANT_MELEE_DMG} * self.melee_mult / (2 if half else 1))
         """,
     ),
     beam("真名解放·对人", "", "解放真名，对一个人的必杀一击。"),
@@ -991,6 +1000,7 @@ SERVANT = {
         derived("hear_distance", "听力范围", "(10 + agi * 4) * hear_multiplier", "m"),
         derived("hp_max", "生命值上限", "con * lookup(class_hp, klass)"),
         *DRAIN,
+        *MULTS,
         derived("mp_max", "魔力值上限", "int * 30"),
         derived(
             "independent_minutes",
@@ -1036,7 +1046,7 @@ SERVANT = {
                     y = 12 if klass == "Assassin" and unseen else lookup(class_melee, klass)
                     # 平手（被反击时）只造成一半伤害
                     half = opposed and level == opp_level
-                    target.damage(dice(x, y) / (2 if half else 1))
+                    target.damage(dice(x, y) * self.melee_mult / (2 if half else 1))
                     """,
                 ),
                 preset(
@@ -1044,7 +1054,7 @@ SERVANT = {
                     "servant_range_attack",
                     "英灵的远程攻击：敏捷 + 1d(职阶伤害骰)",
                     RANGED.format(check="agility"),
-                    "target.damage(agi + dice(1, lookup(class_melee, klass)))",
+                    "target.damage((self.agi + dice(1, lookup(class_melee, self.klass))) * self.ranged_mult)",
                     when='klass != "Archer" and klass != "Caster"',
                 ),
                 preset(
@@ -1052,7 +1062,7 @@ SERVANT = {
                     "archer_range_attack",
                     "Archer 的远程攻击：(敏捷)d8",
                     RANGED.format(check="agility"),
-                    "target.damage(dice(agi, lookup(class_melee, klass)))",
+                    "target.damage(dice(self.agi, lookup(class_melee, self.klass)) * self.ranged_mult)",
                     when='klass == "Archer"',
                 ),
                 *[attr_plus(n, label) for n, label in ATTRS],
@@ -1165,7 +1175,7 @@ SERVANT = {
                     "caster_magic_attack",
                     "Caster 的魔术攻击：(魔力)d4 的魔力伤害，射程 1000 米。",
                     RANGED.format(check="intelligence"),
-                    "target.damage(dice(int, lookup(class_melee, klass)))",
+                    "target.damage(dice(self.int, lookup(class_melee, self.klass)) * self.magic_mult)",
                     when='klass == "Caster"',
                 ),
                 preset(
@@ -1182,7 +1192,7 @@ SERVANT = {
                     difficulty = floor(distance / 500)
                     reactions = ["dodge"]
                     """,
-                    "target.damage(dice(max(1, floor(this.mp_spent / 3)), 4))",
+                    "target.damage(dice(max(1, floor(this.mp_spent / 3)), 4) * self.magic_mult)",
                     when='klass == "Caster"',
                 ),
                 preset(
@@ -1376,6 +1386,7 @@ SQUAD = {
         derived("hear_multiplier", "听力系数", "1"),
         derived("hear_distance", "听力范围", "(10 + rank * 4) * hear_multiplier", "m"),
         derived("hp_max", "生命值上限", "size * rank * 10"),
+        *MULTS,
         derived("troops", "还剩几个兵", "ceil(hp / (rank * 10))"),
         derived("str", "筋力", "rank"),
         derived("agi", "敏捷", "rank"),
@@ -1397,7 +1408,7 @@ SQUAD = {
                     MELEE_CONFIG.format(requires="None"),
                     f"""
                     half = opposed and level == opp_level
-                    target.damage(({SQUAD_DMG}) / (2 if half else 1))
+                    target.damage(({SQUAD_DMG}) * self.melee_mult / (2 if half else 1))
                     """,
                 )
             ],
