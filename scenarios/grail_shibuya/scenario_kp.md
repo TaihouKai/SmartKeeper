@@ -1,0 +1,127 @@
+---
+npcs:
+  - id: npc_kurokawa
+    template: master
+    sheet:
+      name: 黑川冬弥
+      fields:
+        appearance: 三十岁上下的男人，深灰色大衣，戴着金丝边眼镜，左手总是插在口袋里
+        background: 魔术师
+        can_fly: false
+        str: 0
+        agi: 1
+        con: 1
+        int: 5
+        per: 3
+        cha: 1
+        mp_mult: 4
+        weapon_db: 0
+        weapon_mystic: false
+    location: {place: セルリアンタワー, floor: 30}
+  - id: npc_lancer
+    template: servant
+    sheet:
+      name: Lancer
+      fields:
+        appearance: 银白色铠甲的高大青年，手持一杆亮银长枪，枪缨是白色的
+        true_name: 赵云（常山赵子龙）
+        can_fly: false
+        klass: Lancer
+        str: 4
+        agi: 5
+        con: 4
+        int: 2
+        luk: 4
+        np: 4
+        spirit_form: true
+      preset_fields:
+        klass_skill:
+          对魔力: {level: 3}
+      groups:
+        noble_phantasm:
+          - name: 七探盘蛇
+            description: 传说中赵云的枪法：一枪七探，如盘蛇般缠住对手的要害。
+            fields: {level: 4, np_type: 对人, plus: 0}
+            config: reveal = this.release
+            uses:
+              - name: 当作武器
+                description: 不解放真名，只用枪术。
+                config: |
+                  target = "single"
+                  range = 3
+                  visible = True
+                  noise = 30
+                  requires = not spirit_form
+                  check = best("strength", "agility")
+                  reactions = ["counter", "dodge"]
+                  hit = level >= 1 and level >= opp_level
+                  reveal = False
+                script: |
+                  half = opposed and level == opp_level
+                  target.damage(dice(str, lookup(class_melee, klass)) / (2 if half else 1))
+              - name: 真名解放·对人
+                description: 解放真名，七道枪影同时刺向一个人，只能闪避。
+                config: |
+                  target = "single"
+                  visible = True
+                  noise = 1000
+                  reveal = this.release
+                  requires = this.release and not spirit_form and mp >= cost
+                  reactions = ["dodge"]
+                  auto_level = 3 if distance <= 100 else 2
+                script: |
+                  cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)
+                  self.sub(mp, cost)
+                  target.damage(dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level))
+    location: {place: セルリアンタワー, floor: 30}
+  - id: npc_father
+    template: master
+    sheet:
+      name: 神父·朝仓
+      fields:
+        appearance: 穿黑色神父服的中年人，笑容温和，手里总拿着一本旧圣经
+        background: 代行者
+        can_fly: false
+        str: 3
+        agi: 2
+        con: 3
+        int: 2
+        per: 3
+        cha: 4
+        mp_mult: 2
+        weapon_db: 6
+        weapon_mystic: true
+    location: {place: MIYASHITA PARK South}
+initial_positions:
+  clocktower: {place: 渋谷エクセルホテル東急}
+  heir: {place: 道玄坂センタービル}
+  bystander: {place: MIYASHITA PARK South}
+  executor: {place: Shibuya 109}
+---
+# KP 专属
+
+## 真相
+
+- 监督者神父·朝仓（npc_father）表面上中立，暗中和 Lancer 的御主黑川冬弥（npc_kurokawa）结了盟：他会把来登记的御主的情报（人数、住处、英灵的职阶）告诉黑川。
+- 黑川是时钟塔出身、被逐出门墙的魔术师，在塞鲁利安塔（セルリアンタワー）三十层布置了魔术工房。他的计划是午夜零点一过，就让 Lancer 在涩谷十字路口伏击第一组离开教会的御主。
+- Lancer 的真名是赵云。他忠于御主，但厌恶偷袭和对普通人下手；如果黑川命令他杀普通人，他会犹豫，黑川可能为此动用令咒。
+- 本地世家（heir）的父亲是被黑川杀的：他发现了黑川和神父的勾结。
+
+## NPC
+
+- 黑川冬弥：冷静、傲慢，看不起“没有传承的魔术师”和普通人。不会亲自上前线，用使魔监视战场。
+- Lancer（赵云）：寡言，重礼节，战斗时先报职阶（不报真名）。被逼到绝境或者为了保护御主，才会解放真名。
+- 神父·朝仓：和蔼可亲，热心地给每个人讲圣杯战争的规矩，打听每个御主的英灵是什么职阶。
+
+## 推进
+
+1. 23:00～24:00：玩家各自出发去教会登记，可能在路上相遇。神父在宫下公园旁迎接每一个人，套他们的话。
+2. 零点：战争开始。Lancer 在十字路口（Watch Shibuya Crossing 一带）出现，挑战第一组经过的御主。黑川的使魔在楼顶看着。
+3. 之后：玩家可以追查使魔、跟踪 Lancer 撤退的方向找到塞鲁利安塔，或者回头质问神父。
+
+## 结局条件
+
+- 第一夜活下来：好结局（之后的夜晚可以接着跑）。
+- 查出神父和黑川的勾结：额外收获。
+- 听到 Lancer 解放真名、或者从传说推断出他是赵云：玩家知道他的弱点和战法。
+- 任何一名御主死亡：那名玩家的英灵开始消散，可以去找别的御主缔结契约。

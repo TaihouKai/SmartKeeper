@@ -75,6 +75,8 @@
 | `sum(分组.列)` | 这一列加起来是多少 |
 | `dice(n, s)` | 掷骰，等于 `NdM` |
 | `highest(n, s, k)` `lowest(n, s, k)` | 掷骰，见上 |
+| `has("状态")` | 自己身上有没有这个状态（1 / 0） |
+| `inside("条目名")` | 是不是站在自己用这个条目（或它的用途）放下的设置物里（圆形范围或整栋建筑） |
 
 - 只能调用这张表里的函数。Python 自己的函数（`print`、`len`、`__import__`……）一律报 `formula.unknown_function`。
 - `lookup` 的第一个参数是表名，`count` / `sum` 的第一个参数是分组引用，它们都不是普通名字。
@@ -115,6 +117,7 @@ target.modify(move_speed,
 **对象：**
 - `self`：使用者自己。
 - `target`：使用时选的对象，可以是任何人，也可以是自己。
+- 同一个玩家控制的同伴的模板名（例如 `companion.add(mp, 5)`）：没有这个同伴时这句跳过。
 - 没有对象（KP 声明时 target 为空）时，`target` 的句子跳过，只执行 `self` 的句子。
 
 **动作：**
@@ -126,11 +129,14 @@ target.modify(move_speed,
 | `add(字段, 数量, 分钟)` | 字段名，公式，公式 | 限时增加（例如护盾）：到期时扣回加上去还剩下的部分 |
 | `sub(字段, 数量)` | 字段名，公式 | 减少 |
 | `set(字段, 数量)` | 字段名，公式 | 设为 |
-| `modify(推导值, 新值公式, 分钟)` | 推导值名，公式，公式 | 加一条限时修正，到期消失 |
+| `modify(数值, 新值公式, 分钟)` | 名字，公式，公式 | 加一条限时修正，到期消失 |
+| `negate()` | 无 | 当反应用时：让打在自己身上的这次攻击作废 |
+| `summon(模板, 数量, 分钟, 字段=公式…)` | 模板名，公式，公式 | 在接收者身边放几个这个模板的角色，归接收者的玩家控制；分钟不写是一直在 |
+| `teleport(谁)` | self / target / 同伴的模板名 | 瞬间移动到那个角色身边 |
 
-- 字段参数只写名字，比如 `hp`，不能带前缀；它指的是这句的对象身上的字段。
-- `add`、`sub`、`set` 只能改运行值（数值或资源）。结果会截断在这个字段的上下限之内。
-- `modify` 只能修正推导值。
+- 字段参数只写名字，比如 `hp`；它指的是这句的对象身上的字段。`this.<列>` 是用的这个条目自己的一列（只能对 `self` 用），例如 `self.set(this.active, 1)`。
+- `add`、`sub`、`set` 只能改运行值（数值、资源、是/否；是/否非 0 是“是”）。结果会截断在这个字段的上下限之内。
+- `modify` 能修正推导值、建角时填的数值和是/否字段（例如 `self.modify(can_fly, 1, 10)`），以及 `this.<列>`。
 - 动作写死在 `VERBS` 里。治疗就是 `add(hp, …)`，不另设只属于某套规则的动作。
 
 ### 3. 条件分支
@@ -192,18 +198,23 @@ placement = placement(radius=3, perceive=0.5, charges=1, duration=60, notify=Tru
 
 ### 检定和应对
 
-技能设置里和“打没打中”有关的三项：
+技能设置里和“打没打中”有关的项：
 
 ```
-check = "magic_attack"        # 施法者做的检定；None / True 是不掷骰、必中（默认）
-reactions = ["dodge"]          # 写了就可以被应对
-difficulty = 10                # 没人对抗时的难度
+check = best("strength", "agility")   # 使用者做的检定，几个时都掷取等级高的；None / True 是不掷骰
+auto_level = 2                        # 不掷骰，直接定下的等级
+difficulty = floor(distance / 500)    # 使用者这一方的难度
+reactions = ["dodge", "counter"]      # 写了就可以被应对：检定名，或应对技能的 ID / 名字；True 是任何应对技能
+hit = level >= 1 and level >= opp_level   # 命中条件；不写时：成功，并且被对抗时等级高过对方
+save = "magic_save"                   # 对象对 difficulty 做的豁免，脚本里 saved 是结果
+reveal = this.release                 # 察觉到动静的人知不知道用的是什么；空是知道
 ```
 
-- 打没打中全由引擎决定，KP 不判。成功或大成功算命中，没命中只扣消耗、开始冷却，不执行效果。
-- `reactions` 写了、对象是玩家：KP 声明使用后回合停下等他（没有时限），他从这些里选一个：`reactions` 里的检定（和施法者的检定对抗）、自己能当反应的技能（所在分组打开了“可以当反应”、瞬发、不在冷却；消耗、冷却照算）、不抵抗。同一轮里打在他身上的攻击攒成一次问。对象是 NPC：引擎替它挑最有利的检定。
-- 选了技能当反应：先算这个技能（它的 `check` 和施法者的点数比，它的效果先执行），效果里写了 `self.negate()` 的话这次攻击作废；否则再按对抗判命中、执行攻击的效果。
-- 技能脚本里：`result` 是这次检定的结果（`critical_success`、`success`、`failure`、`critical_failure`，没有检定时是空）；`reacting` 是这次是不是当反应用的。
+- 打没打中全由引擎决定，KP 不判。没命中只扣消耗、开始冷却，不执行效果。
+- 对象是玩家：KP 声明使用后回合停下等他选（没有时限）：`reactions` 里的检定、自己能当反应的技能（所在分组打开了“可以当反应”、瞬发、不在冷却）、不抵抗。对象是 NPC：引擎把能选的都试一遍，取最有利的。没发现使用者的对象不能应对（脚本里 `unseen`）。
+- 选了技能当反应：先算这个技能（它的检定和使用者的比，它的效果先执行），效果里写了 `self.negate()` 的话这次攻击作废；否则再按双方等级判命中。
+- 设置了 `shape` 的技能是范围技能：形状里的每个人各算一次（各自应对），消耗、冷却和对自己的步骤只算一次。
+- 技能脚本里能用：`level`、`opp_level`、`opposed`、`distance`、`unseen`、`saved`、`reacting`。
 
 ### 检定的代码
 
@@ -211,17 +222,15 @@ difficulty = 10                # 没人对抗时的难度
 
 ```
 label = "感知检定"
-dice = 1d20 + per              # 在做检定的角色身上算
-target = 0                     # 目标值，用不到就是 0
-critical_success = natural == 20
-critical_failure = natural == 1
-success = roll > difficulty
-opposed_by = "perception"      # 对抗时对方掷什么；None 是同一个检定
+dice = 1d20 + per                     # 在做检定的角色身上算
+target = 0                            # 目标值，用不到就是 0
+level = 0 if roll - difficulty <= 10 else 1 if roll - difficulty <= 15 else 2
+levels = ["失败", "成功", "困难成功"]
+opposed_by = "perception"             # 对抗时对方掷什么；None 是同一个检定
 ```
 
-- 结果固定四个，按顺序判断：大成功、大失败、成功，第一条成立的就是结果，都不成立是失败。
-- 条件里能用：`roll`（总点数）、`natural`（骰子本身的点数）、`target`、`difficulty`（KP 给的难度；对抗时是对方掷出的点数，所以 `roll > difficulty` 两种情况都能用）、`opp_roll`、`opp_target`。
-- 按模板分情况：`dice`、`target` 里能用 `self.template`（做检定的人的模板），结果条件里还能用 `opponent.template`（对抗时对方的模板，没有对手是空的）。例如 `dice = 1d20 + per if self.template == "master" else 1d20 + agi`。各模板属性不同时，也可以让每个模板定义同名的推导值（例如 `perception_mod`），检定只写这个名字。
+- 结果是一个数字等级：0 及以下是失败，1 起是成功，越大越好；`levels` 是各等级的名字（下标就是等级）。只分成功、失败时写 `success = 条件`。
+- 能用：`roll`（总点数）、`natural`（骰子本身的点数）、`target`、`difficulty`（技能或 KP 给的难度）、`distance`、`opp_roll`、`opp_target`（对抗时对方的点数和目标值），`self.template` 和 `opponent.template`（有对象时）。
 
 ---
 
