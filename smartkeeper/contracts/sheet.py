@@ -137,6 +137,8 @@ class SkillConfig(Frozen):
     range: str = ""  # 射程（米）；空表示不限
     visible: bool = False  # 对象必须在使用者此刻的感知里（看得见或察觉得到）
     noise: str = ""  # 动静范围（米）：范围内的其他玩家会察觉到有人用了这个技能；空表示悄无声息
+    # 察觉到动静的人知不知道用的是什么（条件公式；空是知道）。例如平时挥剑不暴露剑的名字，解放时喊出名字：reveal = this.release
+    reveal: str = ""
     requires: str = ""  # 使用条件（公式），不成立就不能用
     cast_time: str = ""  # 施放时间（分钟）：不到 1 分钟算瞬发；用这个技能的行动至少要这么久
     cooldown: str = ""  # 冷却时间（分钟）：用过之后这么久之内不能再用

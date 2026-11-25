@@ -848,7 +848,9 @@ def validate_sheet(
         elif name not in fields:
             problems.append(Problem(code="sheet.unknown_field", path=f"fields.{name}"))
     for name, fd in fields.items():
-        if name not in sheet.fields and (fd.required or fd.cls == "runtime"):
+        if name not in sheet.fields and (
+            (fd.required and not (fd.cls == "player" and fd.initial)) or fd.cls == "runtime"
+        ):
             problems.append(Problem(code="sheet.missing_field", path=f"fields.{name}"))
     groups = {g.name: g for g in tpl.groups}
     for gname in sorted(sheet.groups):
@@ -1018,7 +1020,13 @@ def _check_entry(
     for name, fd in fdefs.items():
         if name in entry.fields:
             problems += _check_value(None, fd, entry.fields[name], f"{ep}.fields.{name}")
-        elif fd.required and required_fields and fd.kind != "param" and fd.cls != "runtime":
+        elif (
+            fd.required
+            and required_fields
+            and fd.kind != "param"
+            and fd.cls != "runtime"
+            and not fd.initial
+        ):
             problems.append(Problem(code="sheet.missing_field", path=f"{ep}.fields.{name}"))
     problems += _check_formula_fields(pack, tpl, g.fields, entry.fields, ep, in_entry=True)
     if entry.effects and not g.effects:

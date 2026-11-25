@@ -23,6 +23,7 @@ KEYS: dict[str, Kind] = {
     "visible": "bool",
     "requires": "formula",
     "noise": "formula",
+    "reveal": "formula",
     "cast_time": "formula",
     "cooldown": "formula",
     "check": "best",

@@ -13,7 +13,7 @@ from typing import cast
 
 from pydantic import JsonValue
 
-from smartkeeper.contracts import Activity, Body, Location, Placement, Point
+from smartkeeper.contracts import USE_SEP, Activity, Body, Location, Placement, Point
 from smartkeeper.engine.space import Space
 from smartkeeper.engine.timeline import location_at
 
@@ -44,7 +44,9 @@ def inside_tags(space: Space) -> dict[str, set[str]]:
     for p in places.values():
         body = space.bodies.get(p.owner)
         if body is not None and contains(space, p, body.pos):
-            out.setdefault(p.owner, set()).add(f"in:{p.entry}")
+            # 用途放的设置物（条目名/用途名）也算在条目名下：inside("条目名")
+            head = p.entry.split(USE_SEP, 1)[0]
+            out.setdefault(p.owner, set()).update({f"in:{p.entry}", f"in:{head}"})
     return out
 
 

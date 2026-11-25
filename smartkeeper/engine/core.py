@@ -1414,6 +1414,11 @@ class Engine:
             given = params.get(pf.name)
             if given is None and pf.choices:
                 given = self._rules.first_choice(pf.choices)  # 有可选值的没给时取第一个
+            if given is None and pf.min is not None:
+                # 没给的取下限（玩家没说多少，就按规则允许的最少）
+                given = self._rules.roll(
+                    pack, pf.min, self._dice.faces, template, sheet, fields, peers
+                ).total
             if given is None:
                 raise ValidationFailed("roll.param_missing", entry=entry, name=pf.name)
             v = float(given)
@@ -1641,6 +1646,8 @@ class Engine:
                         "actions": actions,
                         "cooldown": 0 if extra else cooldown,
                         "heard_by": [] if extra else cast(JsonValue, heard),
+                        # 察觉到动静的人知不知道用的是什么
+                        "reveal": roll(cfg.reveal).total != 0 if cfg.reveal.strip() else True,
                         # 命中由引擎定，裁定里的 hit 不用；None 表示在等对象应对
                         "hit": hit,
                         "check": checked,
@@ -1683,7 +1690,7 @@ class Engine:
     ) -> list[str | None]:
         """范围技能打到的人：形状里除了使用者自己的每个实体，瞄准的对象排第一个。一个都没有时是 [None]。
 
-        球形以瞄准的对象为中心（没有对象时以自己为中心）；其他形状从使用者朝瞄准的对象展开。"""
+        球形以瞄准的对象为中心（没有对象时以自己为中心）；其他形状从使用者朝瞄准的对象展开，身后的人不算。"""
         shape = cfg.shape
         me = space.bodies.get(source)
         if shape is None or me is None:
@@ -1704,6 +1711,15 @@ class Engine:
         )
         hit = self._spatial.sweep(space.map, space.changes, list(space.bodies.values()), sweep)
         found = [e for e in hit.entities if e != source]
+        if shape.kind != "sphere":
+            # 从使用者朝对象展开的形状：打不到使用者身后的人
+            dx, dy, dz = toward.x - me.pos.x, toward.y - me.pos.y, toward.z - me.pos.z
+
+            def ahead(eid: str) -> bool:
+                b = space.bodies[eid].pos
+                return (b.x - me.pos.x) * dx + (b.y - me.pos.y) * dy + (b.z - me.pos.z) * dz >= 0
+
+            found = [e for e in found if e in space.bodies and ahead(e)]
         found.sort(key=lambda e: (e != target, e))
         return list[str | None](found) or [None]
 
@@ -3254,12 +3270,16 @@ class Engine:
         used = {e.seq: e for e in self.current_attempt(game_id, round_no) if e.type == "entry_used"}
         out: list[NewEvent] = []
         space = self._space(game_id)
-        noisy: list[tuple[str, str, list[str]]] = []  # (使用者, 技能, 察觉到的玩家)
+        # (使用者, 技能（不暴露名字时 None）, 察觉到的玩家)
+        noisy: list[tuple[str, str | None, list[str]]] = []
         for u in adj.uses:
             ev = used.get(u.seq)
             heard = [str(x) for x in _list(ev.payload.get("heard_by"))] if ev else []
             if ev is not None and heard:
-                noisy.append((str(ev.payload.get("source")), str(ev.payload.get("entry")), heard))
+                name = (
+                    str(ev.payload.get("entry")) if ev.payload.get("reveal") is not False else None
+                )
+                noisy.append((str(ev.payload.get("source")), name, heard))
         for pin in adj.placements:
             # 设置物：设置者那里的动静，按设置者的卡和这次填的数算半径
             row = self._entry_row(space, pin.owner, pin.entry)
@@ -3281,8 +3301,20 @@ class Engine:
             except ValidationFailed:
                 continue
             heard = self._heard(space, pin.owner, radius)
+            shown: str | None = pin.entry
+            if cfg.reveal.strip():
+                try:
+                    if (
+                        self._rules.roll(
+                            space.pack, cfg.reveal, self._dice.faces, template, sheet, fields, peers
+                        ).total
+                        == 0
+                    ):
+                        shown = None
+                except ValidationFailed:
+                    pass
             if heard:
-                noisy.append((pin.owner, pin.entry, heard))
+                noisy.append((pin.owner, shown, heard))
         for src, entry, heard in noisy:
             for pid in heard:
                 seen = src in space.player_perceived(pid)

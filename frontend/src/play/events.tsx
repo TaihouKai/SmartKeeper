@@ -66,9 +66,11 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
       break;
     }
     case "entry_noticed": {
-      const entry = String(e.payload.entry ?? "");
+      const entry = typeof e.payload.entry === "string" ? e.payload.entry : "";
       const by = e.payload.who;
-      body = typeof by === "string" && by ? t("event.noticed_who", { who: by, entry }) : t("event.noticed", { entry });
+      // 不暴露名字的技能（例如平时挥剑）：只知道有人用了点什么
+      const key = entry ? "event.noticed" : "event.noticed_unknown";
+      body = typeof by === "string" && by ? t(`${key}_who`, { who: by, entry }) : t(key, { entry });
       who = t("event.sense");
       break;
     }

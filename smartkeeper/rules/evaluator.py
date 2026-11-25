@@ -135,14 +135,11 @@ class EntityContext:
         gdef = next((g for g in self.template.groups if g.name == group), None)
         fields = dict(e.fields)
         for fd in gdef.fields if gdef else ():
-            if (
-                fd.cls == "runtime"
-                and fd.name not in fields
-                and fd.kind == "boolean"
-                and not fd.initial
-            ):
+            if fd.kind == "param" or fd.name in fields:
+                continue
+            if fd.cls == "runtime" and fd.kind == "boolean" and not fd.initial:
                 fields[fd.name] = False  # 是/否没写初值：否
-            if fd.cls == "runtime" and fd.name not in fields and fd.initial:
+            if fd.initial:  # 运行中的列的初值，或者玩家没填的列的默认值
                 try:
                     v = self.eval(fd.initial, fields)
                 except f.FormulaError:
@@ -282,11 +279,13 @@ class EntityContext:
             return self.template.name
         if len(rest) == 1:
             key = rest[0]
+            fd = self._fields.get(key)
             if (
                 key in self.extra
                 or key in self._derived
                 or key in self.sheet.fields
                 or key in self._formulas
+                or (fd is not None and fd.cls == "player" and fd.initial)
             ):
                 return self.value_of(key)
             if any(x.name == key for x in self.template.fields):
@@ -305,6 +304,12 @@ class EntityContext:
             return self.extra[name]
         if name in self._derived:
             return self.derived(name).value
+        fd = self._fields.get(name)
+        if name not in self.sheet.fields and fd is not None and fd.cls == "player" and fd.initial:
+            # 玩家没填、有默认值（initial）的字段
+            text = fd.initial
+            v = self._guarded(f"{self.template.name}.{name}", lambda: self.eval(text))
+            return (1.0 if v not in (0, "") else 0.0) if fd.kind == "boolean" else v
         if name in self.sheet.fields:
             v = as_value(self.sheet.fields[name])
             if v is None:

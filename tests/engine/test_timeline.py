@@ -408,8 +408,8 @@ def test_param_spends_a_resource_once_per_attempt() -> None:
     wait(t, t.players[1], 5)
     e.close_round(g)
     e.begin_plan(g)
-    with pytest.raises(ValidationFailed):
-        e.roll_formula(g, e0, "damage", "bolt", "x")  # 没给 cost
+    low = e.roll_formula(g, e0, "damage", "bolt", "x")  # 没给 cost：按下限 1
+    assert low.total == (sum(low.rolls) + 1) * 12
     with pytest.raises(ValidationFailed):
         e.roll_formula(g, e0, "damage", "bolt", "x", {"cost": 0})  # 小于下限
     with pytest.raises(ValidationFailed):
@@ -566,9 +566,10 @@ def test_placement_formulas_use_chosen_on_use_columns_and_spend() -> None:
     e.close_round(gid)
     item = e.activities(gid)[e0].steps[0].item
     no_cost = PlaceIn(owner=e0, entry="trap", at=Point(x=0, y=0), because=item)
+    too_much = no_cost.model_copy(update={"params": {"cost": 999}})
     with pytest.raises(ValidationFailed) as err:
-        e.apply_adjudication(gid, t.simple_adjudication(placements=[no_cost]))
-    assert "roll.param_missing" in {p.code for p in err.value.problems}
+        e.apply_adjudication(gid, t.simple_adjudication(placements=[too_much]))
+    assert "roll.param_out_of_range" in {p.code for p in err.value.problems}
     place = no_cost.model_copy(update={"params": {"cost": 3}})
     publish(t, only=t.players, placements=[place])
     state = e.world_state(gid)

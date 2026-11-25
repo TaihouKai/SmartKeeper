@@ -77,20 +77,28 @@ class StepApplier:
         return ev(fd.min), ev(fd.max)
 
     def put(self, state: State, eid: str, name: str, value: float) -> State:
+        ent = _obj(_obj(state.get("entities")).get(eid))
+        tpl = self.pack.template(str(ent.get("template", "")))
+        fd = next((x for x in tpl.fields if x.name == name), None) if tpl else None
+        v: JsonValue
+        if fd is not None and fd.kind == "boolean":
+            v = value != 0  # 是/否：非 0 是“是”
+            op = PatchOp(op="replace", path=f"/entities/{eid}/sheet/fields/{name}", value=v)
+            self.ops.append(op)
+            return self.world.apply(state, [op])
         lo, hi = self._bound(state, eid, name)
         if lo is not None:
             value = max(value, lo)
         if hi is not None:
             value = min(value, hi)
         value = round(value, 2)
-        v: JsonValue = int(value) if value.is_integer() else value
+        v = int(value) if value.is_integer() else value
         op = PatchOp(op="replace", path=f"/entities/{eid}/sheet/fields/{name}", value=v)
         self.ops.append(op)
         return self.world.apply(state, [op])
 
     def num(self, state: State, eid: str, name: str) -> float | None:
-        v = self._fields(state, eid).get(name)
-        return float(v) if isinstance(v, int | float) and not isinstance(v, bool) else None
+        return _num(self._fields(state, eid).get(name))
 
     def add_status(self, state: State, who: str, status: Status) -> State:
         sop = PatchOp(
@@ -229,10 +237,20 @@ class StepApplier:
         player = next(
             (pid for pid, ctl in controls.items() if isinstance(ctl, list) and who in ctl), None
         )
+        # 脚本算出来的是数或文字：按字段的类型放进角色卡（是/否字段非 0 是“是”）
+        kinds = {x.name: x.kind for x in tpl.fields}
+        typed: dict[str, JsonValue] = {}
+        for k, v in values.items():
+            if kinds.get(k) == "boolean":
+                typed[k] = v not in (0, 0.0, "", False)
+            elif isinstance(v, float) and v.is_integer():
+                typed[k] = int(v)
+            else:
+                typed[k] = v
         for eid in made:
             sheet: JsonValue = {
                 "name": f"{label}{eid.rsplit('_', 1)[-1]}",
-                "fields": dict(values),
+                "fields": dict(typed),
             }
             sheet = self.rules.init_sheet(self.pack, template, sheet, peers_of(state, who))
             bad = self.rules.validate_sheet(self.pack, template, sheet)

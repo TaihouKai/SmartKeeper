@@ -191,6 +191,15 @@ T: dict[str, tuple[str, str]] = {
         "You sense someone nearby using “{entry}”",
     ),
     "event.noticed_who": ("你察觉到{who}施展了「{entry}」", "You sense {who} using “{entry}”"),
+    "event.noticed_unknown": (
+        "你察觉到附近有人施展了什么",
+        "You sense someone nearby using something",
+    ),
+    "event.noticed_unknown_who": ("你察觉到{who}施展了什么", "You sense {who} using something"),
+    "config.c.reveal": (
+        "察觉到动静的人知不知道用的是什么（条件；空是知道），例如解放时才喊出名字：reveal = this.release",
+        "Whether those who notice learn what was used (a condition; empty = yes), e.g. only when unleashed: reveal = this.release",
+    ),
     "event.opening": ("开场", "Opening"),
     "event.round_opened": ("—— 第 {round} 轮开始 ——", "— Round {round} begins —"),
     "event.round_closed": ("—— 第 {round} 轮结束 ——", "— Round {round} ends —"),
