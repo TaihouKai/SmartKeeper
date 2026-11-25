@@ -13,7 +13,9 @@ from typing import Literal
 from smartkeeper import lang as f
 from smartkeeper.contracts import PlacementSpec, Shape, SkillConfig
 
-type Kind = Literal["choice", "bool", "formula", "shape", "placement", "check", "best", "reactions"]
+type Kind = Literal[
+    "choice", "bool", "formula", "shape", "placement", "check", "best", "reactions", "affects"
+]
 
 TARGETS = ("single", "self", "none")
 # 名字 -> 值的类型。顺序就是编辑器里预先填好的顺序
@@ -32,8 +34,11 @@ KEYS: dict[str, Kind] = {
     "reactions": "reactions",
     "save": "check",
     "shape": "shape",
+    "affects": "affects",
+    "aura": "shape",
     "placement": "placement",
 }
+AFFECTS = ("all", "allies", "enemies")
 # 范围形状 -> 要写的参数（米、度）
 SHAPES: dict[str, tuple[str, ...]] = {
     "capsule": ("length", "width"),
@@ -44,8 +49,8 @@ SHAPES: dict[str, tuple[str, ...]] = {
 # 用技能时引擎知道的数：设置的公式里能用 CONFIG_VARS；命中条件 hit 还能用双方的等级；技能脚本全都能用
 CONFIG_VARS = ("distance", "unseen")
 HIT_VARS = (*CONFIG_VARS, "level", "opp_level", "opposed")
-# boost：这次选的参数的总效果倍数；turning_on：开关类用途这一次是不是打开
-SCRIPT_VARS = (*HIT_VARS, "saved", "reacting", "boost", "turning_on")
+# boost：这次选的参数的总效果倍数；turning_on：开关类用途这一次是不是打开；ally：这个对象是不是友军
+SCRIPT_VARS = (*HIT_VARS, "saved", "reacting", "boost", "turning_on", "ally")
 # 设置物的参数：radius 必填（building=True 时不用：设置者所在的整栋建筑就是设置物）；
 # perceive 是别人发现它的距离系数；duration 按分钟
 PLACEMENT_ARGS = ("radius", "perceive", "charges", "duration", "notify", "building")
@@ -151,7 +156,7 @@ def read_config(text: str, script: str = "") -> SkillConfig:
             args = dict(s.args)
             if kind == "shape":
                 need = SHAPES.get(s.call)
-                if need is None:
+                if need is None or (s.name == "aura" and s.call != "sphere"):
                     raise _err("config.bad_call", s, call=s.call)
                 for a in args:
                     if a not in need:
@@ -159,7 +164,7 @@ def read_config(text: str, script: str = "") -> SkillConfig:
                 for a in need:
                     if a not in args:
                         raise _err("config.missing_arg", s, arg=a)
-                out["shape"] = Shape.model_validate(
+                out[s.name] = Shape.model_validate(
                     {"kind": s.call, **{a: _number(s, a, v) for a, v in args.items()}}
                 )
             else:
@@ -223,10 +228,11 @@ def read_config(text: str, script: str = "") -> SkillConfig:
             continue
         if s.call is not None:
             raise _err("config.bad_value", s, expected=kind)
-        if kind == "choice":
+        if kind in ("choice", "affects"):
+            allowed = TARGETS if kind == "choice" else AFFECTS
             node = _literal(s)
-            if not (isinstance(node, f.Str) and node.value in TARGETS):
-                raise _err("config.bad_value", s, expected=" / ".join(f'"{x}"' for x in TARGETS))
+            if not (isinstance(node, f.Str) and node.value in allowed):
+                raise _err("config.bad_value", s, expected=" / ".join(f'"{x}"' for x in allowed))
             out[s.name] = node.value
         elif kind == "bool":
             out[s.name] = _bool(s, s.value)

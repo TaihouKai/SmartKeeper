@@ -617,6 +617,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/alliances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Alliances */
+        get: operations["alliances_api_alliances_get"];
+        put?: never;
+        /** Propose */
+        post: operations["propose_api_alliances_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alliances/{item}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Withdraw */
+        delete: operations["withdraw_api_alliances__item__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alliances/{item}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Answer */
+        post: operations["answer_api_alliances__item__answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/broadcast": {
         parameters: {
             query?: never;
@@ -1294,6 +1346,47 @@ export interface components {
         AdminReactIn: {
             /** Choices */
             choices: components["schemas"]["ReactionChoice"][];
+        };
+        /** AllianceIn */
+        AllianceIn: {
+            /** Ref */
+            ref: string;
+        };
+        /**
+         * AllianceItem
+         * @description 结盟里的一项（对这个玩家而言）：id 用来回应、撤回或解除；who 是他对另一方的叫法（不认识的是“某人”）。
+         */
+        AllianceItem: {
+            /** Id */
+            id: number;
+            /** Who */
+            who: string;
+        };
+        /**
+         * AllianceView
+         * @description 一个玩家的结盟：别人向他提的、他提了还没回应的、已经结成的。
+         */
+        AllianceView: {
+            /**
+             * Allies
+             * @default []
+             */
+            allies: components["schemas"]["AllianceItem"][];
+            /**
+             * Incoming
+             * @default []
+             */
+            incoming: components["schemas"]["AllianceItem"][];
+            /**
+             * Outgoing
+             * @default []
+             */
+            outgoing: components["schemas"]["AllianceItem"][];
+        };
+        /** AnswerIn */
+        AnswerIn: {
+            /** Accept */
+            accept: boolean;
         };
         /** AreaEffect */
         AreaEffect: {
@@ -4923,6 +5016,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OkOut"];
+                };
+            };
+        };
+    };
+    alliances_api_alliances_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllianceView"];
+                };
+            };
+        };
+    };
+    propose_api_alliances_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllianceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllianceView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_api_alliances__item__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllianceView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_api_alliances__item__answer_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllianceView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

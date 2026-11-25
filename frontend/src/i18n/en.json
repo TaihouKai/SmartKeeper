@@ -16,6 +16,31 @@
     "pick_game": "Pick a game under Games first.",
     "title": "Admin console"
   },
+  "alliance": {
+    "accept": "Accept",
+    "ally": "Ally: {who}",
+    "break": "End",
+    "cancel": "Withdraw",
+    "decline": "Decline",
+    "hint": "Allied players' characters count as allies for ally-only skills and auras. Either side can end it at any time; the other is told.",
+    "incoming": "{who} proposes an alliance",
+    "n": {
+      "broken": "{who} ended the alliance with you",
+      "broken_mine": "You ended the alliance with {who}",
+      "cancelled": "{who} withdrew the proposal",
+      "cancelled_mine": "You withdrew your proposal to {who}",
+      "declined": "{who} declined your proposal",
+      "declined_mine": "You declined {who}'s proposal",
+      "formed": "You are now allied with {who}",
+      "formed_mine": "You are now allied with {who}",
+      "proposed": "{who} proposed an alliance",
+      "proposed_mine": "You proposed an alliance to {who}"
+    },
+    "none": "No alliances yet",
+    "outgoing": "Waiting for {who}",
+    "propose": "Propose alliance",
+    "title": "Alliances"
+  },
   "app": {
     "title": "SmartKeeper",
     "to_admin": "Admin console"
@@ -149,6 +174,12 @@
       "summon_bad_sheet": "The summoned sheet is invalid ({problem}): the summon must fill the template's required fields",
       "unknown_use": "The ruling refers to an unknown skill use {seq}",
       "use_bad_field": "The target has no runtime value {name}"
+    },
+    "alliance": {
+      "already": "Already allied",
+      "not_found": "No such alliance or proposal",
+      "pending": "Already proposed; waiting for an answer",
+      "self": "You can't ally with yourself"
     },
     "auth": {
       "admin_required": "Admin login required",
@@ -341,7 +372,8 @@
       "out_of_range": "{entry} is out of range: the target is {distance} m away, range {range} m",
       "param_cooling_down": "The “{name}” option of {entry} is still cooling down",
       "param_requires": "Cannot choose “{name}” this time (needs {formula})",
-      "requires": "{entry} can't be used now: its condition {formula} doesn't hold"
+      "requires": "{entry} can't be used now: its condition {formula} doesn't hold",
+      "wrong_side": "{entry} can only be used on {affects}"
     }
   },
   "common": {
@@ -359,6 +391,8 @@
   "config": {
     "best": "roll several checks, keep the best level",
     "c": {
+      "affects": "who it affects: \"all\" (default), \"allies\" or \"enemies\"; filters an area, and a single target must match",
+      "aura": "aura: sphere(radius=m). Passive: everyone inside who matches affects (you too) has this entry's bonuses while inside",
       "auto_level": "a fixed level instead of a roll (a formula), e.g. 2 for an automatic hard success",
       "cast_time": "cast time in minutes; under 1 is instant",
       "check": "the user's check (a check name); best(\"a\", \"b\") rolls several and keeps the best; None / True always hits",
@@ -395,6 +429,7 @@
       "variable": "A variable in the skill script"
     },
     "kw": {
+      "ally": "True when this target is an ally (your own side, or an allied player's character)",
       "and": "1 if both hold; stops at the first that doesn't",
       "distance": "distance from the user to the target, metres",
       "if": "A branch (if cond: with an indented block) or a choice of value (a if cond else b)",
@@ -455,6 +490,7 @@
     }
   },
   "event": {
+    "alliance": "Alliance",
     "anonymous": "Anonymous",
     "approved": "Character approved",
     "feedback": "Result",

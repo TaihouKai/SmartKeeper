@@ -19,9 +19,9 @@ const DEFAULTS: [string, string][] = [
 ];
 
 /** 设置里还能写、但不预填的项（少用）。 */
-export const EXTRA_CONFIG_KEYS = ["auto_level", "save"];
+export const EXTRA_CONFIG_KEYS = ["auto_level", "save", "affects", "aura"];
 /** 用技能时引擎给的数：设置的公式里能用前两个，命中条件 hit 到 opposed，技能脚本全部（和后端 skillconfig 的 *_VARS 对应）。 */
-export const OUTCOME_VARS = ["distance", "unseen", "level", "opp_level", "opposed", "saved", "reacting"];
+export const OUTCOME_VARS = ["distance", "unseen", "level", "opp_level", "opposed", "saved", "reacting", "ally"];
 /** 检定的代码能写的项、条件里能用的变量（和后端 checkconfig 的 KEYS、VARS 对应）。 */
 export const CHECK_KEYS = ["label", "dice", "target", "success", "level", "levels", "opposed_by"];
 export const CHECK_VARS = ["roll", "natural", "target", "difficulty", "distance", "opp_roll", "opp_target", "self.template", "opponent.template"];

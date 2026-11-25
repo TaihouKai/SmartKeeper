@@ -149,6 +149,31 @@ test("three players create characters and play two rounds without the console", 
   await pages[0]!.waitForTimeout(2500);
   // 整页截图会改变视口，WebGL 画布在那一刻是空的；只截地图元素
   if (SHOTS) await pages[0]!.locator(".sk-map").screenshot({ path: `${SHOTS}/play-map.png` });
+  // 结盟：玩家 1 和玩家 2 站到一起（远离 NPC），1 提议，2 同意，双方都显示盟友
+  await placePlayers(browser, gameId, { Player1: [20, -34], Player2: [22, -34], Player3: [-90, -90] });
+  for (const p of [pages[0]!, pages[1]!]) {
+    await p.reload();
+    await p.getByRole("button", { name: "Map", exact: true }).click();
+  }
+  // 身边是玩家 2 和卖花老人（NPC），代号看不出谁是谁：都提一次。对着 NPC 的提议一直挂着，没人回应
+  const near = a.locator(".sk-card li", { has: a.getByRole("button", { name: "Talk", exact: true }) });
+  for (let i = 0; i < (await near.count()); i++) {
+    await near.nth(i).getByRole("button", { name: "Propose alliance" }).click();
+    await a.waitForTimeout(300);
+  }
+  await expect(a.locator(".sk-card", { hasText: "Alliances" })).toContainText("Waiting for", { timeout: 10_000 });
+  const b = pages[1]!;
+  await expect(async () => {
+    await b.reload();
+    await b.getByRole("button", { name: "Map", exact: true }).click();
+    await expect(b.locator(".sk-card", { hasText: "Alliances" })).toContainText("proposes an alliance", { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  await b.getByRole("button", { name: "Accept" }).click();
+  await expect(b.locator(".sk-card", { hasText: "Alliances" })).toContainText("Ally:", { timeout: 10_000 });
+  await a.reload();
+  await a.getByRole("button", { name: "Map", exact: true }).click();
+  await expect(a.locator(".sk-card", { hasText: "Alliances" })).toContainText("Ally:", { timeout: 10_000 });
+  await shot(a, "play-alliance");
   await pages[1]!.getByRole("button", { name: "Sheet" }).click();
   await expect(pages[1]!.locator(".sk-card h3")).toContainText("Hero 1");
   await shot(pages[1]!, "play-sheet");

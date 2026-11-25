@@ -77,6 +77,12 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
       who = t("event.sense");
       break;
     }
+    case "alliance_notice": {
+      const kind = String(e.payload.kind ?? "");
+      body = t(`alliance.n.${kind}${e.payload.mine ? "_mine" : ""}`, { who: String(e.payload.label ?? "") });
+      who = t("event.alliance");
+      break;
+    }
     case "intel_gained": {
       const facts = (Array.isArray(e.payload.facts) ? e.payload.facts : []) as Schemas["IntelFact"][];
       body = t("intel.gained", { who: String(e.payload.label ?? ""), facts: facts.map((f) => factText(f, t)).join(t("intel.list_sep")) });

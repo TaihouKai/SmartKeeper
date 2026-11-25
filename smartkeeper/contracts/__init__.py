@@ -128,6 +128,8 @@ from smartkeeper.contracts.sheet import (
     Status,
 )
 from smartkeeper.contracts.spatial import (
+    AllianceItem,
+    AllianceView,
     Body,
     BuildingHit,
     FeatureKind,
@@ -167,6 +169,8 @@ __all__ = [
     "Activity",
     "AdHocCheck",
     "Adjudication",
+    "AllianceItem",
+    "AllianceView",
     "AreaEffect",
     "Audience",
     "Body",

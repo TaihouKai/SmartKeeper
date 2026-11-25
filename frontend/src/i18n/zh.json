@@ -16,6 +16,31 @@
     "pick_game": "先在“局管理”里选一局。",
     "title": "管理控制台"
   },
+  "alliance": {
+    "accept": "同意",
+    "ally": "盟友：{who}",
+    "break": "解除",
+    "cancel": "撤回",
+    "decline": "拒绝",
+    "hint": "结了盟的玩家，双方的角色互为友军：只对友军生效的技能和光环会算上对方。任何一方可以随时解除，对方会收到通知。",
+    "incoming": "向你提议结盟：{who}",
+    "n": {
+      "broken": "{who} 解除了和你的结盟",
+      "broken_mine": "你解除了和 {who} 的结盟",
+      "cancelled": "{who} 撤回了结盟提议",
+      "cancelled_mine": "你撤回了给 {who} 的结盟提议",
+      "declined": "{who} 拒绝了你的结盟提议",
+      "declined_mine": "你拒绝了 {who} 的结盟提议",
+      "formed": "你和 {who} 结盟了",
+      "formed_mine": "你和 {who} 结盟了",
+      "proposed": "{who} 向你提议结盟",
+      "proposed_mine": "你向 {who} 提议结盟"
+    },
+    "none": "还没有结盟",
+    "outgoing": "等待回应：{who}",
+    "propose": "提议结盟",
+    "title": "结盟"
+  },
   "app": {
     "title": "SmartKeeper",
     "to_admin": "管理控制台"
@@ -149,6 +174,12 @@
       "summon_bad_sheet": "召唤出来的角色卡不合法（{problem}）：召唤脚本要给齐这个模板必填的字段",
       "unknown_use": "裁定引用了不存在的技能使用 {seq}",
       "use_bad_field": "作用对象没有运行值 {name}"
+    },
+    "alliance": {
+      "already": "已经结盟了",
+      "not_found": "没有这个结盟或提议",
+      "pending": "已经提过了，等对方回应",
+      "self": "不能和自己结盟"
     },
     "auth": {
       "admin_required": "需要管理员登录",
@@ -341,7 +372,8 @@
       "out_of_range": "{entry} 够不着：对象在 {distance} 米外，射程 {range} 米",
       "param_cooling_down": "{entry} 的“{name}”还在冷却，这次不能选",
       "param_requires": "这次不能选“{name}”（条件：{formula}）",
-      "requires": "{entry} 现在不能用：使用条件 {formula} 不成立"
+      "requires": "{entry} 现在不能用：使用条件 {formula} 不成立",
+      "wrong_side": "{entry} 只能对{affects}用"
     }
   },
   "common": {
@@ -359,6 +391,8 @@
   "config": {
     "best": "几个检定都掷，取等级最高的",
     "c": {
+      "affects": "影响谁：\"all\" 所有人（默认）、\"allies\" 只有友军、\"enemies\" 只有敌人；范围技能按它筛选，单体技能对象不符合时不能用",
+      "aura": "光环：sphere(radius=米)。被动生效：圈里符合 affects 的人（包括自己）一直带着这一条的常驻加成，进圈就有、出圈就没",
       "auto_level": "不掷骰、直接定下的等级（公式），例如必定困难成功的大招写 2",
       "cast_time": "施放时间（分钟），不到 1 算瞬发",
       "check": "使用者做的检定（检定名）；几个时写 best(\"a\", \"b\")，都掷、取等级高的；None / True 是不掷骰、必中",
@@ -395,6 +429,7 @@
       "variable": "技能脚本里的变量"
     },
     "kw": {
+      "ally": "这个对象是不是友军（自己这一方，或者结了盟的玩家的角色）",
       "and": "都成立得 1，否则 0；前面不成立就不算后面",
       "distance": "使用者到对象的距离（米）",
       "if": "条件分支（脚本里写 if 条件: 换行缩进），或数值二选一（a if 条件 else b）",
@@ -455,6 +490,7 @@
     }
   },
   "event": {
+    "alliance": "结盟",
     "anonymous": "匿名",
     "approved": "角色卡审核通过",
     "feedback": "KP 反馈",

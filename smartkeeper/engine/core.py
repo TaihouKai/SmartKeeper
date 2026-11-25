@@ -25,10 +25,13 @@ from smartkeeper.contracts import (
     Activity,
     AdHocCheck,
     Adjudication,
+    AllianceItem,
+    AllianceView,
     Audience,
     CheckResult,
     Dice,
     DiceResult,
+    Effect,
     Event,
     EventLog,
     EventType,
@@ -95,8 +98,8 @@ from smartkeeper.contracts import (
     World,
 )
 from smartkeeper.engine import adjudication as adjv
+from smartkeeper.engine import alliance, intel, scenario
 from smartkeeper.engine import entries as entry_refs
-from smartkeeper.engine import intel, scenario
 from smartkeeper.engine.applier import StepApplier
 from smartkeeper.engine.duel import Duel, Side, Strike
 from smartkeeper.engine.duel import Result as DuelResult
@@ -646,6 +649,7 @@ class Engine:
             )
             self._repo.update_game(game_id, status="running", current_round=1)
             self._detect(game_id, 1)
+            self._auras(game_id, 1)
             self._insights(game_id, 1)
             self.refresh_handles(game_id)
             return self.round(game_id)
@@ -1703,6 +1707,19 @@ class Engine:
             space = self._space_for(self._map(game_id), state, pack)
             # 范围技能（设置了 shape）：形状里的每个人各算一次（各自应对）；消耗、冷却、对自己的那几步只算在第一个上
             victims = self._victims(space, source, target, cfg) if cfg.shape else [target]
+            pacts = self.alliances(game_id)
+
+            def ally_of(v: str | None) -> bool:
+                return v is not None and self._allied(state, pacts, source, v)
+
+            if cfg.affects != "all":
+                want = cfg.affects == "allies"
+                if not cfg.shape and target is not None and ally_of(target) != want:
+                    raise ValidationFailed(
+                        "use.wrong_side", entity=source, entry=parsed.name, affects=cfg.affects
+                    )
+                if cfg.shape:
+                    victims = [v for v in victims if v is not None and ally_of(v) == want] or [None]
             used_params = {pf.name: fields[pf.name] for pf in prms if pf.name in fields}
             # 察觉到的人知不知道用的是什么：规则包在分组上定（玩家写条目时改不了）
             revealed = (
@@ -1738,6 +1755,7 @@ class Engine:
                     them is not None
                     and victim != source
                     and cfg.reactable
+                    and cfg.affects != "allies"  # 只对友军的技能不用抵抗
                     and not unseen
                     and not self._dead(state, them.entity)
                 )
@@ -1764,7 +1782,7 @@ class Engine:
                             strike,
                             gdef,
                             extra,
-                            extra_vars,
+                            {**extra_vars, "ally": 1.0 if ally_of(victim) else 0.0},
                         )
                 cooldown = int(roll(cfg.cooldown).total * 60) if cfg.cooldown.strip() else 0
                 ev = NewEvent(
@@ -1782,6 +1800,7 @@ class Engine:
                         "params": cast(JsonValue, used_params),
                         "boost": boost,
                         "turning_on": turning_on,
+                        "ally": ally_of(victim),
                         "param_costs": [] if extra else costs,
                         "toggle": None if extra else cast(JsonValue, toggle),
                         "param_checks": {} if extra else param_checks,
@@ -2400,6 +2419,7 @@ class Engine:
                 {
                     "boost": float(boost) if isinstance(boost, int | float) else 1.0,
                     "turning_on": 1.0 if p.get("turning_on") else 0.0,
+                    "ally": 1.0 if p.get("ally") else 0.0,
                 },
             )
         return NewEvent(
@@ -3679,6 +3699,7 @@ class Engine:
                 )
                 self._repo.update_game(game_id, current_round=r.no + 1)
                 self._detect(game_id, r.no + 1)
+                self._auras(game_id, r.no + 1)
                 self._insights(game_id, r.no + 1)
             adj_seq = written[0].seq
             self._memory.add(self._memory_entries(game_id, r.no, adj, adj_seq))
@@ -3794,6 +3815,248 @@ class Engine:
                 evs.append(intel.event(pid, about, new, round_no, seconds, ENGINE))
         if evs:
             self._events.append(game_id, round_no, evs)
+
+    # ================= 结盟与友军 =================
+
+    def alliances(self, game_id: str) -> alliance.Alliances:
+        return alliance.fold(self._events.view_for(game_id, KP, types=[alliance.CHANGE]))
+
+    def _allied(self, state: State, pacts: alliance.Alliances, a: str, b: str) -> bool:
+        """两个实体是不是友军：同一个，同一个玩家控制的，或者控制它们的玩家结了盟。NPC 只和自己是友军。"""
+        if a == b:
+            return True
+        pa, pb = self._owner(state, a), self._owner(state, b)
+        return pa is not None and pb is not None and pacts.allied(pa, pb)
+
+    def _player_label(self, game_id: str, viewer: str, other: str, state: State) -> str:
+        """viewer 对另一个玩家的叫法：他认识的那个玩家的角色的代号；一个都不认识就是“某人”。"""
+        mine = {str(e) for e in _list(_obj(state.get("controls")).get(other))}
+        labels = [f"@{h.label}" for h in self._handles.list(viewer) if h.entity_id in mine]
+        return "、".join(sorted(labels)) or self._unknown_word(game_id)
+
+    def _alliance_events(
+        self, game_id: str, change: dict[str, JsonValue], notices: dict[str, str], state: State
+    ) -> list[Event]:
+        """记一条结盟变化（只有 KP 看得到），再给每个当事玩家一条通知（带他对另一方的叫法）。"""
+        r = self.game(game_id).current_round
+        evs = [
+            NewEvent(
+                type="alliance_change",
+                actor=ENGINE,
+                visibility=Visibility.kp_only(),
+                payload=change,
+            )
+        ]
+        for pid, other in sorted(notices.items()):
+            evs.append(
+                NewEvent(
+                    type="alliance_notice",
+                    actor=ENGINE,
+                    visibility=Visibility.to(pid),
+                    payload={
+                        "kind": change.get("kind"),
+                        "label": self._player_label(game_id, pid, other, state),
+                        "mine": change.get("by") == pid,
+                    },
+                )
+            )
+        return self._events.append(game_id, r, evs)
+
+    def propose_alliance(self, game_id: str, player_id: str, ref: str) -> AllianceView:
+        """向某个角色的玩家提出结盟。对方也向我提过的话直接结成。对着 NPC 提的没人回应，一直挂着。"""
+        with self._lock:
+            state = self._state(game_id)
+            entity = self.entity_for_ref(player_id, ref)
+            other = self._owner(state, entity)
+            if other == player_id:
+                raise ValidationFailed("alliance.self")
+            pacts = self.alliances(game_id)
+            if other is not None and pacts.allied(player_id, other):
+                raise ValidationFailed("alliance.already")
+            mine = [p for p in pacts.pending.values() if p.by == player_id and p.entity == entity]
+            if mine:
+                raise ValidationFailed("alliance.pending")
+            back = next(
+                (p for p in pacts.pending.values() if p.by == other and p.to == player_id), None
+            )
+            if other is not None and back is not None:
+                self._alliance_events(
+                    game_id,
+                    {"kind": "formed", "players": cast(JsonValue, sorted([player_id, other]))},
+                    {player_id: other, other: player_id},
+                    state,
+                )
+            else:
+                self._alliance_events(
+                    game_id,
+                    {"kind": "proposed", "by": player_id, "to": other, "entity": entity},
+                    {player_id: other or ""} | ({other: player_id} if other else {}),
+                    state,
+                )
+            return self.alliance_view(game_id, player_id)
+
+    def answer_alliance(
+        self, game_id: str, player_id: str, proposal: int, accept: bool
+    ) -> AllianceView:
+        with self._lock:
+            state = self._state(game_id)
+            p = self.alliances(game_id).pending.get(proposal)
+            if p is None or p.to != player_id:
+                raise NotFound("alliance.not_found", id=proposal)
+            if accept:
+                change: dict[str, JsonValue] = {
+                    "kind": "formed",
+                    "players": cast(JsonValue, sorted([p.by, player_id])),
+                }
+            else:
+                change = {"kind": "declined", "proposal": proposal, "by": player_id}
+            self._alliance_events(game_id, change, {player_id: p.by, p.by: player_id}, state)
+            return self.alliance_view(game_id, player_id)
+
+    def withdraw_alliance(self, game_id: str, player_id: str, item: int) -> AllianceView:
+        """撤回自己提的结盟，或者解除已经结成的（单方面就行，对方会收到通知）。"""
+        with self._lock:
+            state = self._state(game_id)
+            pacts = self.alliances(game_id)
+            prop = pacts.pending.get(item)
+            pact = pacts.pacts.get(item)
+            if prop is not None and prop.by == player_id:
+                notices = {player_id: prop.to or ""} | ({prop.to: player_id} if prop.to else {})
+                change: dict[str, JsonValue] = {
+                    "kind": "cancelled",
+                    "proposal": item,
+                    "by": player_id,
+                }
+            elif pact is not None and player_id in pact.players:
+                other = next(x for x in pact.players if x != player_id)
+                notices = {player_id: other, other: player_id}
+                change = {"kind": "broken", "pact": item, "by": player_id}
+            else:
+                raise NotFound("alliance.not_found", id=item)
+            self._alliance_events(game_id, change, notices, state)
+            return self.alliance_view(game_id, player_id)
+
+    def alliance_view(self, game_id: str, player_id: str) -> AllianceView:
+        state = self._state(game_id)
+        pacts = self.alliances(game_id)
+
+        def who(other: str | None, entity: str = "") -> str:
+            if other:
+                return self._player_label(game_id, player_id, other, state)
+            h = self._handles.get(player_id, entity) if entity else None
+            return f"@{h.label}" if h is not None else self._unknown_word(game_id)
+
+        return AllianceView(
+            incoming=tuple(
+                AllianceItem(id=p.id, who=who(p.by))
+                for p in pacts.pending.values()
+                if p.to == player_id
+            ),
+            outgoing=tuple(
+                AllianceItem(id=p.id, who=who(p.to, p.entity))
+                for p in pacts.pending.values()
+                if p.by == player_id
+            ),
+            allies=tuple(
+                AllianceItem(id=x.id, who=who(next(p for p in x.players if p != player_id)))
+                for x in pacts.pacts.values()
+                if player_id in x.players
+            ),
+        )
+
+    def alliances_for_kp(self, game_id: str) -> list[list[str]]:
+        """KP 看的：每个结盟两边玩家控制的实体。"""
+        state = self._state(game_id)
+        controls = _obj(state.get("controls"))
+        return [
+            sorted(str(e) for pid in sorted(x.players) for e in _list(controls.get(pid)))
+            for x in self.alliances(game_id).pacts.values()
+        ]
+
+    def _auras(self, game_id: str, round_no: int) -> None:
+        """光环：一轮开始时按此刻的位置，把每个光环条目的常驻加成作为状态发给圈里符合条件的人（包括自己），
+        出了圈的收回。状态的公式在光环主人身上求好（只留被修正的那个名字），记成 state_patch。"""
+        pack = self.rulepack(game_id)
+        state = self._state(game_id)
+        space = self._space_for(self._map(game_id), state, pack)
+        pacts = self.alliances(game_id)
+        ents = _obj(state.get("entities"))
+        want: dict[str, list[JsonValue]] = {eid: [] for eid in ents}
+        for src in sorted(ents):
+            body = space.bodies.get(src)
+            if body is None or self._dead(state, src):
+                continue
+            ent = _obj(ents.get(src))
+            template = str(ent.get("template", ""))
+            peers = peers_of(state, src)
+            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
+            for hit in entry_refs.usable(sheet):
+                row = hit.row
+                if row.get("is_use"):
+                    continue
+                try:
+                    cfg = self._cfg(row)
+                except ValidationFailed:
+                    continue
+                if cfg.aura is None or cfg.aura.radius is None:
+                    continue
+                effects = [
+                    Effect.model_validate(x)
+                    for x in _list(row.get("effects"))
+                    if isinstance(x, dict)
+                ]
+                effects = [x for x in effects if x.is_mechanical and "." not in (x.target or "")]
+                cols = _obj(row.get("fields"))
+                for eid in sorted(ents):
+                    other = space.bodies.get(eid)
+                    if other is None or self._dead(state, eid):
+                        continue
+                    if self._spatial.distance(body.pos, other.pos) > cfg.aura.radius:
+                        continue
+                    friend = self._allied(state, pacts, src, eid)
+                    if cfg.affects != "all" and friend != (cfg.affects == "allies"):
+                        continue
+                    for i, eff in enumerate(effects):
+                        assert eff.target is not None and eff.formula is not None
+                        try:
+                            steps = self._rules.plan_script(
+                                pack,
+                                f"self.modify({eff.target}, {eff.formula}, 1)",
+                                self._dice.faces,
+                                template,
+                                sheet,
+                                dict(cols),
+                                peers,
+                            )
+                        except ValidationFailed:
+                            continue
+                        if not steps or steps[0].formula is None:
+                            continue
+                        want[eid].append(
+                            Status(
+                                tag=f"aura:{src}:{hit.owner}:{i}",
+                                source=src,
+                                modifier=Effect(
+                                    description=eff.description or hit.owner,
+                                    target=eff.target,
+                                    formula=steps[0].formula,
+                                ),
+                            ).model_dump(mode="json")
+                        )
+        ops: list[PatchOp] = []
+        for eid, auras in sorted(want.items()):
+            sheet = _obj(_obj(ents.get(eid)).get("sheet"))
+            have = [x for x in _list(sheet.get("statuses"))]
+            kept = [x for x in have if not str(_obj(x).get("tag", "")).startswith("aura:")]
+            if [x for x in have if x not in kept] != auras:
+                ops.append(
+                    PatchOp(op="add", path=f"/entities/{eid}/sheet/statuses", value=[*kept, *auras])
+                )
+        if ops:
+            self._validated(game_id, state, ops)
+            self._events.append(
+                game_id, round_no, [self._patch_event(ops, cause="aura", actor=ENGINE)]
+            )
 
     def _intel_labels(self, player_id: str, state: State) -> dict[str, str]:
         out = {h.entity_id: f"@{h.label}" for h in self._handles.list(player_id)}

@@ -13,6 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field, JsonValue
 
 from smartkeeper.contracts import (
+    AllianceView,
     DerivedValue,
     FormulaScope,
     IdentityRules,
@@ -131,6 +132,14 @@ class FormulaOut(BaseModel):
 class HandleIn(BaseModel):
     label: str | None = None
     note: str | None = None
+
+
+class AllianceIn(BaseModel):
+    ref: str  # 向这个角色的玩家提出
+
+
+class AnswerIn(BaseModel):
+    accept: bool
 
 
 class ActionIn(BaseModel):
@@ -469,6 +478,25 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
     def handle(p: Annotated[Player, Depends(require_player)], ref: str, body: HandleIn) -> OkOut:
         e.rename_handle(p.id, ref, body.label, body.note)
         return OkOut()
+
+    # 结盟：向某个角色（ref）的玩家提出；对方同意、拒绝；自己撤回或解除
+    @r.get("/alliances")
+    def alliances(p: Annotated[Player, Depends(require_player)]) -> AllianceView:
+        return e.alliance_view(p.game_id, p.id)
+
+    @r.post("/alliances")
+    def propose(p: Annotated[Player, Depends(require_player)], body: AllianceIn) -> AllianceView:
+        return e.propose_alliance(p.game_id, p.id, body.ref)
+
+    @r.post("/alliances/{item}/answer")
+    def answer(
+        p: Annotated[Player, Depends(require_player)], item: int, body: AnswerIn
+    ) -> AllianceView:
+        return e.answer_alliance(p.game_id, p.id, item, body.accept)
+
+    @r.delete("/alliances/{item}")
+    def withdraw(p: Annotated[Player, Depends(require_player)], item: int) -> AllianceView:
+        return e.withdraw_alliance(p.game_id, p.id, item)
 
     @r.post("/broadcast")
     def broadcast(p: Annotated[Player, Depends(require_player)], body: BroadcastIn) -> EventOut:

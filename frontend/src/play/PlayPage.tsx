@@ -53,6 +53,14 @@ function MapTab({
   onTalk: (from: string, to: string) => void;
 }) {
   const { t } = useI18n();
+  const allies = usePoll(() => call(api.GET("/api/alliances")), 10_000);
+  const ally = useAction();
+  const allyDo = (fn: () => Promise<unknown>) =>
+    void ally.run(async () => {
+      await fn();
+      void allies.refresh();
+    });
+  const propose = (ref: string) => allyDo(() => call(api.POST("/api/alliances", { body: { ref } })));
   const [editing, setEditing] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [note, setNote] = useState("");
@@ -112,6 +120,9 @@ function MapTab({
                     {t("play.talk")}
                   </button>
                 )}
+                <button className="sk-link" onClick={() => propose(p.ref)}>
+                  {t("alliance.propose")}
+                </button>
                 <button className="sk-link" onClick={() => { setEditing(p.ref); setLabel(p.label); setNote(p.note); }}>
                   {t("play.rename")}
                 </button>
@@ -133,6 +144,9 @@ function MapTab({
                 <button className="sk-link" onClick={() => { setEditing(s.ref); setLabel(s.label); setNote(s.note); }}>
                   {t("play.rename")}
                 </button>
+                <button className="sk-link" onClick={() => propose(s.ref)}>
+                  {t("alliance.propose")}
+                </button>
                 {(s.intel ?? []).length > 0 && (
                   <details className="sk-intel-box">
                     <summary>{t("play.intel", { n: String((s.intel ?? []).length) })}</summary>
@@ -144,6 +158,41 @@ function MapTab({
           </ul>
         </div>
       )}
+      <div className="sk-card">
+        <strong>{t("alliance.title")}</strong>
+        <p className="sk-hint">{t("alliance.hint")}</p>
+        <ErrorBox error={ally.error} />
+        {allies.data && allies.data.incoming.length + allies.data.outgoing.length + allies.data.allies.length === 0 && <p className="sk-hint">{t("alliance.none")}</p>}
+        <ul>
+          {(allies.data?.incoming ?? []).map((x) => (
+            <li key={x.id}>
+              {t("alliance.incoming", { who: x.who })}{" "}
+              <button className="sk-link" onClick={() => allyDo(() => call(api.POST("/api/alliances/{item}/answer", { params: { path: { item: x.id } }, body: { accept: true } })))}>
+                {t("alliance.accept")}
+              </button>
+              <button className="sk-link" onClick={() => allyDo(() => call(api.POST("/api/alliances/{item}/answer", { params: { path: { item: x.id } }, body: { accept: false } })))}>
+                {t("alliance.decline")}
+              </button>
+            </li>
+          ))}
+          {(allies.data?.outgoing ?? []).map((x) => (
+            <li key={x.id}>
+              {t("alliance.outgoing", { who: x.who })}{" "}
+              <button className="sk-link" onClick={() => allyDo(() => call(api.DELETE("/api/alliances/{item}", { params: { path: { item: x.id } } })))}>
+                {t("alliance.cancel")}
+              </button>
+            </li>
+          ))}
+          {(allies.data?.allies ?? []).map((x) => (
+            <li key={x.id}>
+              {t("alliance.ally", { who: x.who })}{" "}
+              <button className="sk-link" onClick={() => allyDo(() => call(api.DELETE("/api/alliances/{item}", { params: { path: { item: x.id } } })))}>
+                {t("alliance.break")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
       {editing && (
         <div className="sk-card">
           <label>

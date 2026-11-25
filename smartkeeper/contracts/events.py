@@ -39,6 +39,8 @@ EventType = Literal[
     "reaction_requested",
     "reaction_resolved",
     "intel_gained",
+    "alliance_change",
+    "alliance_notice",
 ]
 
 KP = "kp"

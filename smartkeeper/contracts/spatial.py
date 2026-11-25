@@ -180,6 +180,21 @@ class SeenEntry(Frozen):
     intel: tuple[IntelFact, ...] = ()  # 我知道的关于他的事（同一个字段、同一个条目只留最新的）
 
 
+class AllianceItem(Frozen):
+    """结盟里的一项（对这个玩家而言）：id 用来回应、撤回或解除；who 是他对另一方的叫法（不认识的是“某人”）。"""
+
+    id: int
+    who: str
+
+
+class AllianceView(Frozen):
+    """一个玩家的结盟：别人向他提的、他提了还没回应的、已经结成的。"""
+
+    incoming: tuple[AllianceItem, ...] = ()
+    outgoing: tuple[AllianceItem, ...] = ()
+    allies: tuple[AllianceItem, ...] = ()
+
+
 class PlacementSeen(Frozen):
     """玩家的实体察觉到的设置物。自己放的带名字（label），别人放的 label 为空。ref 是不透明的引用。"""
 

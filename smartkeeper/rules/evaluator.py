@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
@@ -20,6 +21,7 @@ from smartkeeper.contracts import (
     RulePack,
     Sheet,
 )
+from smartkeeper.rules import skillconfig
 
 
 def open_columns(g: GroupDef, p: GroupPreset) -> list[FieldDef]:
@@ -400,6 +402,7 @@ class EntityContext:
         )
 
     def modifiers_for(self, name: str) -> list[tuple[Effect, Mapping[str, JsonValue] | None, str]]:
+        # 光环条目的常驻加成不在这里加：引擎按位置把它作为状态发给圈里的人（包括自己）
         """作用于某个推导值（或数值字段）的全部带公式的效果，按计算顺序：(效果, 所在条目的字段, 来源说明)。
 
         固定条目（按分组和条目的定义顺序）→ 玩家写的条目（按 priority 从小到大）→ 状态（按添加先后）。
@@ -409,6 +412,8 @@ class EntityContext:
         # 条目的列按读卡时的值（运行中会变的列带初值和限时修正），例如“开着的时候力量 +2”
         for g in self.template.groups:
             for entry in presets.get(g.name, ()):
+                if is_aura(entry.config, entry.script):
+                    continue
                 effs = [e for e in entry.effects if e.is_mechanical and e.target == name]
                 if effs:
                     cols = self._live_entry(g.name, entry).fields
@@ -416,6 +421,8 @@ class EntityContext:
         own: list[tuple[int, int, Effect, Mapping[str, JsonValue], str]] = []
         for group, entries in sorted(self.sheet.groups.items()):
             for entry in entries:
+                if is_aura(entry.config, entry.script):
+                    continue
                 effs = [e for e in entry.effects if e.is_mechanical and e.target == name]
                 if not effs:
                     continue
@@ -497,3 +504,14 @@ class EntityContext:
 
     def all_derived(self) -> list[DerivedValue]:
         return [self.derived(d.name) for d in self.template.derived]
+
+
+@functools.lru_cache(maxsize=1024)
+def is_aura(config: str, script: str) -> bool:
+    """这一条是不是光环（技能设置里写了 aura）。写错的设置当作不是。"""
+    if "aura" not in config:
+        return False
+    try:
+        return skillconfig.read_config(config, script).aura is not None
+    except (f.FormulaError, ValueError):
+        return False

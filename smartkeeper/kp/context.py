@@ -333,6 +333,10 @@ class Contexts:
             section("规则书", e.rulebook(game_id)),
             section("剧本（全部）", self._scenario(game_id, kp=True)),
             section("世界状态", dumps(state)),
+            section(
+                "结盟（每组里的角色互为友军；技能的 affects、脚本里的 ally、光环都按这个算，由引擎处理）",
+                dumps(e.alliances_for_kp(game_id)),
+            ),
             section("各实体的推导值", dumps(e.derived_all(game_id))),
             section(
                 "各实体此刻生效的固定条目（规则包写好的，不在世界状态里）",
