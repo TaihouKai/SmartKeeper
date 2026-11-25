@@ -152,7 +152,10 @@ def _step(
     if st.verb == "modify":
         assert st.formula is not None and st.field is not None
         # 被修正的推导值自己的名字留着（在带着这条修正的角色身上求值），其余名字都换成此刻的值
-        node = prep(st.formula)
+        # 写了接收者前缀的也是它自己（target.modify(target.str, target.str - 2, 10)）
+        field = st.field
+        own = f"{st.receiver}.{field}"
+        node = f.substitute(prep(st.formula), lambda x: f.Name(field) if x == own else None)
         resolve = ctx.resolver(entry, local)
         values = {n: resolve(n) for n in f.names(node) if n != st.field}
         return ScriptStep(

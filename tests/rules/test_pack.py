@@ -481,6 +481,14 @@ def test_script_variables_are_worked_out_once(rules: RulesService) -> None:
     )
     assert [(s.op, s.amount) for s in steps[:1]] == [("add", 8)]
     assert len(steps) == 2 and steps[1].formula == "move_speed + 8"
+    # 被修正的值写了接收者的前缀也是它自己，不会被换成此刻的值
+    same = (
+        "heal = 2 + this.level * 3\ntarget.modify(target.move_speed, target.move_speed + heal, 1)"
+    )
+    steps = rules.plan_script(
+        pack, same, FakeDice().faces, "person", sheet, {"level": 2}, None, ("person", sheet, None)
+    )
+    assert steps[0].field == "move_speed" and steps[0].formula == "move_speed + 8"
 
 
 def test_settings_and_script_see_each_other(rules: RulesService) -> None:
