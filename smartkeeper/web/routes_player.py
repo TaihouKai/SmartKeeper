@@ -422,9 +422,12 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
                 ranges=_ranges(s.rules, pack, body.template, body.sheet),
             )
         problems = s.rules.validate_sheet(pack, body.template, sheet)
+        # 别处还没填完也照样算：算得出来的数值都给（例如第二个物品没填完，力量、生命值照样看得到）
         derived: list[DerivedValue] = []
-        if not problems:
+        try:
             derived = s.rules.derive(pack, body.template, sheet)
+        except ValidationFailed:
+            derived = []
         return PreviewOut(
             derived=derived,
             problems=problems,

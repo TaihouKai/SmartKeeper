@@ -126,3 +126,18 @@ def test_rulebook_of_a_listed_game_is_public(site: Site) -> None:
     r = site.client().get(f"/api/lobby/{gid}/rulebook")
     assert r.status_code == 200 and r.json()["game_name"] == "book"
     assert site.client().get("/api/lobby/nope/rulebook").status_code == 404
+
+
+def test_preview_shows_values_even_when_something_else_is_unfinished(site: Site) -> None:
+    """建卡预览：别处还没填完（例如一条技能没写名字），算得出来的数值照样给。"""
+    gid = new_game(site, "preview")
+    c = site.client()
+    c.post("/api/lobby/join", json={"game_id": gid, "name": "Pat"})
+    text = (ROOT / "tests/fixtures/rulepack_single.json").read_text(encoding="utf-8")
+    import json
+
+    sample = json.loads(text)["pack"]["samples"][0]["sheet"]
+    sheet = {**sample, "groups": {"skills": [{"name": "", "fields": {}}]}}
+    r = c.post("/api/character/preview", json={"template": "person", "sheet": sheet}).json()
+    assert r["problems"]
+    assert any(d["name"] == "hp_max" for d in r["derived"])
