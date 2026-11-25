@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { FormulaInput, Mover, moved } from "./components";
+import { DocsLink } from "./docs";
 import { Described } from "./markdown";
 
 export type Param = Schemas["ParamDef"];
@@ -167,7 +168,7 @@ function ParamCard({ p, onChange, onRemove, validate, validateScript, checks, sp
             <FormulaInput value={p.script ?? ""} validate={validateScript} multiline placeholder={t("params.script_ph")} onChange={(x) => onChange({ ...p, script: x })} />
           </label>
         </div>
-        <p className="sk-hint">{t("params.hint")}</p>
+        <DocsLink text={t("params.hint")} query="this." />
       </details>
     </div>
   );

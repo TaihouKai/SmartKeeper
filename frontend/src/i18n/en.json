@@ -410,6 +410,7 @@
       "visible": "the target must be perceived; a placement must be put within line of sight"
     },
     "hint": "One “name = value” per line tells the engine how this skill is used. Always prefix names in values: self. (you), target. (the target), this. (this entry). The common ones:\n- target: who it is used on. \"single\" picks one, \"self\" only you, \"none\" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. self.mp >= 5\n- check: the check to roll, e.g. \"perception\"\n- reactions: how the target may respond, e.g. [\"dodge\"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball",
+    "short": "One 'name = value' per line: who it targets, range, check, area, aura…",
     "title": "Skill settings"
   },
   "demo": {
@@ -431,6 +432,7 @@
     "kw": {
       "ally": "True when this target is an ally (your own side, or an allied player's character)",
       "and": "1 if both hold; stops at the first that doesn't",
+      "boost": "This use's effect multiplier: the product of the chosen parameters' multipliers (1 if none); damage and additions are already scaled",
       "distance": "distance from the user to the target, metres",
       "if": "A branch (if cond: with an indented block) or a choice of value (a if cond else b)",
       "level": "the user's check level (1+ is success); for a reaction, your own level",
@@ -445,6 +447,7 @@
       "self": "The user: self.hp is your value, self.add(…) acts on you",
       "target": "The chosen target: target.hp is its value, target.damage(…) acts on it",
       "this": "This entry: this.column is one of its columns, including chosen-on-use ones",
+      "turning_on": "For a toggle use: True when this use turns it on, False when it turns it off",
       "unseen": "True when the target hasn't noticed the user (unseen or hidden); it can't react then"
     },
     "p": {
@@ -488,6 +491,33 @@
       "summon": "Summon: put some characters of this template next to the receiver, controlled by the receiver's player; timed ones vanish. Add field=formula to fill their sheets",
       "teleport": "Teleport next to another character (same spot, same building)"
     }
+  },
+  "docs": {
+    "cat": {
+      "all": "All",
+      "basics": "Formulas and dice",
+      "check": "Check code",
+      "config": "How it's used (settings)",
+      "function": "Functions",
+      "pack": "This rule pack's names",
+      "script": "Script syntax",
+      "shape": "Areas and placements",
+      "variable": "Variables and keywords",
+      "verb": "Script actions"
+    },
+    "kind": {
+      "check": "check",
+      "derived": "derived",
+      "field": "field",
+      "group": "group",
+      "param": "parameter"
+    },
+    "none": "Nothing found",
+    "open": "Syntax guide",
+    "prefix_rule": "Always prefix names: self. (your sheet), target. (the target's sheet), this. (this entry's columns and parameters).",
+    "search": "Search names or descriptions, e.g. aura, damage",
+    "title": "Syntax guide",
+    "verb_note": "Actions go in the script, after who they act on: self. or target."
   },
   "event": {
     "alliance": "Alliance",
@@ -1284,6 +1314,7 @@
     "hint": "When the skill takes effect the engine runs it line by line. Always write a prefix: self. (your sheet), target. (the target's sheet), this. (this entry's columns and parameters). Common lines:\n- target.damage(2d6): the target takes 2d6 damage (shield first, then hp)\n- target.add(target.hp, 10): the target heals 10\n- self.sub(self.mp, this.mp_spent): you pay the mana chosen for this use\n- target.add(target.shield, 10, 30): the target gets a 10-point shield for 30 minutes\n- self.modify(self.str, self.str + 1, 10): +1 strength for 10 minutes\n- if self.mp > 5:: the indented lines below run only when it holds",
     "line": "line {n}",
     "ph": "e.g.\ntarget.damage(this.damage)\nself.add(hp, 5)",
+    "short": "Runs line by line when it takes effect, e.g. target.damage(2d6), self.sub(self.mp, 5).",
     "title": "Skill script (on use)"
   },
   "shape": {

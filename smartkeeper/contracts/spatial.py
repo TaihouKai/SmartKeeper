@@ -180,6 +180,18 @@ class SeenEntry(Frozen):
     intel: tuple[IntelFact, ...] = ()  # 我知道的关于他的事（同一个字段、同一个条目只留最新的）
 
 
+class DocEntry(Frozen):
+    """语法手册的一条：名字、分类、签名（代码）、说明（翻译键）、参数（名字、说明翻译键）。"""
+
+    name: str
+    category: Literal[
+        "basics", "config", "shape", "verb", "script", "function", "variable", "check"
+    ]
+    sig: str
+    desc: str
+    params: tuple[tuple[str, str], ...] = ()
+
+
 class AllianceItem(Frozen):
     """结盟里的一项（对这个玩家而言）：id 用来回应、撤回或解除；who 是他对另一方的叫法（不认识的是“某人”）。"""
 

@@ -22,6 +22,7 @@ from smartkeeper.contracts.rulepack import (
 from smartkeeper.contracts.sheet import DerivedValue, ScriptStep, SkillConfig
 from smartkeeper.contracts.spatial import (
     Body,
+    DocEntry,
     Handle,
     IntelValue,
     LosResult,
@@ -112,6 +113,10 @@ class Rules(Protocol):
         self, pack: RulePack, template: str | None, scope: FormulaScope | None = None
     ) -> list[str]:
         """公式输入框可补全的名字（scope=script 时加上脚本的语句开头）。"""
+        ...
+
+    def docs(self) -> tuple[DocEntry, ...]:
+        """语法手册的目录：公式、技能设置、脚本、检定代码的全部写法（说明是翻译键）。"""
         ...
 
     def validate_sheet(

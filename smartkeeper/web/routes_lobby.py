@@ -9,7 +9,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
-from smartkeeper.contracts import NotFound
+from smartkeeper.contracts import DocEntry, NotFound
 from smartkeeper.web.auth import PLAYER_COOKIE, RateLimiter, enter_seat, seats_of
 from smartkeeper.web.services import Services
 
@@ -82,6 +82,11 @@ def build_lobby_router(s: Services) -> APIRouter:
             )
             for g, n in e.lobby()
         ]
+
+    @r.get("/docs")
+    def docs() -> list[DocEntry]:
+        """语法手册的目录（公开，不用登录）。"""
+        return list(s.rules.docs())
 
     @r.get("/{game_id}/rulebook")
     def rulebook(game_id: str) -> RulebookOut:

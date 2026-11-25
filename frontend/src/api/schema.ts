@@ -913,6 +913,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lobby/docs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Docs
+         * @description 语法手册的目录（公开，不用登录）。
+         */
+        get: operations["docs_api_lobby_docs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lobby/enter": {
         parameters: {
             query?: never;
@@ -1489,6 +1509,31 @@ export interface components {
             name: string;
             /** Value */
             value: number;
+        };
+        /**
+         * DocEntry
+         * @description 语法手册的一条：名字、分类、签名（代码）、说明（翻译键）、参数（名字、说明翻译键）。
+         */
+        DocEntry: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "basics" | "config" | "shape" | "verb" | "script" | "function" | "variable" | "check";
+            /** Desc */
+            desc: string;
+            /** Name */
+            name: string;
+            /**
+             * Params
+             * @default []
+             */
+            params: [
+                string,
+                string
+            ][];
+            /** Sig */
+            sig: string;
         };
         /** DraftIn */
         DraftIn: {
@@ -5631,6 +5676,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LobbyGame"][];
+                };
+            };
+        };
+    };
+    docs_api_lobby_docs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocEntry"][];
                 };
             };
         };

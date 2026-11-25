@@ -3,6 +3,7 @@ import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox } from "../ui/components";
 import { SheetWorkbench, type SheetDraft } from "./SheetWorkbench";
+import { useDocsPackNames, type PackName } from "../ui/docs";
 
 export type { SheetDraft } from "./SheetWorkbench";
 
@@ -17,6 +18,27 @@ function emptySheet(): SheetDraft {
 }
 
 /** 建角时要创建的实体：按规则包的 player_entities，每个模板先放最少数量。 */
+/** 语法手册里“这套规则的名字”：字段和推导值写 self.<名字>，参数写 this.<名字>，检定写 "名字"。 */
+function packNames(templates: Template[], params: readonly Schemas["PackParam"][], checks: readonly string[], t: (k: string) => string): PackName[] {
+  const out: PackName[] = [];
+  const seen = new Set<string>();
+  const push = (p: PackName) => {
+    if (seen.has(p.kind + p.sig)) return;
+    seen.add(p.kind + p.sig);
+    // 说明里的规则书引用 [[标题]] 只留标题
+    out.push({ ...p, text: p.text.replace(/\[\[(.+?)\]\]/g, "$1") });
+  };
+  for (const tp of templates) {
+    const who = tp.label || tp.name;
+    for (const f of tp.fields ?? []) push({ name: f.name, sig: `self.${f.name}`, text: [f.label, f.description, `(${who})`].filter(Boolean).join(" "), kind: t("docs.kind.field") });
+    for (const d of tp.derived ?? []) push({ name: d.name, sig: `self.${d.name}`, text: [d.label, `= ${d.formula}`, `(${who})`].filter(Boolean).join(" "), kind: t("docs.kind.derived") });
+    for (const g of tp.groups ?? []) push({ name: g.name, sig: `count(self.${g.name}.${(g.fields ?? [])[0]?.name ?? "level"}, 1)`, text: [g.label, `(${who})`].filter(Boolean).join(" "), kind: t("docs.kind.group") });
+  }
+  for (const p of params) push({ name: p.name, sig: `this.${p.name}`, text: [p.label, p.description, (p.choices ?? []).join("、")].filter(Boolean).join(" "), kind: t("docs.kind.param") });
+  for (const c of checks) push({ name: c, sig: `check = "${c}"`, text: "", kind: t("docs.kind.check") });
+  return out;
+}
+
 export function initialSubmissions(playerEntities: { template: string; min: number; max: number }[]): Submission[] {
   return playerEntities.flatMap((pe) => Array.from({ length: Math.max(pe.min, 1) }, () => ({ template: pe.template, sheet: emptySheet() })));
 }
@@ -37,6 +59,8 @@ export function CharacterForm({
   checks?: readonly string[];
 }) {
   const { t } = useI18n();
+  // 语法手册里列出这套规则的名字：各角色卡的字段、推导值、分组，检定，参数
+  useDocsPackNames(packNames(templates, params, checks, t));
   const [subs, setSubs] = useState<Submission[]>(() => initialSubmissions(playerEntities));
   const [tab, setTab] = useState(0);
   const [missing, setMissing] = useState<Record<number, number>>({});

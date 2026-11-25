@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../../i18n";
 import { CodeEditor, type CodeEditorHandle } from "../../../ui/CodeEditor";
-import { CHECK_DOCS } from "../../../ui/codeDocs";
-import { FormulaHelpBody } from "../../../ui/FormulaHelp";
+import { checkDocs } from "../../../ui/codeDocs";
+import { DocsBody } from "../../../ui/docs";
 import type { Validate } from "../../fieldCard";
 import { describeName, describePath, docFor, getAt, setAt, shortTitle, type Pack } from "../model";
 import { NamesPanel, SearchPanel, TryPanel } from "./panels";
@@ -141,7 +141,7 @@ export function Ide({
                   onChange={(v) => setPack((p) => setAt(p, mainPath!, v))}
                   onProblems={setProblems}
                   describe={describe}
-                  extraDocs={doc.kind === "check" ? CHECK_DOCS : undefined}
+                  extraDocs={doc.kind === "check" ? checkDocs() : undefined}
                 />
               </div>
               {allProblems.length > 0 && (
@@ -172,7 +172,7 @@ export function Ide({
             {tool === "names" && <NamesPanel pack={pack} doc={doc} part={entry ? focused : "main"} insert={(s) => current()?.insert(s)} />}
             {tool === "try" && <TryPanel key={active ?? ""} pack={pack} doc={doc} onGoSamples={onGoSamples} />}
             {tool === "search" && <SearchPanel pack={pack} query={query} setQuery={setQuery} onOpen={onOpen} fromCursor={() => current()?.wordAtCursor() ?? ""} />}
-            {tool === "help" && <FormulaHelpBody />}
+            {tool === "help" && <DocsBody />}
           </div>
         </div>
       </div>

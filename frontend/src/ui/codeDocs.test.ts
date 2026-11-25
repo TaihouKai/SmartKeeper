@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { builtinDoc } from "./codeDocs";
+import { setDocsCatalog } from "./docs";
+
+// 目录平时由后端从公式语言的定义生成（/api/lobby/docs）；这里放几条一样的
+setDocsCatalog([
+  { name: "damage", category: "verb", sig: 'damage(amount, kind="")', desc: "doc.verb.damage", params: [["amount", "doc.p.amount_dice"], ["kind", "doc.p.damage_kind"]] },
+  { name: "add", category: "verb", sig: "add(field, amount, minutes=None)", desc: "doc.verb.add", params: [["field", "doc.p.runtime_field"], ["amount", "doc.p.amount_dice"], ["minutes", "doc.p.timed_minutes"]] },
+  { name: "max", category: "function", sig: "max(a, b, …)", desc: "fh.fn.max", params: [] },
+  { name: "range", category: "config", sig: "range = …", desc: "config.c.range", params: [] },
+  { name: "placement", category: "config", sig: "placement = …", desc: "config.c.placement", params: [] },
+  { name: "placement", category: "shape", sig: "placement(radius, perceive=1, charges=None, duration=None, notify=True, building=False)", desc: "doc.placement", params: [["radius", "doc.p.placement_radius"], ["notify", "doc.p.notify"]] },
+]);
 
 describe("builtinDoc", () => {
   it("finds actions, functions, settings and constructor parameters", () => {

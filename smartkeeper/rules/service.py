@@ -14,6 +14,7 @@ from smartkeeper.contracts import (
     CheckSpec,
     DerivedValue,
     DiceResult,
+    DocEntry,
     EntityTemplate,
     Faces,
     FormulaScope,
@@ -31,6 +32,7 @@ from smartkeeper.contracts import (
 from smartkeeper.rules import (
     checkconfig,
     checks,
+    docs,
     scripts,
     sheets,
     skillconfig,
@@ -188,6 +190,9 @@ class RulesService:
             return skillconfig.read_config(config, script)
         except f.FormulaError as e:
             raise ValidationFailed(e.code, **e.params) from e
+
+    def docs(self) -> tuple[DocEntry, ...]:
+        return docs.catalog()
 
     def complete_names(
         self, pack: RulePack, template: str | None, scope: FormulaScope | None = None

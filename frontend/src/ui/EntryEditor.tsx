@@ -6,33 +6,11 @@ import { FormulaInput, Mover, moved } from "./components";
 import { CodeEditor } from "./CodeEditor";
 import { numberOptions } from "./choices";
 import { Described } from "./markdown";
+import { DocsLink } from "./docs";
 import { DefaultParams, ParamsEditor, type Param } from "./ParamEditor";
 import { fillConfig, mergeConfig } from "./skillConfig";
 
 /** 多行的提示：第一行是一句话，后面每行一条（以 - 开头的显示成列表）。 */
-function Hint({ text }: { text: string }) {
-  const lines = text.split("\n").filter((x) => x.trim());
-  const items = lines.filter((x) => x.startsWith("- "));
-  const rest = lines.filter((x) => !x.startsWith("- "));
-  return (
-    <div className="sk-hint sk-hint-block">
-      {rest.map((x, i) => (
-        <p key={i}>{x}</p>
-      ))}
-      {items.length > 0 && (
-        <ul>
-          {items.map((x, i) => (
-            <li key={i}>
-              <code>{x.slice(2).split("：")[0]}</code>
-              {x.includes("：") ? `：${x.slice(2).split("：").slice(1).join("：")}` : ""}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 type FieldDef = Schemas["FieldDef"];
 type GroupDef = Schemas["GroupDef"];
 
@@ -416,7 +394,7 @@ export function ConfigEditor({ config, validate, onChange, title }: { config: st
       <strong>{title ?? t("config.title")}</strong>
       <CodeEditor className="sk-code-inline" value={config} check={validate} minLines={3} onChange={onChange} onProblems={setProblems} />
       {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
-      <Hint text={t("config.hint")} />
+      <DocsLink text={t("config.short")} category="config" />
     </div>
   );
 }
@@ -430,7 +408,7 @@ export function ScriptEditor({ script, validate, onChange, title }: { script: st
       <strong>{title ?? t("script.title")}</strong>
       <CodeEditor className="sk-code-inline" value={script} check={validate} placeholder={t("script.ph")} minLines={4} onChange={onChange} onProblems={setProblems} />
       {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
-      <Hint text={t("script.hint")} />
+      <DocsLink text={t("script.short")} category="verb" />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { api, call, type Schemas } from "../../../api/client";
 import { useI18n } from "../../../i18n";
 import { ErrorBox } from "../../../ui/components";
 import { translateCode } from "../../../ui/errors";
-import { FUNCTION_SIGNATURES } from "../../../ui/FormulaHelp";
+import { docsCatalog } from "../../../ui/docs";
 import { CHECK_KEYS, CHECK_VARS, EXTRA_CONFIG_KEYS, OUTCOME_VARS, configKeys, mergeConfig } from "../../../ui/skillConfig";
 import { useAction } from "../../../ui/hooks";
 import { allFormulas, describePath, getAt, type Doc, type Pack } from "../model";
@@ -135,9 +135,11 @@ export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; d
       )}
       <section>
         <h5>{t("fh.functions")}</h5>
-        {FUNCTION_SIGNATURES.map(([name, sig]) => (
-          <Item key={name} code={sig} note={t(`fh.fn.${name}`)} onClick={() => insert(`${name}(`)} />
-        ))}
+        {docsCatalog()
+          .filter((d) => d.category === "function")
+          .map((d) => (
+            <Item key={d.name} code={d.sig} note={t(d.desc)} onClick={() => insert(`${d.name}(`)} />
+          ))}
       </section>
     </div>
   );

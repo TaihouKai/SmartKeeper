@@ -410,6 +410,7 @@
       "visible": "对象必须在施法者的感知里；设置物要放在施法者看得见的地方"
     },
     "hint": "每行写一项“名字 = 值”，告诉引擎这个技能怎么用。值里的名字一律写前缀：self.（你自己）、target.（对象）、this.（这一条）。最常用的几项：\n- target：对谁用。\"single\" 选一个人，\"self\" 只对自己，\"none\" 不用选\n- range：射程（米）；不写就是不限\n- cast_time：要准备多久（分钟）；不写就是瞬发\n- cooldown：用过以后多久不能再用（分钟）\n- noise：多远的人会察觉到你在用（米）\n- requires：什么时候才能用，例如 self.mp >= 5\n- check：要掷的检定，例如 \"perception\"\n- reactions：对方能怎么应对，例如 [\"dodge\"]\n- shape：范围，例如 sphere(radius=5) 是半径 5 米的球",
+    "short": "每行一项“名字 = 值”，告诉引擎这个技能怎么用（对象、射程、检定、范围、光环……）。",
     "title": "技能设置"
   },
   "demo": {
@@ -431,6 +432,7 @@
     "kw": {
       "ally": "这个对象是不是友军（自己这一方，或者结了盟的玩家的角色）",
       "and": "都成立得 1，否则 0；前面不成立就不算后面",
+      "boost": "这次用的效果倍数：选了的参数的倍数乘起来，没选是 1；伤害和增加的数值已经自动乘过",
       "distance": "使用者到对象的距离（米）",
       "if": "条件分支（脚本里写 if 条件: 换行缩进），或数值二选一（a if 条件 else b）",
       "level": "使用者检定的等级（1 起是成功）；当反应用时是自己应对的等级",
@@ -445,6 +447,7 @@
       "self": "使用者自己：self.hp 是自己的值，self.add(…) 作用在自己身上",
       "target": "使用时选的对象：target.hp 是对象的值，target.damage(…) 作用在对象身上",
       "this": "这一条（技能）：this.列 是这一条的列，包括使用时填写的数",
+      "turning_on": "开关类用途这一次是不是打开（打开是 True，关上是 False）",
       "unseen": "对象没发现使用者（看不见、被隐匿）：True。这时对象不能应对"
     },
     "p": {
@@ -488,6 +491,33 @@
       "summon": "召唤：在接收者身边放几个这个模板的角色，归接收者的玩家控制；限时的到期消失。后面写 字段=公式 填新角色卡",
       "teleport": "瞬间移动到另一个角色身边（同一个位置、同一栋建筑）"
     }
+  },
+  "docs": {
+    "cat": {
+      "all": "全部",
+      "basics": "公式与骰子",
+      "check": "检定代码",
+      "config": "怎么用（技能设置）",
+      "function": "函数",
+      "pack": "这套规则的名字",
+      "script": "脚本写法",
+      "shape": "范围与设置物",
+      "variable": "变量与关键字",
+      "verb": "生效时的动作"
+    },
+    "kind": {
+      "check": "检定",
+      "derived": "推导值",
+      "field": "字段",
+      "group": "分组",
+      "param": "参数"
+    },
+    "none": "没有找到",
+    "open": "语法手册",
+    "prefix_rule": "名字一律写前缀：self.（自己卡上的）、target.（对象卡上的）、this.（这一条自己的列和参数）。",
+    "search": "搜名字或说明，例如 光环、aura、伤害",
+    "title": "语法手册",
+    "verb_note": "动作写在“生效时发生什么”里，前面是落在谁身上：self.（自己）或 target.（对象）。"
   },
   "event": {
     "alliance": "结盟",
@@ -1284,6 +1314,7 @@
     "hint": "技能生效时，引擎一行一行执行。名字一律写前缀：self.（你自己卡上的）、target.（对象卡上的）、this.（这一条自己的列和参数）。常用的写法：\n- target.damage(2d6)：对象受到 2d6 伤害（先扣护盾再扣生命）\n- target.add(target.hp, 10)：对象恢复 10 点生命\n- self.sub(self.mp, this.mp_spent)：自己扣掉这次投入的魔力\n- target.add(target.shield, 10, 30)：对象得到 10 点护盾，持续 30 分钟\n- self.modify(self.str, self.str + 1, 10)：10 分钟内自己的力量 +1\n- if self.mp > 5:：下面缩进的几行只在条件成立时执行",
     "line": "第 {n} 行",
     "ph": "例如\ntarget.damage(this.damage)\nself.add(hp, 5)",
+    "short": "生效时引擎一行一行执行，例如 target.damage(2d6)、self.sub(self.mp, 5)。",
     "title": "技能脚本（使用时）"
   },
   "shape": {
