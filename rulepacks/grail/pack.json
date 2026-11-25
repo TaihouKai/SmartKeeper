@@ -101,7 +101,7 @@
             "choices": [],
             "required": true,
             "hidden": false,
-            "per_minute": "0.1 + con / 20",
+            "per_minute": "0.1 + con / 20 - hp_drain",
             "vital": true
           },
           {
@@ -117,7 +117,7 @@
             "choices": [],
             "required": true,
             "hidden": false,
-            "per_minute": "(0.1 + ap / 20) * (3 if inside(\"据点\") else 1)",
+            "per_minute": "(0.1 + ap / 20) * (3 if inside(\"据点\") else 1) - mp_drain",
             "vital": false
           },
           {
@@ -665,6 +665,20 @@
             "hidden": false
           },
           {
+            "name": "hp_drain",
+            "label": "每分钟流失生命",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
+            "name": "mp_drain",
+            "label": "每分钟流失魔力",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
             "name": "mp_max",
             "label": "魔力值上限",
             "formula": "0 if muggle else (10 + (max(int, per) + cha) * 2) * mp_mult",
@@ -767,7 +781,7 @@
             "choices": [],
             "required": true,
             "hidden": false,
-            "per_minute": "hp_max * 0.05 * lookup(class_heal, klass)",
+            "per_minute": "hp_max * 0.05 * lookup(class_heal, klass) - hp_drain",
             "vital": true
           },
           {
@@ -783,7 +797,7 @@
             "choices": [],
             "required": true,
             "hidden": false,
-            "per_minute": "-(2 + 4 * count(klass_skill.level, 10) + 2 * count(klass_skill.level, 5) + count(klass_skill.level, 4) + 4 * count(personal_skill.level, 10) + 2 * count(personal_skill.level, 5) + count(personal_skill.level, 4) + toggled(\"noble_phantasm\") + servant.madness.level) / 1440 + (servant.territory.level if inside(\"阵地作成\") else 0)",
+            "per_minute": "-(2 + 4 * count(klass_skill.level, 10) + 2 * count(klass_skill.level, 5) + count(klass_skill.level, 4) + 4 * count(personal_skill.level, 10) + 2 * count(personal_skill.level, 5) + count(personal_skill.level, 4) + toggled(\"noble_phantasm\") + servant.madness.level) / 1440 + (servant.territory.level if inside(\"阵地作成\") else 0) - mp_drain",
             "vital": true
           },
           {
@@ -2010,6 +2024,20 @@
             "formula": "con * lookup(class_hp, klass)",
             "unit": null,
             "hidden": false
+          },
+          {
+            "name": "hp_drain",
+            "label": "每分钟流失生命",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
+            "name": "mp_drain",
+            "label": "每分钟流失魔力",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
           },
           {
             "name": "mp_max",

@@ -112,6 +112,14 @@ def derived(name: str, label: str, formula: str, unit: str | None = None) -> dic
     return {"name": name, "label": label, "formula": formula, "unit": unit, "hidden": False}
 
 
+# 持续伤害（DOT）、持续吸魔：平时是 0，技能用 modify 限时调高，例如
+# target.modify(target.hp_drain, target.hp_drain + 2, 10) 是 10 分钟里每分钟掉 2 点生命
+DRAIN = [
+    {**derived("hp_drain", "每分钟流失生命", "0"), "hidden": True},
+    {**derived("mp_drain", "每分钟流失魔力", "0"), "hidden": True},
+]
+
+
 def use(name: str, desc: str, config: str = "", script: str = "", **kw: Any) -> dict[str, Any]:
     return {"name": name, "description": desc, "config": code(config), "script": code(script), **kw}
 
@@ -325,7 +333,7 @@ MASTER = {
             min="0",
             max="hp_max",
             initial="hp_max",
-            per_minute="0.1 + con / 20",
+            per_minute="0.1 + con / 20 - hp_drain",
             vital=True,
             description="生命值",
         ),
@@ -338,7 +346,7 @@ MASTER = {
             max="mp_max",
             initial="mp_max",
             # 在自己的据点（魔术工房）里休息时回复得快
-            per_minute='(0.1 + ap / 20) * (3 if inside("据点") else 1)',
+            per_minute='(0.1 + ap / 20) * (3 if inside("据点") else 1) - mp_drain',
             description="魔力值。在自己的据点里回复速度是平时的 3 倍",
         ),
         field(
@@ -437,6 +445,7 @@ MASTER = {
         derived("hear_distance", "听力范围", "(10 + per * 4) * hear_multiplier", "m"),
         derived("muggle", "普通人", f"0 if {NOT_MUGGLE} else 1"),
         derived("hp_max", "生命值上限", "30 + con * 4"),
+        *DRAIN,
         derived(
             "mp_max", "魔力值上限", "0 if muggle else (10 + (max(int, per) + cha) * 2) * mp_mult"
         ),
@@ -867,7 +876,7 @@ SERVANT = {
             min="0",
             max="hp_max",
             initial="hp_max",
-            per_minute="hp_max * 0.05 * lookup(class_heal, klass)",
+            per_minute="hp_max * 0.05 * lookup(class_heal, klass) - hp_drain",
             vital=True,
             description="生命值",
         ),
@@ -880,7 +889,7 @@ SERVANT = {
             max="mp_max",
             initial="mp_max",
             # 日常消耗按分钟扣；Caster 在自己的阵地里每分钟回复阵地作成等级点
-            per_minute=f'-{UPKEEP} + (servant.territory.level if inside("阵地作成") else 0)',
+            per_minute=f'-{UPKEEP} + (servant.territory.level if inside("阵地作成") else 0) - mp_drain',
             vital=True,
             description="魔力值。每天的日常消耗按分钟扣：基础 2，加上 EX/A/B 级技能各 4/2/1，开着的宝具各 1；降到 0 会消失",
         ),
@@ -952,6 +961,7 @@ SERVANT = {
         derived("hear_multiplier", "听力系数", "3"),
         derived("hear_distance", "听力范围", "(10 + agi * 4) * hear_multiplier", "m"),
         derived("hp_max", "生命值上限", "con * lookup(class_hp, klass)"),
+        *DRAIN,
         derived("mp_max", "魔力值上限", "int * 30"),
         derived(
             "independent_minutes",
