@@ -1717,9 +1717,11 @@ class Engine:
             def ally_of(v: str | None) -> bool:
                 return v is not None and self._allied(state, pacts, source, v)
 
-            if cfg.affects != "all":
+            # 光环的 affects 管的是圈里谁受影响，不管这一下对谁用（例如对自己打开的开关）
+            if cfg.affects != "all" and cfg.aura is None:
                 if (
                     not cfg.shape
+                    and cfg.target == "single"
                     and target is not None
                     and not _affects(cfg.affects, source, target, ally_of(target))
                 ):
@@ -4002,10 +4004,14 @@ class Engine:
             template = str(ent.get("template", ""))
             peers = peers_of(state, src)
             sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
+            toggles = _obj(sheet.get("toggles"))
             for hit in entry_refs.usable(sheet):
                 row = hit.row
                 if row.get("is_use"):
-                    continue
+                    # 物品的开关用途上的光环：开着的时候才有（例如开着的护盾类物品保护身边的同伴）
+                    key = f"{hit.owner}{USE_SEP}{row.get('use_name')}"
+                    if not row.get("toggle") or not toggles.get(key, row.get("default_on")):
+                        continue
                 try:
                     cfg = self._cfg(row)
                 except ValidationFailed:
@@ -4020,8 +4026,15 @@ class Engine:
                         if isinstance(x, dict)
                     ),
                 ]
-                effects = [x for x in effects if x.is_mechanical and "." not in (x.target or "")]
+                # 只有说明的（由 KP 理解的）也挂上，KP 看得到谁受着这个光环的影响
+                effects = [
+                    x
+                    for x in effects
+                    if (x.is_mechanical and "." not in (x.target or ""))
+                    or (x.target is None and x.description.strip())
+                ]
                 cols = _obj(row.get("fields"))
+                label = str(row.get("name") or hit.owner)
                 for eid in sorted(ents):
                     other = space.bodies.get(eid)
                     if other is None or self._dead(state, eid):
@@ -4032,19 +4045,20 @@ class Engine:
                     if not _affects(cfg.affects, src, eid, friend):
                         continue
                     for i, eff in enumerate(effects):
-                        assert eff.target is not None and eff.formula is not None
-                        formula = self._aura_formula(eff.formula, cols)
-                        if formula is None:
-                            continue
+                        if eff.target is None or eff.formula is None:
+                            mod = Effect(description=f"{label}：{eff.description}")
+                        else:
+                            formula = self._aura_formula(eff.formula, cols)
+                            if formula is None:
+                                continue
+                            mod = Effect(
+                                description=eff.description or label,
+                                target=eff.target,
+                                formula=formula,
+                            )
                         want[eid].append(
                             Status(
-                                tag=f"aura:{src}:{hit.owner}:{i}",
-                                source=src,
-                                modifier=Effect(
-                                    description=eff.description or hit.owner,
-                                    target=eff.target,
-                                    formula=formula,
-                                ),
+                                tag=f"aura:{src}:{label}:{i}", source=src, modifier=mod
                             ).model_dump(mode="json")
                         )
         ops: list[PatchOp] = []

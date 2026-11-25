@@ -335,3 +335,68 @@ def test_other_allies_leaves_the_holder_out() -> None:
     with pytest.raises(ValidationFailed):
         t.engine.use_entry(t.game_id, e0, "bless", e0, {}, "x")
     t.engine.use_entry(t.game_id, e0, "bless", e1, {}, "x")
+
+
+def test_aura_on_a_toggle_use_works_while_it_is_on() -> None:
+    """物品的开关用途上的光环：开着时圈里的同伴带着加成（只有说明的也挂上，KP 看得见），关上就收回。"""
+    from smartkeeper.contracts import FieldDef, GroupDef, UseResult
+    from tests.engine.test_timeline import publish
+
+    pack = area_pack()
+    tpl = pack.templates[0]
+    gear = GroupDef(name="gear", fields=(FieldDef(name="level", kind="number"),), uses=True)
+    pack = pack.model_copy(
+        update={"templates": (tpl.model_copy(update={"groups": (*tpl.groups, gear)}),)}
+    )
+    t = setup_table("single", 3, pack=pack)
+    ents = [t.entities(p)[0] for p in t.players]
+    t.engine.admin_patch(
+        t.game_id,
+        [
+            PatchOp(op="replace", path=f"/entities/{x}/pos", value={"x": 10 * i, "y": 0, "z": 0})
+            for i, x in enumerate(ents)
+        ],
+    )
+    t.engine.refresh_handles(t.game_id)
+    (p0, p1, _p2), (e0, e1, e2) = t.players, ents
+    use = {
+        "name": "raise",
+        "config": 'target = "self"\naura = sphere(radius=50)\naffects = "other_allies"',
+        "toggle": True,
+        "default_on": False,
+        "bonus": "self.str += 1\n# 敌人伤害不到这里",
+    }
+    t.engine.admin_patch(
+        t.game_id,
+        [
+            PatchOp(
+                op="add",
+                path=f"/entities/{e0}/sheet/groups/gear",
+                value=cast(JsonValue, [{"name": "wall", "fields": {"level": 1}, "uses": [use]}]),
+            )
+        ],
+    )
+    ally(t, p0, p1, e1)
+    base = {x: str_of(t, x) for x in (e0, e1, e2)}
+
+    def statuses(x: str) -> list[str]:
+        ents = cast(dict[str, dict[str, Any]], t.engine.world_state(t.game_id)["entities"])
+        found = cast(list[dict[str, Any]], ents[x]["sheet"].get("statuses", []))
+        return [
+            str(s["modifier"]["description"]) for s in found if str(s["tag"]).startswith("aura:")
+        ]
+
+    next_round(t)
+    assert statuses(e1) == []  # 还关着
+    begin(t)
+    u = t.engine.use_entry(t.game_id, e0, "wall/raise", None, {}, "on")
+    publish(t, t.players, uses=[UseResult(seq=u.seq)])
+    next_round(t)
+    assert str_of(t, e1) == base[e1] + 1 and str_of(t, e0) == base[e0] and str_of(t, e2) == base[e2]
+    assert any("敌人伤害不到这里" in s for s in statuses(e1))
+    assert statuses(e0) == [] and statuses(e2) == []
+    begin(t)
+    u = t.engine.use_entry(t.game_id, e0, "wall/raise", None, {}, "off")
+    publish(t, t.players, uses=[UseResult(seq=u.seq)])
+    next_round(t)
+    assert str_of(t, e1) == base[e1] and statuses(e1) == []

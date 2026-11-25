@@ -468,6 +468,8 @@ class EntityContext:
                 for u in entry.uses:
                     if not u.toggle or not self.is_on(entry.name, u.name, u.default_on):
                         continue
+                    if is_aura(u.config, u.script):
+                        continue  # 开关上的光环：引擎按位置发给圈里的人
                     effs = [
                         e
                         for e in effects_of(u.bonus, u.effects)
