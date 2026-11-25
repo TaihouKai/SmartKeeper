@@ -171,7 +171,7 @@
     "lobby": {
       "already_in": "You are already in this game; press Continue",
       "closed": "This game is not open to join",
-      "name_taken": "Someone in this game is already called {name}",
+      "name_taken": "Another player in this game already uses the nickname {name}",
       "no_seat": "This browser has not joined this game",
       "started": "This game has already started"
     },
@@ -599,7 +599,7 @@
     "draw": "Draw an identity",
     "game_started": "The game has started.",
     "go_play": "Go to the game",
-    "hello": "Hello, {name}",
+    "hello": "Player: {name}",
     "identity": "Identity",
     "invalid": "This invite link is invalid or revoked. Ask the admin for a new one.",
     "no_session": "This browser is not in a game yet. Pick a game in the room list to join, or press Continue on one you joined.",
@@ -653,7 +653,7 @@
     "join": "Join",
     "joined": "You have joined.",
     "link_hint": "This is your personal link. This browser remembers you; use the link to come back from another browser or device. Do not share it: anyone with it can play as you.",
-    "name_ph": "Your name (unique in this game)",
+    "name_ph": "Player nickname (not your character's name)",
     "players": "{n} players",
     "started": "Already started; you can no longer join.",
     "status": {
@@ -662,8 +662,8 @@
       "running": "In progress",
       "setup": "Setting up"
     },
-    "you": "You are {name} in this game",
-    "you_active": "You are {name} in this game (current)"
+    "you": "Your player nickname here: {name}",
+    "you_active": "Your player nickname here: {name} (current)"
   },
   "log": {
     "all": "All events (keeper view)",
