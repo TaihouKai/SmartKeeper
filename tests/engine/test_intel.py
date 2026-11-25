@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -231,7 +231,8 @@ def test_a_successful_untargeted_checked_use_may_learn_about_someone_never_met()
     t = setup_table("single", 2, pack=pack)
     a, b = (t.entities(p)[0] for p in t.players)
     p0 = t.players[0]
-    far = dict(t.engine.world_state(t.game_id)["entities"][b])  # type: ignore[arg-type]
+    ents = cast(dict[str, dict[str, Any]], t.engine.world_state(t.game_id)["entities"])
+    far: dict[str, Any] = dict(ents[b])
     apart(t)
     far["pos"] = {"x": 190, "y": -90, "z": 0}
     t.engine.admin_patch(t.game_id, [PatchOp(op="add", path="/entities/npc_far", value=far)])
