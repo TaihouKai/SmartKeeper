@@ -47,6 +47,14 @@ T: dict[str, tuple[str, str]] = {
         "邀请链接无效或已作废，请向管理员要一个新的。",
         "This invite link is invalid or revoked. Ask the admin for a new one.",
     ),
+    "join.no_session": (
+        "这个浏览器在这个网址下还没有进入过游戏。请打开管理员发给你的邀请链接（…/join/…）；"
+        "登录信息按网址保存，换了网址（例如换成端口转发的地址）就要用新网址再打开一次邀请链接。"
+        "如果打开邀请链接也不行，说明链接已作废，请向管理员要一个新的。",
+        "This browser has not joined a game at this address yet. Open the invite link the admin gave you (…/join/…). "
+        "Sign-in is kept per address: if you use a different address (for example a forwarded port), open the invite "
+        "link again with the new address. If the invite link itself fails, it was revoked; ask the admin for a new one.",
+    ),
     "join.hello": ("你好，{name}", "Hello, {name}"),
     "join.game_started": ("游戏已经开始。", "The game has started."),
     "join.go_play": ("进入游戏界面", "Go to the game"),

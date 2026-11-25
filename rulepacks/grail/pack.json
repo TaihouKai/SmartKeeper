@@ -81,6 +81,25 @@
             "cooldown": null
           },
           {
+            "name": "story",
+            "label": "来历",
+            "description": "你是谁、从哪来、为什么卷进这场战争、手里的圣遗物是什么来历。只有你和 KP 看得到；开场时 KP 按这里安排你的起点和线索",
+            "kind": "text",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [],
+            "required": false,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false,
+            "check": null,
+            "cooldown": null
+          },
+          {
             "name": "hp",
             "label": "生命值",
             "description": "生命值",

@@ -20,7 +20,7 @@ export function JoinPage() {
     return (
       <main className="sk-page">
         <h1>{t("app.title")}</h1>
-        <p>{t("join.invalid")}</p>
+        <p>{t(invalid ? "join.invalid" : "join.no_session")}</p>
       </main>
     );
   }

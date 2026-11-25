@@ -343,7 +343,7 @@ export function PlayPage() {
   if (status.error && !status.data) {
     return (
       <main className="sk-page">
-        <p>{t("join.invalid")}</p>
+        <p>{t("join.no_session")}</p>
       </main>
     );
   }
