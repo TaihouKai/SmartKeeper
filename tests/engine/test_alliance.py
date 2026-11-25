@@ -190,3 +190,35 @@ def test_aura_follows_position_and_alliance() -> None:
     next_round(t)
     assert str_of(t, e1) == base[e1]
     assert str_of(t, e0) == base[e0] + 2
+
+
+def test_aura_bonus_is_worked_out_on_whoever_carries_it() -> None:
+    """光环加成里的 self. 是带着加成的那个人（例如按他的模板、他的属性），this. 是光环主人这一条的列。"""
+    t, (p0, p1, _p2), (e0, e1, _e2) = table()
+    t.engine.admin_patch(
+        t.game_id, [PatchOp(op="replace", path=f"/entities/{e1}/sheet/fields/per", value=7)]
+    )
+    base = {x: str_of(t, x) for x in (e0, e1)}
+    per0 = t.engine.world_state(t.game_id)["entities"][e0]["sheet"]["fields"]["per"]  # type: ignore[index]
+    add_entries(
+        t,
+        e0,
+        [
+            {
+                "name": "lead",
+                "fields": {"level": 3},
+                "config": 'aura = sphere(radius=50)\naffects = "allies"',
+                "effects": [
+                    {
+                        "description": "",
+                        "target": "str",
+                        "formula": "self.str + self.per + this.level",
+                    }
+                ],
+            }
+        ],
+    )
+    ally(t, p0, p1, e1)
+    next_round(t)
+    assert str_of(t, e1) == base[e1] + 7 + 3
+    assert str_of(t, e0) == base[e0] + float(cast(float, per0)) + 3

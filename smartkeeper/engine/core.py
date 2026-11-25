@@ -15,6 +15,7 @@ import sqlalchemy as sa
 from pydantic import JsonValue
 from pydantic import ValidationError as PydanticError
 
+from smartkeeper import lang as f
 from smartkeeper.contracts import (
     ADMIN,
     COOLDOWN_TAG,
@@ -4018,19 +4019,8 @@ class Engine:
                         continue
                     for i, eff in enumerate(effects):
                         assert eff.target is not None and eff.formula is not None
-                        try:
-                            steps = self._rules.plan_script(
-                                pack,
-                                f"self.modify({eff.target}, {eff.formula}, 1)",
-                                self._dice.faces,
-                                template,
-                                sheet,
-                                dict(cols),
-                                peers,
-                            )
-                        except ValidationFailed:
-                            continue
-                        if not steps or steps[0].formula is None:
+                        formula = self._aura_formula(eff.formula, cols)
+                        if formula is None:
                             continue
                         want[eid].append(
                             Status(
@@ -4039,7 +4029,7 @@ class Engine:
                                 modifier=Effect(
                                     description=eff.description or hit.owner,
                                     target=eff.target,
-                                    formula=steps[0].formula,
+                                    formula=formula,
                                 ),
                             ).model_dump(mode="json")
                         )
@@ -4057,6 +4047,24 @@ class Engine:
             self._events.append(
                 game_id, round_no, [self._patch_event(ops, cause="aura", actor=ENGINE)]
             )
+
+    @staticmethod
+    def _aura_formula(formula: str, cols: Mapping[str, JsonValue]) -> str | None:
+        """光环加成的公式：this.<列> 换成光环主人这一条的值，其余的（self.…）留给带着加成的人自己算。"""
+        try:
+            node = f.parse(formula)
+        except f.FormulaError:
+            return None
+        values: dict[str, f.Value] = {}
+        for name in f.names(node):
+            if name.startswith("this."):
+                v = cols.get(name[5:])
+                if isinstance(v, bool):
+                    v = 1.0 if v else 0.0
+                if not isinstance(v, int | float | str):
+                    return None
+                values[name] = float(v) if isinstance(v, int | float) else v
+        return f.to_text(node, values)
 
     def _intel_labels(self, player_id: str, state: State) -> dict[str, str]:
         out = {h.entity_id: f"@{h.label}" for h in self._handles.list(player_id)}
