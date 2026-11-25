@@ -185,6 +185,7 @@
       "lookup_miss": "表 {table} 里找不到 {key}",
       "lookup_table_name": "lookup 的第一个参数要写表名",
       "math_domain": "{name} 算不出结果（例如负数开平方）",
+      "needs_this": "{name} 是这一条自己的列或参数，要写成 this.{name}",
       "single_equals": "比较相等要写两个等号：==",
       "syntax": "写法不对，看不懂（检查运算符、括号和逗号）",
       "text_arg": "{name} 的参数要是文字，例如 {name}(\"营地\")",

@@ -185,6 +185,7 @@
       "lookup_miss": "Table {table} has no row for {key}",
       "lookup_table_name": "lookup's first argument must be a table name",
       "math_domain": "{name} has no result for these inputs (e.g. sqrt of a negative)",
+      "needs_this": "{name} is this entry's own column or parameter: write this.{name}",
       "single_equals": "Use two equals signs to compare: ==",
       "syntax": "Can't read this (check operators, brackets and commas)",
       "text_arg": "{name} takes text, e.g. {name}(\"camp\")",

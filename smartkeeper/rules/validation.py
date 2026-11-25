@@ -87,6 +87,9 @@ def check_formula(
                 problems.append(
                     Problem(code="formula.unknown_name", path=path, params={"name": name})
                 )
+        elif entry is not None and name in entry:
+            # 条目自己的列或参数，漏写了 this.
+            problems.append(Problem(code="formula.needs_this", path=path, params={"name": name}))
         elif name not in allowed:
             problems.append(_unknown_name(name, allowed, path))
     for ref in sorted(f.lists(node)):

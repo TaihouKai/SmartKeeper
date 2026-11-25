@@ -634,3 +634,11 @@ def test_preset_columns_left_empty_are_filled_by_the_player(rules: RulesService)
     full = cast(dict[str, Any], rules.full_sheet(pack, "person", sheet))
     levels = {e["name"]: e["fields"].get("level") for e in full["groups"]["skills"]}
     assert levels == {"resist": 30, "fixed": 7, "first aid": 30}
+
+
+def test_entry_names_without_this_get_a_clear_hint(rules: RulesService) -> None:
+    pack = load_pack("single")
+    g = pack.templates[0].groups[0]
+    codes = [p.code for p in rules.validate_formula(pack, "person", "level * 2", g.name)]
+    assert codes == ["formula.needs_this"]
+    assert rules.validate_formula(pack, "person", "this.level * 2", g.name) == []

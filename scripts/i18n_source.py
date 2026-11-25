@@ -295,6 +295,10 @@ T: dict[str, tuple[str, str]] = {
     "cf.copy_this": ("照着它写一条", "Copy this"),
     "cf.params": ("用的时候可以选的参数", "Parameters chosen when used"),
     "params.by_kp": ("由 KP 定", "KP decides"),
+    "codes.formula.needs_this": (
+        "{name} 是这一条自己的列或参数，要写成 this.{name}",
+        "{name} is this entry's own column or parameter: write this.{name}",
+    ),
     "params.by_kp_hint": (
         "这个数不是玩家自己选的，由 KP 按局面定（例如所在地的地脉强弱）",
         "Not chosen by the player: the KP sets it from the situation (e.g. how strong the local ley lines are)",
