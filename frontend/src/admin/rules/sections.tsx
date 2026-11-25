@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, call, type Schemas } from "../../api/client";
 import { useI18n } from "../../i18n";
 import { ErrorBox, FormulaInput, Mover } from "../../ui/components";
+import { Markdown } from "../../ui/markdown";
 import { useAction } from "../../ui/hooks";
 import { FieldCard, blankField, useListEdit, type Validate } from "../fieldCard";
 import { GroupTable } from "../GroupTable";
@@ -91,6 +92,10 @@ export function FieldsSection({ tpl, onChange, onRemove, validate, mover, base }
           </label>
         </div>
         <p className="wb-hint">{t("rules.template_hint")}</p>
+        <label title={t("rules.t.description_hint")}>
+          {t("rules.t.description")}
+          <textarea rows={2} value={tpl.description ?? ""} placeholder={t("rules.ph.ref_hint")} onChange={(e) => onChange({ ...tpl, description: e.target.value })} />
+        </label>
         <label title={t("rules.t.damage_taken_hint")}>
           {t("rules.t.damage_taken")}
           <FormulaInput value={tpl.damage_taken ?? ""} validate={vDamage} placeholder={t("rules.ph.damage_taken")} onChange={(x) => onChange({ ...tpl, damage_taken: x })} onExpand={() => wb.open(`${base}.damage_taken`)} />
@@ -223,6 +228,10 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
             <input type="number" min={0} value={g.max_count ?? ""} placeholder={t("rules.ph.group_max")} onChange={(e) => onChange({ ...g, max_count: e.target.value === "" ? null : Number(e.target.value) })} />
           </label>
         </div>
+        <label title={t("rules.t.description_hint")}>
+          {t("rules.g.description")}
+          <textarea rows={2} value={g.description ?? ""} placeholder={t("rules.ph.ref_hint")} onChange={(e) => onChange({ ...g, description: e.target.value })} />
+        </label>
         <button type="button" className="sk-link wb-toggle" aria-expanded={settings} onClick={() => setSettings(!settings)}>
           {settings ? "▾" : "▸"} {t("rules.g.settings")}
         </button>
@@ -552,6 +561,26 @@ export function TextSection({ pack, onChange }: { pack: Pack; onChange: (p: Pack
     <>
       <SectionHead title={t("rules.rules_text")} hint={t("rules.rules_text_hint")} />
       <textarea className="wb-longtext" value={pack.rules_text ?? ""} onChange={(e) => onChange({ ...pack, rules_text: e.target.value })} />
+    </>
+  );
+}
+
+/** 规则书：给玩家看的完整规则（Markdown）。说明里写 [[标题]] 就在建卡页上展开这一节。 */
+export function HandbookSection({ pack, onChange }: { pack: Pack; onChange: (p: Pack) => void }) {
+  const { t } = useI18n();
+  const [preview, setPreview] = useState(false);
+  return (
+    <>
+      <SectionHead
+        title={t("rules.handbook")}
+        hint={t("rules.handbook_hint")}
+        actions={
+          <button className="sk-link" onClick={() => setPreview(!preview)}>
+            {t(preview ? "rules.handbook_edit" : "rules.handbook_preview")}
+          </button>
+        }
+      />
+      {preview ? <Markdown text={pack.handbook ?? ""} /> : <textarea className="wb-longtext" value={pack.handbook ?? ""} onChange={(e) => onChange({ ...pack, handbook: e.target.value })} />}
     </>
   );
 }

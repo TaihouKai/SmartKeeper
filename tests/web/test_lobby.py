@@ -119,3 +119,10 @@ def test_character_form_draft_is_kept_on_the_server(site: Site) -> None:
     other.get(link.replace("http://testserver", ""), follow_redirects=False)
     assert other.get("/api/character/draft").json()["sheets"] == draft
     assert c.put("/api/character/draft", json={"sheets": "x" * 600_000}).status_code == 422
+
+
+def test_rulebook_of_a_listed_game_is_public(site: Site) -> None:
+    gid = new_game(site, "book")
+    r = site.client().get(f"/api/lobby/{gid}/rulebook")
+    assert r.status_code == 200 and r.json()["game_name"] == "book"
+    assert site.client().get("/api/lobby/nope/rulebook").status_code == 404

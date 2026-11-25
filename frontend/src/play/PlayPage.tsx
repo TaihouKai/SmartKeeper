@@ -23,6 +23,9 @@ function StatusBar({ status }: { status: Schemas["StatusOut"] | null }) {
     <div className="sk-statusbar">
       <span>{formatGameTime(status.start_time, status.game_seconds, lang)}</span>
       <span>{phase}</span>
+      <a href="/rulebook" target="_blank" rel="noreferrer">
+        {t("handbook.title")}
+      </a>
       <LangSwitch onChange={(l) => void api.POST("/api/lang", { body: { lang: l } })} />
     </div>
   );

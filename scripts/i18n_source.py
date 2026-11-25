@@ -91,6 +91,49 @@ T: dict[str, tuple[str, str]] = {
     "codes.rate.lobby": ("操作太频繁，稍后再试", "Too many attempts; try again later"),
     "join.hello": ("玩家：{name}", "Player: {name}"),
     "join.rename": ("改昵称", "Change nickname"),
+    "handbook.title": ("规则书", "Rulebook"),
+    "rules.path.handbook": ("规则书", "Rulebook"),
+    "rules.handbook": ("规则书", "Rulebook"),
+    "rules.handbook_hint": (
+        "给玩家看的完整规则（Markdown：# 标题、- 列表、| 表格 |）。网站上有单独的规则书页面，KP 也会读。"
+        "规则包里任何说明写 [[标题]]，建卡页上就能就地展开规则书里这个标题下的一节。",
+        "The full rules for players (Markdown: # headings, - lists, | tables |). The site shows it as its own page and the KP reads it too. "
+        "Write [[heading]] in any description in the pack and the character form expands that section of the rulebook in place.",
+    ),
+    "rules.handbook_preview": ("预览", "Preview"),
+    "rules.handbook_edit": ("编辑", "Edit"),
+    "rules.t.description": ("建卡说明", "Character-making notes"),
+    "rules.g.description": ("说明", "Description"),
+    "rules.t.description_hint": (
+        "建卡页上显示在这一部分开头；写 [[标题]] 引用规则书的一节",
+        "Shown at the top of this part of the character form; write [[heading]] to cite a rulebook section",
+    ),
+    "rules.ph.ref_hint": (
+        "例如：先想好出身。[[出身]]",
+        "e.g. Decide your background first. [[Backgrounds]]",
+    ),
+    "handbook.toc": ("目录", "Contents"),
+    "handbook.scenario": ("剧本", "Scenario"),
+    "handbook.empty": ("这个规则包还没有写规则书。", "This rule pack has no rulebook yet."),
+    "handbook.ref": ("规则书：{title}", "Rulebook: {title}"),
+    "handbook.missing": ("规则书里没有“{title}”这一节", "The rulebook has no section “{title}”"),
+    "handbook.open": ("在规则书里打开", "Open in the rulebook"),
+    "character.range": ("（范围 {range}）", "(range {range})"),
+    "character.preview_incomplete": (
+        "把上面必填的属性填完，这里会算出生命值、魔力值这些数。",
+        "Fill in the required attributes above and the derived numbers appear here.",
+    ),
+    "character.fixed_entries_head": ("自动获得：", "You get these automatically:"),
+    "character.engine_rules": ("让引擎自动执行（可选）", "Let the engine run it (optional)"),
+    "character.engine_rules_hint": (
+        "不会写也没关系：只写上面的说明，KP 会按说明裁定。写了的话，射程、消耗、伤害这些由引擎自动算。",
+        "Optional: with just the description above, the KP rules on it. If you fill this in, the engine works out range, cost and damage itself.",
+    ),
+    "codes.pack.unknown_handbook_section": (
+        "规则书里没有“{name}”这个标题",
+        "The rulebook has no heading “{name}”",
+    ),
+    "codes.lobby.not_listed": ("这一局不在房间列表里", "This game is not in the room list"),
     "codes.player.bad_name": ("昵称要 1 到 64 个字", "A nickname needs 1 to 64 characters"),
     "character.autosaved": ("已自动保存（{time}）", "Saved automatically ({time})"),
     "codes.character.draft_too_big": (
@@ -804,8 +847,8 @@ T: dict[str, tuple[str, str]] = {
     "script.title": ("技能脚本（使用时）", "Skill script (on use)"),
     "config.title": ("技能设置", "Skill settings"),
     "config.hint": (
-        "引擎按这些设置执行，不用 KP 判断。target：single 要选一个对象，self 只能对自己用，none 没有对象。range：射程（米），不写表示不限。visible：True 表示对象必须在施法者此刻的感知里。requires：使用条件，不成立就不能用。noise：动静范围（米），范围内的其他玩家会察觉到有人用了这个技能。cast_time / cooldown：施放时间和冷却（分钟）。shape：范围形状，例如 sphere(radius=5)、cone(length=10, angle=60)、capsule(length=20, width=2)、box(length=, width=, height=)。placement：设置物（陷阱、结界），例如 placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True)。值可以是公式，能用 this.列，也能用别的项和技能脚本里的变量（例如 noise = range * 2），不能绕成圈；写 None 表示不设。",
-        "The engine applies these settings itself. target: single needs one target, self is only on yourself, none has no target. range: metres, unset means unlimited. visible: True means the target must be perceived by the user. requires: a condition that must hold. noise: metres; other players within it sense the use. cast_time / cooldown: minutes. shape: area shape, e.g. sphere(radius=5), cone(length=10, angle=60), capsule(length=20, width=2), box(length=, width=, height=). placement: a trap or ward, e.g. placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True). Values may be formulas using this.column other settings or the script's variables (e.g. noise = range * 2), without loops; None means unset.",
+        '每行写一项“名字 = 值”，告诉引擎这个技能怎么用。最常用的几项：\n- target：对谁用。"single" 选一个人，"self" 只对自己，"none" 不用选\n- range：射程（米）；不写就是不限\n- cast_time：要准备多久（分钟）；不写就是瞬发\n- cooldown：用过以后多久不能再用（分钟）\n- noise：多远的人会察觉到你在用（米）\n- requires：什么时候才能用，例如 mp >= 5\n- check：要掷的检定，例如 "magecraft"\n- reactions：对方能怎么应对，例如 ["dodge"]\n- shape：范围，例如 sphere(radius=5) 是半径 5 米的球',
+        'One “name = value” per line tells the engine how this skill is used. The common ones:\n- target: who it is used on. "single" picks one, "self" only you, "none" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. mp >= 5\n- check: the check to roll, e.g. "magecraft"\n- reactions: how the target may respond, e.g. ["dodge"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball',
     ),
     "config.c.target": (
         "single 要选对象 / self 只能对自己 / none 没有对象",
@@ -844,8 +887,8 @@ T: dict[str, tuple[str, str]] = {
     ),
     "script.line": ("第 {n} 行", "line {n}"),
     "script.hint": (
-        "用这个技能、KP 判定生效（打中）时，引擎一行一行执行；没生效只扣消耗。self 是使用者自己，target 是使用时选的对象（对谁用由玩家决定，也可以是自己）；没有对象时只执行 self 的句子。动作：damage(数量) 受到伤害，先扣护盾 shield 再扣生命值 hp；add(字段, 数量[, 分钟]) 增加，写了分钟就是限时的，到期扣回剩下的部分；sub(字段, 数量) 减少；set(字段, 数量) 设为；modify(推导值, 新值公式, 分钟) 限时修正，公式里这个推导值自己的名字指带着这条修正的角色的值，其余名字取使用那一刻的值。数量是公式，可以掷骰；this.列 是这一条的列（掷骰公式列会当场掷），self.x 和不带前缀的名字是使用者的，target.x 是对象的，target.template 是对象的模板名。分支：if 条件: 下面缩进的几行只在条件成立时执行，后面可以接 elif 条件: 和 else:；条件在声明使用时算，不能掷骰；没有对象时，问到 target 的条件整块跳过。Tab 缩进，回车自动缩进。# 后面是注释。",
-        "When the skill is used and the keeper rules it took effect (hit), the engine runs it line by line; otherwise only the cost is paid. self is the user, target is whoever it's used on (the player chooses, may be themselves); with no target only the self lines run. Actions: damage(amount) – shield first, then hp; add(field, amount[, minutes]) – with minutes it's timed and the rest is taken back when it ends; sub(field, amount); set(field, amount); modify(derived, new-value formula, minutes) – a timed modifier: the derived value's own name is the bearer's value, other names are the user's at the time of use. Amounts are formulas and may roll dice; this.column is this entry's column (dice-formula columns roll), self.x and bare names are the user's, target.x the target's, target.template the target's template name. Branches: the indented lines under if condition: run only when it holds; elif condition: and else: may follow. Conditions are worked out when the use is declared and can't roll dice; with no target, a block whose condition asks about target is skipped. Tab indents; Enter keeps the indent. # starts a comment.",
+        "技能生效时，引擎一行一行执行。self 是你自己，target 是对象，this.等级 这样读这个条目的列。常用的写法：\n- target.damage(2d6)：对象受到 2d6 伤害（先扣护盾再扣生命）\n- target.add(hp, 10)：对象恢复 10 点生命\n- self.sub(mp, 5)：自己扣 5 点魔力\n- target.add(shield, 10, 30)：对象得到 10 点护盾，持续 30 分钟\n- self.modify(str, str + 1, 10)：10 分钟内自己的力量 +1\n- if 条件:：下面缩进的几行只在条件成立时执行",
+        "When the skill takes effect the engine runs it line by line. self is you, target is whoever it is used on, this.level reads this entry's columns. Common lines:\n- target.damage(2d6): the target takes 2d6 damage (shield first, then hp)\n- target.add(hp, 10): the target heals 10\n- self.sub(mp, 5): you spend 5 mana\n- target.add(shield, 10, 30): the target gets a 10-point shield for 30 minutes\n- self.modify(str, str + 1, 10): +1 strength for 10 minutes\n- if condition:: the indented lines below run only when it holds",
     ),
     "rules.gt.id": ("ID（引用用，可不填）", "ID (for references, optional)"),
     "rules.gt.player_fills": ("留空：玩家建角时填", "Empty: the player fills it in"),

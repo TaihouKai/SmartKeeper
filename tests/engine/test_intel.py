@@ -199,3 +199,16 @@ def test_pack_validation_checks_insights_and_reveal_fields() -> None:
     bad = pack.model_copy(update={"templates": (tpl.model_copy(update={"groups": (g,)}),)})
     codes = {p.code for p in RulesService().validate_pack(bad)}
     assert {"pack.unknown_field", "formula.unknown_name"} <= codes
+
+
+def test_descriptions_may_cite_rulebook_sections_that_exist() -> None:
+    pack = intel_pack()
+    tpl = pack.templates[0]
+    cited = tpl.model_copy(update={"description": "see [[Making a person]] and [[Nowhere]]"})
+    bad = pack.model_copy(
+        update={"templates": (cited,), "handbook": "# Rules\n\n## **Making a person**\n\ntext"}
+    )
+    probs = [
+        p for p in RulesService().validate_pack(bad) if p.code == "pack.unknown_handbook_section"
+    ]
+    assert [p.params["name"] for p in probs] == ["Nowhere"]

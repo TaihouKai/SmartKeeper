@@ -70,6 +70,7 @@ class StatusOut(BaseModel):
 
 class RulesOut(BaseModel):
     rulebook: str
+    handbook: str  # 规则书（Markdown）
     world_name: str
     templates: list[dict[str, JsonValue]]
     player_entities: list[dict[str, JsonValue]]
@@ -308,6 +309,7 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
             templates.append(d)
         return RulesOut(
             rulebook=render_rules(pack, include_hidden=False),
+            handbook=pack.handbook,
             world_name=pack.world.name,
             templates=templates,
             player_entities=[x.model_dump(mode="json") for x in pack.player_entities],
@@ -352,7 +354,14 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         try:
             sheet = s.rules.init_sheet(pack, body.template, body.sheet)
         except ValidationFailed as err:
-            return PreviewOut(derived=[], problems=[Problem(code=err.code, params=err.params)])
+            # 还没填完、算不出数值时，自动获得的条目照样按已经填了的算出来
+            try:
+                presets = _presets(s.rules, pack, body.template, body.sheet)
+            except ValidationFailed:
+                presets = {}
+            return PreviewOut(
+                derived=[], problems=[Problem(code=err.code, params=err.params)], presets=presets
+            )
         problems = s.rules.validate_sheet(pack, body.template, sheet)
         derived: list[DerivedValue] = []
         if not problems:

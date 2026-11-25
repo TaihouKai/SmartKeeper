@@ -105,6 +105,7 @@ class GroupDef(Frozen):
 
     name: str
     label: str = ""
+    description: str = ""  # 给建角的玩家看的说明，可以用 [[规则书的标题]] 引用规则书的一节
     fields: tuple[FieldDef, ...] = ()
     presets: tuple[GroupPreset, ...] = ()
     min_count: int = 0
@@ -138,6 +139,7 @@ class DerivedDef(Frozen):
 class EntityTemplate(Frozen):
     name: str
     label: str = ""
+    description: str = ""  # 建角说明（这张卡怎么做），可以用 [[规则书的标题]] 引用规则书的一节
     appearance_field: str = "appearance"  # 外观描述字段名，供生成代号使用
     fields: tuple[FieldDef, ...] = ()
     groups: tuple[GroupDef, ...] = ()
@@ -234,6 +236,9 @@ class RulePack(Frozen):
     tables: tuple[Table, ...] = ()
     checks: tuple[CheckDef, ...] = ()
     rules_text: str = ""  # 规则说明：无法结构化的规则，由 KP 阅读
+    # 规则书（Markdown）：给玩家看的完整规则，网站上有单独的页面，KP 也读。
+    # 规则包里的各种说明写 [[标题]] 就在那里展开规则书里这个标题下的一节
+    handbook: str = ""
     samples: tuple[SampleSheet, ...] = ()
     insights: tuple[InsightRule, ...] = ()  # 看见就知道的情报
 

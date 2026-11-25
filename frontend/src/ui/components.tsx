@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type
 import { useI18n } from "../i18n";
 import { describeError, translateCode } from "./errors";
 import { suggest } from "./complete";
+import { Markdown } from "./markdown";
 
 export function ErrorBox({ error }: { error: unknown }) {
   const { lang } = useI18n();
@@ -245,22 +246,7 @@ export function FormulaInput({
 
 /** 简单的 Markdown 显示：标题、列表、段落。足够阅读规则书和剧本。 */
 export function MarkdownView({ text }: { text: string }) {
-  const lines = text.split("\n");
-  return (
-    <div className="sk-md">
-      {lines.map((line, i) => {
-        const h = /^(#{1,4})\s+(.*)$/.exec(line);
-        if (h) {
-          const level = Math.min(4, (h[1] ?? "#").length + 1);
-          const Tag = `h${level}` as "h2" | "h3" | "h4" | "h5";
-          return <Tag key={i}>{h[2]}</Tag>;
-        }
-        if (/^\s*[-*]\s+/.test(line)) return <div key={i} className="li">{line.replace(/^\s*[-*]\s+/, "• ")}</div>;
-        if (!line.trim()) return <div key={i} className="gap" />;
-        return <p key={i}>{line}</p>;
-      })}
-    </div>
-  );
+  return <Markdown text={text} />;
 }
 
 /** 游戏内时刻：剧本的起始时刻加上经过的秒数。 */

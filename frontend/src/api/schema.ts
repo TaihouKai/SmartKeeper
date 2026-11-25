@@ -895,6 +895,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lobby/{game_id}/rulebook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rulebook
+         * @description 房间列表里的局的规则书和公开剧本：还没加入也能看。
+         */
+        get: operations["rulebook_api_lobby__game_id__rulebook_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/map": {
         parameters: {
             query?: never;
@@ -1471,6 +1491,11 @@ export interface components {
              */
             derived: components["schemas"]["DerivedDef"][];
             /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
              * Fields
              * @default []
              */
@@ -1741,6 +1766,11 @@ export interface components {
              * @default
              */
             damage_kind: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
             /**
              * Effects
              * @default true
@@ -2697,6 +2727,11 @@ export interface components {
              */
             formulas: components["schemas"]["Formula"][];
             /**
+             * Handbook
+             * @default
+             */
+            handbook: string;
+            /**
              * Insights
              * @default []
              */
@@ -2757,8 +2792,21 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** RulebookOut */
+        RulebookOut: {
+            /** Game Name */
+            game_name: string;
+            /** Handbook */
+            handbook: string;
+            /** Scenario */
+            scenario: string;
+            /** World Name */
+            world_name: string;
+        };
         /** RulesOut */
         RulesOut: {
+            /** Handbook */
+            handbook: string;
             identities: components["schemas"]["IdentityRules"];
             /** Player Entities */
             player_entities: {
@@ -5227,6 +5275,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JoinOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rulebook_api_lobby__game_id__rulebook_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulebookOut"];
                 };
             };
             /** @description Validation Error */

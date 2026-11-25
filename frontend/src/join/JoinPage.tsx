@@ -3,6 +3,7 @@ import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, LangSwitch, MarkdownView, Section } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
+import { HandbookProvider } from "../ui/markdown";
 import { CharacterForm } from "./CharacterForm";
 
 /** /join：阅读规则，按剧本抽取或选择身份，按模板填写并提交角色卡，查看 KP 的审核意见。 */
@@ -65,13 +66,12 @@ export function JoinPage() {
           </button>
         }
       >
-        {showRules && (
-          <>
-            <MarkdownView text={r.scenario} />
-            <hr />
-            <MarkdownView text={r.rulebook} />
-          </>
-        )}
+        <p>
+          <a className="sk-button" href="/rulebook" target="_blank" rel="noreferrer">
+            {t("handbook.title")}
+          </a>
+        </p>
+        {showRules && <MarkdownView text={r.scenario} />}
       </Section>
 
       {r.identities.options.length > 0 && (
@@ -114,6 +114,7 @@ export function JoinPage() {
             </div>
           )}
           {(status === "none" || status === "rejected" || editing) && m.game_status === "characters" ? (
+            <HandbookProvider text={r.handbook} href="/rulebook">
             <CharacterForm
               templates={r.templates as unknown as Schemas["EntityTemplate"][]}
               playerEntities={r.player_entities as unknown as { template: string; min: number; max: number }[]}
@@ -122,6 +123,7 @@ export function JoinPage() {
                 refresh();
               }}
             />
+            </HandbookProvider>
           ) : status === "submitted" ? (
             <p>{t("join.waiting_review")}</p>
           ) : null}

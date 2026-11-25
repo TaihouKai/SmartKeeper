@@ -102,4 +102,6 @@ def render(pack: RulePack, include_hidden: bool = True) -> str:
         out.append("")
     if pack.rules_text.strip():
         out += ["## rules", "", pack.rules_text.strip(), ""]
+    if pack.handbook.strip():
+        out += ["## handbook (the players' rulebook)", "", pack.handbook.strip(), ""]
     return "\n".join(out)

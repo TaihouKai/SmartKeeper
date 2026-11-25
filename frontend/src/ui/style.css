@@ -154,9 +154,25 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; min
 .sk-derived-help { margin: -2px 0 8px 2px; font-size: 12px; }
 .sk-badge-req { font-size: 11px; color: var(--accent); white-space: nowrap; align-self: center; }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.6; }
-.sk-md h2, .sk-md h3, .sk-md h4, .sk-md h5 { margin: 10px 0 4px; }
-.sk-md p { margin: 2px 0; }
-.sk-md .gap { height: 6px; }
+.sk-md h1, .sk-md h2, .sk-md h3, .sk-md h4, .sk-md h5 { margin: 14px 0 6px; scroll-margin-top: 12px; }
+.sk-md h1 { font-size: 1.5em; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.sk-md p { margin: 4px 0; }
+.sk-md ul, .sk-md ol { margin: 4px 0; padding-left: 1.4em; }
+.sk-md table { border-collapse: collapse; margin: 6px 0; display: block; overflow-x: auto; max-width: 100%; }
+.sk-md th, .sk-md td { border: 1px solid var(--line); padding: 4px 8px; vertical-align: top; text-align: left; }
+.sk-md td:first-child, .sk-md th:first-child { white-space: nowrap; }
+.sk-md th { background: color-mix(in srgb, var(--card) 80%, var(--bg)); }
+.sk-md blockquote { margin: 6px 0; padding: 2px 10px; border-left: 3px solid var(--line); color: var(--muted); }
+/* 说明里引用的规则书：就地展开 */
+.sk-ref { margin: 2px 0 4px; font-size: 13px; color: var(--fg); }
+.sk-ref > summary { cursor: pointer; color: var(--accent); font-size: 12px; }
+.sk-ref > .sk-md { border-left: 3px solid var(--accent); padding: 2px 10px; margin: 4px 0; background: var(--card); }
+/* 规则书页面 */
+.sk-rulebook { max-width: 900px; }
+.sk-toc { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 8px 0 16px; background: var(--card); }
+.sk-toc ul { margin: 4px 0; padding-left: 0; list-style: none; columns: 2 220px; }
+.sk-toc li.lv2 { padding-left: 1em; font-size: 14px; }
+.sk-toc li.lv1 { font-weight: 600; margin-top: 4px; }
 .sk-invite code { word-break: break-all; font-size: 12px; }
 tr.inactive { opacity: 0.5; }
 .vis-kp_only td { color: var(--muted); }
@@ -196,3 +212,12 @@ tr.inactive { opacity: 0.5; }
 .sk-intel-box summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .sk-intel { margin: 4px 0; padding-left: 1.2em; font-size: 13px; }
 .sk-intel-kp { font-style: italic; }
+
+.sk-range { color: var(--muted); font-size: 12px; }
+.sk-template-desc { display: block; margin: 0 0 8px; }
+.sk-engine { margin: 8px 0; }
+.sk-engine > summary { cursor: pointer; color: var(--accent); }
+.sk-hint-block p { margin: 2px 0; }
+.sk-hint-block ul { margin: 2px 0; padding-left: 1.2em; }
+.sk-hint-block code { font-size: 12px; }
+.sk-preset-fill { border-left: 3px solid var(--line); padding: 2px 8px; margin: 6px 0; }

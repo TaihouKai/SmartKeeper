@@ -192,6 +192,10 @@ class Engine:
         g = self.game(game_id)
         return self._packs.get_version(g.rulepack_id, g.rulepack_version).pack
 
+    def public_scenario(self, game_id: str) -> str:
+        """剧本的公开部分（去掉 front matter 的正文）。"""
+        return scenario.split_front_matter(self.game(game_id).scenario_public)[1]
+
     def rulebook(self, game_id: str) -> str:
         return self._rules.render(self.rulepack(game_id))
 

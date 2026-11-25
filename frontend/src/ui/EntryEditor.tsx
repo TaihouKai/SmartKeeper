@@ -5,7 +5,32 @@ import type { ReactNode } from "react";
 import { FormulaInput, Mover, moved } from "./components";
 import { CodeEditor } from "./CodeEditor";
 import { numberOptions } from "./choices";
+import { Described } from "./markdown";
 import { fillConfig, mergeConfig } from "./skillConfig";
+
+/** 多行的提示：第一行是一句话，后面每行一条（以 - 开头的显示成列表）。 */
+function Hint({ text }: { text: string }) {
+  const lines = text.split("\n").filter((x) => x.trim());
+  const items = lines.filter((x) => x.startsWith("- "));
+  const rest = lines.filter((x) => !x.startsWith("- "));
+  return (
+    <div className="sk-hint sk-hint-block">
+      {rest.map((x, i) => (
+        <p key={i}>{x}</p>
+      ))}
+      {items.length > 0 && (
+        <ul>
+          {items.map((x, i) => (
+            <li key={i}>
+              <code>{x.slice(2).split("：")[0]}</code>
+              {x.includes("：") ? `：${x.slice(2).split("：").slice(1).join("：")}` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 type FieldDef = Schemas["FieldDef"];
 type GroupDef = Schemas["GroupDef"];
@@ -67,13 +92,28 @@ export function FieldInput({ def, value, onChange, validateFormula, onExpand }: 
       </select>
     );
   }
+  const lo = def.min && /^\s*-?\d+(\.\d+)?\s*$/.test(def.min) ? Number(def.min) : undefined;
+  const hi = def.max && /^\s*-?\d+(\.\d+)?\s*$/.test(def.max) ? Number(def.max) : undefined;
   return (
     <input
       type="number"
+      min={lo}
+      max={hi}
+      placeholder={rangeText(def)}
       value={value === undefined ? "" : String(value)}
       onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
     />
   );
+}
+
+/** 数值字段的范围（下限～上限，只认写死的数）；没有时是空。带可选值的字段下拉里已经列出来了，不再显示。 */
+export function rangeText(def: { kind?: string; min?: string | null; max?: string | null; choices?: readonly string[] | null }): string {
+  if (def.kind !== "number" || (def.choices && def.choices.length)) return "";
+  const num = (x: string | null | undefined) => (x && /^\s*-?\d+(\.\d+)?\s*$/.test(x) ? x.trim() : "");
+  const lo = num(def.min);
+  const hi = num(def.max);
+  if (!lo && !hi) return "";
+  return `${lo || "…"} ～ ${hi || "…"}`;
 }
 
 /** 字段在表单上的标签。还没起名字的字段（规则面板里刚加的）显示提示，而不是一个空标签。 */
@@ -91,6 +131,7 @@ export function EntryEditor({
   validate,
   withPriority = true,
   mover,
+  simple = false,
 }: {
   group: GroupDef;
   derived: string[];
@@ -101,6 +142,8 @@ export function EntryEditor({
   /** 玩家写的条目要给效果填计算顺序；规则包的固定条目按定义顺序，不用填 */
   withPriority?: boolean;
   mover?: ReactNode;
+  /** 建卡的玩家用：技能设置和脚本收在“让引擎自动执行”里，默认收起 */
+  simple?: boolean;
 }) {
   const { t } = useI18n();
   const fields = group.fields ?? [];
@@ -109,6 +152,13 @@ export function EntryEditor({
   // 设置和脚本可以互相引用名字：校验一边时带上另一边
   const vScript = useCallback((f: string) => validate(f, group.name, "script", entry.config ?? ""), [validate, group.name, entry.config]);
   const vConfig = useCallback((f: string) => validate(f, group.name, "config", entry.script ?? ""), [validate, group.name, entry.script]);
+  const idField = (
+    <label>
+      {t("rules.gt.id")}
+      <small className="sk-field-desc">{t("rules.gt.id_hint")}</small>
+      <input value={entry.id ?? ""} placeholder={t("rules.gt.id_ph")} onChange={(e) => onChange({ ...entry, id: e.target.value.trim() })} />
+    </label>
+  );
   return (
     <div className="sk-entry">
       {mover && <div className="sk-row sk-row-end">{mover}</div>}
@@ -116,11 +166,7 @@ export function EntryEditor({
         {t("character.entry_name")}
         <input value={entry.name} onChange={(e) => onChange({ ...entry, name: e.target.value })} />
       </label>
-      <label>
-        {t("rules.gt.id")}
-        <small className="sk-field-desc">{t("rules.gt.id_hint")}</small>
-        <input value={entry.id ?? ""} placeholder={t("rules.gt.id_ph")} onChange={(e) => onChange({ ...entry, id: e.target.value.trim() })} />
-      </label>
+      {!simple && idField}
       <label>
         {t("character.entry_description")}
         <textarea rows={2} value={entry.description} onChange={(e) => onChange({ ...entry, description: e.target.value })} />
@@ -128,14 +174,28 @@ export function EntryEditor({
       {fields.map((f) => (
         <label key={f.name}>
           {fieldLabel(f, t("character.unnamed_field"))}
+          {rangeText(f) && <span className="sk-range"> {t("character.range", { range: rangeText(f) })}</span>}
           {f.kind === "formula" && <small className="sk-field-desc">{t("character.formula_field")}</small>}
-          {f.description && <small className="sk-field-desc">{f.description}</small>}
+          <Described text={f.description} />
           <FieldInput def={f} value={entry.fields[f.name]} validateFormula={vDice} onChange={(val) => onChange({ ...entry, fields: { ...entry.fields, [f.name]: val } })} />
         </label>
       ))}
       {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} onChange={(effects) => onChange({ ...entry, effects })} />}
-      {group.effects !== false && <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />}
-      {group.effects !== false && <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />}
+      {group.effects !== false &&
+        (simple ? (
+          <details className="sk-engine" open={Boolean((entry.config ?? "").trim() || (entry.script ?? "").trim())}>
+            <summary>{t("character.engine_rules")}</summary>
+            <p className="sk-hint">{t("character.engine_rules_hint")}</p>
+            {idField}
+            <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />
+            <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />
+          </details>
+        ) : (
+          <>
+            <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />
+            <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />
+          </>
+        ))}
       {group.effects !== false && <UsesList group={group} uses={entry.uses ?? []} base={entry.config ?? ""} validate={validate} onChange={(uses) => onChange({ ...entry, uses })} />}
       {onRemove && (
         <button type="button" className="sk-link" onClick={onRemove}>
@@ -255,7 +315,7 @@ export function ConfigEditor({ config, validate, onChange }: { config: string; v
       <strong>{t("config.title")}</strong>
       <CodeEditor className="sk-code-inline" value={config} check={validate} minLines={3} onChange={onChange} onProblems={setProblems} />
       {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
-      <p className="sk-hint">{t("config.hint")}</p>
+      <Hint text={t("config.hint")} />
     </div>
   );
 }
@@ -269,7 +329,7 @@ export function ScriptEditor({ script, validate, onChange }: { script: string; v
       <strong>{t("script.title")}</strong>
       <CodeEditor className="sk-code-inline" value={script} check={validate} placeholder={t("script.ph")} minLines={4} onChange={onChange} onProblems={setProblems} />
       {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
-      <p className="sk-hint">{t("script.hint")}</p>
+      <Hint text={t("script.hint")} />
     </div>
   );
 }

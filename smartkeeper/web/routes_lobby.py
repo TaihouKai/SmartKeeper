@@ -24,6 +24,13 @@ class LobbyGame(BaseModel):
     active: bool = False  # 是不是这个浏览器当前在玩的那一局
 
 
+class RulebookOut(BaseModel):
+    game_name: str
+    world_name: str
+    handbook: str  # 规则书（Markdown）
+    scenario: str  # 剧本的公开部分
+
+
 class JoinIn(BaseModel):
     game_id: str
     name: str
@@ -75,6 +82,21 @@ def build_lobby_router(s: Services) -> APIRouter:
             )
             for g, n in e.lobby()
         ]
+
+    @r.get("/{game_id}/rulebook")
+    def rulebook(game_id: str) -> RulebookOut:
+        """房间列表里的局的规则书和公开剧本：还没加入也能看。"""
+        listed = {g.id: g for g, _n in e.lobby()}
+        g = listed.get(game_id)
+        if g is None:
+            raise NotFound("lobby.not_listed")
+        pack = e.rulepack(g.id)
+        return RulebookOut(
+            game_name=g.name,
+            world_name=pack.world.name,
+            handbook=pack.handbook,
+            scenario=e.public_scenario(g.id),
+        )
 
     @r.post("/join")
     def join(body: JoinIn, request: Request, response: Response) -> JoinOut:

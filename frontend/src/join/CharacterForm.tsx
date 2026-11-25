@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, Mover, moved } from "../ui/components";
-import { EntryEditor, FieldInput, fieldLabel, type Entry } from "../ui/EntryEditor";
+import { EntryEditor, FieldInput, fieldLabel, rangeText, type Entry } from "../ui/EntryEditor";
+import { translateCode } from "../ui/errors";
+import { Described } from "../ui/markdown";
 
 type Template = Schemas["EntityTemplate"];
 type Value = string | number | boolean;
@@ -23,7 +25,7 @@ export function initialSubmissions(playerEntities: { template: string; min: numb
 
 /** 一张角色卡：按模板生成表单，实时试算推导值。 */
 export function SheetEditor({ template, value, onChange }: { template: Template; value: SheetDraft; onChange: (s: SheetDraft) => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [preview, setPreview] = useState<Schemas["PreviewOut"] | null>(null);
   const fields = (template.fields ?? []).filter((f) => f.cls !== "runtime");
   // 修正能作用的数值：推导值，和建角时填的数值、是/否字段
@@ -51,6 +53,7 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
   }, [body, template.name]);
   return (
     <div className="sk-sheet-editor">
+      <Described text={template.description} className="sk-template-desc" />
       <label>
         {t("character.name")}
         <input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} />
@@ -58,25 +61,28 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
       {fields.map((f) => (
         <label key={f.name}>
           {fieldLabel(f, t("character.unnamed_field"))}
+          {rangeText(f) && <span className="sk-range"> {t("character.range", { range: rangeText(f) })}</span>}
           {f.name === template.appearance_field && <small> {t("character.appearance_hint")}</small>}
-          {f.description && <small className="sk-field-desc">{f.description}</small>}
+          <Described text={f.description} />
           <FieldInput def={f} value={value.fields[f.name]} validateFormula={topDice} onChange={(v) => onChange({ ...value, fields: { ...value.fields, [f.name]: v } })} />
         </label>
       ))}
       {(template.groups ?? []).map((g) => {
         const entries = value.groups[g.name] ?? [];
         const setEntries = (es: Entry[]) => onChange({ ...value, groups: { ...value.groups, [g.name]: es } });
+        const fixed = preview?.presets?.[g.name] ?? [];
+        const canAdd = g.max_count === null || g.max_count === undefined || entries.length < g.max_count;
+        // 玩家不能写、也没有自动获得的条目的分组不显示（例如还没满足条件的固定条目）
+        if (g.hidden || (!fixed.length && !entries.length && g.max_count === 0)) return null;
         return (
           <fieldset key={g.name}>
             <legend>{g.label || g.name}</legend>
-            {(preview?.presets?.[g.name] ?? []).length > 0 && (
-              <p className="sk-hint">{t("character.fixed_entries", { names: (preview?.presets?.[g.name] ?? []).join("、") })}</p>
-            )}
-            {(preview?.presets?.[g.name] ?? []).map((pname) => {
-              // 固定条目里规则包留空的列：玩家自己填（例如这个角色的对魔力等级）
+            <Described text={g.description} />
+            {fixed.length > 0 && <p className="sk-hint">{t("character.fixed_entries_head")}</p>}
+            {fixed.map((pname) => {
+              // 自动获得的条目：名字和说明；规则包留空的列由玩家填（例如这个角色的对魔力等级）
               const p = (g.presets ?? []).find((x) => x.name === pname);
               const open = p ? (g.fields ?? []).filter((x) => x.kind !== "param" && x.cls !== "runtime" && !(x.name in (p.fields ?? {}))) : [];
-              if (!open.length) return null;
               const mine = value.preset_fields?.[g.name]?.[pname] ?? {};
               const set = (col: string, v: Value) =>
                 onChange({
@@ -86,9 +92,12 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
               return (
                 <div key={pname} className="sk-preset-fill">
                   <strong>{pname}</strong>
+                  <Described text={p?.description} />
                   {open.map((fd) => (
                     <label key={fd.name}>
                       {fieldLabel(fd, t("character.unnamed_field"))}
+                      {rangeText(fd) && <span className="sk-range"> {t("character.range", { range: rangeText(fd) })}</span>}
+                      <Described text={fd.description} />
                       <FieldInput def={fd} value={mine[fd.name]} validateFormula={topDice} onChange={(v) => set(fd.name, v)} />
                     </label>
                   ))}
@@ -102,12 +111,13 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
                 derived={derived}
                 entry={en}
                 validate={validate}
+                simple
                 onChange={(e) => setEntries(entries.map((x, j) => (j === i ? e : x)))}
                 onRemove={() => setEntries(entries.filter((_, j) => j !== i))}
                 mover={<Mover index={i} count={entries.length} onMove={(from, to) => setEntries(moved(entries, from, to))} />}
               />
             ))}
-            {(g.max_count === null || g.max_count === undefined || entries.length < g.max_count) && (
+            {canAdd && (
               <button type="button" onClick={() => setEntries([...entries, { name: "", id: "", description: "", fields: {}, effects: [] }])}>
                 {t("character.add_entry")}
               </button>
@@ -125,14 +135,17 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
               </li>
             ))}
           </ul>
-          {preview.problems.length > 0 && (
-            <ul className="sk-problems">
-              {preview.problems.map((p, i) => (
-                <li key={i}>
-                  {p.code} {p.path}
-                </li>
-              ))}
-            </ul>
+          {preview.derived.length === 0 && preview.problems.length > 0 ? (
+            // 还没填完：算不出数值，不用把内部的错误代码给玩家看
+            <p className="sk-hint">{t("character.preview_incomplete")}</p>
+          ) : (
+            preview.problems.length > 0 && (
+              <ul className="sk-problems">
+                {preview.problems.map((p, i) => (
+                  <li key={i}>{translateCode(lang, p.code, p.params)}</li>
+                ))}
+              </ul>
+            )
           )}
         </div>
       )}

@@ -685,11 +685,59 @@ def validate_pack(pack: RulePack) -> list[Problem]:
         problems += check_check(pack, c.config, f"{p}.config")
     for i, rule in enumerate(pack.insights):
         problems += _check_insight(pack, rule, f"insights[{i}]")
+    problems += _check_handbook_refs(pack)
     if problems:
         return problems
     # 结构没问题之后才验算例题，否则错误会重复
     for i in range(len(pack.samples)):
         problems += _check_sample(pack, i)
+    return problems
+
+
+HANDBOOK_REF = re.compile(r"\[\[([^\[\]]+)\]\]")
+HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*#*\s*$")
+
+
+def handbook_titles(text: str) -> set[str]:
+    """规则书里的标题（去掉 Markdown 的加粗记号）。"""
+    out: set[str] = set()
+    for line in text.splitlines():
+        m = HEADING.match(line)
+        if m:
+            out.add(m.group(1).replace("*", "").strip())
+    return out
+
+
+def _check_handbook_refs(pack: RulePack) -> list[Problem]:
+    """说明里的 [[标题]] 要在规则书里有这个标题。"""
+    titles = handbook_titles(pack.handbook)
+    problems: list[Problem] = []
+
+    def scan(text: str, path: str) -> None:
+        for m in HANDBOOK_REF.finditer(text):
+            name = m.group(1).strip()
+            if name not in titles:
+                problems.append(
+                    Problem(code="pack.unknown_handbook_section", path=path, params={"name": name})
+                )
+
+    for ti, tpl in enumerate(pack.templates):
+        tp = f"templates[{ti}]"
+        scan(tpl.description, f"{tp}.description")
+        for i, fd in enumerate(tpl.fields):
+            scan(fd.description, f"{tp}.fields[{i}].description")
+        for gi, g in enumerate(tpl.groups):
+            gp = f"{tp}.groups[{gi}]"
+            scan(g.description, f"{gp}.description")
+            for i, fd in enumerate(g.fields):
+                scan(fd.description, f"{gp}.fields[{i}].description")
+            for i, p in enumerate(g.presets):
+                scan(p.description, f"{gp}.presets[{i}].description")
+                for j, u in enumerate(p.uses):
+                    scan(u.description, f"{gp}.presets[{i}].uses[{j}].description")
+            for i, u in enumerate(g.use_templates):
+                scan(u.description, f"{gp}.use_templates[{i}].description")
+    scan(pack.handbook, "handbook")
     return problems
 
 

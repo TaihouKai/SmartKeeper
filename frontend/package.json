@@ -20,7 +20,9 @@
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.15",
     "@lezer/highlight": "^1.2.5",
+    "dompurify": "^3.2.3",
     "maplibre-gl": "^4.7.1",
+    "marked": "^14.1.4",
     "openapi-fetch": "^0.13.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

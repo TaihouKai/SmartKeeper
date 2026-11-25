@@ -39,13 +39,18 @@
     "effect_hint_fixed": "公式算出这个值的新值，和规则里的公式一样什么都能引用；写它自己的名字表示原来的值（例如 move_speed * 1.2），也可以完全换掉（例如 str + agi）。固定条目的修正最先算，按定义顺序；之后是玩家写的修正（按他们填的顺序），最后是状态。",
     "effect_priority": "顺序",
     "effects": "修正（一直生效）",
+    "engine_rules": "让引擎自动执行（可选）",
+    "engine_rules_hint": "不会写也没关系：只写上面的说明，KP 会按说明裁定。写了的话，射程、消耗、伤害这些由引擎自动算。",
     "entry_description": "描述",
     "entry_name": "名称",
     "fixed_entries": "按现在的填写，会自动获得：{names}",
+    "fixed_entries_head": "自动获得：",
     "formula_field": "掷骰公式，例如 1d6 或 1d str；用的时候由引擎掷",
     "name": "角色名",
     "param_choices": "用的时候选：{choices}",
     "param_field": "使用时在行动里说（{min} ～ {max}）",
+    "preview_incomplete": "把上面必填的属性填完，这里会算出生命值、魔力值这些数。",
+    "range": "（范围 {range}）",
     "remove_entry": "删除这一条",
     "runtime_column": "游戏中由技能改变，不用填",
     "shape": "范围形状",
@@ -175,6 +180,7 @@
       "closed": "这一局不开放直接加入",
       "name_taken": "这一局里已经有玩家用了昵称 {name}，换一个",
       "no_seat": "这个浏览器没有加入过这一局",
+      "not_listed": "这一局不在房间列表里",
       "started": "这一局已经开始了，不能再加入"
     },
     "mention": {
@@ -208,6 +214,7 @@
       "unknown_check": "没有叫 {name} 的检定",
       "unknown_field": "没有叫 {name} 的字段",
       "unknown_group": "没有叫 {name} 的分组",
+      "unknown_handbook_section": "规则书里没有“{name}”这个标题",
       "unknown_template": "没有叫 {name} 的模板",
       "vital_needs_runtime": "只有运行值（数值或资源）能设成致命"
     },
@@ -325,7 +332,7 @@
       "target": "single 要选对象 / self 只能对自己 / none 没有对象",
       "visible": "对象必须在施法者的感知里；设置物要放在施法者看得见的地方"
     },
-    "hint": "引擎按这些设置执行，不用 KP 判断。target：single 要选一个对象，self 只能对自己用，none 没有对象。range：射程（米），不写表示不限。visible：True 表示对象必须在施法者此刻的感知里。requires：使用条件，不成立就不能用。noise：动静范围（米），范围内的其他玩家会察觉到有人用了这个技能。cast_time / cooldown：施放时间和冷却（分钟）。shape：范围形状，例如 sphere(radius=5)、cone(length=10, angle=60)、capsule(length=20, width=2)、box(length=, width=, height=)。placement：设置物（陷阱、结界），例如 placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True)。值可以是公式，能用 this.列，也能用别的项和技能脚本里的变量（例如 noise = range * 2），不能绕成圈；写 None 表示不设。",
+    "hint": "每行写一项“名字 = 值”，告诉引擎这个技能怎么用。最常用的几项：\n- target：对谁用。\"single\" 选一个人，\"self\" 只对自己，\"none\" 不用选\n- range：射程（米）；不写就是不限\n- cast_time：要准备多久（分钟）；不写就是瞬发\n- cooldown：用过以后多久不能再用（分钟）\n- noise：多远的人会察觉到你在用（米）\n- requires：什么时候才能用，例如 mp >= 5\n- check：要掷的检定，例如 \"magecraft\"\n- reactions：对方能怎么应对，例如 [\"dodge\"]\n- shape：范围，例如 sphere(radius=5) 是半径 5 米的球",
     "title": "技能设置"
   },
   "demo": {
@@ -531,6 +538,15 @@
     "submitted": "已提交",
     "waiting": "未提交",
     "web_search": "允许 KP 联网查设定"
+  },
+  "handbook": {
+    "empty": "这个规则包还没有写规则书。",
+    "missing": "规则书里没有“{title}”这一节",
+    "open": "在规则书里打开",
+    "ref": "规则书：{title}",
+    "scenario": "剧本",
+    "title": "规则书",
+    "toc": "目录"
   },
   "ide": {
     "close_tab": "关闭",
@@ -857,6 +873,7 @@
     "g": {
       "damage_kind": "伤害类型",
       "damage_kind_hint": "这个分组里的条目（规则写的和玩家自己写的都算）在技能脚本里造成的伤害是什么类型。受伤的一方按自己模板的“受到伤害的公式”减免，例如魔术分组填 magic，对魔力就会对它生效。",
+      "description": "说明",
       "effects": "条目可以带修正和技能脚本",
       "fields": "表头：除了名称和描述，每个条目还要填哪些列",
       "fields_hint": "把一个分组想成一张表：每一行是一个条目（一个技能），每一行都自带“名称”和“描述”两列，不用再加。这里加的是额外的列，例如 等级（数值）、魔力消耗（数值）、伤害（掷骰公式）。下面的固定条目和玩家建角时写的条目，都按这些列来填。不需要额外的列就留空。",
@@ -910,6 +927,10 @@
       "title": "条目表",
       "when": "生效条件"
     },
+    "handbook": "规则书",
+    "handbook_edit": "编辑",
+    "handbook_hint": "给玩家看的完整规则（Markdown：# 标题、- 列表、| 表格 |）。网站上有单独的规则书页面，KP 也会读。规则包里任何说明写 [[标题]]，建卡页上就能就地展开规则书里这个标题下的一节。",
+    "handbook_preview": "预览",
     "help": {
       "appearance": "外观描述：玩家建角时用文字描述自己角色的样子。别人第一次看到这个角色时，系统根据它起代号（例如“红围巾的女人”）。这个字段不能删除，名字和类型也不能改。",
       "can_fly": "能否飞行：玩家建角时勾选，默认否。能飞的角色移动时按飞行速度走直线；不能飞的先上下楼、再在地面上走，按移动速度算。这个字段不能删除，名字和类型也不能改。",
@@ -980,6 +1001,7 @@
       "formula": "公式",
       "formulas": "命名公式",
       "groups": "分组",
+      "handbook": "规则书",
       "insights": "看见就知道",
       "levels": "结果等级",
       "placement": "设置物",
@@ -1040,6 +1062,7 @@
       "min": "例如 0",
       "param_cooldown": "例如 1440（每天一次）；空着是没有冷却",
       "per_minute": "留空表示不变，例如 1 或 con / 2",
+      "ref_hint": "例如：先想好出身。[[出身]]",
       "reveal": "例如 this.release；空是总暴露",
       "sample_name": "例题名",
       "search": "例如 1d20 + per；空着是发现不了隐匿的角色",
@@ -1076,6 +1099,8 @@
       "appearance": "外观描述字段",
       "damage_taken": "受到伤害的公式",
       "damage_taken_hint": "这个模板的角色每次受到技能伤害时，引擎用这条公式算实际受到多少（不会小于 0）。amount 是原始伤害，kind 是伤害类型（技能所在分组设的，或 damage(数量, \"类型\") 写的）。对魔力、护甲、各种抗性写在这里，就对所有攻击生效，不用每个技能各写一遍。",
+      "description": "建卡说明",
+      "description_hint": "建卡页上显示在这一部分开头；写 [[标题]] 引用规则书的一节",
       "label": "这种卡叫什么（给玩家看）",
       "name": "模板 ID（英文代号）",
       "on_death": "死亡时的脚本",
@@ -1128,7 +1153,7 @@
     "world": "世界观"
   },
   "script": {
-    "hint": "用这个技能、KP 判定生效（打中）时，引擎一行一行执行；没生效只扣消耗。self 是使用者自己，target 是使用时选的对象（对谁用由玩家决定，也可以是自己）；没有对象时只执行 self 的句子。动作：damage(数量) 受到伤害，先扣护盾 shield 再扣生命值 hp；add(字段, 数量[, 分钟]) 增加，写了分钟就是限时的，到期扣回剩下的部分；sub(字段, 数量) 减少；set(字段, 数量) 设为；modify(推导值, 新值公式, 分钟) 限时修正，公式里这个推导值自己的名字指带着这条修正的角色的值，其余名字取使用那一刻的值。数量是公式，可以掷骰；this.列 是这一条的列（掷骰公式列会当场掷），self.x 和不带前缀的名字是使用者的，target.x 是对象的，target.template 是对象的模板名。分支：if 条件: 下面缩进的几行只在条件成立时执行，后面可以接 elif 条件: 和 else:；条件在声明使用时算，不能掷骰；没有对象时，问到 target 的条件整块跳过。Tab 缩进，回车自动缩进。# 后面是注释。",
+    "hint": "技能生效时，引擎一行一行执行。self 是你自己，target 是对象，this.等级 这样读这个条目的列。常用的写法：\n- target.damage(2d6)：对象受到 2d6 伤害（先扣护盾再扣生命）\n- target.add(hp, 10)：对象恢复 10 点生命\n- self.sub(mp, 5)：自己扣 5 点魔力\n- target.add(shield, 10, 30)：对象得到 10 点护盾，持续 30 分钟\n- self.modify(str, str + 1, 10)：10 分钟内自己的力量 +1\n- if 条件:：下面缩进的几行只在条件成立时执行",
     "line": "第 {n} 行",
     "ph": "例如\ntarget.damage(this.damage)\nself.add(hp, 5)",
     "title": "技能脚本（使用时）"

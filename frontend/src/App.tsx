@@ -2,6 +2,7 @@ import { AdminPage } from "./admin/AdminPage";
 import { JoinPage } from "./join/JoinPage";
 import { LobbyPage } from "./lobby/LobbyPage";
 import { PlayPage } from "./play/PlayPage";
+import { RulebookPage } from "./rulebook/RulebookPage";
 import "./ui/style.css";
 
 export function App() {
@@ -9,5 +10,6 @@ export function App() {
   if (path.startsWith("/admin")) return <AdminPage />;
   if (path.startsWith("/join")) return <JoinPage />;
   if (path.startsWith("/play")) return <PlayPage />;
+  if (path.startsWith("/rulebook")) return <RulebookPage />;
   return <LobbyPage />;
 }

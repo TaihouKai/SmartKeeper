@@ -96,10 +96,22 @@ def effect(desc: str, target: str, formula: str) -> dict[str, Any]:
     return {"description": desc, "target": target, "formula": formula, "priority": None}
 
 
+# 分组给建角的玩家看的说明（[[标题]] 引用规则书的一节）
+GROUP_DESC = {
+    "magic": "普通人以外的出身都会下面这些魔术；出身特有的魔术（炼金术、教会的秘迹……）自己加在下面。[[御主的魔术]]",
+    "master_action": "[[令咒]] [[据点]]",
+    "klass_skill": "按职阶自动获得，等级自己填。[[职阶技能]]",
+    "personal_skill": "英灵本人的技能，自己设计；写不成规则的只写说明，由 KP 裁定。[[保有技能]]",
+    "servant_magic": "Caster 自动会下面这些魔术。[[英灵魔术]]",
+    "noble_phantasm": "[[宝具]] [[宝具伤害]]",
+}
+
+
 def group(name: str, label: str, presets: list[dict[str, Any]], **kw: Any) -> dict[str, Any]:
     out: dict[str, Any] = {
         "name": name,
         "label": label,
+        "description": kw.pop("description", GROUP_DESC.get(name, "")),
         "fields": kw.pop("fields", []),
         "presets": presets,
         "min_count": 0,
@@ -206,7 +218,7 @@ PLUS_COL = field(
     choices=PLUS,
     required=False,
     initial="0",
-    description="爆发力：每天一次可以让这个技能（或宝具这一次）的效果 ×(1 + 0.5 × 个数)，由幸运决定成不成功",
+    description="每天一次让效果 ×(1 + 0.5 × 个数)，由幸运决定成不成功。[[＋]]",
 )
 
 # ======================= 御主 =======================
@@ -250,6 +262,7 @@ COMMAND_SPELLS = preset(
 MASTER = {
     "name": "master",
     "label": "御主",
+    "description": "你的御主：先想好出身和来历，再分配属性点。[[出身]] [[属性点]]",
     "appearance_field": "appearance",
     "fields": [
         field("appearance", "外观", "text", description="角色的外观"),
@@ -259,8 +272,7 @@ MASTER = {
             "出身",
             "text",
             choices=BACKGROUNDS,
-            description="普通人没有魔力、不能用魔术（作为补偿多 2~4 点属性，英灵幸运 +1 级，由 KP 审核）；"
-            "魔术师、人造人、魔术使、代行者各有自己的魔术体系，魔力倍数见规则书",
+            description="决定你会不会魔术、魔力有多少。[[出身]]",
         ),
         field(
             "story",
@@ -308,46 +320,46 @@ MASTER = {
             description="剩下几划令咒",
         ),
         field(
-            "str", "力量", "number", min="-2", max="5", description="运动能力、近战格斗能力、力气"
+            "str", "力量", "number", min="-4", max="6", description="运动能力、近战格斗能力、力气"
         ),
         field(
             "agi",
             "敏捷",
             "number",
-            min="-2",
-            max="5",
+            min="-4",
+            max="6",
             description="身体灵活性、回避攻击的能力、远程射击能力、隐藏技巧、小技巧等",
         ),
         field(
             "con",
             "体质",
             "number",
-            min="-2",
-            max="5",
+            min="-4",
+            max="6",
             description="身体健康程度、直接关系HP和对毒素等的耐受能力",
         ),
         field(
             "int",
             "智力",
             "number",
-            min="-2",
-            max="5",
+            min="-4",
+            max="6",
             description="记忆力、推理分析能力、魔力（符文、魔法道具等有明确技法传承的魔术）",
         ),
         field(
             "per",
             "感知",
             "number",
-            min="-2",
-            max="5",
+            min="-4",
+            max="6",
             description="感官的敏锐度、对幻术的耐受能力、魔力（借助自然地脉或神灵力量的魔术）",
         ),
         field(
             "cha",
             "魅力",
             "number",
-            min="-2",
-            max="5",
+            min="-4",
+            max="6",
             description="影响他人的能力、魔力（血缘性魔术、各种超能力）",
         ),
         field(
@@ -358,7 +370,7 @@ MASTER = {
             max="30",
             required=False,
             initial="1",
-            description="魔力回路的多少：正规魔术师 3~4，人造人 20~30，魔术使 2~3（由 KP 审核）",
+            description="魔力回路的多少，按出身填（不填按 1 算，由 KP 审核）。[[出身]]",
         ),
         field(
             "weapon_db",
@@ -366,14 +378,14 @@ MASTER = {
             "number",
             min="0",
             max="12",
-            description="近战武器的伤害骰面数（1d几），空手是 0；可以参考 COC，但不是越高越好",
+            description="近战武器的伤害骰面数（1d 几），空手填 0。不是越高越好。[[武器]]",
         ),
         field(
             "weapon_mystic",
             "武器是魔术礼装",
             "boolean",
             required=False,
-            description="普通的武器伤不到英灵；魔术礼装、附了魔的武器可以（由 KP 审核）",
+            description="普通的武器伤不到英灵；魔术礼装、附了魔的武器、黑键可以（由 KP 审核）",
         ),
         field("silenced", "沉默", "boolean", "runtime", initial="False", hidden=True),
     ],
@@ -415,7 +427,7 @@ MASTER = {
                 preset(
                     "攻击魔术",
                     "attack_magic",
-                    "红色的闪电射向目标",
+                    "对 100 米内看得见的一个目标，每投入满 5 点魔力打出一颗 1d(4 + 魔术能力) 的魔力伤害；对方可以闪避。",
                     """
                     target = "single"
                     range = 100
@@ -435,7 +447,7 @@ MASTER = {
                 preset(
                     "治疗魔术",
                     "heal_magic",
-                    "绿色的光晕包裹对方",
+                    "恢复 100 米内看得见的一个单位的生命值：每 1 点魔力恢复 2 + 魔术能力 ÷ 2 点。",
                     """
                     target = "single"
                     range = 100
@@ -452,7 +464,7 @@ MASTER = {
                 preset(
                     "防护魔术",
                     "shield_magic",
-                    "半透明的防护罩罩住对方",
+                    "给 100 米内看得见的一个单位加护盾：每 1 点魔力 5 + 魔术能力 ÷ 2 点，持续的分钟数等于投入的魔力。",
                     """
                     target = "single"
                     range = 100
@@ -469,7 +481,7 @@ MASTER = {
                 preset(
                     "警戒结界",
                     "alert_field",
-                    "看不见的结界：任何实体闯入都会通知施术者",
+                    "在脚下布置看不见的结界：投入 X 点魔力，半径 (50 + 魔术能力) × X 米，持续 10 × X 分钟；有人闯入时你会知道。",
                     """
                     target = "none"
                     range = 1
@@ -482,7 +494,7 @@ MASTER = {
                 preset(
                     "补魔魔术",
                     "mp_regen_magic",
-                    "没有视觉效果的魔术，把自己的魔力分给对方（给英灵时 1MP 换 2MP）",
+                    "把自己的魔力分给 10 米内看得见的一个单位：每 1 点魔力，英灵恢复 2 点，其他人恢复 1 点。没有动静。",
                     """
                     target = "single"
                     range = 10
@@ -831,6 +843,7 @@ ATTR_DESC = [
 SERVANT = {
     "name": "servant",
     "label": "英灵",
+    "description": "你的英灵：想好他是谁，按他的事迹定参数，再选职阶。[[英灵的构成]] [[英灵参数]]",
     "appearance_field": "appearance",
     "fields": [
         field("appearance", "外观", "text", description="别人看到的样子（不要写出真名）"),
@@ -881,7 +894,7 @@ SERVANT = {
             "职阶",
             "text",
             choices=CLASSES,
-            description="英灵的职阶。御主看见你就知道；别人要靠你自报，或者从你的打法里猜",
+            description="英灵的职阶。御主看见你就知道；别人要靠你自报，或者从你的打法里猜。[[职阶]]",
         ),
         *[
             field(n, label, "number", choices=RANKS, description=desc)
@@ -1134,7 +1147,7 @@ SERVANT = {
                 preset(
                     "Caster远程魔术",
                     "caster_magic_attack",
-                    "Caster 的魔术攻击：(魔力)d4 的魔力伤害",
+                    "Caster 的魔术攻击：(魔力)d4 的魔力伤害，射程 1000 米。",
                     RANGED.format(check="intelligence"),
                     "target.damage(dice(int, lookup(class_melee, klass)))",
                     when='klass == "Caster"',
@@ -1275,7 +1288,6 @@ SERVANT = {
             ],
             damage_kind="magic",
             placements=True,
-            hidden=True,
         ),
         group(
             "noble_phantasm",
@@ -1498,6 +1510,7 @@ PACK = {
     "tables": TABLES,
     "checks": CHECKS,
     "rules_text": RULES_TEXT,
+    "handbook": Path(__file__).with_name("handbook.md").read_text(encoding="utf-8"),
     "insights": [
         {
             "name": "御主的透视",

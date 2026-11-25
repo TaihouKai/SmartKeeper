@@ -39,13 +39,18 @@
     "effect_hint_fixed": "The formula gives the new value and can use anything a rule formula can; its own name means the value so far. Fixed entries run first, in the order defined; then players' modifiers (by their Order), then statuses.",
     "effect_priority": "Order",
     "effects": "Modifiers (always on)",
+    "engine_rules": "Let the engine run it (optional)",
+    "engine_rules_hint": "Optional: with just the description above, the KP rules on it. If you fill this in, the engine works out range, cost and damage itself.",
     "entry_description": "Description",
     "entry_name": "Name",
     "fixed_entries": "From what you've filled in, you automatically get: {names}",
+    "fixed_entries_head": "You get these automatically:",
     "formula_field": "Dice formula, e.g. 1d6 or 1d str; rolled by the engine when used",
     "name": "Name",
     "param_choices": "Chosen on use: {choices}",
     "param_field": "Say it in your action when used ({min} to {max})",
+    "preview_incomplete": "Fill in the required attributes above and the derived numbers appear here.",
+    "range": "(range {range})",
     "remove_entry": "Remove entry",
     "runtime_column": "Changed by skills during play; leave empty",
     "shape": "Area shape",
@@ -175,6 +180,7 @@
       "closed": "This game is not open to join",
       "name_taken": "Another player in this game already uses the nickname {name}",
       "no_seat": "This browser has not joined this game",
+      "not_listed": "This game is not in the room list",
       "started": "This game has already started"
     },
     "mention": {
@@ -208,6 +214,7 @@
       "unknown_check": "No check named {name}",
       "unknown_field": "No field named {name}",
       "unknown_group": "No group named {name}",
+      "unknown_handbook_section": "The rulebook has no heading “{name}”",
       "unknown_template": "No template named {name}",
       "vital_needs_runtime": "Only runtime values (number or resource) can be vital"
     },
@@ -325,7 +332,7 @@
       "target": "single needs a target / self only / none",
       "visible": "the target must be perceived; a placement must be put within line of sight"
     },
-    "hint": "The engine applies these settings itself. target: single needs one target, self is only on yourself, none has no target. range: metres, unset means unlimited. visible: True means the target must be perceived by the user. requires: a condition that must hold. noise: metres; other players within it sense the use. cast_time / cooldown: minutes. shape: area shape, e.g. sphere(radius=5), cone(length=10, angle=60), capsule(length=20, width=2), box(length=, width=, height=). placement: a trap or ward, e.g. placement(radius=3, perceive=0.5, charges=1, duration=60, notify=True). Values may be formulas using this.column other settings or the script's variables (e.g. noise = range * 2), without loops; None means unset.",
+    "hint": "One “name = value” per line tells the engine how this skill is used. The common ones:\n- target: who it is used on. \"single\" picks one, \"self\" only you, \"none\" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. mp >= 5\n- check: the check to roll, e.g. \"magecraft\"\n- reactions: how the target may respond, e.g. [\"dodge\"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball",
     "title": "Skill settings"
   },
   "demo": {
@@ -531,6 +538,15 @@
     "submitted": "Submitted",
     "waiting": "Waiting",
     "web_search": "Allow the keeper to search the web"
+  },
+  "handbook": {
+    "empty": "This rule pack has no rulebook yet.",
+    "missing": "The rulebook has no section “{title}”",
+    "open": "Open in the rulebook",
+    "ref": "Rulebook: {title}",
+    "scenario": "Scenario",
+    "title": "Rulebook",
+    "toc": "Contents"
   },
   "ide": {
     "close_tab": "Close",
@@ -857,6 +873,7 @@
     "g": {
       "damage_kind": "Damage type",
       "damage_kind_hint": "The type of damage that entries in this group (rule-written or player-written) deal in their scripts. The one hurt applies their template's damage-taken formula, e.g. set magic here and anti-magic applies.",
+      "description": "Description",
       "effects": "Entries may carry modifiers and a skill script",
       "fields": "Header: columns every entry fills besides name and description",
       "fields_hint": "Think of a group as a table: each row is an entry (one skill) and already has Name and Description columns. Add extra columns here, e.g. rank (number), mana cost (number), damage (dice formula). Fixed entries below and players' own entries fill in these columns. Leave empty if you need none.",
@@ -910,6 +927,10 @@
       "title": "Entry table",
       "when": "Condition"
     },
+    "handbook": "Rulebook",
+    "handbook_edit": "Edit",
+    "handbook_hint": "The full rules for players (Markdown: # headings, - lists, | tables |). The site shows it as its own page and the KP reads it too. Write [[heading]] in any description in the pack and the character form expands that section of the rulebook in place.",
+    "handbook_preview": "Preview",
     "help": {
       "appearance": "Appearance: the player describes how the character looks. When others first see the character, its handle (e.g. \"woman in a red scarf\") is generated from this. It can't be removed or retyped.",
       "can_fly": "Can fly: ticked by the player, off by default. Flyers travel in a straight line at fly speed; others go up or down first and then along the ground at move speed. It can't be removed or retyped.",
@@ -980,6 +1001,7 @@
       "formula": "Formula",
       "formulas": "Named formula",
       "groups": "Group",
+      "handbook": "Rulebook",
       "insights": "Seen at a glance",
       "levels": "Result level",
       "placement": "Placement",
@@ -1040,6 +1062,7 @@
       "min": "e.g. 0",
       "param_cooldown": "e.g. 1440 (once a day); empty = none",
       "per_minute": "empty means none, e.g. 1 or con / 2",
+      "ref_hint": "e.g. Decide your background first. [[Backgrounds]]",
       "reveal": "e.g. this.release; empty = always",
       "sample_name": "Example name",
       "search": "e.g. 1d20 + per; empty = can't find hidden ones",
@@ -1076,6 +1099,8 @@
       "appearance": "Appearance field",
       "damage_taken": "Damage taken",
       "damage_taken_hint": "Each time a character of this template takes skill damage, the engine uses this to work out how much (never below 0). amount is the raw damage, kind its type (from the skill's group, or damage(amount, \"type\")). Resistances written here apply to every attack.",
+      "description": "Character-making notes",
+      "description_hint": "Shown at the top of this part of the character form; write [[heading]] to cite a rulebook section",
       "label": "Shown to players as",
       "name": "Template ID",
       "on_death": "On death",
@@ -1128,7 +1153,7 @@
     "world": "World"
   },
   "script": {
-    "hint": "When the skill is used and the keeper rules it took effect (hit), the engine runs it line by line; otherwise only the cost is paid. self is the user, target is whoever it's used on (the player chooses, may be themselves); with no target only the self lines run. Actions: damage(amount) – shield first, then hp; add(field, amount[, minutes]) – with minutes it's timed and the rest is taken back when it ends; sub(field, amount); set(field, amount); modify(derived, new-value formula, minutes) – a timed modifier: the derived value's own name is the bearer's value, other names are the user's at the time of use. Amounts are formulas and may roll dice; this.column is this entry's column (dice-formula columns roll), self.x and bare names are the user's, target.x the target's, target.template the target's template name. Branches: the indented lines under if condition: run only when it holds; elif condition: and else: may follow. Conditions are worked out when the use is declared and can't roll dice; with no target, a block whose condition asks about target is skipped. Tab indents; Enter keeps the indent. # starts a comment.",
+    "hint": "When the skill takes effect the engine runs it line by line. self is you, target is whoever it is used on, this.level reads this entry's columns. Common lines:\n- target.damage(2d6): the target takes 2d6 damage (shield first, then hp)\n- target.add(hp, 10): the target heals 10\n- self.sub(mp, 5): you spend 5 mana\n- target.add(shield, 10, 30): the target gets a 10-point shield for 30 minutes\n- self.modify(str, str + 1, 10): +1 strength for 10 minutes\n- if condition:: the indented lines below run only when it holds",
     "line": "line {n}",
     "ph": "e.g.\ntarget.damage(this.damage)\nself.add(hp, 5)",
     "title": "Skill script (on use)"

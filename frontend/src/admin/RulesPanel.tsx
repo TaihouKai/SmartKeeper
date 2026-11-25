@@ -10,7 +10,7 @@ import { Ide } from "./rules/ide/Ide";
 import { blankGroup, blankPack, blankTemplate, describePath, docFor, getAt, openPath, renameTemplate, selForPath, selKey, setAt, withEngineDefaults, type Pack, type Sel } from "./rules/model";
 import { fillCheck, fillConfig } from "../ui/skillConfig";
 import { Outline } from "./rules/Outline";
-import { ChecksSection, DerivedSection, FieldsSection, FormulasSection, GroupSection, InsightsSection, PlayersSection, SamplesSection, TablesSection, TextSection, WorldSection } from "./rules/sections";
+import { ChecksSection, DerivedSection, FieldsSection, FormulasSection, GroupSection, HandbookSection, InsightsSection, PlayersSection, SamplesSection, TablesSection, TextSection, WorldSection } from "./rules/sections";
 import "./rules/workbench.css";
 
 
@@ -297,6 +297,7 @@ export function RulesPanel() {
     if (s.k === "tables") return <TablesSection pack={pack} onChange={setPack} />;
     if (s.k === "checks") return <ChecksSection pack={pack} onChange={setPack} />;
     if (s.k === "text") return <TextSection pack={pack} onChange={setPack} />;
+    if (s.k === "handbook") return <HandbookSection pack={pack} onChange={setPack} />;
     if (s.k === "insights") return <InsightsSection pack={pack} onChange={setPack} validate={validate} />;
     return <SamplesSection pack={pack} onChange={setPack} />;
   })();
