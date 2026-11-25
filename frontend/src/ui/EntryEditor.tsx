@@ -204,7 +204,7 @@ export function EntryEditor({
           <FieldInput def={f} value={entry.fields[f.name]} validateFormula={vDice} onChange={(val) => onChange({ ...entry, fields: { ...entry.fields, [f.name]: val } })} />
         </label>
       ))}
-      {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} onChange={(effects) => onChange({ ...entry, effects })} />}
+      {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} title={simple ? t("character.effects_simple") : undefined} onChange={(effects) => onChange({ ...entry, effects })} />}
       <DefaultParams params={defaults} />
       {group.effects !== false && item && (
         <>
@@ -220,14 +220,16 @@ export function EntryEditor({
       {group.effects !== false &&
         !item &&
         (simple ? (
-          <details className="sk-engine" open={Boolean((entry.config ?? "").trim() || (entry.script ?? "").trim() || (entry.params ?? []).length)}>
-            <summary>{t("character.engine_rules")}</summary>
+          <>
             <p className="sk-hint">{t("character.engine_rules_hint")}</p>
-            {idField}
-            <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />
-            <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />
-            {params}
-          </details>
+            <details className="sk-engine" open={Boolean((entry.config ?? "").trim() || (entry.script ?? "").trim() || (entry.params ?? []).length)}>
+              <summary>{t((entry.config ?? "").trim() || (entry.script ?? "").trim() || (entry.params ?? []).length ? "character.action_rules_filled" : "character.action_rules")}</summary>
+              <ConfigEditor title={t("character.config_simple")} config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />
+              <ScriptEditor title={t("character.script_simple")} script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />
+              {params}
+              {idField}
+            </details>
+          </>
         ) : (
           <>
             <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />
@@ -403,12 +405,12 @@ export function EffectsEditor({
 }
 
 /** 技能设置：一串 名字 = 值（对象、射程、施放时间、冷却、范围形状……），引擎按它执行。 */
-export function ConfigEditor({ config, validate, onChange }: { config: string; validate: Check; onChange: (s: string) => void }) {
+export function ConfigEditor({ config, validate, onChange, title }: { config: string; validate: Check; onChange: (s: string) => void; title?: string }) {
   const { t } = useI18n();
   const [problems, setProblems] = useState<string[]>([]);
   return (
     <div className="sk-effects sk-script">
-      <strong>{t("config.title")}</strong>
+      <strong>{title ?? t("config.title")}</strong>
       <CodeEditor className="sk-code-inline" value={config} check={validate} minLines={3} onChange={onChange} onProblems={setProblems} />
       {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
       <Hint text={t("config.hint")} />
@@ -417,12 +419,12 @@ export function ConfigEditor({ config, validate, onChange }: { config: string; v
 }
 
 /** 技能脚本：用这个条目（并且 KP 判定生效）时引擎执行的语句，一行一句。 */
-export function ScriptEditor({ script, validate, onChange }: { script: string; validate: Check; onChange: (s: string) => void }) {
+export function ScriptEditor({ script, validate, onChange, title }: { script: string; validate: Check; onChange: (s: string) => void; title?: string }) {
   const { t } = useI18n();
   const [problems, setProblems] = useState<string[]>([]);
   return (
     <div className="sk-effects sk-script">
-      <strong>{t("script.title")}</strong>
+      <strong>{title ?? t("script.title")}</strong>
       <CodeEditor className="sk-code-inline" value={script} check={validate} placeholder={t("script.ph")} minLines={4} onChange={onChange} onProblems={setProblems} />
       {problems.length > 0 && <small className="sk-invalid">{problems.join("; ")}</small>}
       <Hint text={t("script.hint")} />

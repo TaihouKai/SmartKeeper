@@ -122,9 +122,40 @@ export function SheetEditor({ template, value, onChange, params = [], checks = [
               />
             ))}
             {canAdd && (
-              <button type="button" onClick={() => setEntries([...entries, { name: "", id: "", description: "", fields: {}, effects: [] }])}>
-                {t("character.add_entry")}
-              </button>
+              <div className="sk-row">
+                <button type="button" onClick={() => setEntries([...entries, { name: "", id: "", description: "", fields: {}, effects: [] }])}>
+                  {t("character.add_entry")}
+                </button>
+                {(g.presets ?? []).length > 0 && (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const p = (g.presets ?? [])[Number(e.target.value)];
+                      if (!p) return;
+                      // 照着规则包写好的一条：抄它的说明、列、修正、设置、脚本、参数，名字自己起
+                      const copy: Entry = {
+                        name: "",
+                        id: "",
+                        description: p.description ?? "",
+                        fields: { ...(p.fields ?? {}) } as Entry["fields"],
+                        effects: (p.effects ?? []).map((x) => ({ description: x.description ?? "", target: x.target ?? null, formula: x.formula ?? null, priority: null })),
+                        config: p.config ?? "",
+                        script: p.script ?? "",
+                        params: p.params ?? [],
+                        uses: (p.uses ?? []) as unknown as Entry["uses"],
+                      };
+                      setEntries([...entries, copy]);
+                    }}
+                  >
+                    <option value="">{t("character.copy_preset")}</option>
+                    {(g.presets ?? []).map((p, k) => (
+                      <option key={k} value={String(k)}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             )}
           </fieldset>
         );

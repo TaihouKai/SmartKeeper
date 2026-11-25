@@ -255,9 +255,30 @@ T: dict[str, tuple[str, str]] = {
         "Let the engine run it (filled in; open to see)",
     ),
     "character.engine_rules_hint": (
-        "不会写也没关系：只写上面的说明，KP 会按说明裁定。写了的话，射程、消耗、伤害这些由引擎自动算。",
-        "Optional: with just the description above, the KP rules on it. If you fill this in, the engine works out range, cost and damage itself.",
+        "只写描述也可以，KP 会按描述裁定。想让引擎自动算射程、耗魔、伤害，或者加自己的参数，点开下面这一栏；也可以用“照着预设的写一条”复制一个改。",
+        "A description alone is enough: the KP rules on it. To let the engine work out range, mana cost and damage, or to add your own parameters, open the section below; or copy a preset with “copy a preset”.",
     ),
+    "character.action_rules": (
+        "用的时候的效果：对象、射程、耗魔、伤害、参数……（可选，点开写）",
+        "What it does when used: target, range, cost, damage, parameters… (optional; open to write)",
+    ),
+    "character.action_rules_filled": (
+        "用的时候的效果（已写好，点开看或改）",
+        "What it does when used (filled in; open to see or change)",
+    ),
+    "character.config_simple": (
+        "怎么用（对象、射程、冷却、检定……）",
+        "How it is used (target, range, cooldown, check…)",
+    ),
+    "character.script_simple": (
+        "生效时发生什么（伤害、治疗、扣魔力……）",
+        "What happens when it works (damage, healing, mana…)",
+    ),
+    "character.effects_simple": (
+        "常驻加成（一直生效，例如力量 +1；没有就不用加）",
+        "Always-on bonuses (e.g. strength +1; skip if none)",
+    ),
+    "character.copy_preset": ("照着预设的写一条…", "Copy a preset…"),
     "codes.pack.unknown_handbook_section": (
         "规则书里没有“{name}”这个标题",
         "The rulebook has no heading “{name}”",
