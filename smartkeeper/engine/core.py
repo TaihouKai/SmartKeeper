@@ -39,6 +39,7 @@ from smartkeeper.contracts import (
     HandleStore,
     IdentityRules,
     IllegalState,
+    IntelFact,
     Intent,
     Location,
     MapChange,
@@ -91,7 +92,7 @@ from smartkeeper.contracts import (
 )
 from smartkeeper.engine import adjudication as adjv
 from smartkeeper.engine import entries as entry_refs
-from smartkeeper.engine import scenario
+from smartkeeper.engine import intel, scenario
 from smartkeeper.engine.applier import StepApplier
 from smartkeeper.engine.duel import Duel, Side, Strike
 from smartkeeper.engine.duel import Result as DuelResult
@@ -585,6 +586,7 @@ class Engine:
             )
             self._repo.update_game(game_id, status="running", current_round=1)
             self._detect(game_id, 1)
+            self._insights(game_id, 1)
             self.refresh_handles(game_id)
             return self.round(game_id)
 
@@ -1578,6 +1580,10 @@ class Engine:
                 for pf in (gdef.fields if gdef else ())
                 if pf.kind == "param" and pf.name in fields
             }
+            # 察觉到的人知不知道用的是什么：规则包在分组上定（玩家写条目时改不了）
+            revealed = (
+                roll(gdef.reveal).total != 0 if gdef is not None and gdef.reveal.strip() else True
+            )
             rolls: tuple[tuple[str, DiceResult], ...] | None = None
             first: Event | None = None
             for victim in victims:
@@ -1647,7 +1653,7 @@ class Engine:
                         "cooldown": 0 if extra else cooldown,
                         "heard_by": [] if extra else cast(JsonValue, heard),
                         # 察觉到动静的人知不知道用的是什么
-                        "reveal": roll(cfg.reveal).total != 0 if cfg.reveal.strip() else True,
+                        "reveal": revealed,
                         # 命中由引擎定，裁定里的 hit 不用；None 表示在等对象应对
                         "hit": hit,
                         "check": checked,
@@ -1675,7 +1681,7 @@ class Engine:
                                 visibility=Visibility.to(waiting),
                                 payload={
                                     "use_seq": used.seq,
-                                    "entry": str(parsed.name),
+                                    "entry": str(parsed.name) if revealed else "",
                                     "defender": victim,
                                     "who": self._appearance(state, pack, source) if seen else None,
                                 },
@@ -2032,7 +2038,8 @@ class Engine:
             out.append(
                 ReactionPrompt(
                     seq=ev.seq,
-                    entry=str(p.get("entry")),
+                    # 不暴露名字的技能：被攻击的人也只知道挨了一下
+                    entry=str(p.get("entry")) if p.get("reveal") is not False else "",
                     defender=defender,
                     who=w if isinstance(w, str) else None,
                     checks=tuple(checks),
@@ -2791,6 +2798,18 @@ class Engine:
                     )
         before = self._space_for(m, cur, pack)
         start_space = self._space_for(m, state, pack)
+        problems += adjv.check_intel(
+            adj,
+            players=set(players),
+            entities=entities,
+            controls=controls,
+            met=lambda pid, eid: (
+                self._handles.get(pid, eid) is not None
+                or eid in start_space.player_perceived(pid)
+                or eid in before.player_perceived(pid)
+            ),
+            fields_of=lambda eid: self._field_names(pack, state, eid),
+        )
         mv_ops: list[PatchOp] = []
         kp_moved = {mv.entity for mv in adj.movements}
         # 技能脚本瞬间移动过的角色停在移动到的地方，不再按进行中的行动推
@@ -3266,12 +3285,15 @@ class Engine:
         self, game_id: str, round_no: int, adj: Adjudication, seconds: int
     ) -> list[NewEvent]:
         """技能的动静：裁定里用了的技能，给动静范围内的其他玩家发一条“察觉到有人用了某个技能”。
-        看得见使用者的玩家还知道是谁（外貌）。生效没生效都有动静。"""
+        看得见使用者的玩家还知道是谁（外貌）。生效没生效都有动静。
+
+        分组定了暴露条件、这次又暴露了的（例如喊出了招式的名字），看得见使用者的玩家把它记进情报：
+        他有这么个东西，以及分组的 reveal_fields（例如真名）。"""
         used = {e.seq: e for e in self.current_attempt(game_id, round_no) if e.type == "entry_used"}
         out: list[NewEvent] = []
         space = self._space(game_id)
-        # (使用者, 技能（不暴露名字时 None）, 察觉到的玩家)
-        noisy: list[tuple[str, str | None, list[str]]] = []
+        # (使用者, 技能（不暴露名字时 None）, 察觉到的玩家, 分组, 条目本身的名字)
+        noisy: list[tuple[str, str | None, list[str], str, str]] = []
         for u in adj.uses:
             ev = used.get(u.seq)
             heard = [str(x) for x in _list(ev.payload.get("heard_by"))] if ev else []
@@ -3279,34 +3301,34 @@ class Engine:
                 name = (
                     str(ev.payload.get("entry")) if ev.payload.get("reveal") is not False else None
                 )
-                noisy.append((str(ev.payload.get("source")), name, heard))
+                base = str(ev.payload.get("owner_entry") or ev.payload.get("entry"))
+                noisy.append(
+                    (str(ev.payload.get("source")), name, heard, str(ev.payload.get("group")), base)
+                )
         for pin in adj.placements:
             # 设置物：设置者那里的动静，按设置者的卡和这次填的数算半径
             row = self._entry_row(space, pin.owner, pin.entry)
-            if row is None:
+            hit = entry_refs.find(space.full_sheet(pin.owner), pin.entry)
+            if row is None or hit is None:
                 continue
             template, sheet, fields, peers, cfg = row
             if not cfg.noise.strip():
                 continue
+            given = {**fields, **pin.params}
             try:
                 radius = self._rules.roll(
-                    space.pack,
-                    cfg.noise,
-                    self._dice.faces,
-                    template,
-                    sheet,
-                    {**fields, **pin.params},
-                    peers,
+                    space.pack, cfg.noise, self._dice.faces, template, sheet, given, peers
                 ).total
             except ValidationFailed:
                 continue
             heard = self._heard(space, pin.owner, radius)
+            gdef = self._group(space.pack, template, hit.group)
             shown: str | None = pin.entry
-            if cfg.reveal.strip():
+            if gdef is not None and gdef.reveal.strip():
                 try:
                     if (
                         self._rules.roll(
-                            space.pack, cfg.reveal, self._dice.faces, template, sheet, fields, peers
+                            space.pack, gdef.reveal, self._dice.faces, template, sheet, given, peers
                         ).total
                         == 0
                     ):
@@ -3314,8 +3336,9 @@ class Engine:
                 except ValidationFailed:
                     pass
             if heard:
-                noisy.append((pin.owner, shown, heard))
-        for src, entry, heard in noisy:
+                noisy.append((pin.owner, shown, heard, hit.group, hit.owner or pin.entry))
+        have = self._known_intel(game_id)
+        for src, entry, heard, group, base in noisy:
             for pid in heard:
                 seen = src in space.player_perceived(pid)
                 out.append(
@@ -3331,6 +3354,18 @@ class Engine:
                         },
                     )
                 )
+                if entry is None or not seen or src in space.controls.get(pid, []):
+                    continue
+                tpl = str(_obj(space.entities.get(src)).get("template", ""))
+                gdef = self._group(space.pack, tpl, group)
+                if gdef is None or not gdef.reveal.strip():
+                    continue  # 规则包没给这个分组定暴露条件：名字不算情报（例如普通的近战攻击）
+                facts = [intel.entry_fact(base, seconds)]
+                facts += intel.facts_about(space, src, gdef.reveal_fields, (), "use", seconds)
+                new = intel.fresh(have.get((pid, src), []), facts)
+                if new:
+                    have[(pid, src)] = [*have.get((pid, src), []), *new]
+                    out.append(intel.event(pid, src, new, round_no, seconds, ENGINE))
         return out
 
     def publish_round(self, game_id: str) -> Round:
@@ -3381,6 +3416,8 @@ class Engine:
                     )
                 )
             evs += self._noticed_events(game_id, r.no, adj, seconds)
+            space = self._space_for(self._map(game_id), final, self.rulepack(game_id))
+            evs += self._kp_intel_events(game_id, adj, space, r.no, seconds)
             if isinstance(bc, str):
                 evs.append(
                     NewEvent(
@@ -3420,6 +3457,7 @@ class Engine:
                 )
                 self._repo.update_game(game_id, current_round=r.no + 1)
                 self._detect(game_id, r.no + 1)
+                self._insights(game_id, r.no + 1)
             adj_seq = written[0].seq
             self._memory.add(self._memory_entries(game_id, r.no, adj, adj_seq))
             self.refresh_handles(game_id)
@@ -3501,6 +3539,108 @@ class Engine:
 
     def map_data(self, game_id: str) -> MapData:
         return self._map(game_id)
+
+    # ================= 情报 =================
+
+    @staticmethod
+    def _field_names(pack: RulePack, state: State, entity: str) -> set[str]:
+        tpl = pack.template(str(_obj(_obj(state.get("entities")).get(entity)).get("template", "")))
+        return {x.name for x in tpl.fields} | {d.name for d in tpl.derived} if tpl else set()
+
+    @staticmethod
+    def _group(pack: RulePack, template: str, group: str) -> GroupDef | None:
+        tpl = pack.template(template)
+        return next((g for g in tpl.groups if g.name == group), None) if tpl else None
+
+    def _known_intel(self, game_id: str) -> intel.Known:
+        return intel.known(self._events.view_for(game_id, KP, types=["intel_gained"]))
+
+    def _insights(self, game_id: str, round_no: int) -> None:
+        """规则包的“看见就知道”：一轮开始时按此刻的感知算，玩家还不知道（或者值变了）的记进日志。"""
+        pack = self.rulepack(game_id)
+        if not pack.insights:
+            return
+        state = self._state(game_id)
+        space = self._space_for(self._map(game_id), state, pack)
+        seconds = int(cast(int, state.get("game_seconds", 0)))
+        have = self._known_intel(game_id)
+        evs: list[NewEvent] = []
+        found = intel.sight(space, self._dice.faces, seconds, lambda e: self._dead(state, e))
+        for (pid, about), facts in sorted(found.items()):
+            new = intel.fresh(have.get((pid, about), []), facts)
+            if new:
+                evs.append(intel.event(pid, about, new, round_no, seconds, ENGINE))
+        if evs:
+            self._events.append(game_id, round_no, evs)
+
+    def _intel_labels(self, player_id: str, state: State) -> dict[str, str]:
+        out = {h.entity_id: f"@{h.label}" for h in self._handles.list(player_id)}
+        for e in _list(_obj(state.get("controls")).get(player_id)):
+            out[str(e)] = self._entity_name(state, str(e))
+        return out
+
+    def _unknown_word(self, game_id: str) -> str:
+        return "某人" if self.game(game_id).settings.kp_language == "zh" else "someone"
+
+    def player_intel(self, game_id: str, player_id: str) -> dict[str, tuple[IntelFact, ...]]:
+        """这个玩家知道的关于别人的事：实体 id -> 情报（线索里提到的实体换成他的叫法）。"""
+        evs = self._events.view_for(game_id, player_id, types=["intel_gained"])
+        labels = self._intel_labels(player_id, self._state(game_id))
+        unknown = self._unknown_word(game_id)
+        out: dict[str, tuple[IntelFact, ...]] = {}
+        for (pid, about), facts in intel.known(evs).items():
+            if pid != player_id:
+                continue
+            out[about] = tuple(
+                f.model_copy(update={"text": intel.fill(f.text, labels, unknown)}) if f.text else f
+                for f in facts
+            )
+        return out
+
+    def intel_event_view(
+        self, game_id: str, player_id: str, payload: dict[str, JsonValue]
+    ) -> dict[str, JsonValue]:
+        """intel_gained 事件给玩家看的样子：实体 id 换成他的代号引用和叫法，线索里的实体换成他的叫法。"""
+        about = str(payload.get("about"))
+        h = self._handles.get(player_id, about)
+        labels = self._intel_labels(player_id, self._state(game_id))
+        unknown = self._unknown_word(game_id)
+        facts: list[JsonValue] = []
+        raw = payload.get("facts")
+        for x in raw if isinstance(raw, list) else []:
+            f = IntelFact.model_validate(x)
+            if f.text:
+                f = f.model_copy(update={"text": intel.fill(f.text, labels, unknown)})
+            facts.append(f.model_dump(mode="json"))
+        return {
+            "ref": h.ref if h else None,
+            "label": h.label if h else unknown,
+            "facts": facts,
+            "game_seconds": payload.get("game_seconds"),
+        }
+
+    def known_intel_all(self, game_id: str) -> dict[str, dict[str, list[JsonValue]]]:
+        """给 KP：每个玩家已经知道的关于别人的事（实体 id），免得重复透露、也好循序渐进。"""
+        out: dict[str, dict[str, list[JsonValue]]] = {}
+        for (pid, about), facts in self._known_intel(game_id).items():
+            out.setdefault(pid, {})[about] = intel.dump(facts)
+        return out
+
+    def _kp_intel_events(
+        self, game_id: str, adj: Adjudication, space: Space, round_no: int, seconds: int
+    ) -> list[NewEvent]:
+        out: list[NewEvent] = []
+        have = self._known_intel(game_id)
+        for x in adj.intel:
+            facts: list[IntelFact] = []
+            if x.text.strip():
+                facts.append(intel.note(x.text.strip(), seconds))
+            facts += intel.facts_about(space, x.about, x.fields, (), "kp", seconds)
+            new = intel.fresh(have.get((x.player, x.about), []), facts)
+            if new:
+                have[(x.player, x.about)] = [*have.get((x.player, x.about), []), *new]
+                out.append(intel.event(x.player, x.about, new, round_no, seconds, KP))
+        return out
 
     def _map(self, game_id: str) -> MapData:
         g = self.game(game_id)
@@ -3715,8 +3855,9 @@ class Engine:
             for c in space.changes
             if c.public or player_id in c.known_by
         )
+        known = self.player_intel(game_id, player_id)
         seen = tuple(
-            SeenEntry(ref=h.ref, label=h.label, note=h.note)
+            SeenEntry(ref=h.ref, label=h.label, note=h.note, intel=known.get(h.entity_id, ()))
             for h in sorted(self._handles.list(player_id), key=lambda x: (x.label, x.ref))
             if h.entity_id not in mine
         )
@@ -3728,6 +3869,7 @@ class Engine:
         state = space.state
         pack = space.pack
         mine = space.controls.get(player_id, [])
+        known = self.player_intel(game_id, player_id)
         own: list[JsonValue] = []
         for e in mine:
             ent = _obj(space.entities.get(e))
@@ -3743,6 +3885,7 @@ class Engine:
                     {
                         "handle": h.label,
                         "appearance": self._appearance(state, pack, other),
+                        "known": [x.model_dump(mode="json") for x in known.get(other, ())],
                         "distance_m": round(self._spatial.distance(space.bodies[e].pos, b.pos), 1),
                         "inside": b.inside,
                     }

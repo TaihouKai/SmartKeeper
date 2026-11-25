@@ -499,7 +499,9 @@
                 "config": "",
                 "script": ""
               }
-            ]
+            ],
+            "reveal": "",
+            "reveal_fields": []
           },
           {
             "name": "master_action",
@@ -598,7 +600,9 @@
             "reactions": false,
             "damage_kind": "mundane",
             "hidden": false,
-            "use_templates": []
+            "use_templates": [],
+            "reveal": "",
+            "reveal_fields": []
           },
           {
             "name": "defense",
@@ -639,7 +643,9 @@
             "reactions": true,
             "damage_kind": "",
             "hidden": false,
-            "use_templates": []
+            "use_templates": [],
+            "reveal": "",
+            "reveal_fields": []
           }
         ],
         "derived": [
@@ -753,7 +759,26 @@
           {
             "name": "true_name",
             "label": "真名",
-            "description": "英灵的真名：别人只知道你的职阶，真名暴露了，弱点和传说也就跟着暴露了",
+            "description": "英灵的真名：别人不知道，真名暴露了，弱点和传说也就跟着暴露了。解放宝具的真名时，看见的人会知道",
+            "kind": "text",
+            "cls": "player",
+            "unit": null,
+            "min": null,
+            "max": null,
+            "initial": null,
+            "choices": [],
+            "required": true,
+            "hidden": false,
+            "spends": null,
+            "per_minute": null,
+            "vital": false,
+            "check": null,
+            "cooldown": null
+          },
+          {
+            "name": "legend",
+            "label": "简介",
+            "description": "你是谁：出自哪个传说或历史、生平、关键事件、标志性的武器和战法、弱点。只有你和 KP 看得到；KP 据此判断别人能从你的样子和战斗方式里认出什么",
             "kind": "text",
             "cls": "player",
             "unit": null,
@@ -848,7 +873,7 @@
           {
             "name": "klass",
             "label": "职阶",
-            "description": "英灵的职阶，别人只知道这个",
+            "description": "英灵的职阶。御主看见你就知道；别人要靠你自报，或者从你的打法里猜",
             "kind": "text",
             "cls": "player",
             "unit": null,
@@ -1368,7 +1393,9 @@
             "reactions": false,
             "damage_kind": "",
             "hidden": true,
-            "use_templates": []
+            "use_templates": [],
+            "reveal": "",
+            "reveal_fields": []
           },
           {
             "name": "klass_skill",
@@ -1633,7 +1660,9 @@
                 "config": "",
                 "script": ""
               }
-            ]
+            ],
+            "reveal": "False",
+            "reveal_fields": []
           },
           {
             "name": "personal_skill",
@@ -1715,7 +1744,9 @@
                 "config": "",
                 "script": ""
               }
-            ]
+            ],
+            "reveal": "False",
+            "reveal_fields": []
           },
           {
             "name": "servant_magic",
@@ -1875,7 +1906,9 @@
             "reactions": false,
             "damage_kind": "magic",
             "hidden": true,
-            "use_templates": []
+            "use_templates": [],
+            "reveal": "",
+            "reveal_fields": []
           },
           {
             "name": "noble_phantasm",
@@ -2039,31 +2072,31 @@
               {
                 "name": "当作武器",
                 "description": "不解放真名，只把宝具当成手里的武器：和英灵的近战攻击一样算，对方可以反击或闪避，不暴露宝具的名字。",
-                "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）\n\nreveal = False",
+                "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
                 "script": "half = opposed and level == opp_level\ntarget.damage(dice(agi if klass == \"Assassin\" else str, lookup(class_melee, klass)) * (1 + 0.5 * this.plus * this.use_plus) / (2 if half else 1))"
               },
               {
                 "name": "真名解放·对人",
                 "description": "解放真名，对一个人的必杀一击。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nreveal = this.release\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))",
+                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\nboost = 1 + 0.5 * this.plus * this.use_plus\nself.sub(mp, cost)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)) * boost)"
               },
               {
                 "name": "真名解放·对军",
                 "description": "解放真名，扫过一条 200 米长、20 米宽的范围，范围里的每个人各自闪避。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nreveal = this.release\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=200, width=20)",
+                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=200, width=20)",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\nboost = 1 + 0.5 * this.plus * this.use_plus\nself.sub(mp, cost)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)) * boost)"
               },
               {
                 "name": "真名解放·对城",
                 "description": "解放真名，扫过一条 1 公里长、80 米宽的范围。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nreveal = this.release\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=1000, width=80)",
+                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=1000, width=80)",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\nboost = 1 + 0.5 * this.plus * this.use_plus\nself.sub(mp, cost)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)) * boost)"
               },
               {
                 "name": "真名解放·对界",
                 "description": "解放真名，以瞄准的地方为中心、半径 500 米的一切。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nreveal = this.release\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = sphere(radius=500)",
+                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = sphere(radius=500)",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\nboost = 1 + 0.5 * this.plus * this.use_plus\nself.sub(mp, cost)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)) * boost)"
               },
               {
@@ -2075,13 +2108,13 @@
               {
                 "name": "召唤",
                 "description": "解放真名，召唤宝具里的坐骑或军势：由你控制，存在 1 小时。要改数量、强弱就改脚本里的 rank 和 size。",
-                "config": "target = \"none\"\nnoise = 300\nreveal = this.release\nrequires = this.release and mp >= cost",
+                "config": "target = \"none\"\nnoise = 300\nrequires = this.release and mp >= cost",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\nself.sub(mp, cost)\nself.summon(squad, 1, 60, appearance=\"宝具召唤出的军势\", can_fly=False, rank=this.level, size=10)"
               },
               {
                 "name": "结界",
                 "description": "解放真名，展开一个结界（例如固有结界、吸取生命的血之神殿）：半径随宝具等级，持续 10 分钟，有人进出你会知道。结界里发生什么写在说明里，由 KP 裁定。",
-                "config": "target = \"none\"\nnoise = 200\nreveal = this.release\nrequires = this.release and mp >= cost\nplacement = placement(radius=50 * this.level, perceive=1, duration=10, notify=True)",
+                "config": "target = \"none\"\nnoise = 200\nrequires = this.release and mp >= cost\nplacement = placement(radius=50 * this.level, perceive=1, duration=10, notify=True)",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\nself.sub(mp, cost)"
               },
               {
@@ -2090,6 +2123,10 @@
                 "config": "",
                 "script": ""
               }
+            ],
+            "reveal": "this.release",
+            "reveal_fields": [
+              "true_name"
             ]
           },
           {
@@ -2131,7 +2168,9 @@
             "reactions": true,
             "damage_kind": "",
             "hidden": false,
-            "use_templates": []
+            "use_templates": [],
+            "reveal": "",
+            "reveal_fields": []
           }
         ],
         "derived": [
@@ -2322,7 +2361,9 @@
             "reactions": true,
             "damage_kind": "",
             "hidden": false,
-            "use_templates": []
+            "use_templates": [],
+            "reveal": "",
+            "reveal_fields": []
           }
         ],
         "derived": [
@@ -2544,7 +2585,9 @@
             "reactions": false,
             "damage_kind": "",
             "hidden": true,
-            "use_templates": []
+            "use_templates": [],
+            "reveal": "",
+            "reveal_fields": []
           },
           {
             "name": "defense",
@@ -2585,7 +2628,9 @@
             "reactions": true,
             "damage_kind": "",
             "hidden": false,
-            "use_templates": []
+            "use_templates": [],
+            "reveal": "",
+            "reveal_fields": []
           }
         ],
         "derived": [
@@ -3094,7 +3139,7 @@
         "config": "label = \"幸运豁免\"\ndice = 1d20 + (lookup(save_mod, luk) if self.template == \"servant\" else 0)\nlevel = max(\n    0 if (roll - difficulty - (5 if opponent.template == \"familiar\" else 0)) <= 10 else 1 if (roll - difficulty - (5 if opponent.template == \"familiar\" else 0)) <= 15 else 2 if (roll - difficulty - (5 if opponent.template == \"familiar\" else 0)) <= 20 else 3,\n    2 if (self.template == \"servant\" or self.template == \"squad\") and opponent.template == \"master\" else 0,\n)\nlevels = [\"失败\", \"成功\", \"困难成功\", \"极难成功\"]"
       }
     ],
-    "rules_text": "引擎已经执行的规则（检定、对抗、伤害、神秘、魔力、隐匿、令咒、召唤、阵地、死亡）不用 KP 再算。下面这些由 KP 按型月的设定处理：\n\n1. 真名：英灵对外只以职阶相称。宝具平时当武器用不会暴露名字；解放真名时附近的人会听到宝具的名字（引擎通知），\n   知道宝具名字的人可以推出英灵的真名、传说和弱点。御主看到别的英灵时，看得到它的职阶和六项参数，看不到真名、技能和宝具。\n2. 神秘的隐匿：魔术和英灵的存在要对普通人保密；在普通人面前大打出手、留下痕迹会招来监督者和其他御主的注意。\n3. 通讯：御主和英灵之间可以用念话交流，不受距离限制。任何一方进入战斗，另一方没有别的观测手段时，视作双方共感、同时进入战斗状态。战斗中不准和队友交流。\n4. 令咒的“绝对命令”：命令越具体越有效（“立刻撤退”比“永远服从我”强）；也可以让英灵做到平时做不到的一件事（例如瞬间跨越很远的距离、在必死的一击下活下来）。\n   令咒用完以后，英灵不必再服从御主；英灵可能因此背叛。\n5. 宝具和保有技能：玩家可以自己设计，须经过 KP 审核。用法里写成“任意规则”的（只有说明、没有设置和脚本），由 KP 按说明裁定效果；\n   宝具特效需要对抗魔力或幸运时，技能设置写 save = \"magic_save\" 或 \"luck_save\"，difficulty 写 10 + 宝具等级。其他特效依照 Fate 原作的宝具效果比对。\n6. 结界宝具（例如固有结界）：结界里发生什么按宝具的说明裁定；引擎负责范围、持续时间和进出的通知。\n7. 狂化：等级越高越难沟通，C 以上几乎不能说话；狂化的英灵用技能和宝具时，复杂的用法由 KP 判断能不能做到。\n8. 暗示、强化、瞬间移动、道具作成等写成“任意规则”的魔术，叙事效果由 KP 裁定；写在设置和脚本里的消耗照常扣。",
+    "rules_text": "引擎已经执行的规则（检定、对抗、伤害、神秘、魔力、隐匿、令咒、召唤、阵地、死亡）不用 KP 再算。下面这些由 KP 按型月的设定处理：\n\n1. 情报：陌生人的名字、身份、职阶、能力都要从蛛丝马迹里拼出来，玩家左右不了。引擎自动处理两件事：\n   御主看见英灵时得知它的职阶和六项参数（“看见就知道”的“御主的透视”）；宝具解放真名时，看得见的人得知宝具的名字和英灵的真名。\n   其余的由 KP 在裁定的 intel 里给线索：武器的样子、战斗风格、口音和言行、技能和宝具的效果，都可能让人联想到某个传说（英灵的“简介”写了它是谁）。\n   观察者的学识决定他能认出多少：魔术师、代行者、英灵认得出的东西，普通人未必。一次只多给一点，别人已经知道的不重复；\n   对方亲口承认、被查到铁证时，才直接给出 true_name 这类字段。英灵通常对外自称职阶，但不是非报不可。\n2. 神秘的隐匿：魔术和英灵的存在要对普通人保密；在普通人面前大打出手、留下痕迹会招来监督者和其他御主的注意。\n3. 通讯：御主和英灵之间可以用念话交流，不受距离限制。任何一方进入战斗，另一方没有别的观测手段时，视作双方共感、同时进入战斗状态。战斗中不准和队友交流。\n4. 令咒的“绝对命令”：命令越具体越有效（“立刻撤退”比“永远服从我”强）；也可以让英灵做到平时做不到的一件事（例如瞬间跨越很远的距离、在必死的一击下活下来）。\n   令咒用完以后，英灵不必再服从御主；英灵可能因此背叛。\n5. 宝具和保有技能：玩家可以自己设计，须经过 KP 审核。用法里写成“任意规则”的（只有说明、没有设置和脚本），由 KP 按说明裁定效果；\n   宝具特效需要对抗魔力或幸运时，技能设置写 save = \"magic_save\" 或 \"luck_save\"，difficulty 写 10 + 宝具等级。其他特效依照 Fate 原作的宝具效果比对。\n6. 结界宝具（例如固有结界）：结界里发生什么按宝具的说明裁定；引擎负责范围、持续时间和进出的通知。\n7. 狂化：等级越高越难沟通，C 以上几乎不能说话；狂化的英灵用技能和宝具时，复杂的用法由 KP 判断能不能做到。\n8. 暗示、强化、瞬间移动、道具作成等写成“任意规则”的魔术，叙事效果由 KP 裁定；写在设置和脚本里的消耗照常扣。",
     "samples": [
       {
         "name": "示例御主",
@@ -3131,6 +3176,7 @@
           "fields": {
             "appearance": "身穿蓝银铠甲、手持看不见的剑的少女骑士",
             "true_name": "（示例）亚瑟王",
+            "legend": "（示例）不列颠传说中的骑士王，拔出石中剑的少年王，圆桌骑士之首。手持被风包裹、看不见剑身的圣剑，剑术是正统的西洋骑士剑。弱点：龙的因子带来的强大魔力需要御主的供给。",
             "can_fly": false,
             "klass": "Saber",
             "str": 5,
@@ -3152,19 +3198,19 @@
                   "plus": 0
                 },
                 "effects": [],
-                "config": "reveal = this.release",
+                "config": "",
                 "script": "",
                 "uses": [
                   {
                     "name": "当作武器",
                     "description": "不解放真名，只把宝具当成手里的武器：和英灵的近战攻击一样算，对方可以反击或闪避，不暴露宝具的名字。",
-                    "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）\n\nreveal = False",
+                    "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
                     "script": "half = opposed and level == opp_level\ntarget.damage(dice(agi if klass == \"Assassin\" else str, lookup(class_melee, klass)) * (1 + 0.5 * this.plus * this.use_plus) / (2 if half else 1))"
                   },
                   {
                     "name": "真名解放·对城",
                     "description": "解放真名，扫过一条 1 公里长、80 米宽的范围。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                    "config": "target = \"single\"\nvisible = True\nnoise = 1000\nreveal = this.release\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=1000, width=80)",
+                    "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=1000, width=80)",
                     "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\nboost = 1 + 0.5 * this.plus * this.use_plus\nself.sub(mp, cost)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)) * boost)"
                   }
                 ]
@@ -3186,7 +3232,7 @@
                     "priority": 1
                   }
                 ],
-                "config": "reveal = False",
+                "config": "",
                 "script": "",
                 "uses": [
                   {
@@ -3249,6 +3295,29 @@
           "hp_max": 300.0,
           "troops": 10.0
         }
+      }
+    ],
+    "insights": [
+      {
+        "name": "御主的透视",
+        "description": "御主看见英灵（自己的或别人的）时，看得到它的职阶和六项参数；看不到真名、技能和宝具。",
+        "observers": [
+          "master"
+        ],
+        "subjects": [
+          "servant"
+        ],
+        "when": "",
+        "fields": [
+          "klass",
+          "str",
+          "agi",
+          "con",
+          "int",
+          "luk",
+          "np"
+        ],
+        "groups": []
       }
     ]
   }

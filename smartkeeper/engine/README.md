@@ -10,5 +10,6 @@
 - 连续时间（`timeline.py`）：移动耗时（能飞走直线，不能飞先上下再平地）、进行中的行动（世界状态 `/activities`）、某一时刻的位置、回合结束时刻。`close_round` 把确认的行动变成进行中的行动，结束时刻取最早做完的那个；`plan_adjudication` 把移动中的实体推到那一刻，并要求做完了的、受到影响的玩家都有结果；有结果的玩家的行动到此结束，其余继续、不被通知。
 - 玩家自己的时间（`player_seconds`）和看到的世界（`_player_state`）：行动进行中的玩家看到的是他上一次被通知时那一刻的世界。
 - 对话模式（`start_talk`、`answer_talk`、`say`、`end_talk`、`talks`）：状态由 `talk_*` 事件推出来；有进行中的对话时不结算。
+- 情报（`intel.py`）：`intel_gained` 事件，只给得知的玩家看；来源是规则包的“看见就知道”（`_insights`，每轮开始）、分组定了暴露条件的技能被认出来（`_noticed_events`）、裁定的 `intel`。`player_intel` 合并出“我知道的”，`known_intel_all` 给 KP。
 - 剧本的结构化部分写在 Markdown 的 YAML front matter 里（`scenario.py`）。
 - 单独测试：`uv run pytest tests/engine`（各模块真实实现加内存 SQLite；按规则包 × 人数参数化）

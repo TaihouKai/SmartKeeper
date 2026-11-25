@@ -1,5 +1,6 @@
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
+import { factText } from "./intel";
 
 export type Ev = Schemas["EventOut"];
 
@@ -60,7 +61,9 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
     case "reaction_requested": {
       const entry = String(e.payload.entry ?? "");
       const by = e.payload.who;
-      body = typeof by === "string" && by ? t("react.by", { who: by, entry, defender: "" }) : t("react.by_unknown", { entry, defender: "" });
+      // 不暴露名字的攻击：只知道挨了一下
+      const key = entry ? "react.by" : "react.by_hidden";
+      body = typeof by === "string" && by ? t(key, { who: by, entry, defender: "" }) : t(`${key === "react.by" ? "react.by_unknown" : "react.by_unknown_hidden"}`, { entry, defender: "" });
       who = t("event.react");
       cls += " feedback";
       break;
@@ -72,6 +75,12 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
       const key = entry ? "event.noticed" : "event.noticed_unknown";
       body = typeof by === "string" && by ? t(`${key}_who`, { who: by, entry }) : t(key, { entry });
       who = t("event.sense");
+      break;
+    }
+    case "intel_gained": {
+      const facts = (Array.isArray(e.payload.facts) ? e.payload.facts : []) as Schemas["IntelFact"][];
+      body = t("intel.gained", { who: String(e.payload.label ?? ""), facts: facts.map((f) => factText(f, t)).join(t("intel.list_sep")) });
+      who = t("event.intel");
       break;
     }
     default:

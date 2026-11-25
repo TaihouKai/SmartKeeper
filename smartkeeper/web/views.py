@@ -8,6 +8,7 @@ from pydantic import BaseModel, JsonValue
 
 from smartkeeper.contracts import (
     Event,
+    IntelFact,
     Intent,
     Location,
     MapData,
@@ -68,6 +69,9 @@ def event_for_player(engine: Engine, player_id: str, e: Event, names: dict[str, 
         payload.pop("entities", None)
     if e.type == "character_submitted":
         payload = {}
+    if e.type == "intel_gained":
+        # 实体 id 不给玩家：换成他的代号
+        payload = engine.intel_event_view(e.game_id, player_id, payload)
     actor: Literal["kp", "me", "player", "engine", "anonymous"] | None
     name: str | None = None
     if e.actor is None:
@@ -317,6 +321,7 @@ class SeenOut(BaseModel):
     ref: str
     label: str
     note: str
+    intel: list[IntelFact] = []  # 我知道的关于他的事
 
 
 class ChangeOut(BaseModel):
@@ -359,5 +364,5 @@ def scene(engine: Engine, game_id: str, player_id: str) -> SceneOut:
         map_changes=[
             ChangeOut(feature=c.feature, status=c.status, above_z=c.above_z) for c in s.map_changes
         ],
-        seen=[SeenOut(ref=x.ref, label=x.label, note=x.note) for x in s.seen],
+        seen=[SeenOut(ref=x.ref, label=x.label, note=x.note, intel=list(x.intel)) for x in s.seen],
     )

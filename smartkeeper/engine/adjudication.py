@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 from smartkeeper.contracts import (
     Adjudication,
@@ -160,4 +160,47 @@ def check_memory_entities(adj: Adjudication, entities: set[str]) -> list[Problem
                 )
         if not m.text.strip():
             problems.append(Problem(code="adj.memory_empty", path=f"memory_entries[{i}]"))
+    return problems
+
+
+def check_intel(
+    adj: Adjudication,
+    *,
+    players: set[str],
+    entities: set[str],
+    controls: Mapping[str, set[str]],
+    met: Callable[[str, str], bool],
+    fields_of: Callable[[str], set[str]],
+) -> list[Problem]:
+    """情报：给的是这一局的玩家、关于存在的、不是他自己的、他见过的实体；要有线索或字段，字段要在对方卡上。"""
+    problems: list[Problem] = []
+    for i, x in enumerate(adj.intel):
+        path = f"intel[{i}]"
+        if x.player not in players:
+            problems.append(
+                Problem(code="adj.intel_unknown_player", path=path, params={"player": x.player})
+            )
+            continue
+        if x.about not in entities:
+            problems.append(
+                Problem(code="adj.intel_unknown_entity", path=path, params={"id": x.about})
+            )
+            continue
+        if x.about in controls.get(x.player, set()):
+            problems.append(Problem(code="adj.intel_own_entity", path=path, params={"id": x.about}))
+            continue
+        if not met(x.player, x.about):
+            problems.append(
+                Problem(
+                    code="adj.intel_not_met", path=path, params={"player": x.player, "id": x.about}
+                )
+            )
+        if not x.text.strip() and not x.fields:
+            problems.append(Problem(code="adj.intel_empty", path=path))
+        known = fields_of(x.about)
+        for name in x.fields:
+            if name not in known:
+                problems.append(
+                    Problem(code="adj.intel_unknown_field", path=path, params={"name": name})
+                )
     return problems

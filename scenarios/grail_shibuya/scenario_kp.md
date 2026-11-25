@@ -25,6 +25,7 @@ npcs:
       fields:
         appearance: 银白色铠甲的高大青年，手持一杆亮银长枪，枪缨是白色的
         true_name: 赵云（常山赵子龙）
+        legend: 三国时代蜀汉的名将，常山真定人。长坂坡单骑救主，在曹军中七进七出；一杆亮银枪，枪法以快和变化著称，民间传说中有“七探盘蛇枪”。为人谨慎守礼，忠义无双。弱点：一生谨守本分，面对主君的不义命令会动摇。
         can_fly: false
         klass: Lancer
         str: 4
@@ -42,7 +43,7 @@ npcs:
           - name: 七探盘蛇
             description: 传说中赵云的枪法：一枪七探，如盘蛇般缠住对手的要害。
             fields: {level: 4, np_type: 对人, plus: 0}
-            config: reveal = this.release
+            config: ""
             uses:
               - name: 当作武器
                 description: 不解放真名，只用枪术。
@@ -55,7 +56,6 @@ npcs:
                   check = best("strength", "agility")
                   reactions = ["counter", "dodge"]
                   hit = level >= 1 and level >= opp_level
-                  reveal = False
                 script: |
                   half = opposed and level == opp_level
                   target.damage(dice(str, lookup(class_melee, klass)) / (2 if half else 1))
@@ -65,7 +65,6 @@ npcs:
                   target = "single"
                   visible = True
                   noise = 1000
-                  reveal = this.release
                   requires = this.release and not spirit_form and mp >= cost
                   reactions = ["dodge"]
                   auto_level = 3 if distance <= 100 else 2
@@ -106,6 +105,7 @@ npcs:
 
 - 黑川冬弥：冷静、傲慢，看不起“没有传承的魔术师”和普通人。不会亲自上前线，用使魔监视战场。
 - Lancer（赵云）：寡言，重礼节，战斗时先报职阶（不报真名）。被逼到绝境或者为了保护御主，才会解放真名。
+  - 线索（由浅到深，按玩家的观察和学识给）：银白色的中式铠甲和长枪 → 枪法快、变化多，像中国武将 → 救人时奋不顾身、单骑冲阵 → 枪招里有“盘蛇”的影子 → 赵云。
 - 神父·朝仓：和蔼可亲，热心地给每个人讲圣杯战争的规矩，打听每个御主的英灵是什么职阶。
 
 ## 开场

@@ -362,6 +362,10 @@ class Contexts:
                 dumps(e.overhearers(game_id)),
             ),
             section("声明核对结果", dumps(claims)),
+            section(
+                "各玩家已经知道的关于别人的情报（玩家 id -> 实体 id -> 情报；不要重复透露）",
+                dumps(e.known_intel_all(game_id)),
+            ),
             section("聊天问答（背景，不是行动）", render_events(chat, names)),
         ]
         if include_results:
@@ -441,6 +445,11 @@ class Contexts:
             for enc in adj.encounters
             if player_id in enc.observed_by
         ]
+        learned = [
+            {"about": labels.get(x.about, unknown), "clue": loc(x.text), "fields": list(x.fields)}
+            for x in adj.intel
+            if x.player == player_id
+        ]
         public = [replace_entity_tokens(x, {}, unknown) for x in adj.public_events]
         view = self.e.view_for(game_id, player_id)
         user = "\n".join(
@@ -457,6 +466,10 @@ class Contexts:
                 ),
                 section("该玩家本轮的结果", dumps(mine)),
                 section("该玩家看到的别人的行为", dumps(seen)),
+                section(
+                    "该玩家本轮得知的情报（在叙述里自然带出线索；fields 的值会另行告诉他，不要写出来）",
+                    dumps(learned),
+                ),
                 section("公共事件", dumps(public)),
             ]
         )

@@ -7,7 +7,8 @@
 型月里决定玩法的几件事，这里都落到了规则上：
 - 御主和英灵一组：御主是弱点（死了英灵就开始消散），英灵靠御主的魔力存在；
 - 令咒：三划，绝对命令、空间转移、魔力灌注、自害；
-- 真名：英灵对外只叫职阶；宝具平时用不暴露名字，解放真名时喊出来，附近的人听得到；
+- 情报：陌生人的一切要从蛛丝马迹里拼出来。御主看见英灵就知道它的职阶和参数（“看见就知道”）；
+  宝具平时用不暴露名字，解放真名时喊出来，看见的人知道宝具的名字和英灵的真名；其余的线索由 KP 判定、一点一点给；
 - 神秘：普通的攻击伤不到英灵，只有魔术、礼装、英灵和宝具的攻击才行；灵体化时物理上碰不到；
 - 宝具是“装备”：一件宝具有等级、类型和常驻效果，下面挂几种用法（平时当武器用、开关、解放真名的光炮、结界、召唤……），
   不能写成规则的效果写成说明，由 KP 裁定；
@@ -684,7 +685,6 @@ def beam(name: str, shape: str, desc: str) -> dict[str, Any]:
         target = "single"
         visible = True
         noise = 1000
-        reveal = this.release
         requires = this.release and not spirit_form and mp >= cost
         reactions = ["dodge"]
         auto_level = ((3 if distance <= 100 else 2) if this.np_type == "对人" or this.np_type == "对军" else (2 if distance <= 100 else 3))
@@ -703,7 +703,7 @@ NP_TEMPLATES = [
     use(
         "当作武器",
         "不解放真名，只把宝具当成手里的武器：和英灵的近战攻击一样算，对方可以反击或闪避，不暴露宝具的名字。",
-        MELEE_CONFIG.format(requires="not spirit_form") + "\n    reveal = False",
+        MELEE_CONFIG.format(requires="not spirit_form"),
         f"""
         half = opposed and level == opp_level
         target.damage({SERVANT_MELEE_DMG} * (1 + 0.5 * this.plus * this.use_plus) / (2 if half else 1))
@@ -743,7 +743,6 @@ NP_TEMPLATES = [
         """
         target = "none"
         noise = 300
-        reveal = this.release
         requires = this.release and mp >= cost
         """,
         f"""
@@ -758,7 +757,6 @@ NP_TEMPLATES = [
         """
         target = "none"
         noise = 200
-        reveal = this.release
         requires = this.release and mp >= cost
         placement = placement(radius=50 * this.level, perceive=1, duration=10, notify=True)
         """,
@@ -840,7 +838,14 @@ SERVANT = {
             "true_name",
             "真名",
             "text",
-            description="英灵的真名：别人只知道你的职阶，真名暴露了，弱点和传说也就跟着暴露了",
+            description="英灵的真名：别人不知道，真名暴露了，弱点和传说也就跟着暴露了。解放宝具的真名时，看见的人会知道",
+        ),
+        field(
+            "legend",
+            "简介",
+            "text",
+            description="你是谁：出自哪个传说或历史、生平、关键事件、标志性的武器和战法、弱点。"
+            "只有你和 KP 看得到；KP 据此判断别人能从你的样子和战斗方式里认出什么",
         ),
         field("can_fly", "飞行能力", "boolean", description="是否可以飞行"),
         field(
@@ -871,7 +876,13 @@ SERVANT = {
         field(
             "shield", "护盾值", "resource", "runtime", min="0", initial="0", description="护盾值"
         ),
-        field("klass", "职阶", "text", choices=CLASSES, description="英灵的职阶，别人只知道这个"),
+        field(
+            "klass",
+            "职阶",
+            "text",
+            choices=CLASSES,
+            description="英灵的职阶。御主看见你就知道；别人要靠你自报，或者从你的打法里猜",
+        ),
         *[
             field(n, label, "number", choices=RANKS, description=desc)
             for (n, label), desc in zip(ATTRS, ATTR_DESC, strict=True)
@@ -1103,6 +1114,8 @@ SERVANT = {
             fields=SKILL_COLS,
             placements=True,
             use_templates=[PLUS_USE, KP_USE],
+            # 技能没有名字可喊：别人只看到效果，认不认得出由 KP 给线索
+            reveal="False",
         ),
         group(
             "personal_skill",
@@ -1112,6 +1125,7 @@ SERVANT = {
             max_count=None,
             placements=True,
             use_templates=[PLUS_USE, KP_USE],
+            reveal="False",
         ),
         group(
             "servant_magic",
@@ -1273,6 +1287,9 @@ SERVANT = {
             placements=True,
             shapes=["capsule", "sphere", "cone"],
             use_templates=NP_TEMPLATES,
+            # 平时不暴露宝具的名字；解放真名时喊出来，看见的人就知道了宝具的名字和英灵的真名
+            reveal="this.release",
+            reveal_fields=["true_name"],
         ),
         defense_group(SERVANT_MELEE_DMG),
     ],
@@ -1417,8 +1434,11 @@ RULES_TEXT = code(
     """
     引擎已经执行的规则（检定、对抗、伤害、神秘、魔力、隐匿、令咒、召唤、阵地、死亡）不用 KP 再算。下面这些由 KP 按型月的设定处理：
 
-    1. 真名：英灵对外只以职阶相称。宝具平时当武器用不会暴露名字；解放真名时附近的人会听到宝具的名字（引擎通知），
-       知道宝具名字的人可以推出英灵的真名、传说和弱点。御主看到别的英灵时，看得到它的职阶和六项参数，看不到真名、技能和宝具。
+    1. 情报：陌生人的名字、身份、职阶、能力都要从蛛丝马迹里拼出来，玩家左右不了。引擎自动处理两件事：
+       御主看见英灵时得知它的职阶和六项参数（“看见就知道”的“御主的透视”）；宝具解放真名时，看得见的人得知宝具的名字和英灵的真名。
+       其余的由 KP 在裁定的 intel 里给线索：武器的样子、战斗风格、口音和言行、技能和宝具的效果，都可能让人联想到某个传说（英灵的“简介”写了它是谁）。
+       观察者的学识决定他能认出多少：魔术师、代行者、英灵认得出的东西，普通人未必。一次只多给一点，别人已经知道的不重复；
+       对方亲口承认、被查到铁证时，才直接给出 true_name 这类字段。英灵通常对外自称职阶，但不是非报不可。
     2. 神秘的隐匿：魔术和英灵的存在要对普通人保密；在普通人面前大打出手、留下痕迹会招来监督者和其他御主的注意。
     3. 通讯：御主和英灵之间可以用念话交流，不受距离限制。任何一方进入战斗，另一方没有别的观测手段时，视作双方共感、同时进入战斗状态。战斗中不准和队友交流。
     4. 令咒的“绝对命令”：命令越具体越有效（“立刻撤退”比“永远服从我”强）；也可以让英灵做到平时做不到的一件事（例如瞬间跨越很远的距离、在必死的一击下活下来）。
@@ -1438,8 +1458,7 @@ SAMPLE_NP = {
     "description": "被看不见的风包裹着的圣剑。平时用风藏起剑身，解放真名时放出光的洪流。",
     "fields": {"level": 5, "np_type": "对城", "plus": 0},
     "effects": [],
-    # 宝具自己的设置是所有用法共用的：平时不暴露名字，解放真名时才喊出来
-    "config": "reveal = this.release",
+    "config": "",
     "script": "",
     "uses": [NP_TEMPLATES[0], NP_TEMPLATES[3]],
 }
@@ -1456,7 +1475,7 @@ SAMPLE_WIND = {
             "priority": 1,
         }
     ],
-    "config": "reveal = False",
+    "config": "",
     "script": "",
     "uses": [NP_TEMPLATES[5]],
 }
@@ -1479,6 +1498,17 @@ PACK = {
     "tables": TABLES,
     "checks": CHECKS,
     "rules_text": RULES_TEXT,
+    "insights": [
+        {
+            "name": "御主的透视",
+            "description": "御主看见英灵（自己的或别人的）时，看得到它的职阶和六项参数；看不到真名、技能和宝具。",
+            "observers": ["master"],
+            "subjects": ["servant"],
+            "when": "",
+            "fields": ["klass", "str", "agi", "con", "int", "luk", "np"],
+            "groups": [],
+        }
+    ],
     "samples": [
         {
             "name": "示例御主",
@@ -1510,6 +1540,7 @@ PACK = {
                 "fields": {
                     "appearance": "身穿蓝银铠甲、手持看不见的剑的少女骑士",
                     "true_name": "（示例）亚瑟王",
+                    "legend": "（示例）不列颠传说中的骑士王，拔出石中剑的少年王，圆桌骑士之首。手持被风包裹、看不见剑身的圣剑，剑术是正统的西洋骑士剑。弱点：龙的因子带来的强大魔力需要御主的供给。",
                     "can_fly": False,
                     "klass": "Saber",
                     "str": 5,

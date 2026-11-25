@@ -72,6 +72,7 @@ export function Outline({ pack, current, onSelect, problems, onAddTemplate, onAd
         {top("formulas", t("rules.path.formulas"), "formulas")}
         {top("tables", t("rules.path.tables"), "tables")}
         {top("checks", t("rules.path.checks"), "checks")}
+        {top("insights", t("rules.path.insights"), "insights")}
         {top("text", t("rules.outline_text"), "rules_text")}
         {top("samples", t("rules.path.samples"), "samples")}
       </div>

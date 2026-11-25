@@ -119,6 +119,12 @@ class GroupDef(Frozen):
     hidden: bool = False
     # 用途的模板：建角时给条目加用途，可以从这里选一个照抄（例如“标准的光炮”），再按需要改
     use_templates: tuple[EntryUse, ...] = ()
+    # 察觉到动静、又看得见使用者的人知不知道用的是什么（条件公式，在使用者和这一条上算，可以用 this.<列>，
+    # 包括这次使用时填的数；空是知道）。由规则包定，玩家写条目时改不了。
+    reveal: str = ""
+    # 设了暴露条件的分组，暴露时看得见使用者的人把这个条目记进情报，同时得知使用者卡上的这些字段
+    # （例如喊出名字就暴露了身份）。没设条件的分组只在动静里显示名字，不记进情报
+    reveal_fields: tuple[str, ...] = ()
 
 
 class DerivedDef(Frozen):
@@ -204,6 +210,22 @@ class SampleSheet(Frozen):
     expected: dict[str, float]
 
 
+class InsightRule(Frozen):
+    """看见就知道：观察者感知到对象时，引擎自动让控制观察者的玩家得知对象卡上的这些东西（记进日志，值变了会再告诉一次）。
+
+    observers / subjects 是模板名（空是任何模板）；when 是条件公式，在观察者身上算，target.<名字> 读对象。
+    fields 是对象的字段或推导值；groups 是对象的分组：得知里面有哪些条目，以及条目建角时填的列。
+    """
+
+    name: str
+    description: str = ""
+    observers: tuple[str, ...] = ()
+    subjects: tuple[str, ...] = ()
+    when: str = ""
+    fields: tuple[str, ...] = ()
+    groups: tuple[str, ...] = ()
+
+
 class RulePack(Frozen):
     world: WorldInfo
     templates: tuple[EntityTemplate, ...]
@@ -213,6 +235,7 @@ class RulePack(Frozen):
     checks: tuple[CheckDef, ...] = ()
     rules_text: str = ""  # 规则说明：无法结构化的规则，由 KP 阅读
     samples: tuple[SampleSheet, ...] = ()
+    insights: tuple[InsightRule, ...] = ()  # 看见就知道的情报
 
     def template(self, name: str) -> EntityTemplate | None:
         return next((t for t in self.templates if t.name == name), None)

@@ -1107,6 +1107,11 @@ export interface components {
              * @default false
              */
             game_over: boolean;
+            /**
+             * Intel
+             * @default []
+             */
+            intel: components["schemas"]["IntelIn"][];
             /** Kp Notes */
             kp_notes?: string | null;
             /**
@@ -1668,6 +1673,16 @@ export interface components {
              * @default true
              */
             reactions: boolean;
+            /**
+             * Reveal
+             * @default
+             */
+            reveal: string;
+            /**
+             * Reveal Fields
+             * @default []
+             */
+            reveal_fields: string[];
             /** @default {
              *       "allowed": []
              *     } */
@@ -1819,6 +1834,125 @@ export interface components {
              * @default []
              */
             options: components["schemas"]["Identity"][];
+        };
+        /**
+         * InsightRule
+         * @description 看见就知道：观察者感知到对象时，引擎自动让控制观察者的玩家得知对象卡上的这些东西（记进日志，值变了会再告诉一次）。
+         *
+         *     observers / subjects 是模板名（空是任何模板）；when 是条件公式，在观察者身上算，target.<名字> 读对象。
+         *     fields 是对象的字段或推导值；groups 是对象的分组：得知里面有哪些条目，以及条目建角时填的列。
+         */
+        InsightRule: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Fields
+             * @default []
+             */
+            fields: string[];
+            /**
+             * Groups
+             * @default []
+             */
+            groups: string[];
+            /** Name */
+            name: string;
+            /**
+             * Observers
+             * @default []
+             */
+            observers: string[];
+            /**
+             * Subjects
+             * @default []
+             */
+            subjects: string[];
+            /**
+             * When
+             * @default
+             */
+            when: string;
+        };
+        /**
+         * IntelFact
+         * @description 玩家得知的关于某个实体的一件事。
+         *
+         *     field：对方卡上的一个字段或推导值；entry：对方有这么一个条目（技能、法宝……）和它的列；note：KP 给的线索。
+         *     source：rule（规则包的“看见就知道”）、use（对方用了什么被认出来）、kp（KP 判定）。
+         */
+        IntelFact: {
+            /**
+             * Columns
+             * @default []
+             */
+            columns: components["schemas"]["IntelValue"][];
+            /**
+             * Entry
+             * @default
+             */
+            entry: string;
+            field?: components["schemas"]["IntelValue"] | null;
+            /**
+             * Game Seconds
+             * @default 0
+             */
+            game_seconds: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "field" | "entry" | "note";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "rule" | "use" | "kp";
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /**
+         * IntelIn
+         * @description 裁定里给一个玩家的情报：他从本轮看到、听到、查到的东西里推断出了某个实体的什么。
+         *
+         *     text 是线索（提到实体时写 {{实体 id}}）；fields 是对方卡上的字段名，值由引擎从卡上取（例如认出了真实身份）。
+         */
+        IntelIn: {
+            /** About */
+            about: string;
+            /**
+             * Fields
+             * @default []
+             */
+            fields: string[];
+            /** Player */
+            player: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /**
+         * IntelValue
+         * @description 情报里的一个值：字段名、显示名、值（带名字的可选值另给名字，例如 4 -> B）。
+         */
+        IntelValue: {
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Name */
+            name: string;
+            /** Shown */
+            shown?: string | null;
+            value?: components["schemas"]["JsonValue"];
         };
         /** InviteIn */
         InviteIn: {
@@ -2404,6 +2538,11 @@ export interface components {
              * @default []
              */
             formulas: components["schemas"]["Formula"][];
+            /**
+             * Insights
+             * @default []
+             */
+            insights: components["schemas"]["InsightRule"][];
             /** Player Entities */
             player_entities: components["schemas"]["PlayerEntities"][];
             /**
@@ -2627,6 +2766,11 @@ export interface components {
         };
         /** SeenOut */
         SeenOut: {
+            /**
+             * Intel
+             * @default []
+             */
+            intel: components["schemas"]["IntelFact"][];
             /** Label */
             label: string;
             /** Note */

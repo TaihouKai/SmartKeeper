@@ -18,6 +18,7 @@ from smartkeeper.contracts import (  # noqa: E402
     ENGINE,
     ActionItem,
     Event,
+    IntelIn,
     Intent,
     PatchOp,
     ReactionChoice,
@@ -121,6 +122,19 @@ def noticed(t: Table, pid: str, since: int) -> list[Any]:
     ]
 
 
+def known(t: Table, pid: str, about: str) -> dict[str, Any]:
+    """这个玩家知道的关于 about 的事：字段名 -> 值，条目名 -> True，线索 -> 文字列表。"""
+    out: dict[str, Any] = {"notes": []}
+    for f in t.engine.player_intel(t.game_id, pid).get(about, ()):
+        if f.kind == "field" and f.field is not None:
+            out[f.field.name] = f.field.shown or f.field.value
+        elif f.kind == "entry":
+            out[f.entry] = True
+        else:
+            out["notes"].append(f.text)
+    return out
+
+
 def main() -> int:
     t = setup_table("single", 2, pack=PACK)
     e, g = t.engine, t.game_id
@@ -153,6 +167,12 @@ def main() -> int:
     publish(t, hits)
     heal(t, s0, s1)
     place(t, s0, -70, -40)
+    k = known(t, p0, s1)
+    ok(
+        k.get("klass") == "Saber" and "str" in k and "true_name" not in k,
+        f"御主的透视：p0 看见了 p1 的英灵，知道职阶和参数、不知道真名 {k}",
+    )
+    ok("klass" not in known(t, p0, m1), "御主看别的御主看不出参数")
 
     print("\n2. 神秘：普通的武器伤不到英灵；魔术会被对魔力挡掉一部分")
     place(t, m0, -42, -40)
@@ -188,6 +208,12 @@ def main() -> int:
     publish(t, [swing])
     heard = noticed(t, p1, seq0)
     ok(heard and all(x is None for x in heard), f"挥剑：p1 只察觉到有人用了点什么 {heard}")
+    ok(EXCALIBUR not in known(t, p1, s0), "挥剑：p1 的情报里没有宝具的名字")
+    asked = [x for x in e.view_for(g, p1, seq0) if x.type == "reaction_requested"]
+    ok(
+        bool(asked) and all(x.payload.get("entry") == "" for x in asked),
+        "被砍的人也不知道砍他的是什么",
+    )
     heal(t, s1)
     place(t, s0, -70, -40)
 
@@ -215,6 +241,11 @@ def main() -> int:
     )
     heard = noticed(t, p1, seq0)
     ok(f"{EXCALIBUR}/真名解放·对城" in heard, f"p1 听到了宝具的名字：{heard}")
+    k = known(t, p1, s0)
+    ok(
+        k.get(EXCALIBUR) is True and k.get("true_name") == "（示例）亚瑟王",
+        f"解放真名：p1 的情报里有了宝具的名字和英灵的真名 {k}",
+    )
     m1_dead = "dead" in tags(t, m1)
     print(f"  p1 御主 {'死了' if m1_dead else '活着'}，生命 {fields(t, m1)['hp']}")
 
@@ -323,6 +354,50 @@ def main() -> int:
     print(
         f"  p0 英灵魔力 {mp_before} → {fields(t, s0)['mp']}（对魔力 A + 风王结界开着：每天 2 + 2 + 1 = 5）"
     )
+
+    print("\n11. 情报：KP 判定的线索；没见过的人不能给")
+    begin(t)
+    adj = t.simple_adjudication().model_copy(
+        update={
+            "intel": (
+                IntelIn(player=p0, about=s1, text="{{" + s1 + "}} 的剑路是西洋骑士的打法"),
+                IntelIn(player=p0, about=s1, fields=("true_name",)),
+            )
+        }
+    )
+    e.apply_adjudication(g, adj)
+    for o in adj.outcomes:
+        e.set_feedback_draft(g, o.player_id, "fb")
+    e.publish_round(g)
+    k = known(t, p0, s1)
+    ok(
+        bool(k["notes"]) and "西洋骑士" in k["notes"][0] and "{{" not in k["notes"][0],
+        f"p0 得到了线索（实体换成了他的叫法）：{k['notes']}",
+    )
+    ok("true_name" in k, f"KP 判定证据确凿时给出字段：{k.get('true_name')}")
+    stranger = "npc_nobody"
+    patch(
+        t,
+        [
+            PatchOp(
+                op="add",
+                path=f"/entities/{stranger}",
+                value={**state(t)["entities"][m1], "pos": {"x": 900, "y": 900, "z": 0}},
+            )
+        ],
+    )
+    begin(t)
+    bad = t.simple_adjudication().model_copy(
+        update={"intel": (IntelIn(player=p0, about=stranger, text="他是坏人"),)}
+    )
+    try:
+        e.apply_adjudication(g, bad)
+        ok(False, "没见过的人不该能给情报")
+    except ValidationFailed as err:
+        ok(
+            any(p.code == "adj.intel_not_met" for p in err.problems),
+            "没见过的人：裁定被拒（adj.intel_not_met）",
+        )
 
     print(
         "\n结果：",

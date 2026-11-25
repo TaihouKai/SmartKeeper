@@ -23,6 +23,7 @@ from smartkeeper.contracts.sheet import DerivedValue, ScriptStep, SkillConfig
 from smartkeeper.contracts.spatial import (
     Body,
     Handle,
+    IntelValue,
     LosResult,
     MapChange,
     MapData,
@@ -141,6 +142,28 @@ class Rules(Protocol):
         name: str,
         peers: Peers | None = None,
     ) -> float: ...
+
+    def describe(
+        self,
+        pack: RulePack,
+        template: str,
+        sheet: JsonValue,
+        names: tuple[str, ...],
+        peers: Peers | None = None,
+    ) -> tuple[IntelValue, ...]:
+        """角色卡上这些字段或推导值此刻的值（经过修正），给情报用。卡上没有、算不出来的跳过。"""
+        ...
+
+    def describe_entries(
+        self,
+        pack: RulePack,
+        template: str,
+        sheet: JsonValue,
+        group: str,
+        peers: Peers | None = None,
+    ) -> tuple[tuple[str, tuple[IntelValue, ...]], ...]:
+        """一个分组里的全部条目（含生效的固定条目）：条目名和建角时填的列（不含使用时填写的、隐藏的）。"""
+        ...
 
     def check_dice(self, pack: RulePack, check: str) -> str:
         """命名检定用的骰子公式。"""

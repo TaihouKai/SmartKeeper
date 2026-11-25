@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
+import { IntelFacts } from "./intel";
 import { MapView, type DisplayMap, type MarkerView, type Pick } from "../map";
 import { ErrorBox, LangSwitch, Tabs, formatDuration, formatGameTime } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
@@ -129,6 +130,12 @@ function MapTab({
                 <button className="sk-link" onClick={() => { setEditing(s.ref); setLabel(s.label); setNote(s.note); }}>
                   {t("play.rename")}
                 </button>
+                {(s.intel ?? []).length > 0 && (
+                  <details className="sk-intel-box">
+                    <summary>{t("play.intel", { n: String((s.intel ?? []).length) })}</summary>
+                    <IntelFacts facts={s.intel ?? []} />
+                  </details>
+                )}
               </li>
             ))}
           </ul>

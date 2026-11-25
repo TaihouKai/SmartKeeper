@@ -190,3 +190,9 @@ tr.inactive { opacity: 0.5; }
 .sk-react-one legend { font-weight: 600; }
 .sk-react-params { display: flex; gap: 8px; flex-wrap: wrap; margin-left: 24px; }
 .sk-react-params label { margin: 0; }
+
+/* 情报：见过的人下面展开的“我知道的” */
+.sk-intel-box { margin: 2px 0 6px 1em; }
+.sk-intel-box summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.sk-intel { margin: 4px 0; padding-left: 1.2em; font-size: 13px; }
+.sk-intel-kp { font-style: italic; }

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Literal
 
+from pydantic import JsonValue
+
 from smartkeeper.contracts.actions import TargetRef
 from smartkeeper.contracts.base import Frozen
 from smartkeeper.contracts.geometry import Point
@@ -146,10 +148,36 @@ class PresenceEntry(Frozen):
     inside: str | None = None
 
 
+class IntelValue(Frozen):
+    """情报里的一个值：字段名、显示名、值（带名字的可选值另给名字，例如 4 -> B）。"""
+
+    name: str
+    label: str = ""
+    value: JsonValue = None
+    shown: str | None = None
+
+
+class IntelFact(Frozen):
+    """玩家得知的关于某个实体的一件事。
+
+    field：对方卡上的一个字段或推导值；entry：对方有这么一个条目（技能、法宝……）和它的列；note：KP 给的线索。
+    source：rule（规则包的“看见就知道”）、use（对方用了什么被认出来）、kp（KP 判定）。
+    """
+
+    kind: Literal["field", "entry", "note"]
+    field: IntelValue | None = None
+    entry: str = ""
+    columns: tuple[IntelValue, ...] = ()
+    text: str = ""
+    source: Literal["rule", "use", "kp"]
+    game_seconds: int = 0
+
+
 class SeenEntry(Frozen):
     ref: str
     label: str
     note: str = ""
+    intel: tuple[IntelFact, ...] = ()  # 我知道的关于他的事（同一个字段、同一个条目只留最新的）
 
 
 class PlacementSeen(Frozen):

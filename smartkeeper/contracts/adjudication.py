@@ -108,6 +108,18 @@ class MemoryEntryIn(Frozen):
     text: str
 
 
+class IntelIn(Frozen):
+    """裁定里给一个玩家的情报：他从本轮看到、听到、查到的东西里推断出了某个实体的什么。
+
+    text 是线索（提到实体时写 {{实体 id}}）；fields 是对方卡上的字段名，值由引擎从卡上取（例如认出了真实身份）。
+    """
+
+    player: str
+    about: str  # 实体 id
+    text: str = ""
+    fields: tuple[str, ...] = ()
+
+
 class Adjudication(Frozen):
     """一回合的裁定。推进多久由引擎决定（最早结束的行动），KP 只裁定这段时间里发生的事。"""
 
@@ -121,6 +133,7 @@ class Adjudication(Frozen):
     public_events: tuple[str, ...] = ()
     state_patch: tuple[PatchOp, ...] = ()
     memory_entries: tuple[MemoryEntryIn, ...] = ()
+    intel: tuple[IntelIn, ...] = ()  # 玩家得知的关于别人的情报
     kp_notes: str | None = None
     game_over: bool = False
 

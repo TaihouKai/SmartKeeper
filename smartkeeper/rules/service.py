@@ -17,6 +17,7 @@ from smartkeeper.contracts import (
     EntityTemplate,
     Faces,
     FormulaScope,
+    IntelValue,
     NotFound,
     Peers,
     Problem,
@@ -36,7 +37,7 @@ from smartkeeper.rules import (
     validation,
 )
 from smartkeeper.rules import choices as choices_
-from smartkeeper.rules.evaluator import EntityContext
+from smartkeeper.rules.evaluator import EntityContext, as_value
 from smartkeeper.rules.render import render as render_markdown
 
 
@@ -301,6 +302,63 @@ class RulesService:
         except f.FormulaError as e:
             raise ValidationFailed(e.code, **e.params) from e
 
+    def describe(
+        self,
+        pack: RulePack,
+        template: str,
+        sheet: JsonValue,
+        names: tuple[str, ...],
+        peers: Peers | None = None,
+    ) -> tuple[IntelValue, ...]:
+        tpl = self._tpl(pack, template)
+        ctx = EntityContext(pack, tpl, Sheet.model_validate(sheet), peers=peers or {})
+        fdefs = {x.name: x for x in tpl.fields}
+        ddefs = {d.name: d for d in tpl.derived}
+        out: list[IntelValue] = []
+        for n in names:
+            fd, dd = fdefs.get(n), ddefs.get(n)
+            if fd is None and dd is None:
+                continue
+            try:
+                v = ctx.value_of(n)
+            except f.FormulaError:
+                continue
+            label = (fd.label if fd else dd.label if dd else "") or n
+            out.append(
+                _intel_value(n, label, v, fd.kind if fd else "number", fd.choices if fd else ())
+            )
+        return tuple(out)
+
+    def describe_entries(
+        self,
+        pack: RulePack,
+        template: str,
+        sheet: JsonValue,
+        group: str,
+        peers: Peers | None = None,
+    ) -> tuple[tuple[str, tuple[IntelValue, ...]], ...]:
+        tpl = self._tpl(pack, template)
+        gdef = next((g for g in tpl.groups if g.name == group), None)
+        if gdef is None:
+            return ()
+        ctx = EntityContext(pack, tpl, Sheet.model_validate(sheet), peers=peers or {})
+        try:
+            entries = ctx.groups().get(group, ())
+        except f.FormulaError:
+            return ()
+        cols = [x for x in gdef.fields if x.cls == "player" and x.kind != "param" and not x.hidden]
+        out: list[tuple[str, tuple[IntelValue, ...]]] = []
+        for e in entries:
+            vals: list[IntelValue] = []
+            for fd in cols:
+                raw = e.fields.get(fd.name)
+                v = as_value(raw)
+                if v is None:
+                    continue
+                vals.append(_intel_value(fd.name, fd.label or fd.name, v, fd.kind, fd.choices))
+            out.append((e.name, tuple(vals)))
+        return tuple(out)
+
     def check_dice(self, pack: RulePack, check: str) -> str:
         return checks.check_dice(pack, check)
 
@@ -362,3 +420,14 @@ class RulesService:
 
     def render(self, pack: RulePack) -> str:
         return render_markdown(pack)
+
+
+def _intel_value(
+    name: str, label: str, v: f.Value, kind: str, choices: tuple[str, ...]
+) -> IntelValue:
+    if isinstance(v, str):
+        return IntelValue(name=name, label=label, value=v)
+    if kind == "boolean":
+        return IntelValue(name=name, label=label, value=v != 0)
+    num: JsonValue = int(v) if float(v).is_integer() else round(v, 2)
+    return IntelValue(name=name, label=label, value=num, shown=choices_.label_of(choices, v))

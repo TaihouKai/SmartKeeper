@@ -204,10 +204,70 @@ T: dict[str, tuple[str, str]] = {
         "You sense someone nearby using something",
     ),
     "event.noticed_unknown_who": ("你察觉到{who}施展了什么", "You sense {who} using something"),
-    "config.c.reveal": (
-        "察觉到动静的人知不知道用的是什么（条件；空是知道），例如解放时才喊出名字：reveal = this.release",
-        "Whether those who notice learn what was used (a condition; empty = yes), e.g. only when unleashed: reveal = this.release",
+    "event.intel": ("情报", "Intel"),
+    "intel.gained": ("关于 @{who}：{facts}", "About @{who}: {facts}"),
+    "intel.list_sep": ("；", "; "),
+    "intel.sep": ("，", ", "),
+    "intel.field": ("{label}：{value}", "{label}: {value}"),
+    "intel.entry": ("有「{name}」", "Has “{name}”"),
+    "intel.entry_cols": ("有「{name}」（{cols}）", "Has “{name}” ({cols})"),
+    "intel.yes": ("是", "yes"),
+    "intel.no": ("否", "no"),
+    "play.intel": ("我知道的（{n}）", "What I know ({n})"),
+    "react.by_hidden": ("{who} 对你的 {defender} 出手了", "{who} attacked your {defender}"),
+    "react.by_unknown_hidden": ("有人对你的 {defender} 出手了", "Someone attacked your {defender}"),
+    "rules.g.reveal": ("暴露名字的条件", "Reveals its name when"),
+    "rules.g.reveal_hint": (
+        "察觉到动静、又看得见使用者的人，知不知道用的是什么（条件，可以用 this.<列>，包括这次使用时填的数；空是知道）。"
+        "由规则包定，玩家写条目时改不了。下面勾的字段会跟着一起暴露，例如喊出了名字就暴露了身份。",
+        "Whether those who notice the use and can see the user learn what was used (a condition; this.<column> works, "
+        "including numbers filled in for this use; empty = yes). Set by the rule pack; players cannot change it. "
+        "The fields ticked below are revealed along with it, e.g. calling out the name gives away who you are.",
     ),
+    "rules.g.reveal_fields": ("同时暴露的字段：", "Also reveals:"),
+    "rules.ph.reveal": ("例如 this.release；空是总暴露", "e.g. this.release; empty = always"),
+    "rules.path.insights": ("看见就知道", "Seen at a glance"),
+    "rules.insights": ("看见就知道", "Seen at a glance"),
+    "rules.insights_hint": (
+        "观察者看见（或察觉到）对象时，引擎自动告诉控制观察者的玩家对象卡上的哪些东西，记进情报；值变了会再告诉一次。"
+        "其余的情报由 KP 按玩家看到、听到、查到的东西判定，一点一点给。",
+        "When an observer sees (or senses) a subject, the engine tells the observer's player these things from the "
+        "subject's sheet and records them as intel; it tells again when a value changes. Everything else is judged by "
+        "the KP from what players see, hear and find out, a little at a time.",
+    ),
+    "rules.insights_empty": ("还没有规则。", "No rules yet."),
+    "rules.ph.insight_name": ("规则名", "Rule name"),
+    "rules.ins.description": ("说明", "Description"),
+    "rules.ins.observers": ("观察者（不勾是任何人）：", "Observers (none ticked = anyone):"),
+    "rules.ins.subjects": ("对象（不勾是任何人）：", "Subjects (none ticked = anyone):"),
+    "rules.ins.when": ("条件", "Condition"),
+    "rules.ins.when_hint": (
+        "在观察者身上算，target.<名字> 读对象；空是总成立",
+        "Worked out on the observer; target.<name> reads the subject; empty = always",
+    ),
+    "rules.ph.insight_when": ("例如 not muggle", "e.g. not muggle"),
+    "rules.ins.fields": ("得知对象的字段：", "Learns the subject's fields:"),
+    "rules.ins.groups": ("得知对象分组里的条目：", "Learns the entries in the subject's groups:"),
+    "codes.pack.unknown_field": ("没有叫 {name} 的字段", "No field named {name}"),
+    "codes.pack.unknown_group": ("没有叫 {name} 的分组", "No group named {name}"),
+    "codes.adj.intel_unknown_player": (
+        "情报给了不在这一局的玩家 {player}",
+        "Intel for unknown player {player}",
+    ),
+    "codes.adj.intel_unknown_entity": (
+        "情报说的实体 {id} 不存在",
+        "Intel about unknown entity {id}",
+    ),
+    "codes.adj.intel_own_entity": (
+        "情报说的是玩家自己的实体 {id}",
+        "Intel about the player's own entity {id}",
+    ),
+    "codes.adj.intel_not_met": (
+        "玩家 {player} 没见过 {id}，不能得到关于它的情报",
+        "Player {player} has not met {id}",
+    ),
+    "codes.adj.intel_empty": ("情报要有线索或字段", "Intel needs a clue or fields"),
+    "codes.adj.intel_unknown_field": ("对方卡上没有字段 {name}", "No field {name} on that sheet"),
     "event.opening": ("开场", "Opening"),
     "event.round_opened": ("—— 第 {round} 轮开始 ——", "— Round {round} begins —"),
     "event.round_closed": ("—— 第 {round} 轮结束 ——", "— Round {round} ends —"),

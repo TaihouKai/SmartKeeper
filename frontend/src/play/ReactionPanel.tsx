@@ -27,7 +27,7 @@ export function ReactionForm({ prompts, onSubmit, busy }: { prompts: readonly Pr
         const skill = c.kind === "skill" ? p.skills.find((s) => s.entry === c.entry) : undefined;
         return (
           <fieldset key={p.seq} className="sk-react-one">
-            <legend>{p.who ? t("react.by", { who: p.who, entry: p.entry, defender: p.defender }) : t("react.by_unknown", { entry: p.entry, defender: p.defender })}</legend>
+            <legend>{p.entry ? (p.who ? t("react.by", { who: p.who, entry: p.entry, defender: p.defender }) : t("react.by_unknown", { entry: p.entry, defender: p.defender })) : p.who ? t("react.by_hidden", { who: p.who, defender: p.defender }) : t("react.by_unknown_hidden", { defender: p.defender })}</legend>
             <label className="sk-inline">
               <input type="radio" name={`r${p.seq}`} checked={key === "none"} onChange={() => set(p.seq, { kind: "none" })} /> {t("react.none")}
             </label>

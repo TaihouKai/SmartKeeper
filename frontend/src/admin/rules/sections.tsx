@@ -184,6 +184,7 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
   const { t } = useI18n();
   const allowed = g.shapes?.allowed ?? [];
   const [settings, setSettings] = useState(false);
+  const vReveal = useCallback((f: string) => validate(f, tpl.name, g.name), [validate, tpl.name, g.name]);
   const flag = (key: "effects" | "hidden" | "placements" | "timing" | "reactions", def: boolean, label: string) => (
     <label className="sk-inline">
       <input type="checkbox" checked={g[key] ?? def} onChange={(e) => onChange({ ...g, [key]: e.target.checked })} /> {label}
@@ -239,6 +240,19 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
               <input value={g.damage_kind ?? ""} placeholder={t("rules.ph.damage_kind")} onChange={(e) => onChange({ ...g, damage_kind: e.target.value.trim() })} />
             </label>
             <p className="wb-hint">{t("rules.g.damage_kind_hint")}</p>
+            <label title={t("rules.g.reveal_hint")}>
+              {t("rules.g.reveal")}
+              <FormulaInput value={g.reveal ?? ""} validate={vReveal} placeholder={t("rules.ph.reveal")} onChange={(x) => onChange({ ...g, reveal: x })} />
+            </label>
+            <div className="wb-shapes">
+              <span className="sk-hint">{t("rules.g.reveal_fields")}</span>
+              {[...(tpl.fields ?? []).map((x) => x.name), ...(tpl.derived ?? []).map((x) => x.name)].map((n) => (
+                <label key={n} className="sk-inline">
+                  <input type="checkbox" checked={(g.reveal_fields ?? []).includes(n)} onChange={(e) => onChange({ ...g, reveal_fields: e.target.checked ? [...(g.reveal_fields ?? []), n] : (g.reveal_fields ?? []).filter((x) => x !== n) })} /> {fieldLabel(tpl, n)}
+                </label>
+              ))}
+            </div>
+            <p className="wb-hint">{t("rules.g.reveal_hint")}</p>
             <div className="wb-shapes">
               <span className="sk-hint">{t("rules.g.shapes")}</span>
               {SHAPES.map((s) => (
@@ -338,6 +352,78 @@ export function FormulasSection({ pack, onChange, validate }: { pack: Pack; onCh
         ))}
         <button onClick={() => fed.add({ name: "", formula: "", label: "" })}>{t("common.add")}</button>
       </div>
+    </>
+  );
+}
+
+function fieldLabel(tpl: Template, name: string): string {
+  const f = (tpl.fields ?? []).find((x) => x.name === name) ?? (tpl.derived ?? []).find((x) => x.name === name);
+  return f?.label ? `${f.label}（${name}）` : name;
+}
+
+/** 看见就知道：观察者感知到对象时，引擎自动告诉玩家对象卡上的哪些东西。 */
+export function InsightsSection({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pack) => void; validate: Validate }) {
+  const { t } = useI18n();
+  const rules = pack.insights ?? [];
+  const ed = useListEdit(rules, (x) => onChange({ ...pack, insights: x }));
+  const toggle = (list: string[], v: string, on: boolean) => (on ? [...list, v] : list.filter((x) => x !== v));
+  const names = (r: (typeof rules)[number], key: "fields" | "groups"): string[] => {
+    const subjects = pack.templates.filter((x) => (r.subjects ?? []).length === 0 || (r.subjects ?? []).includes(x.name));
+    const of = (x: Template): string[] => (key === "groups" ? (x.groups ?? []).map((g) => g.name) : [...(x.fields ?? []).map((f) => f.name), ...(x.derived ?? []).map((d) => d.name)]);
+    const first = subjects[0];
+    if (first === undefined) return [];
+    return of(first).filter((n) => subjects.every((x) => of(x).includes(n)));
+  };
+  return (
+    <>
+      <SectionHead title={t("rules.insights")} hint={t("rules.insights_hint")} />
+      {rules.map((r, i) => {
+        const observers = r.observers ?? [];
+        const subjects = r.subjects ?? [];
+        const tpl = observers.length === 1 ? (observers[0] ?? null) : null;
+        const subjectTpl = pack.templates.find((x) => x.name === subjects[0]);
+        return (
+          <div key={i} className="wb-panel">
+            <div className="sk-row">
+              <input value={r.name} placeholder={t("rules.ph.insight_name")} onChange={(e) => ed.update(i, { ...r, name: e.target.value })} />
+              <Mover index={i} count={rules.length} onMove={ed.move} />
+              <button className="sk-link" onClick={() => ed.remove(i)}>
+                {t("common.remove")}
+              </button>
+            </div>
+            <label>
+              {t("rules.ins.description")}
+              <input value={r.description ?? ""} onChange={(e) => ed.update(i, { ...r, description: e.target.value })} />
+            </label>
+            {(["observers", "subjects"] as const).map((key) => (
+              <div key={key} className="wb-shapes">
+                <span className="sk-hint">{t(`rules.ins.${key}`)}</span>
+                {pack.templates.map((x) => (
+                  <label key={x.name} className="sk-inline">
+                    <input type="checkbox" checked={(r[key] ?? []).includes(x.name)} onChange={(e) => ed.update(i, { ...r, [key]: toggle(r[key] ?? [], x.name, e.target.checked) })} /> {x.label || x.name}
+                  </label>
+                ))}
+              </div>
+            ))}
+            <label title={t("rules.ins.when_hint")}>
+              {t("rules.ins.when")}
+              <FormulaInput value={r.when ?? ""} validate={(f) => validate(f, tpl, undefined, tpl ? undefined : "any_entity")} placeholder={t("rules.ph.insight_when")} onChange={(x) => ed.update(i, { ...r, when: x })} />
+            </label>
+            {(["fields", "groups"] as const).map((key) => (
+              <div key={key} className="wb-shapes">
+                <span className="sk-hint">{t(`rules.ins.${key}`)}</span>
+                {names(r, key).map((n) => (
+                  <label key={n} className="sk-inline">
+                    <input type="checkbox" checked={(r[key] ?? []).includes(n)} onChange={(e) => ed.update(i, { ...r, [key]: toggle(r[key] ?? [], n, e.target.checked) })} /> {key === "fields" && subjectTpl ? fieldLabel(subjectTpl, n) : n}
+                  </label>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+      {rules.length === 0 && <p className="sk-hint">{t("rules.insights_empty")}</p>}
+      <button onClick={() => ed.add({ name: "", description: "", observers: [], subjects: [], when: "", fields: [], groups: [] })}>{t("common.add")}</button>
     </>
   );
 }

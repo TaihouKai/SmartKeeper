@@ -21,6 +21,7 @@ from smartkeeper.contracts import (
     FieldDef,
     GroupDef,
     GroupEntry,
+    InsightRule,
     Peers,
     Problem,
     RulePack,
@@ -504,6 +505,18 @@ def _check_group(pack: RulePack, tpl: EntityTemplate, g: GroupDef, path: str) ->
         problems += _check_entry(pack, tpl, g, p, derived, pp, required_fields=False)
     for i, u in enumerate(g.use_templates):
         problems += _check_use(pack, tpl, g, "", u, f"{path}.use_templates[{i}]")
+    if g.reveal.strip():
+        problems += check_formula(
+            pack, tpl, g.reveal, f"{path}.reveal", entry_fields=[x.name for x in g.fields]
+        )
+    own = {x.name for x in tpl.fields} | derived
+    for name in g.reveal_fields:
+        if name not in own:
+            problems.append(
+                Problem(
+                    code="pack.unknown_field", path=f"{path}.reveal_fields", params={"name": name}
+                )
+            )
     return problems
 
 
@@ -670,11 +683,48 @@ def validate_pack(pack: RulePack) -> list[Problem]:
     for i, c in enumerate(pack.checks):
         p = f"checks[{i}]"
         problems += check_check(pack, c.config, f"{p}.config")
+    for i, rule in enumerate(pack.insights):
+        problems += _check_insight(pack, rule, f"insights[{i}]")
     if problems:
         return problems
     # 结构没问题之后才验算例题，否则错误会重复
     for i in range(len(pack.samples)):
         problems += _check_sample(pack, i)
+    return problems
+
+
+def _check_insight(pack: RulePack, rule: InsightRule, path: str) -> list[Problem]:
+    """看见就知道：模板要存在；字段、分组要在对象的每个模板上都有；条件在观察者身上算，target.<名字> 读对象。"""
+    problems: list[Problem] = []
+    if not rule.name.strip():
+        problems.append(Problem(code="sheet.required", path=f"{path}.name"))
+    for key in ("observers", "subjects"):
+        for name in getattr(rule, key):
+            if pack.template(name) is None:
+                problems.append(
+                    Problem(
+                        code="pack.unknown_template", path=f"{path}.{key}", params={"name": name}
+                    )
+                )
+    subjects = [t for t in pack.templates if not rule.subjects or t.name in rule.subjects]
+    for name in rule.fields:
+        if any(
+            name not in {x.name for x in t.fields} | {d.name for d in t.derived} for t in subjects
+        ):
+            problems.append(
+                Problem(code="pack.unknown_field", path=f"{path}.fields", params={"name": name})
+            )
+    for name in rule.groups:
+        if any(name not in {g.name for g in t.groups} for t in subjects):
+            problems.append(
+                Problem(code="pack.unknown_group", path=f"{path}.groups", params={"name": name})
+            )
+    if rule.when.strip():
+        observers = [t for t in pack.templates if not rule.observers or t.name in rule.observers]
+        tpl = observers[0] if len(observers) == 1 else None
+        problems += check_formula(
+            pack, tpl, rule.when, f"{path}.when", extra=all_field_names(pack) if tpl is None else ()
+        )
     return problems
 
 
