@@ -276,6 +276,27 @@ class Engine:
         self._repo.insert_player(p, hash_token(token), _now())
         return p, token
 
+    def lobby(self) -> list[tuple[Game, int]]:
+        """房间列表：列在首页的局（没结束、打开了 lobby）和其中的玩家人数。"""
+        return [
+            (g, len(self._active_players(g.id)))
+            for g in self.list_games()
+            if g.settings.lobby and g.status != "ended"
+        ]
+
+    def join_open(self, game_id: str, display_name: str) -> tuple[Player, str]:
+        """从房间列表直接加入：只在建角阶段、打开了 lobby 的局里；同一局里名字不能重复。"""
+        with self._lock:
+            g = self.game(game_id)
+            if not g.settings.lobby or g.status == "ended":
+                raise Forbidden("lobby.closed")
+            if g.status != "characters":
+                raise IllegalState("lobby.started")
+            name = display_name.strip()
+            if any(p.display_name == name for p in self._active_players(game_id)):
+                raise ValidationFailed("lobby.name_taken", name=name)
+            return self.add_player(game_id, name)
+
     def revoke_player(self, player_id: str) -> None:
         self._repo.update_player(player_id, active=False)
 

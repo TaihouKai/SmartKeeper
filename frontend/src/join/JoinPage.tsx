@@ -21,6 +21,11 @@ export function JoinPage() {
       <main className="sk-page">
         <h1>{t("app.title")}</h1>
         <p>{t(invalid ? "join.invalid" : "join.no_session")}</p>
+        <p>
+          <a className="sk-button sk-primary" href="/">
+            {t("join.to_lobby")}
+          </a>
+        </p>
       </main>
     );
   }

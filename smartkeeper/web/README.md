@@ -6,6 +6,7 @@
 - `services.py`：装配好的实现的类型（只是类型，实例在 app.py 里创建）。
 - `auth.py`：`require_player`（HttpOnly cookie 或 Bearer token）和 `require_admin`（签名的会话 cookie，路径限定 /api/admin）是仅有的两个权限检查点。登录限流。
 - `routes_player.py` / `routes_admin.py`：设计文档“接口”一节的 HTTP API。玩家接口里不出现实体 ID（换成玩家自己的 ref），坐标附带经纬度。错误只返回消息代码和参数。
+- `routes_lobby.py`：房间列表（公开）：列出可加入的局，填名字直接加入，一个浏览器在几局里各有一个座位（cookie `sk_seats`），“继续”切换当前的局。
 - `schema.py` + `migrations/`：Alembic 迁移。改了表结构后运行 `uv run python scripts/make_migration.py "说明" --rev 000N`。
 - `scripted.py`：provider=fake 时的脚本化假 KP，用于离线演示和浏览器端到端测试。
 - `cli.py`：命令行跑建角、开场和若干轮。

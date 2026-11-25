@@ -15,16 +15,33 @@ from dataclasses import dataclass, field
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Response
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 
 from smartkeeper.contracts import Player
 from smartkeeper.engine import Engine
 
 PLAYER_COOKIE = "sk_player"
+SEATS_COOKIE = "sk_seats"  # 这个浏览器加入过的各局的 token（点号分隔），换局时用
+MAX_SEATS = 20
+PLAYER_COOKIE_AGE = 180 * 24 * 3600
 ADMIN_COOKIE = "sk_admin"
 ADMIN_COOKIE_PATH = "/api/admin"
 ADMIN_SESSION_SECONDS = 12 * 3600
+
+
+def seats_of(request: Request) -> list[str]:
+    raw = request.cookies.get(SEATS_COOKIE) or ""
+    return [x for x in raw.split(".") if x]
+
+
+def enter_seat(request: Request, response: Response, token: str) -> None:
+    """把 token 设成当前在玩的那一局，并记进这个浏览器的座位。"""
+    seats = [x for x in seats_of(request) if x != token]
+    seats = [token, *seats][:MAX_SEATS]
+    opts = {"httponly": True, "samesite": "lax", "max_age": PLAYER_COOKIE_AGE, "path": "/"}
+    response.set_cookie(PLAYER_COOKIE, token, **opts)  # pyright: ignore[reportArgumentType]
+    response.set_cookie(SEATS_COOKIE, ".".join(seats), **opts)  # pyright: ignore[reportArgumentType]
 
 
 @dataclass

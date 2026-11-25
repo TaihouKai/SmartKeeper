@@ -17,10 +17,8 @@
     "title": "Admin console"
   },
   "app": {
-    "landing": "An asynchronous text TRPG with an LLM keeper. Use your invite link to join.",
     "title": "SmartKeeper",
-    "to_admin": "Admin console",
-    "to_play": "Play"
+    "to_admin": "Admin console"
   },
   "broadcast": {
     "anonymous": "Anonymous (to other players only)",
@@ -170,6 +168,13 @@
       "already_assigned": "You already have an identity",
       "exhausted": "No identities left"
     },
+    "lobby": {
+      "already_in": "You are already in this game; press Continue",
+      "closed": "This game is not open to join",
+      "name_taken": "Someone in this game is already called {name}",
+      "no_seat": "This browser has not joined this game",
+      "started": "This game has already started"
+    },
     "mention": {
       "unknown": "Unknown @ reference"
     },
@@ -206,6 +211,7 @@
     },
     "rate": {
       "kp_chat": "Too fast; wait a minute",
+      "lobby": "Too many attempts; try again later",
       "login": "Too many attempts; try later"
     },
     "react": {
@@ -493,6 +499,7 @@
     "invite_once": "Invite links are shown only once — send them now.",
     "kp_language": "Keeper language",
     "lifecycle": "Progress",
+    "lobby": "List on the home page; anyone can join directly while characters are being made",
     "map": "Map",
     "min_round": "Minimum round (seconds)",
     "min_round_hint": "Built but off at 0. Above 0, every round advances at least this many seconds even if someone's action finishes sooner.",
@@ -595,7 +602,7 @@
     "hello": "Hello, {name}",
     "identity": "Identity",
     "invalid": "This invite link is invalid or revoked. Ask the admin for a new one.",
-    "no_session": "This browser has not joined a game at this address yet. Open the invite link the admin gave you (…/join/…). Sign-in is kept per address: if you use a different address (for example a forwarded port), open the invite link again with the new address. If the invite link itself fails, it was revoked; ask the admin for a new one.",
+    "no_session": "This browser is not in a game yet. Pick a game in the room list to join, or press Continue on one you joined.",
     "review": "Keeper's review",
     "rules": "Rules and scenario",
     "status": {
@@ -604,6 +611,7 @@
       "rejected": "Changes requested",
       "submitted": "Submitted, under review"
     },
+    "to_lobby": "Go to the room list",
     "waiting_review": "Submitted. Waiting for the keeper's review…"
   },
   "kp": {
@@ -636,6 +644,26 @@
     "searches": "Web searches",
     "system": "System prompt",
     "totals": "{n} calls, {in} input tokens, {out} output tokens"
+  },
+  "lobby": {
+    "continue": "Continue",
+    "empty": "No games to join right now.",
+    "go": "Make your character",
+    "intro": "Pick a game and type a name to join; no invite link needed. Press Continue to return to a game you joined.",
+    "join": "Join",
+    "joined": "You have joined.",
+    "link_hint": "This is your personal link. This browser remembers you; use the link to come back from another browser or device. Do not share it: anyone with it can play as you.",
+    "name_ph": "Your name (unique in this game)",
+    "players": "{n} players",
+    "started": "Already started; you can no longer join.",
+    "status": {
+      "characters": "Making characters",
+      "ended": "Ended",
+      "running": "In progress",
+      "setup": "Setting up"
+    },
+    "you": "You are {name} in this game",
+    "you_active": "You are {name} in this game (current)"
   },
   "log": {
     "all": "All events (keeper view)",

@@ -823,6 +823,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lobby": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lobby */
+        get: operations["lobby_api_lobby_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lobby/enter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enter */
+        post: operations["enter_api_lobby_enter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lobby/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join */
+        post: operations["join_api_lobby_join_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/map": {
         parameters: {
             query?: never;
@@ -1346,6 +1397,11 @@ export interface components {
             /** Players */
             players: string[];
         };
+        /** EnterIn */
+        EnterIn: {
+            /** Game Id */
+            game_id: string;
+        };
         /** EntityTemplate */
         EntityTemplate: {
             /**
@@ -1589,6 +1645,11 @@ export interface components {
              * @default zh
              */
             kp_language: string;
+            /**
+             * Lobby
+             * @default true
+             */
+            lobby: boolean;
             /**
              * Min Round Seconds
              * @default 0
@@ -1981,6 +2042,23 @@ export interface components {
              */
             qty: number;
         };
+        /** JoinIn */
+        JoinIn: {
+            /** Game Id */
+            game_id: string;
+            /** Name */
+            name: string;
+        };
+        /** JoinOut */
+        JoinOut: {
+            /** Link */
+            link: string;
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+        };
         JsonValue: unknown;
         /** LLMCallRecord */
         LLMCallRecord: {
@@ -2019,6 +2097,29 @@ export interface components {
         LangIn: {
             /** Lang */
             lang: string;
+        };
+        /** LobbyGame */
+        LobbyGame: {
+            /**
+             * Active
+             * @default false
+             */
+            active: boolean;
+            /** Id */
+            id: string;
+            /** Joinable */
+            joinable: boolean;
+            /** Name */
+            name: string;
+            /** Players */
+            players: number;
+            /** Seat */
+            seat?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "setup" | "characters" | "running" | "ended";
         };
         /** LoginIn */
         LoginIn: {
@@ -2108,6 +2209,7 @@ export interface components {
             scenario: string;
             /** @default {
              *       "kp_language": "zh",
+             *       "lobby": true,
              *       "min_round_seconds": 0,
              *       "review_mode": false,
              *       "web_search": true
@@ -4930,6 +5032,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lobby_api_lobby_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LobbyGame"][];
+                };
+            };
+        };
+    };
+    enter_api_lobby_enter_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnterIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    join_api_lobby_join_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinOut"];
                 };
             };
             /** @description Validation Error */

@@ -20,6 +20,8 @@ class GameSettings(Frozen):
     admin_webhook: str | None = None
     # 最短回合（秒）：回合结束时刻至少是开始时刻加这么多。功能已做好，默认 0 即不生效。
     min_round_seconds: int = Field(default=0, ge=0)
+    # 在首页的房间列表里列出；建角阶段任何人填个名字就能直接加入（不用邀请链接）
+    lobby: bool = True
 
 
 class GameConfig(Frozen):

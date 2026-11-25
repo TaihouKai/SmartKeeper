@@ -14,11 +14,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 T: dict[str, tuple[str, str]] = {
     "app.title": ("SmartKeeper", "SmartKeeper"),
-    "app.landing": (
-        "由 LLM 担任 KP 的异步文字跑团。请用邀请链接进入游戏。",
-        "An asynchronous text TRPG with an LLM keeper. Use your invite link to join.",
-    ),
-    "app.to_play": ("进入游戏", "Play"),
     "app.to_admin": ("管理控制台", "Admin console"),
     "lang.zh": ("中文", "中文"),
     "lang.en": ("English", "English"),
@@ -48,13 +43,49 @@ T: dict[str, tuple[str, str]] = {
         "This invite link is invalid or revoked. Ask the admin for a new one.",
     ),
     "join.no_session": (
-        "这个浏览器在这个网址下还没有进入过游戏。请打开管理员发给你的邀请链接（…/join/…）；"
-        "登录信息按网址保存，换了网址（例如换成端口转发的地址）就要用新网址再打开一次邀请链接。"
-        "如果打开邀请链接也不行，说明链接已作废，请向管理员要一个新的。",
-        "This browser has not joined a game at this address yet. Open the invite link the admin gave you (…/join/…). "
-        "Sign-in is kept per address: if you use a different address (for example a forwarded port), open the invite "
-        "link again with the new address. If the invite link itself fails, it was revoked; ask the admin for a new one.",
+        "这个浏览器还没有进入哪一局。去房间列表选一局加入，或者点“继续”回到你加入过的局。",
+        "This browser is not in a game yet. Pick a game in the room list to join, or press Continue on one you joined.",
     ),
+    "join.to_lobby": ("去房间列表", "Go to the room list"),
+    "lobby.intro": (
+        "选一局加入：填个名字就行，不用邀请链接。加入过的局点“继续”回去。",
+        "Pick a game and type a name to join; no invite link needed. Press Continue to return to a game you joined.",
+    ),
+    "lobby.empty": ("现在没有可以加入的局。", "No games to join right now."),
+    "lobby.status.setup": ("准备中", "Setting up"),
+    "lobby.status.characters": ("建角中", "Making characters"),
+    "lobby.status.running": ("进行中", "In progress"),
+    "lobby.status.ended": ("已结束", "Ended"),
+    "lobby.players": ("{n} 名玩家", "{n} players"),
+    "lobby.you": ("你在这一局里叫 {name}", "You are {name} in this game"),
+    "lobby.you_active": ("你在这一局里叫 {name}（当前）", "You are {name} in this game (current)"),
+    "lobby.continue": ("继续", "Continue"),
+    "lobby.name_ph": ("你的名字（同一局里不能重名）", "Your name (unique in this game)"),
+    "lobby.join": ("加入", "Join"),
+    "lobby.started": ("已经开始了，不能再加入。", "Already started; you can no longer join."),
+    "lobby.joined": ("加入成功。", "You have joined."),
+    "lobby.link_hint": (
+        "这是你的个人链接：这个浏览器会记住你，换浏览器或换设备时用它回到这一局。别发给别人，拿到它的人就能用你的身份。",
+        "This is your personal link. This browser remembers you; use the link to come back from another browser or "
+        "device. Do not share it: anyone with it can play as you.",
+    ),
+    "lobby.go": ("去建角", "Make your character"),
+    "games.lobby": (
+        "在首页的房间列表里列出，建角阶段任何人都能直接加入",
+        "List on the home page; anyone can join directly while characters are being made",
+    ),
+    "codes.lobby.closed": ("这一局不开放直接加入", "This game is not open to join"),
+    "codes.lobby.started": ("这一局已经开始了，不能再加入", "This game has already started"),
+    "codes.lobby.name_taken": (
+        "这一局里已经有人叫 {name} 了，换个名字",
+        "Someone in this game is already called {name}",
+    ),
+    "codes.lobby.already_in": (
+        "你已经在这一局里了，点“继续”",
+        "You are already in this game; press Continue",
+    ),
+    "codes.lobby.no_seat": ("这个浏览器没有加入过这一局", "This browser has not joined this game"),
+    "codes.rate.lobby": ("操作太频繁，稍后再试", "Too many attempts; try again later"),
     "join.hello": ("你好，{name}", "Hello, {name}"),
     "join.game_started": ("游戏已经开始。", "The game has started."),
     "join.go_play": ("进入游戏界面", "Go to the game"),

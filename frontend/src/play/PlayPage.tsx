@@ -351,6 +351,11 @@ export function PlayPage() {
     return (
       <main className="sk-page">
         <p>{t("join.no_session")}</p>
+        <p>
+          <a className="sk-button sk-primary" href="/">
+            {t("join.to_lobby")}
+          </a>
+        </p>
       </main>
     );
   }

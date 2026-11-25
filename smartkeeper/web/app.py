@@ -46,8 +46,9 @@ from smartkeeper.notify import WebhookNotifier
 from smartkeeper.rounds import RoundStateMachine
 from smartkeeper.rules import RulesService, SqlRulePackStore
 from smartkeeper.spatial import ShapelySpatial
-from smartkeeper.web.auth import PLAYER_COOKIE, Auth
+from smartkeeper.web.auth import Auth, enter_seat
 from smartkeeper.web.routes_admin import build_admin_router
+from smartkeeper.web.routes_lobby import build_lobby_router
 from smartkeeper.web.routes_player import build_player_router
 from smartkeeper.web.schema import migrate
 from smartkeeper.web.scripted import install_scripted
@@ -277,15 +278,15 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.include_router(build_player_router(s, auth.require_player))
     app.include_router(build_admin_router(s, auth))
 
+    app.include_router(build_lobby_router(s))
+
     @app.get("/join/{token}", include_in_schema=False)
-    def join(token: str) -> RedirectResponse:  # pyright: ignore[reportUnusedFunction]
-        """邀请链接：把 token 写进 HttpOnly cookie，重定向到不带 token 的地址。"""
+    def join(token: str, request: Request) -> RedirectResponse:  # pyright: ignore[reportUnusedFunction]
+        """邀请链接（或个人链接）：把 token 写进 HttpOnly cookie，记进这个浏览器的座位，重定向到不带 token 的地址。"""
         if s.engine.player_by_token(token) is None:
             return RedirectResponse("/join?invalid=1", status_code=303)
         resp = RedirectResponse("/join", status_code=303)
-        resp.set_cookie(
-            PLAYER_COOKIE, token, httponly=True, samesite="lax", max_age=180 * 24 * 3600, path="/"
-        )
+        enter_seat(request, resp, token)
         return resp
 
     static_dir = Path(settings.static_dir)
