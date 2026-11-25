@@ -161,7 +161,7 @@ T: dict[str, tuple[str, str]] = {
         "打没打中都执行，例如扣同伴身上的资源",
         "Runs whether or not the use lands, e.g. spend a resource elsewhere",
     ),
-    "params.script_ph": ("例如 self.sub(hp, 5)", "e.g. self.sub(hp, 5)"),
+    "params.script_ph": ("例如 self.sub(self.hp, 5)", "e.g. self.sub(self.hp, 5)"),
     "params.hint": (
         "公式里 this.<英文名> 是这次选的数。",
         "In formulas this.<name> is the number chosen this time.",
@@ -295,6 +295,10 @@ T: dict[str, tuple[str, str]] = {
     "cf.copy_this": ("照着它写一条", "Copy this"),
     "cf.params": ("用的时候可以选的参数", "Parameters chosen when used"),
     "params.by_kp": ("由 KP 定", "KP decides"),
+    "codes.script.field_prefix": (
+        "第 {line} 行：{who}.{name} 改的是 {who} 的值，第一个参数要写 {who}.<名字>（或者不写前缀），不能写 {prefix}.",
+        "Line {line}: {who}.{name} changes a value of {who}; write {who}.<name> (or no prefix), not {prefix}.",
+    ),
     "codes.formula.needs_this": (
         "{name} 是这一条自己的列或参数，要写成 this.{name}",
         "{name} is this entry's own column or parameter: write this.{name}",
@@ -1035,8 +1039,8 @@ T: dict[str, tuple[str, str]] = {
     "script.title": ("技能脚本（使用时）", "Skill script (on use)"),
     "config.title": ("技能设置", "Skill settings"),
     "config.hint": (
-        '每行写一项“名字 = 值”，告诉引擎这个技能怎么用。最常用的几项：\n- target：对谁用。"single" 选一个人，"self" 只对自己，"none" 不用选\n- range：射程（米）；不写就是不限\n- cast_time：要准备多久（分钟）；不写就是瞬发\n- cooldown：用过以后多久不能再用（分钟）\n- noise：多远的人会察觉到你在用（米）\n- requires：什么时候才能用，例如 mp >= 5\n- check：要掷的检定，例如 "magecraft"\n- reactions：对方能怎么应对，例如 ["dodge"]\n- shape：范围，例如 sphere(radius=5) 是半径 5 米的球',
-        'One “name = value” per line tells the engine how this skill is used. The common ones:\n- target: who it is used on. "single" picks one, "self" only you, "none" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. mp >= 5\n- check: the check to roll, e.g. "magecraft"\n- reactions: how the target may respond, e.g. ["dodge"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball',
+        '每行写一项“名字 = 值”，告诉引擎这个技能怎么用。值里的名字一律写前缀：self.（你自己）、target.（对象）、this.（这一条）。最常用的几项：\n- target：对谁用。"single" 选一个人，"self" 只对自己，"none" 不用选\n- range：射程（米）；不写就是不限\n- cast_time：要准备多久（分钟）；不写就是瞬发\n- cooldown：用过以后多久不能再用（分钟）\n- noise：多远的人会察觉到你在用（米）\n- requires：什么时候才能用，例如 self.mp >= 5\n- check：要掷的检定，例如 "perception"\n- reactions：对方能怎么应对，例如 ["dodge"]\n- shape：范围，例如 sphere(radius=5) 是半径 5 米的球',
+        'One “name = value” per line tells the engine how this skill is used. Always prefix names in values: self. (you), target. (the target), this. (this entry). The common ones:\n- target: who it is used on. "single" picks one, "self" only you, "none" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. self.mp >= 5\n- check: the check to roll, e.g. "perception"\n- reactions: how the target may respond, e.g. ["dodge"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball',
     ),
     "config.c.target": (
         "single 要选对象 / self 只能对自己 / none 没有对象",
@@ -1075,8 +1079,8 @@ T: dict[str, tuple[str, str]] = {
     ),
     "script.line": ("第 {n} 行", "line {n}"),
     "script.hint": (
-        "技能生效时，引擎一行一行执行。self 是你自己，target 是对象，this.等级 这样读这个条目的列。常用的写法：\n- target.damage(2d6)：对象受到 2d6 伤害（先扣护盾再扣生命）\n- target.add(hp, 10)：对象恢复 10 点生命\n- self.sub(mp, 5)：自己扣 5 点魔力\n- target.add(shield, 10, 30)：对象得到 10 点护盾，持续 30 分钟\n- self.modify(str, str + 1, 10)：10 分钟内自己的力量 +1\n- if 条件:：下面缩进的几行只在条件成立时执行",
-        "When the skill takes effect the engine runs it line by line. self is you, target is whoever it is used on, this.level reads this entry's columns. Common lines:\n- target.damage(2d6): the target takes 2d6 damage (shield first, then hp)\n- target.add(hp, 10): the target heals 10\n- self.sub(mp, 5): you spend 5 mana\n- target.add(shield, 10, 30): the target gets a 10-point shield for 30 minutes\n- self.modify(str, str + 1, 10): +1 strength for 10 minutes\n- if condition:: the indented lines below run only when it holds",
+        "技能生效时，引擎一行一行执行。名字一律写前缀：self.（你自己卡上的）、target.（对象卡上的）、this.（这一条自己的列和参数）。常用的写法：\n- target.damage(2d6)：对象受到 2d6 伤害（先扣护盾再扣生命）\n- target.add(target.hp, 10)：对象恢复 10 点生命\n- self.sub(self.mp, this.mp_spent)：自己扣掉这次投入的魔力\n- target.add(target.shield, 10, 30)：对象得到 10 点护盾，持续 30 分钟\n- self.modify(self.str, self.str + 1, 10)：10 分钟内自己的力量 +1\n- if self.mp > 5:：下面缩进的几行只在条件成立时执行",
+        "When the skill takes effect the engine runs it line by line. Always write a prefix: self. (your sheet), target. (the target's sheet), this. (this entry's columns and parameters). Common lines:\n- target.damage(2d6): the target takes 2d6 damage (shield first, then hp)\n- target.add(target.hp, 10): the target heals 10\n- self.sub(self.mp, this.mp_spent): you pay the mana chosen for this use\n- target.add(target.shield, 10, 30): the target gets a 10-point shield for 30 minutes\n- self.modify(self.str, self.str + 1, 10): +1 strength for 10 minutes\n- if self.mp > 5:: the indented lines below run only when it holds",
     ),
     "rules.gt.id": ("ID（引用用，可不填）", "ID (for references, optional)"),
     "rules.gt.player_fills": ("留空：玩家建角时填", "Empty: the player fills it in"),

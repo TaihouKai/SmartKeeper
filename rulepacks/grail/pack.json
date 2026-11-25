@@ -326,8 +326,8 @@
                 "description": "对 100 米内看得见的一个目标，每投入满 5 点魔力打出一颗 1d(4 + 魔术能力) 的魔力伤害；对方可以闪避。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 100\nvisible = True\nrequires = not silenced\nnoise = range\ncheck = \"magecraft\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
-                "script": "# 5MP = 1d(4+魔术能力) 伤害；每满 5MP 多一颗\ntarget.damage(dice(max(1, floor(this.mp_spent / 5)), 4 + ap))",
+                "config": "target = \"single\"\nrange = 100\nvisible = True\nrequires = not self.silenced\nnoise = range\ncheck = \"magecraft\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
+                "script": "# 5MP = 1d(4+魔术能力) 伤害；每满 5MP 多一颗\ntarget.damage(dice(max(1, floor(this.mp_spent / 5)), 4 + self.ap))",
                 "uses": [],
                 "params": [],
                 "when": "background != \"普通人\""
@@ -338,8 +338,8 @@
                 "description": "恢复 100 米内看得见的一个单位的生命值：每 1 点魔力恢复 2 + 魔术能力 ÷ 2 点。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 100\nvisible = True\nrequires = not silenced\nnoise = range / 10",
-                "script": "# 每 1MP 回复 2 + 魔术能力/2 点生命值\ntarget.add(hp, (2 + floor(ap / 2)) * this.mp_spent)",
+                "config": "target = \"single\"\nrange = 100\nvisible = True\nrequires = not self.silenced\nnoise = range / 10",
+                "script": "# 每 1MP 回复 2 + 魔术能力/2 点生命值\ntarget.add(target.hp, (2 + floor(self.ap / 2)) * this.mp_spent)",
                 "uses": [],
                 "params": [],
                 "when": "background != \"普通人\""
@@ -350,8 +350,8 @@
                 "description": "给 100 米内看得见的一个单位加护盾：每 1 点魔力 5 + 魔术能力 ÷ 2 点，持续的分钟数等于投入的魔力。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 100\nvisible = True\nrequires = not silenced\nnoise = range / 10",
-                "script": "# 每 1MP 加 5 + 魔术能力/2 点护盾，护盾持续的分钟数等于投入的 MP\ntarget.add(shield, (5 + floor(ap / 2)) * this.mp_spent, this.mp_spent)",
+                "config": "target = \"single\"\nrange = 100\nvisible = True\nrequires = not self.silenced\nnoise = range / 10",
+                "script": "# 每 1MP 加 5 + 魔术能力/2 点护盾，护盾持续的分钟数等于投入的 MP\ntarget.add(target.shield, (5 + floor(self.ap / 2)) * this.mp_spent, this.mp_spent)",
                 "uses": [],
                 "params": [],
                 "when": "background != \"普通人\""
@@ -362,7 +362,7 @@
                 "description": "在脚下布置看不见的结界：投入 X 点魔力，半径 (50 + 魔术能力) × X 米，持续 10 × X 分钟；有人闯入时你会知道。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"none\"\nrange = 1\nvisible = False\nrequires = not silenced\nplacement = placement(radius=(50 + ap) * this.mp_spent, perceive=0, duration=this.mp_spent * 10, notify=True)",
+                "config": "target = \"none\"\nrange = 1\nvisible = False\nrequires = not self.silenced\nplacement = placement(radius=(50 + self.ap) * this.mp_spent, perceive=0, duration=this.mp_spent * 10, notify=True)",
                 "script": "",
                 "uses": [],
                 "params": [],
@@ -374,8 +374,8 @@
                 "description": "把自己的魔力分给 10 米内看得见的一个单位：每 1 点魔力，英灵恢复 2 点，其他人恢复 1 点。没有动静。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = not silenced",
-                "script": "if target.template == \"servant\":\n    target.add(mp, 2 * this.mp_spent)\nelse:\n    target.add(mp, this.mp_spent)",
+                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = not self.silenced",
+                "script": "if target.template == \"servant\":\n    target.add(target.mp, 2 * this.mp_spent)\nelse:\n    target.add(target.mp, this.mp_spent)",
                 "uses": [],
                 "params": [],
                 "when": "background != \"普通人\""
@@ -386,7 +386,7 @@
                 "description": "对一个普通人下达命令。危险或复杂的命令由 KP 判定是否执行；检定失败时对方不受影响。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = not silenced and target.template == \"master\" and target.muggle\ncheck = \"charisma\"",
+                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = not self.silenced and target.template == \"master\" and target.muggle\ncheck = \"charisma\"",
                 "script": "",
                 "uses": [],
                 "params": [],
@@ -398,8 +398,8 @@
                 "description": "放出小型使魔（鸟、猫、虫……）：每只 1MP，最多 3 + 魔术能力 只，存在一天。使魔和你共享知觉，只有 1 点生命值，攻击它的难度 +5。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"none\"\nrequires = not silenced and this.mp_spent <= 3 + ap\ncast_time = 1",
-                "script": "self.summon(familiar, this.mp_spent, 1440, appearance=\"一只不起眼的小动物\", can_fly=True, per=ap)",
+                "config": "target = \"none\"\nrequires = not self.silenced and this.mp_spent <= 3 + self.ap\ncast_time = 1",
+                "script": "self.summon(familiar, this.mp_spent, 1440, appearance=\"一只不起眼的小动物\", can_fly=True, per=self.ap)",
                 "uses": [],
                 "params": [],
                 "when": "background != \"普通人\""
@@ -445,8 +445,8 @@
                 "description": "对自己的英灵下一道必须服从的命令（越具体越有效）；也可以让英灵做到平时做不到的一件事。效果由 KP 裁定。 用一次消去一划令咒。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"none\"\nrequires = command_spells >= 1\nnoise = 5",
-                "script": "self.sub(command_spells, 1)",
+                "config": "target = \"none\"\nrequires = self.command_spells >= 1\nnoise = 5",
+                "script": "self.sub(self.command_spells, 1)",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -457,8 +457,8 @@
                 "description": "无视距离，把自己的英灵瞬间召到身边。 用一次消去一划令咒。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"none\"\nrequires = command_spells >= 1\nnoise = 5",
-                "script": "servant.teleport(self)\nself.sub(command_spells, 1)",
+                "config": "target = \"none\"\nrequires = self.command_spells >= 1\nnoise = 5",
+                "script": "servant.teleport(self)\nself.sub(self.command_spells, 1)",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -469,8 +469,8 @@
                 "description": "把令咒里的魔力灌给英灵：英灵的魔力补满。 用一次消去一划令咒。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"none\"\nrequires = command_spells >= 1\nnoise = 5",
-                "script": "servant.add(mp, servant.mp_max)\nself.sub(command_spells, 1)",
+                "config": "target = \"none\"\nrequires = self.command_spells >= 1\nnoise = 5",
+                "script": "servant.add(servant.mp, servant.mp_max)\nself.sub(self.command_spells, 1)",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -481,8 +481,8 @@
                 "description": "命令自己的英灵自尽。 用一次消去一划令咒。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"none\"\nrequires = command_spells >= 1\nnoise = 5",
-                "script": "servant.set(hp, 0)\nself.sub(command_spells, 1)",
+                "config": "target = \"none\"\nrequires = self.command_spells >= 1\nnoise = 5",
+                "script": "servant.set(servant.hp, 0)\nself.sub(self.command_spells, 1)",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -494,7 +494,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = None\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
-                "script": "# 平手（被反击时）只造成一半伤害\nhalf = opposed and level == opp_level\ntarget.damage(((dice(1, str) if str > 0 else 0) + (dice(1, weapon_db) if weapon_db > 0 else 0)) / (2 if half else 1), \"mystic\" if weapon_mystic else \"mundane\")",
+                "script": "# 平手（被反击时）只造成一半伤害\nhalf = opposed and level == opp_level\ntarget.damage(((dice(1, self.str) if self.str > 0 else 0) + (dice(1, self.weapon_db) if self.weapon_db > 0 else 0)) / (2 if half else 1), \"mystic\" if self.weapon_mystic else \"mundane\")",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -518,7 +518,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"single\"\nrange = 1\nvisible = True\ncast_time = 120\ncooldown = 1440",
-                "script": "# 每天一次，花 2 小时，恢复对方魔力上限的一半\ntarget.add(mp, target.mp_max * 0.5)",
+                "script": "# 每天一次，花 2 小时，恢复对方魔力上限的一半\ntarget.add(target.mp, target.mp_max * 0.5)",
                 "uses": [],
                 "params": [],
                 "when": "not (background != \"普通人\")"
@@ -529,8 +529,8 @@
                 "description": "和失去御主的英灵缔结契约（要有令咒）：英灵停止消散，成为你的英灵。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = target.template == \"servant\" and target.masterless and command_spells >= 1\ncast_time = 1",
-                "script": "target.set(masterless, 0)\ntarget.set(remaining, 1)",
+                "config": "target = \"single\"\nrange = 10\nvisible = True\nrequires = target.template == \"servant\" and target.masterless and self.command_spells >= 1\ncast_time = 1",
+                "script": "target.set(target.masterless, 0)\ntarget.set(target.remaining, 1)",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -565,7 +565,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"self\"\ncheck = \"strength\"",
-                "script": "if reacting and level >= 1 and level > opp_level:\n    self.negate()\n    target.damage((dice(1, str) if str > 0 else 0) + (dice(1, weapon_db) if weapon_db > 0 else 0))",
+                "script": "if reacting and level >= 1 and level > opp_level:\n    self.negate()\n    target.damage((dice(1, self.str) if self.str > 0 else 0) + (dice(1, self.weapon_db) if self.weapon_db > 0 else 0))",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -1171,7 +1171,7 @@
                   }
                 ],
                 "config": "target = \"self\"",
-                "script": "self.set(spirit_form, 0 if spirit_form else 1)\nif not spirit_form:\n    self.set(riding, 0)",
+                "script": "self.set(self.spirit_form, 0 if self.spirit_form else 1)\nif not self.spirit_form:\n    self.set(self.riding, 0)",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -1182,8 +1182,8 @@
                 "description": "英灵的近战攻击：伤害 (筋力)d(职阶伤害骰)；刺客是 (敏捷)d6，对方没发现时 d12",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
-                "script": "x = agi if klass == \"Assassin\" else str\ny = 12 if klass == \"Assassin\" and unseen else lookup(class_melee, klass)\n# 平手（被反击时）只造成一半伤害\nhalf = opposed and level == opp_level\ntarget.damage(dice(x, y) / (2 if half else 1))",
+                "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not self.spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
+                "script": "x = self.agi if self.klass == \"Assassin\" else self.str\ny = 12 if self.klass == \"Assassin\" and unseen else lookup(class_melee, self.klass)\n# 平手（被反击时）只造成一半伤害\nhalf = opposed and level == opp_level\ntarget.damage(dice(x, y) / (2 if half else 1))",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -1194,8 +1194,8 @@
                 "description": "英灵的远程攻击：敏捷 + 1d(职阶伤害骰)",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 10\nrequires = not spirit_form\ncheck = \"agility\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
-                "script": "target.damage(agi + dice(1, lookup(class_melee, klass)))",
+                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 10\nrequires = not self.spirit_form\ncheck = \"agility\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
+                "script": "target.damage(self.agi + dice(1, lookup(class_melee, self.klass)))",
                 "uses": [],
                 "params": [],
                 "when": "klass != \"Archer\" and klass != \"Caster\""
@@ -1206,8 +1206,8 @@
                 "description": "Archer 的远程攻击：(敏捷)d8",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 10\nrequires = not spirit_form\ncheck = \"agility\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
-                "script": "target.damage(dice(agi, lookup(class_melee, klass)))",
+                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 10\nrequires = not self.spirit_form\ncheck = \"agility\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
+                "script": "target.damage(dice(self.agi, lookup(class_melee, self.klass)))",
                 "uses": [],
                 "params": [],
                 "when": "klass == \"Archer\""
@@ -1219,7 +1219,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"self\"\ncheck = \"luck\"\nhit = level >= 1\ncooldown = 1440",
-                "script": "self.modify(str, min(9, str * (1 + 0.5 * str_plus)), 10)",
+                "script": "self.modify(self.str, min(9, self.str * (1 + 0.5 * self.str_plus)), 10)",
                 "uses": [],
                 "params": [],
                 "when": "str_plus > 0"
@@ -1231,7 +1231,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"self\"\ncheck = \"luck\"\nhit = level >= 1\ncooldown = 1440",
-                "script": "self.modify(agi, min(9, agi * (1 + 0.5 * agi_plus)), 10)",
+                "script": "self.modify(self.agi, min(9, self.agi * (1 + 0.5 * self.agi_plus)), 10)",
                 "uses": [],
                 "params": [],
                 "when": "agi_plus > 0"
@@ -1243,7 +1243,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"self\"\ncheck = \"luck\"\nhit = level >= 1\ncooldown = 1440",
-                "script": "self.modify(con, min(9, con * (1 + 0.5 * con_plus)), 10)",
+                "script": "self.modify(self.con, min(9, self.con * (1 + 0.5 * self.con_plus)), 10)",
                 "uses": [],
                 "params": [],
                 "when": "con_plus > 0"
@@ -1255,7 +1255,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"self\"\ncheck = \"luck\"\nhit = level >= 1\ncooldown = 1440",
-                "script": "self.modify(int, min(9, int * (1 + 0.5 * int_plus)), 10)",
+                "script": "self.modify(self.int, min(9, self.int * (1 + 0.5 * self.int_plus)), 10)",
                 "uses": [],
                 "params": [],
                 "when": "int_plus > 0"
@@ -1267,7 +1267,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"self\"\ncheck = \"luck\"\nhit = level >= 1\ncooldown = 1440",
-                "script": "self.modify(luk, min(9, luk * (1 + 0.5 * luk_plus)), 10)",
+                "script": "self.modify(self.luk, min(9, self.luk * (1 + 0.5 * self.luk_plus)), 10)",
                 "uses": [],
                 "params": [],
                 "when": "luk_plus > 0"
@@ -1353,8 +1353,8 @@
                     "priority": null
                   }
                 ],
-                "config": "target = \"self\"\nrequires = not spirit_form",
-                "script": "if not riding:\n    self.sub(mp, lookup(skill_cost, this.level))\nself.set(riding, 0 if riding else 1)",
+                "config": "target = \"self\"\nrequires = not self.spirit_form",
+                "script": "if not self.riding:\n    self.sub(self.mp, lookup(skill_cost, this.level))\nself.set(self.riding, 0 if self.riding else 1)",
                 "uses": [],
                 "params": [],
                 "when": "klass == \"Rider\" or klass == \"Saber\""
@@ -1421,7 +1421,8 @@
                     "spends": null,
                     "script": "",
                     "multiplier": "",
-                    "duration": ""
+                    "duration": "",
+                    "by_kp": false
                   }
                 ],
                 "when": "klass == \"Caster\""
@@ -1433,7 +1434,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"none\"\ncast_time = 60",
-                "script": "self.sub(mp, lookup(skill_cost, this.level))",
+                "script": "self.sub(self.mp, lookup(skill_cost, this.level))",
                 "uses": [],
                 "params": [],
                 "when": "klass == \"Caster\""
@@ -1577,8 +1578,8 @@
                 "description": "Caster 的魔术攻击：(魔力)d4 的魔力伤害，射程 1000 米。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 10\nrequires = not spirit_form\ncheck = \"intelligence\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
-                "script": "target.damage(dice(int, lookup(class_melee, klass)))",
+                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 10\nrequires = not self.spirit_form\ncheck = \"intelligence\"\ndifficulty = floor(distance / 500)    # 远程：每 500 米难度加 1\nreactions = [\"dodge\"]",
+                "script": "target.damage(dice(self.int, lookup(class_melee, self.klass)))",
                 "uses": [],
                 "params": [],
                 "when": "klass == \"Caster\""
@@ -1589,7 +1590,7 @@
                 "description": "咏唱的攻击魔术：每 3MP 一小节，造成 1d4 魔力伤害，最多 15 小节。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 100\nrequires = not spirit_form and this.mp_spent <= 45\ncheck = \"intelligence\"\ndifficulty = floor(distance / 500)\nreactions = [\"dodge\"]",
+                "config": "target = \"single\"\nrange = 1000\nvisible = True\nnoise = 100\nrequires = not self.spirit_form and this.mp_spent <= 45\ncheck = \"intelligence\"\ndifficulty = floor(distance / 500)\nreactions = [\"dodge\"]",
                 "script": "target.damage(dice(max(1, floor(this.mp_spent / 3)), 4))",
                 "uses": [],
                 "params": [],
@@ -1602,7 +1603,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"single\"\nrange = 25\nvisible = True\nnoise = 10",
-                "script": "target.add(hp, 10 * this.mp_spent)",
+                "script": "target.add(target.hp, 10 * this.mp_spent)",
                 "uses": [],
                 "params": [],
                 "when": "klass == \"Caster\""
@@ -1614,7 +1615,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"single\"\nrange = 25\nvisible = True\nnoise = 10",
-                "script": "target.add(shield, 10 * this.mp_spent, 180)",
+                "script": "target.add(target.shield, 10 * this.mp_spent, 180)",
                 "uses": [],
                 "params": [],
                 "when": "klass == \"Caster\""
@@ -1649,8 +1650,8 @@
                 "description": "放出 10 只使魔：和你共享知觉，能瞬间移动，只有 1 点生命值，攻击它的难度 +5。存在一天，消耗 5MP。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"none\"\nrequires = mp >= 5\ncast_time = 1",
-                "script": "self.sub(mp, 5)\nself.summon(familiar, 10, 1440, appearance=\"Caster 的使魔\", can_fly=True, per=int)",
+                "config": "target = \"none\"\nrequires = self.mp >= 5\ncast_time = 1",
+                "script": "self.sub(self.mp, 5)\nself.summon(familiar, 10, 1440, appearance=\"Caster 的使魔\", can_fly=True, per=self.int)",
                 "uses": [],
                 "params": [],
                 "when": "klass == \"Caster\""
@@ -1661,8 +1662,8 @@
                 "description": "叫出一队傀儡兵：每个兵消耗 5MP，最多 5 × 魔力 个；全部能力等于魔力 - 2 级（至少 E），存在一天，由你指挥。",
                 "fields": {},
                 "effects": [],
-                "config": "target = \"none\"\nrequires = this.mp_spent >= 5 and this.mp_spent <= 25 * int\ncast_time = 1",
-                "script": "self.summon(squad, 1, 1440, appearance=\"一队傀儡兵\", can_fly=False, rank=max(1, int - 2), size=floor(this.mp_spent / 5))",
+                "config": "target = \"none\"\nrequires = this.mp_spent >= 5 and this.mp_spent <= 25 * self.int\ncast_time = 1",
+                "script": "self.summon(squad, 1, 1440, appearance=\"一队傀儡兵\", can_fly=False, rank=max(1, self.int - 2), size=floor(this.mp_spent / 5))",
                 "uses": [],
                 "params": [],
                 "when": "klass == \"Caster\""
@@ -1674,7 +1675,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"self\"\nrequires = this.mp_spent >= 5\nnoise = 20",
-                "script": "self.modify(can_fly, 1, this.mp_spent / 5)",
+                "script": "self.modify(self.can_fly, 1, this.mp_spent / 5)",
                 "uses": [],
                 "params": [],
                 "when": "klass == \"Caster\""
@@ -1812,8 +1813,8 @@
               {
                 "name": "当作武器",
                 "description": "不解放真名，只把宝具当成手里的武器：和英灵的近战攻击一样算，对方可以反击或闪避，不暴露宝具的名字。",
-                "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
-                "script": "half = opposed and level == opp_level\ntarget.damage(dice(agi if klass == \"Assassin\" else str, lookup(class_melee, klass)) / (2 if half else 1))",
+                "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not self.spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
+                "script": "half = opposed and level == opp_level\ntarget.damage(dice(self.agi if self.klass == \"Assassin\" else self.str, lookup(class_melee, self.klass)) / (2 if half else 1))",
                 "params": [],
                 "toggle": false,
                 "default_on": false,
@@ -1822,7 +1823,7 @@
               {
                 "name": "真名解放·对人",
                 "description": "解放真名，对一个人的必杀一击。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))",
+                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not self.spirit_form and self.mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)))",
                 "params": [],
                 "toggle": false,
@@ -1832,7 +1833,7 @@
               {
                 "name": "真名解放·对军",
                 "description": "解放真名，扫过一条 200 米长、20 米宽的范围，范围里的每个人各自闪避。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=200, width=20)",
+                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not self.spirit_form and self.mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=200, width=20)",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)))",
                 "params": [],
                 "toggle": false,
@@ -1842,7 +1843,7 @@
               {
                 "name": "真名解放·对城",
                 "description": "解放真名，扫过一条 1 公里长、80 米宽的范围。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=1000, width=80)",
+                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not self.spirit_form and self.mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=1000, width=80)",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)))",
                 "params": [],
                 "toggle": false,
@@ -1852,7 +1853,7 @@
               {
                 "name": "真名解放·对界",
                 "description": "解放真名，以瞄准的地方为中心、半径 500 米的一切。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = sphere(radius=500)",
+                "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not self.spirit_form and self.mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = sphere(radius=500)",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)))",
                 "params": [],
                 "toggle": false,
@@ -1863,7 +1864,7 @@
                 "name": "开关",
                 "description": "打开或关上宝具（例如隐藏武器的风之结界、封印自己的眼罩）：开着的时候下面的修正生效；可以设定一开始开着还是关着。打开时按宝具等级消耗魔力，开着的宝具每天多耗 1 点魔力。",
                 "config": "target = \"self\"",
-                "script": "if turning_on:\n    self.sub(mp, lookup(skill_cost, this.level))",
+                "script": "if turning_on:\n    self.sub(self.mp, lookup(skill_cost, this.level))",
                 "params": [],
                 "toggle": true,
                 "default_on": false,
@@ -1872,7 +1873,7 @@
               {
                 "name": "召唤",
                 "description": "解放真名，召唤宝具里的坐骑或军势：由你控制，存在 1 小时。要改数量、强弱就改脚本里的 rank 和 size。",
-                "config": "target = \"none\"\nnoise = 300\nrequires = this.release and mp >= cost",
+                "config": "target = \"none\"\nnoise = 300\nrequires = this.release and self.mp >= cost",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\nself.summon(squad, 1, 60, appearance=\"宝具召唤出的军势\", can_fly=False, rank=this.level, size=10)",
                 "params": [],
                 "toggle": false,
@@ -1882,7 +1883,7 @@
               {
                 "name": "结界",
                 "description": "解放真名，展开一个结界（例如固有结界、吸取生命的血之神殿）：半径随宝具等级，持续 10 分钟，有人进出你会知道。结界里发生什么写在说明里，由 KP 裁定。",
-                "config": "target = \"none\"\nnoise = 200\nrequires = this.release and mp >= cost\nplacement = placement(radius=50 * this.level, perceive=1, duration=10, notify=True)",
+                "config": "target = \"none\"\nnoise = 200\nrequires = this.release and self.mp >= cost\nplacement = placement(radius=50 * this.level, perceive=1, duration=10, notify=True)",
                 "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)",
                 "params": [],
                 "toggle": false,
@@ -1918,7 +1919,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"self\"\ncheck = \"strength\"",
-                "script": "if reacting and level >= 1 and level > opp_level:\n    self.negate()\n    target.damage(dice(agi if klass == \"Assassin\" else str, lookup(class_melee, klass)))",
+                "script": "if reacting and level >= 1 and level > opp_level:\n    self.negate()\n    target.damage(dice(self.agi if self.klass == \"Assassin\" else self.str, lookup(class_melee, self.klass)))",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -2325,7 +2326,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = None\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
-                "script": "half = opposed and level == opp_level\ntarget.damage((dice(rank, 6) + troops) / (2 if half else 1))",
+                "script": "half = opposed and level == opp_level\ntarget.damage((dice(self.rank, 6) + self.troops) / (2 if half else 1))",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -2360,7 +2361,7 @@
                 "fields": {},
                 "effects": [],
                 "config": "target = \"self\"\ncheck = \"strength\"",
-                "script": "if reacting and level >= 1 and level > opp_level:\n    self.negate()\n    target.damage(dice(rank, 6) + troops)",
+                "script": "if reacting and level >= 1 and level > opp_level:\n    self.negate()\n    target.damage(dice(self.rank, 6) + self.troops)",
                 "uses": [],
                 "params": [],
                 "when": ""
@@ -3027,13 +3028,13 @@
                   {
                     "name": "当作武器",
                     "description": "不解放真名，只把宝具当成手里的武器：和英灵的近战攻击一样算，对方可以反击或闪避，不暴露宝具的名字。",
-                    "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
-                    "script": "half = opposed and level == opp_level\ntarget.damage(dice(agi if klass == \"Assassin\" else str, lookup(class_melee, klass)) / (2 if half else 1))"
+                    "config": "target = \"single\"\nrange = 3                              # 近战：3 米内\nvisible = True\nnoise = 30\nrequires = not self.spirit_form\ncheck = best(\"strength\", \"agility\")    # 力量（筋力）和敏捷都掷，取等级高的\nreactions = [\"counter\", \"dodge\"]       # 对方可以反击或闪避\nhit = level >= 1 and level >= opp_level   # 平手算打中（被反击时只造成一半伤害；闪避平手算闪开，由闪避作废）",
+                    "script": "half = opposed and level == opp_level\ntarget.damage(dice(self.agi if self.klass == \"Assassin\" else self.str, lookup(class_melee, self.klass)) / (2 if half else 1))"
                   },
                   {
                     "name": "真名解放·对城",
                     "description": "解放真名，扫过一条 1 公里长、80 米宽的范围。 只能闪避；100 米内对人、对军默认极难成功，对城、对界默认困难成功，更远时反过来。消耗：技能消耗（按宝具等级）× 类型倍数。",
-                    "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not spirit_form and mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=1000, width=80)",
+                    "config": "target = \"single\"\nvisible = True\nnoise = 1000\nrequires = this.release and not self.spirit_form and self.mp >= cost\nreactions = [\"dodge\"]\nauto_level = ((3 if distance <= 100 else 2) if this.np_type == \"对人\" or this.np_type == \"对军\" else (2 if distance <= 100 else 3))\nshape = capsule(length=1000, width=80)",
                     "script": "cost = lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)\ntarget.damage((dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level)) + lookup(np_bonus, this.level)))"
                   }
                 ]
@@ -3161,6 +3162,7 @@
         "script": "",
         "multiplier": "",
         "duration": "",
+        "by_kp": false,
         "groups": [
           "magic"
         ]
@@ -3179,6 +3181,7 @@
         "script": "",
         "multiplier": "",
         "duration": "",
+        "by_kp": false,
         "groups": [
           "servant_magic"
         ]
@@ -3200,6 +3203,7 @@
         "script": "self.sub(mp, lookup(skill_cost, this.level) * lookup(np_cost, this.np_type))",
         "multiplier": "",
         "duration": "",
+        "by_kp": false,
         "groups": [
           "noble_phantasm"
         ]
@@ -3221,6 +3225,7 @@
         "script": "",
         "multiplier": "1 + 0.5 * this.plus",
         "duration": "10",
+        "by_kp": false,
         "groups": [
           "klass_skill",
           "personal_skill",
@@ -3244,6 +3249,7 @@
         "script": "master.sub(command_spells, 1)",
         "multiplier": "3",
         "duration": "10",
+        "by_kp": false,
         "groups": [
           "klass_skill",
           "personal_skill",

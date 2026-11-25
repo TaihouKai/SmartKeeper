@@ -286,6 +286,7 @@
       "bad_variable": "{name} can't be a variable name (self, target and this are taken)",
       "empty_block": "if / elif / else needs indented lines under it",
       "field_arg": "The first argument of {name} must be a field name, e.g. hp",
+      "field_prefix": "Line {line}: {who}.{name} changes a value of {who}; write {who}.<name> (or no prefix), not {prefix}.",
       "if_call": "if isn't a function. To do different things, write if cond: on its own line with the actions indented below, then else:; to pick between two values write a if cond else b",
       "name_arg": "{name} takes a name here (a template, or self / target / a companion's template)",
       "not_derived": "{name} can't be modified: modify works on derived values, player-entered number fields or this.<column>",
@@ -373,7 +374,7 @@
       "target": "single needs a target / self only / none",
       "visible": "the target must be perceived; a placement must be put within line of sight"
     },
-    "hint": "One “name = value” per line tells the engine how this skill is used. The common ones:\n- target: who it is used on. \"single\" picks one, \"self\" only you, \"none\" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. mp >= 5\n- check: the check to roll, e.g. \"magecraft\"\n- reactions: how the target may respond, e.g. [\"dodge\"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball",
+    "hint": "One “name = value” per line tells the engine how this skill is used. Always prefix names in values: self. (you), target. (the target), this. (this entry). The common ones:\n- target: who it is used on. \"single\" picks one, \"self\" only you, \"none\" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. self.mp >= 5\n- check: the check to roll, e.g. \"perception\"\n- reactions: how the target may respond, e.g. [\"dodge\"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball",
     "title": "Skill settings"
   },
   "demo": {
@@ -788,7 +789,7 @@
     "requires_ph": "e.g. this.plus > 0",
     "script": "Runs when chosen",
     "script_hint": "Runs whether or not the use lands, e.g. spend a resource elsewhere",
-    "script_ph": "e.g. self.sub(hp, 5)",
+    "script_ph": "e.g. self.sub(self.hp, 5)",
     "spends": "Spends from",
     "spends_hint": "Deducts the chosen number (e.g. how much mana to put in)",
     "use_own": "Parameters only this use has (optional)"
@@ -1240,7 +1241,7 @@
     "world": "World"
   },
   "script": {
-    "hint": "When the skill takes effect the engine runs it line by line. self is you, target is whoever it is used on, this.level reads this entry's columns. Common lines:\n- target.damage(2d6): the target takes 2d6 damage (shield first, then hp)\n- target.add(hp, 10): the target heals 10\n- self.sub(mp, 5): you spend 5 mana\n- target.add(shield, 10, 30): the target gets a 10-point shield for 30 minutes\n- self.modify(str, str + 1, 10): +1 strength for 10 minutes\n- if condition:: the indented lines below run only when it holds",
+    "hint": "When the skill takes effect the engine runs it line by line. Always write a prefix: self. (your sheet), target. (the target's sheet), this. (this entry's columns and parameters). Common lines:\n- target.damage(2d6): the target takes 2d6 damage (shield first, then hp)\n- target.add(target.hp, 10): the target heals 10\n- self.sub(self.mp, this.mp_spent): you pay the mana chosen for this use\n- target.add(target.shield, 10, 30): the target gets a 10-point shield for 30 minutes\n- self.modify(self.str, self.str + 1, 10): +1 strength for 10 minutes\n- if self.mp > 5:: the indented lines below run only when it holds",
     "line": "line {n}",
     "ph": "e.g.\ntarget.damage(this.damage)\nself.add(hp, 5)",
     "title": "Skill script (on use)"

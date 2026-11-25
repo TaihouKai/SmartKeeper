@@ -202,6 +202,7 @@ class RulesService:
             mine = validation.known_names(pack, tpl) - {x.name for x in pack.formulas}
             names |= {f"self.{n}" for n in mine} | {"self.template"}
             names |= {f"this.{x.name}" for g in tpl.groups for x in g.fields}
+            names |= {f"this.{p.name}" for p in pack.params}  # 默认参数
             for pid, cols in validation.preset_ids(tpl).items():
                 names.add(f"self.{pid}")
                 names |= {f"self.{pid}.{c}" for c in cols}

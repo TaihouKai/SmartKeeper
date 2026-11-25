@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 from textwrap import dedent
@@ -46,6 +47,45 @@ TIERS = (
 
 def code(text: str) -> str:
     return dedent(text).strip("\n")
+
+
+_VERB_FIELD = re.compile(r"\b(self|target|master|servant)\.(add|sub|set|modify)\((\w+)\b")
+_QUOTED = re.compile(r'("(?:[^"\\]|\\.)*")')
+
+
+def prefixed(text: str, names: set[str]) -> str:
+    """角色卡上的名字统一写成 self.<名字>（动作改的那个值写接收者的前缀），玩家看到、照着写的代码都是一个样子。
+    引号里的文字、# 后面的注释、函数名、关键字参数（summon 的 per=...）不动。"""
+    if not text.strip() or not names:
+        return text
+    word = re.compile(
+        rf"(?<![\w.])({'|'.join(sorted(names, key=len, reverse=True))})\b(?!\s*\()(?!\s*=(?!=))"
+    )
+    lines: list[str] = []
+    for line in text.split("\n"):
+        parts = _QUOTED.split(line)
+        for i in range(0, len(parts), 2):  # 偶数段在引号外
+            body, hash_, comment = parts[i].partition("#")
+            body = _VERB_FIELD.sub(r"\1.\2(\1.\3", body)
+            body = word.sub(r"self.\1", body)
+            parts[i] = body + hash_ + comment
+            if hash_:  # 注释之后的都不动
+                parts[i + 1 :] = ["".join(parts[i + 1 :])] if i + 1 < len(parts) else []
+                break
+        lines.append("".join(parts))
+    return "\n".join(lines)
+
+
+def prefix_pack(pack: dict[str, Any]) -> None:
+    """规则包里玩家能查看、照着写的代码（各分组的固定条目、它们的用途、用途模板）统一写前缀。"""
+    for tpl in pack["templates"]:
+        names = {f["name"] for f in tpl["fields"]} | {d["name"] for d in tpl.get("derived", [])}
+        for g in tpl.get("groups", []):
+            rows = [*g.get("presets", []), *g.get("use_templates", [])]
+            rows += [u for p in g.get("presets", []) for u in p.get("uses", [])]
+            for row in rows:
+                for key in ("config", "script"):
+                    row[key] = prefixed(row.get(key, ""), names)
 
 
 def check(name: str, label: str, dice: str) -> dict[str, Any]:
@@ -1602,6 +1642,7 @@ def main() -> int:
     from smartkeeper.rules import RulesService
     from smartkeeper.rules.store import export_pack
 
+    prefix_pack(PACK)
     pack = RulePack.model_validate(PACK)
     problems = RulesService().validate_pack(pack)
     for p in problems:

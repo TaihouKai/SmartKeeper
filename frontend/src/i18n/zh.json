@@ -286,6 +286,7 @@
       "bad_variable": "{name} 不能当变量名（self、target、this 有固定的意思）",
       "empty_block": "if / elif / else 下面要有缩进的几行",
       "field_arg": "{name} 的第一个参数要写字段名，例如 hp",
+      "field_prefix": "第 {line} 行：{who}.{name} 改的是 {who} 的值，第一个参数要写 {who}.<名字>（或者不写前缀），不能写 {prefix}.",
       "if_call": "if 不能当函数写。要按条件做不同的事，写成 if 条件: 换行，下面缩进写动作，再接 else:；只是数值二选一的话写成 a if 条件 else b",
       "name_arg": "{name} 的参数要写名字（模板名，或 self / target / 同伴的模板名）",
       "not_derived": "{name} 不能修正：modify 只能修正推导值、建角时填的数值字段，或 this.<列>",
@@ -373,7 +374,7 @@
       "target": "single 要选对象 / self 只能对自己 / none 没有对象",
       "visible": "对象必须在施法者的感知里；设置物要放在施法者看得见的地方"
     },
-    "hint": "每行写一项“名字 = 值”，告诉引擎这个技能怎么用。最常用的几项：\n- target：对谁用。\"single\" 选一个人，\"self\" 只对自己，\"none\" 不用选\n- range：射程（米）；不写就是不限\n- cast_time：要准备多久（分钟）；不写就是瞬发\n- cooldown：用过以后多久不能再用（分钟）\n- noise：多远的人会察觉到你在用（米）\n- requires：什么时候才能用，例如 mp >= 5\n- check：要掷的检定，例如 \"magecraft\"\n- reactions：对方能怎么应对，例如 [\"dodge\"]\n- shape：范围，例如 sphere(radius=5) 是半径 5 米的球",
+    "hint": "每行写一项“名字 = 值”，告诉引擎这个技能怎么用。值里的名字一律写前缀：self.（你自己）、target.（对象）、this.（这一条）。最常用的几项：\n- target：对谁用。\"single\" 选一个人，\"self\" 只对自己，\"none\" 不用选\n- range：射程（米）；不写就是不限\n- cast_time：要准备多久（分钟）；不写就是瞬发\n- cooldown：用过以后多久不能再用（分钟）\n- noise：多远的人会察觉到你在用（米）\n- requires：什么时候才能用，例如 self.mp >= 5\n- check：要掷的检定，例如 \"perception\"\n- reactions：对方能怎么应对，例如 [\"dodge\"]\n- shape：范围，例如 sphere(radius=5) 是半径 5 米的球",
     "title": "技能设置"
   },
   "demo": {
@@ -788,7 +789,7 @@
     "requires_ph": "例如 this.plus > 0",
     "script": "选了就执行的句子",
     "script_hint": "打没打中都执行，例如扣同伴身上的资源",
-    "script_ph": "例如 self.sub(hp, 5)",
+    "script_ph": "例如 self.sub(self.hp, 5)",
     "spends": "从哪个资源里扣",
     "spends_hint": "扣的数就是选的数（例如投入多少魔力）",
     "use_own": "只有这个用途有的参数（可选）"
@@ -1240,7 +1241,7 @@
     "world": "世界观"
   },
   "script": {
-    "hint": "技能生效时，引擎一行一行执行。self 是你自己，target 是对象，this.等级 这样读这个条目的列。常用的写法：\n- target.damage(2d6)：对象受到 2d6 伤害（先扣护盾再扣生命）\n- target.add(hp, 10)：对象恢复 10 点生命\n- self.sub(mp, 5)：自己扣 5 点魔力\n- target.add(shield, 10, 30)：对象得到 10 点护盾，持续 30 分钟\n- self.modify(str, str + 1, 10)：10 分钟内自己的力量 +1\n- if 条件:：下面缩进的几行只在条件成立时执行",
+    "hint": "技能生效时，引擎一行一行执行。名字一律写前缀：self.（你自己卡上的）、target.（对象卡上的）、this.（这一条自己的列和参数）。常用的写法：\n- target.damage(2d6)：对象受到 2d6 伤害（先扣护盾再扣生命）\n- target.add(target.hp, 10)：对象恢复 10 点生命\n- self.sub(self.mp, this.mp_spent)：自己扣掉这次投入的魔力\n- target.add(target.shield, 10, 30)：对象得到 10 点护盾，持续 30 分钟\n- self.modify(self.str, self.str + 1, 10)：10 分钟内自己的力量 +1\n- if self.mp > 5:：下面缩进的几行只在条件成立时执行",
     "line": "第 {n} 行",
     "ph": "例如\ntarget.damage(this.damage)\nself.add(hp, 5)",
     "title": "技能脚本（使用时）"

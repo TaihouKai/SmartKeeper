@@ -154,6 +154,17 @@ def _statement(call: ast.Call, line: int, src: str) -> Statement:
                 and arg.value.id == "this"
             ):
                 got[kind] = f"this.{arg.attr}"  # 这个条目的一列
+            elif (
+                isinstance(arg, ast.Attribute)
+                and isinstance(arg.value, ast.Name)
+                and arg.value.id == who
+            ):
+                # 写了和接收者一样的前缀也行：self.sub(self.mp, 5)、target.add(target.hp, 1)
+                got[kind] = arg.attr
+            elif isinstance(arg, ast.Attribute) and isinstance(arg.value, ast.Name):
+                raise FormulaError(
+                    "script.field_prefix", line=line, name=verb, who=who, prefix=arg.value.id
+                )
             else:
                 raise FormulaError("script.field_arg", line=line, name=verb)
         else:

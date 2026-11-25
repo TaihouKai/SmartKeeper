@@ -48,7 +48,8 @@ def test_optional_minutes_and_strings() -> None:
         ("self.add(hp)", "script.arity", 1),
         ("self.damage(1, 2, 3)", "script.arity", 1),
         ("self.damage(amount=2)", "script.arity", 1),
-        ("target.add(target.hp, 1)", "script.field_arg", 1),
+        ("target.add(self.hp, 1)", "script.field_prefix", 1),
+        ("target.add(1, 1)", "script.field_arg", 1),
         ("self.damage(1 +)", "formula.syntax", 1),
         ("\nself.damage(x[1])", "formula.unsupported", 2),
         ("self.damage(1)\n  self.damage(2)", "script.unexpected_indent", 2),
@@ -144,3 +145,9 @@ def test_if_after_if_starts_a_new_block_and_tabs_indent() -> None:
     got = parse_script("if 1:\n\tself.damage(1)\nif 0:\n\tself.damage(2)\nelse:\n\tself.damage(3)")
     assert [type(n) for n in got] == [If, If]
     assert [len(n.branches) for n in got if isinstance(n, If)] == [1, 2]
+
+
+def test_field_may_carry_the_receivers_prefix() -> None:
+    plain = parse_script("self.sub(mp, 5)\ntarget.add(hp, 1)")
+    prefixed = parse_script("self.sub(self.mp, 5)\ntarget.add(target.hp, 1)")
+    assert plain == prefixed
