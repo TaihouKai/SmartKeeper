@@ -317,3 +317,16 @@ tr.inactive { opacity: 0.5; }
 .sk-docs-values { margin-top: 4px; }
 .sk-docs-values ul { margin: 2px 0 0; padding-left: 18px; }
 .sk-docs-label { font-weight: 600; color: var(--fg); font-size: 12px; }
+
+/* 角色库 */
+.scen-intro summary { cursor: pointer; font-weight: 600; }
+.lib-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.lib-list { list-style: none; padding: 0; margin: 8px 0 0; }
+.lib-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.lib-main { min-width: 0; flex: 1; }
+.lib-summary { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.lib-pw { display: flex; gap: 6px; align-items: center; }
+.lib-box { margin: 12px 0 80px; }
+.lib-modes { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 6px 0; }
+.lib-modes label { display: flex; align-items: center; gap: 4px; }
+.lib-fields { display: grid; gap: 8px; max-width: 560px; }

@@ -4,6 +4,7 @@ import { useI18n } from "../i18n";
 import { ErrorBox } from "../ui/components";
 import { SheetWorkbench, type SheetDraft } from "./SheetWorkbench";
 import { useDocsPackNames, type PackName } from "../ui/docs";
+import { LibraryBox, initialSave, saveToLibrary, type LibrarySave, type Origin } from "./Library";
 
 export type { SheetDraft } from "./SheetWorkbench";
 
@@ -50,10 +51,16 @@ export function CharacterForm({
   onSubmitted,
   params = [],
   checks = [],
+  origin = null,
+  onPickAnother,
 }: {
   templates: Template[];
   playerEntities: { template: string; min: number; max: number }[];
   onSubmitted: () => void;
+  /** 从角色库载入的角色（提交时可以更新它） */
+  origin?: Origin | null;
+  /** 回到“选角色” */
+  onPickAnother?: () => void;
   /** 规则包的默认参数和检定名（自己加参数时用） */
   params?: readonly Schemas["PackParam"][];
   checks?: readonly string[];
@@ -66,6 +73,8 @@ export function CharacterForm({
   const [missing, setMissing] = useState<Record<number, number>>({});
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [libSave, setLibSave] = useState<LibrarySave>(() => initialSave(origin));
+  const [libError, setLibError] = useState<unknown>(null);
   // 自动保存：打开时先取回服务器上的草稿（没有草稿但提交过的，从上次提交的内容接着改）
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -134,6 +143,13 @@ export function CharacterForm({
         },
       }));
       await call(api.POST("/api/character", { body: { sheets: clean as never } }));
+      // 交给这一局以后再存进角色库；存失败（例如密码不对）不影响已经提交的
+      try {
+        await saveToLibrary(clean, origin, libSave);
+      } catch (e) {
+        setLibError(e);
+        return;
+      }
       onSubmitted();
     } catch (e) {
       setError(e);
@@ -198,6 +214,16 @@ export function CharacterForm({
           </div>
         );
       })}
+      {onPickAnother && (
+        <p className="sk-hint">
+          {origin ? t("lib.loaded", { name: origin.name }) : ""}{" "}
+          <button type="button" className="sk-link" onClick={onPickAnother}>
+            {t("lib.pick_another")}
+          </button>
+        </p>
+      )}
+      <LibraryBox origin={origin} value={libSave} onChange={setLibSave} />
+      <ErrorBox error={libError} />
       <div className="cf-footer">
         <span className="sk-hint">{saveError ? t("cf.save_failed") : savedAt ? t("character.autosaved", { time: new Date(savedAt).toLocaleTimeString() }) : ""}</span>
         <span className={totalMissing > 0 ? "cf-footer-todo" : "cf-footer-ok"}>{totalMissing > 0 ? t("cf.missing", { n: String(totalMissing) }) : t("cf.complete")}</span>

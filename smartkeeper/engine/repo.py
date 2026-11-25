@@ -43,6 +43,21 @@ player = sa.Table(
     sa.Column("character_draft_at", sa.String, nullable=True),
 )
 
+# 角色库：属于一套规则书的角色（一整套卡），和局分开存；密码是 scrypt 哈希，没设是 None
+character = sa.Table(
+    "character",
+    metadata,
+    sa.Column("id", sa.String, primary_key=True),
+    sa.Column("rulepack_id", sa.String, nullable=False, index=True),
+    sa.Column("name", sa.String, nullable=False),
+    sa.Column("summary", sa.Text, nullable=False, default=""),
+    sa.Column("sheets", sa.Text, nullable=False),
+    sa.Column("password_hash", sa.String, nullable=True),
+    sa.Column("created_by", sa.String, nullable=False, default=""),
+    sa.Column("created_at", sa.String, nullable=False),
+    sa.Column("updated_at", sa.String, nullable=False),
+)
+
 round_ = sa.Table(
     "round",
     metadata,
@@ -201,6 +216,34 @@ class Repo:
     def set_character_draft(self, player_id: str, draft: JsonValue | None, at: str | None) -> None:
         body = None if draft is None else json.dumps(draft, ensure_ascii=False)
         self.update_player(player_id, character_draft=body, character_draft_at=at)
+
+    # ---- 角色库 ----
+
+    def insert_character(self, values: dict[str, Any]) -> None:
+        with self.db.begin() as c:
+            c.execute(character.insert().values(**values))
+
+    def update_character(self, char_id: str, **values: Any) -> None:
+        with self.db.begin() as c:
+            c.execute(character.update().where(character.c.id == char_id).values(**values))
+
+    def library_rows(self, rulepack_id: str) -> list[dict[str, Any]]:
+        with self.db.connect() as c:
+            rows = c.execute(
+                sa.select(character)
+                .where(character.c.rulepack_id == rulepack_id)
+                .order_by(character.c.updated_at.desc())
+            ).mappings()
+            return [dict(r) for r in rows]
+
+    def library_row(self, char_id: str) -> dict[str, Any]:
+        with self.db.connect() as c:
+            row = (
+                c.execute(sa.select(character).where(character.c.id == char_id)).mappings().first()
+            )
+        if row is None:
+            raise NotFound("library.not_found", id=char_id)
+        return dict(row)
 
     def update_player(self, player_id: str, **values: Any) -> None:
         with self.db.begin() as c:

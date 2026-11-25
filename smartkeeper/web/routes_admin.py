@@ -35,7 +35,7 @@ from smartkeeper.contracts import (
     ScriptStep,
     ValidationFailed,
 )
-from smartkeeper.engine import kp_meta, public_meta
+from smartkeeper.engine import kp_meta, public_meta, split_front_matter
 from smartkeeper.mapdata import display_geojson
 from smartkeeper.rules import export_pack, parse_import
 from smartkeeper.web.auth import ADMIN_COOKIE, ADMIN_COOKIE_PATH, ADMIN_SESSION_SECONDS, Auth
@@ -72,6 +72,8 @@ class AdminMe(BaseModel):
 class MaterialsOut(BaseModel):
     maps: list[str]
     scenarios: list[str]
+    # 剧本属于哪套规则书（规则包的世界名）；空着是哪套都能用
+    scenario_rulebooks: dict[str, str] = {}
 
 
 class TextBody(BaseModel):
@@ -282,7 +284,14 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
             if scen_dir.is_dir()
             else []
         )
-        return MaterialsOut(maps=s.maps.list_ids(), scenarios=scen)
+        books: dict[str, str] = {}
+        for name in scen:
+            try:
+                text = (scen_dir / name / "scenario_public.md").read_text(encoding="utf-8")
+                books[name] = str(split_front_matter(text)[0].get("rulebook") or "")
+            except (OSError, ValueError):
+                books[name] = ""
+        return MaterialsOut(maps=s.maps.list_ids(), scenarios=scen, scenario_rulebooks=books)
 
     @guarded.get("/materials/scenarios/{name}")
     def get_scenario(name: str) -> ScenarioOut:

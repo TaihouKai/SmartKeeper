@@ -240,11 +240,17 @@
       "unsupported": "This isn't supported: {what}"
     },
     "game": {
-      "characters_pending": "Some characters aren't approved yet"
+      "characters_pending": "Some characters aren't approved yet",
+      "scenario_other_rulebook": "This scenario belongs to “{rulebook}”, not “{pack}”"
     },
     "identity": {
       "already_assigned": "You already have an identity",
       "exhausted": "No identities left"
+    },
+    "library": {
+      "bad_password": "Wrong password",
+      "not_found": "No such character in the library",
+      "too_big": "This character is too big to save"
     },
     "lobby": {
       "already_in": "You are already in this game; press Continue",
@@ -297,6 +303,7 @@
     },
     "rate": {
       "kp_chat": "Too fast; wait a minute",
+      "library": "Too many tries; wait a moment",
       "lobby": "Too many attempts; try again later",
       "login": "Too many attempts; try later"
     },
@@ -897,6 +904,30 @@
   "lang": {
     "en": "English",
     "zh": "中文"
+  },
+  "lib": {
+    "box_title": "Character library",
+    "by": "by {who}",
+    "empty": "No characters for this rulebook yet",
+    "loaded": "Loaded “{name}” from the library.",
+    "locked": "Password protected",
+    "name": "Name",
+    "name_ph": "Empty: the sheets' names",
+    "new": "New character",
+    "new_password": "Change password",
+    "new_password_ph": "Empty: keep it",
+    "password": "Password",
+    "password_ph": "Optional; with one, others need it to view or use",
+    "pick_another": "Pick another / from the library",
+    "pick_hint": "Characters for this rulebook, made by anyone (locked ones need a password). Using one loads it into the form, where you can still change it; what happens in the game doesn't change the library.",
+    "pick_title": "Pick a character",
+    "save_new": "Save as a new character when submitting",
+    "save_none": "Don't save",
+    "save_update": "Update “{name}” in the library when submitting",
+    "scenario": "Scenario background",
+    "summary": "Summary (shown when others pick)",
+    "summary_ph": "A line or two",
+    "use": "Use this"
   },
   "llm": {
     "messages": "Messages",

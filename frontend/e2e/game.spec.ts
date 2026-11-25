@@ -63,6 +63,9 @@ async function placePlayers(browser: Browser, gameId: string, where: Record<stri
 async function createCharacter(page: Page, i: number) {
   await page.getByRole("button", { name: "Draw an identity" }).click();
   await expect(page.getByText("Identity").first()).toBeVisible();
+  // 先看剧本背景、选角色：从角色库里挑，或者新建（第一个人的时候库是空的）
+  await expect(page.getByText("Scenario background")).toBeVisible();
+  await page.getByRole("button", { name: "New character" }).click();
   const form = page.locator(".cf").first();
   await expect(form).toBeVisible();
   // 身份一节：名字、外观、职业

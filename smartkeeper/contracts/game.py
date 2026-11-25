@@ -12,6 +12,24 @@ GameStatus = Literal["setup", "characters", "running", "ended"]
 RoundStatus = Literal["collecting", "adjudicating", "review", "published"]
 
 
+class LibraryCharacter(Frozen):
+    """角色库里的一个角色（一整套卡，例如一个玩家要建的几张卡），属于一套规则书，和局分开存。
+    设了密码的（locked），查看和使用都要密码。拿进一局时复制一份，局里的变化不写回角色库。"""
+
+    id: str
+    rulepack_id: str
+    name: str
+    summary: str = ""
+    templates: tuple[str, ...] = ()  # 有哪些卡（模板名）
+    locked: bool = False
+    created_by: str = ""  # 创建者的昵称
+    updated_at: str = ""
+
+
+class LibraryCharacterFull(LibraryCharacter):
+    sheets: JsonValue = None  # 和提交角色卡一样的格式：[{template, sheet}, ...]
+
+
 class GameSettings(Frozen):
     review_mode: bool = False
     web_search: bool = True

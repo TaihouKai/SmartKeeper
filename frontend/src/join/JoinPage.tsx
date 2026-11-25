@@ -3,9 +3,10 @@ import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, LangSwitch, Section } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
-import { HandbookProvider } from "../ui/markdown";
+import { HandbookProvider, Markdown } from "../ui/markdown";
 import { DocsTab, useDocs } from "../ui/docs";
 import { CharacterForm } from "./CharacterForm";
+import { CharacterPicker, type Origin } from "./Library";
 
 /** /join：阅读规则，按剧本抽取或选择身份，按模板填写并提交角色卡，查看 KP 的审核意见。 */
 export function JoinPage() {
@@ -17,6 +18,11 @@ export function JoinPage() {
   const events = usePoll(() => call(api.GET("/api/events")), 10_000);
   const choose = useAction();
   const [editing, setEditing] = useState(false);
+  // 选角色还是在建卡：已经有草稿或者提交过的直接建卡；载入角色库的角色时记着它（提交时可以更新）
+  const draft = usePoll(() => call(api.GET("/api/character/draft")), 3_600_000);
+  const [picking, setPicking] = useState<boolean | null>(null);
+  const [origin, setOrigin] = useState<Origin | null>(null);
+  const [formKey, setFormKey] = useState(0);
 
   if (invalid || (me.error && !me.data)) {
     return (
@@ -112,16 +118,55 @@ export function JoinPage() {
           )}
           {(status === "none" || status === "rejected" || editing) && m.game_status === "characters" ? (
             <HandbookProvider text={r.handbook} href="/rulebook">
-            <CharacterForm
-              templates={r.templates as unknown as Schemas["EntityTemplate"][]}
-              playerEntities={r.player_entities as unknown as { template: string; min: number; max: number }[]}
-              params={r.params}
-              checks={r.checks}
-              onSubmitted={() => {
-                setEditing(false);
-                refresh();
-              }}
-            />
+              {(() => {
+                const hasDraft = Array.isArray(draft.data?.sheets) && (draft.data?.sheets as unknown[]).length > 0;
+                const pick = picking ?? (status === "none" && !hasDraft);
+                if (!draft.data && !draft.error) return <p>{t("common.loading")}</p>;
+                return (
+                  <>
+                    <details className="sk-card scen-intro" open={pick}>
+                      <summary>{t("lib.scenario")}</summary>
+                      <Markdown text={r.scenario} />
+                    </details>
+                    {pick ? (
+                      <CharacterPicker
+                        onNew={() => {
+                          setOrigin(null);
+                          setPicking(false);
+                          setFormKey((k) => k + 1);
+                        }}
+                        onPick={(sheets, o) =>
+                          void choose.run(async () => {
+                            // 载入：当成草稿放进建卡表单，可以再改。只留这套规则书要玩家建的卡，缺的部分补齐
+                            const wanted = new Set((r.player_entities as unknown as { template: string }[]).map((x) => x.template));
+                            const clean = (Array.isArray(sheets) ? (sheets as { template: string; sheet: Record<string, unknown> }[]) : [])
+                              .filter((x) => wanted.has(x.template))
+                              .map((x) => ({ template: x.template, sheet: { name: "", fields: {}, groups: {}, preset_fields: {}, ...(x.sheet ?? {}) } }));
+                            await call(api.PUT("/api/character/draft", { body: { sheets: clean as never } }));
+                            setOrigin(o);
+                            setPicking(false);
+                            setFormKey((k) => k + 1);
+                          })
+                        }
+                      />
+                    ) : (
+                      <CharacterForm
+                        key={formKey}
+                        templates={r.templates as unknown as Schemas["EntityTemplate"][]}
+                        playerEntities={r.player_entities as unknown as { template: string; min: number; max: number }[]}
+                        params={r.params}
+                        checks={r.checks}
+                        origin={origin}
+                        onPickAnother={() => setPicking(true)}
+                        onSubmitted={() => {
+                          setEditing(false);
+                          refresh();
+                        }}
+                      />
+                    )}
+                  </>
+                );
+              })()}
             </HandbookProvider>
           ) : status === "submitted" ? (
             <p>{t("join.waiting_review")}</p>

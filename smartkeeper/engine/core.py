@@ -48,6 +48,8 @@ from smartkeeper.contracts import (
     IllegalState,
     IntelFact,
     Intent,
+    LibraryCharacter,
+    LibraryCharacterFull,
     Location,
     MapChange,
     MapData,
@@ -99,7 +101,7 @@ from smartkeeper.contracts import (
     World,
 )
 from smartkeeper.engine import adjudication as adjv
-from smartkeeper.engine import alliance, intel, scenario
+from smartkeeper.engine import alliance, intel, library, scenario
 from smartkeeper.engine import entries as entry_refs
 from smartkeeper.engine.applier import StepApplier
 from smartkeeper.engine.duel import Duel, Side, Strike
@@ -228,8 +230,13 @@ class Engine:
     # ================= 开局与建角 =================
 
     def create_game(self, config: GameConfig) -> Game:
-        self._packs.get_version(config.rulepack_id, config.rulepack_version)  # 必须存在
-        scenario.public_meta(config.scenario_public)
+        pack = self._packs.get_version(config.rulepack_id, config.rulepack_version).pack  # 必须存在
+        meta = scenario.public_meta(config.scenario_public)
+        # 剧本属于一套规则书：只能拿那套规则书开局
+        if meta.rulebook and meta.rulebook != pack.world.name:
+            raise ValidationFailed(
+                "game.scenario_other_rulebook", rulebook=meta.rulebook, pack=pack.world.name
+            )
         scenario.kp_meta(config.scenario_kp)
         g = Game(
             id="g_" + secrets.token_hex(4),
@@ -430,6 +437,75 @@ class Engine:
         at = _now()
         self._repo.set_character_draft(player_id, draft, at)
         return at
+
+    # ================= 角色库 =================
+
+    def library(self, game_id: str) -> list[LibraryCharacter]:
+        """这一局用的规则书下的角色（最近改过的在前）。"""
+        g = self.game(game_id)
+        return [library.summary_of(r) for r in self._repo.library_rows(g.rulepack_id)]
+
+    def library_character(
+        self, game_id: str, char_id: str, password: str | None
+    ) -> LibraryCharacterFull:
+        """打开一个角色（设了密码的要密码）。只能打开这一局规则书下的。"""
+        row = self._repo.library_row(char_id)
+        if row["rulepack_id"] != self.game(game_id).rulepack_id:
+            raise NotFound("library.not_found", id=char_id)
+        if not library.check_password(row["password_hash"], password):
+            raise ValidationFailed("library.bad_password")
+        return library.full_of(row)
+
+    def save_library_character(
+        self,
+        player_id: str,
+        sheets: JsonValue,
+        *,
+        name: str = "",
+        summary: str = "",
+        char_id: str | None = None,
+        password: str | None = None,
+        new_password: str | None = None,
+    ) -> LibraryCharacter:
+        """存进角色库：char_id 为空是新建（password 是要设的密码，可以不设）；
+        否则更新那一个（要它原来的密码；new_password 不为 None 时改密码，空字符串是去掉密码）。"""
+        p = self.player(player_id)
+        g = self.game(p.game_id)
+        library.check_size(sheets)
+        now = _now()
+        title = name.strip() or library.auto_name(sheets) or "?"
+        body = json.dumps(sheets, ensure_ascii=False)
+        if char_id is None:
+            new_id = f"ch_{secrets.token_hex(5)}"
+            self._repo.insert_character(
+                {
+                    "id": new_id,
+                    "rulepack_id": g.rulepack_id,
+                    "name": title,
+                    "summary": summary,
+                    "sheets": body,
+                    "password_hash": library.hash_password(password) if password else None,
+                    "created_by": p.display_name,
+                    "created_at": now,
+                    "updated_at": now,
+                }
+            )
+            return library.summary_of(self._repo.library_row(new_id))
+        row = self._repo.library_row(char_id)
+        if row["rulepack_id"] != g.rulepack_id:
+            raise NotFound("library.not_found", id=char_id)
+        if not library.check_password(row["password_hash"], password):
+            raise ValidationFailed("library.bad_password")
+        values: dict[str, Any] = {
+            "name": title,
+            "summary": summary,
+            "sheets": body,
+            "updated_at": now,
+        }
+        if new_password is not None:
+            values["password_hash"] = library.hash_password(new_password) if new_password else None
+        self._repo.update_character(char_id, **values)
+        return library.summary_of(self._repo.library_row(char_id))
 
     def submit_character(self, player_id: str, sheets: Sequence[SheetSubmission]) -> Event:
         with self._lock:

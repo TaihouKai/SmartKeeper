@@ -32,6 +32,8 @@ class NpcSpec(Frozen):
 
 class PublicMeta(Frozen):
     start_time: str
+    # 属于哪套规则书（规则包的世界名）；空着是哪套都能用
+    rulebook: str = ""
     identities: IdentityRules = IdentityRules()
 
     @field_validator("start_time", mode="before")

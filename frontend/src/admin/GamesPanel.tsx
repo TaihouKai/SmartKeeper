@@ -103,7 +103,14 @@ function NewGame({ onCreated }: { onCreated: (id: string) => void }) {
       <label>{t("games.scenario")}
         <select value={form.scenario} onChange={(e) => setForm({ ...form, scenario: e.target.value })}>
           <option value="" />
-          {(mats.data?.scenarios ?? []).map((m) => <option key={m} value={m}>{m}</option>)}
+          {(mats.data?.scenarios ?? [])
+            .filter((m) => {
+              // 剧本属于一套规则书：只列这套规则书的（和没写属于哪套的）
+              const book = mats.data?.scenario_rulebooks?.[m] ?? "";
+              const pack = (packs.data ?? []).find((p) => p.pack_id === form.pack.split("@")[0]);
+              return !book || !pack || book === pack.name;
+            })
+            .map((m) => <option key={m} value={m}>{m}{mats.data?.scenario_rulebooks?.[m] ? `（${mats.data.scenario_rulebooks[m]}）` : ""}</option>)}
         </select>
       </label>
       <button

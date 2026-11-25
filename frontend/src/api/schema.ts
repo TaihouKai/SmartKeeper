@@ -896,6 +896,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Library */
+        get: operations["library_api_library_get"];
+        put?: never;
+        /** Library New */
+        post: operations["library_new_api_library_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/{char_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Library Update */
+        put: operations["library_update_api_library__char_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/{char_id}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Library Open */
+        post: operations["library_open_api_library__char_id__open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lobby": {
         parameters: {
             query?: never;
@@ -2380,6 +2432,102 @@ export interface components {
             /** Lang */
             lang: string;
         };
+        /**
+         * LibraryCharacter
+         * @description 角色库里的一个角色（一整套卡，例如一个玩家要建的几张卡），属于一套规则书，和局分开存。
+         *     设了密码的（locked），查看和使用都要密码。拿进一局时复制一份，局里的变化不写回角色库。
+         */
+        LibraryCharacter: {
+            /**
+             * Created By
+             * @default
+             */
+            created_by: string;
+            /** Id */
+            id: string;
+            /**
+             * Locked
+             * @default false
+             */
+            locked: boolean;
+            /** Name */
+            name: string;
+            /** Rulepack Id */
+            rulepack_id: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * Templates
+             * @default []
+             */
+            templates: string[];
+            /**
+             * Updated At
+             * @default
+             */
+            updated_at: string;
+        };
+        /** LibraryCharacterFull */
+        LibraryCharacterFull: {
+            /**
+             * Created By
+             * @default
+             */
+            created_by: string;
+            /** Id */
+            id: string;
+            /**
+             * Locked
+             * @default false
+             */
+            locked: boolean;
+            /** Name */
+            name: string;
+            /** Rulepack Id */
+            rulepack_id: string;
+            sheets?: components["schemas"]["JsonValue"];
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * Templates
+             * @default []
+             */
+            templates: string[];
+            /**
+             * Updated At
+             * @default
+             */
+            updated_at: string;
+        };
+        /** LibraryOpenIn */
+        LibraryOpenIn: {
+            /** Password */
+            password?: string | null;
+        };
+        /** LibrarySaveIn */
+        LibrarySaveIn: {
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /** New Password */
+            new_password?: string | null;
+            /** Password */
+            password?: string | null;
+            sheets: components["schemas"]["JsonValue"];
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+        };
         /** LobbyGame */
         LobbyGame: {
             /**
@@ -2425,6 +2573,13 @@ export interface components {
         MaterialsOut: {
             /** Maps */
             maps: string[];
+            /**
+             * Scenario Rulebooks
+             * @default {}
+             */
+            scenario_rulebooks: {
+                [key: string]: string;
+            };
             /** Scenarios */
             scenarios: string[];
         };
@@ -5680,6 +5835,129 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    library_api_library_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCharacter"][];
+                };
+            };
+        };
+    };
+    library_new_api_library_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibrarySaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCharacter"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    library_update_api_library__char_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                char_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibrarySaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCharacter"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    library_open_api_library__char_id__open_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                char_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryOpenIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCharacterFull"];
                 };
             };
             /** @description Validation Error */

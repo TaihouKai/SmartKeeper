@@ -18,6 +18,8 @@ from smartkeeper.contracts import (
     FormulaScope,
     IdentityRules,
     Intent,
+    LibraryCharacter,
+    LibraryCharacterFull,
     NotFound,
     PackParam,
     Player,
@@ -133,6 +135,18 @@ class FormulaOut(BaseModel):
 class HandleIn(BaseModel):
     label: str | None = None
     note: str | None = None
+
+
+class LibraryOpenIn(BaseModel):
+    password: str | None = None
+
+
+class LibrarySaveIn(BaseModel):
+    sheets: JsonValue  # 和提交角色卡一样的格式
+    name: str = ""  # 空着就用各张卡的角色名
+    summary: str = ""
+    password: str | None = None  # 新建：要设的密码；更新：原来的密码
+    new_password: str | None = None  # 更新时改密码（空字符串是去掉密码）；None 是不改
 
 
 class AllianceIn(BaseModel):
@@ -490,6 +504,45 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
     def handle(p: Annotated[Player, Depends(require_player)], ref: str, body: HandleIn) -> OkOut:
         e.rename_handle(p.id, ref, body.label, body.note)
         return OkOut()
+
+    # 角色库：这一局规则书下的角色。打开、更新要密码（设了的话）；猜密码有限速
+    library_limit = RateLimiter(limit=10, window=60)
+
+    @r.get("/library")
+    def library(p: Annotated[Player, Depends(require_player)]) -> list[LibraryCharacter]:
+        return e.library(p.game_id)
+
+    @r.post("/library/{char_id}/open")
+    def library_open(
+        p: Annotated[Player, Depends(require_player)], char_id: str, body: LibraryOpenIn
+    ) -> LibraryCharacterFull:
+        if not library_limit.hit(p.id):
+            raise HTTPException(status_code=429, detail={"code": "rate.library"})
+        return e.library_character(p.game_id, char_id, body.password)
+
+    @r.post("/library")
+    def library_new(
+        p: Annotated[Player, Depends(require_player)], body: LibrarySaveIn
+    ) -> LibraryCharacter:
+        return e.save_library_character(
+            p.id, body.sheets, name=body.name, summary=body.summary, password=body.password
+        )
+
+    @r.put("/library/{char_id}")
+    def library_update(
+        p: Annotated[Player, Depends(require_player)], char_id: str, body: LibrarySaveIn
+    ) -> LibraryCharacter:
+        if not library_limit.hit(p.id):
+            raise HTTPException(status_code=429, detail={"code": "rate.library"})
+        return e.save_library_character(
+            p.id,
+            body.sheets,
+            name=body.name,
+            summary=body.summary,
+            char_id=char_id,
+            password=body.password,
+            new_password=body.new_password,
+        )
 
     # 结盟：向某个角色（ref）的玩家提出；对方同意、拒绝；自己撤回或解除
     @r.get("/alliances")

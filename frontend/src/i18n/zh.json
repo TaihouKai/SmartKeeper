@@ -240,11 +240,17 @@
       "unsupported": "不支持这种写法：{what}"
     },
     "game": {
-      "characters_pending": "还有玩家的角色卡没有通过审核"
+      "characters_pending": "还有玩家的角色卡没有通过审核",
+      "scenario_other_rulebook": "这个剧本属于“{rulebook}”，不能用“{pack}”开局"
     },
     "identity": {
       "already_assigned": "你已经有身份了",
       "exhausted": "身份已经抽完了"
+    },
+    "library": {
+      "bad_password": "密码不对",
+      "not_found": "角色库里没有这个角色",
+      "too_big": "角色太大了，存不下"
     },
     "lobby": {
       "already_in": "你已经在这一局里了，点“继续”",
@@ -297,6 +303,7 @@
     },
     "rate": {
       "kp_chat": "发得太快了，请稍等一分钟",
+      "library": "试得太快了，过一会儿再试",
       "lobby": "操作太频繁，稍后再试",
       "login": "尝试太多次，请稍后再试"
     },
@@ -897,6 +904,30 @@
   "lang": {
     "en": "English",
     "zh": "中文"
+  },
+  "lib": {
+    "box_title": "角色库",
+    "by": "{who} 建",
+    "empty": "角色库里还没有这套规则书的角色",
+    "loaded": "载入的是角色库里的“{name}”。",
+    "locked": "设了密码",
+    "name": "名字",
+    "name_ph": "空着就用各张卡的角色名",
+    "new": "新建角色",
+    "new_password": "改密码",
+    "new_password_ph": "空着是不改",
+    "password": "密码",
+    "password_ph": "可不填；填了别人要密码才能看和用",
+    "pick_another": "换一个角色 / 从角色库选",
+    "pick_hint": "这套规则书的角色库：谁建的都能用（带锁的要密码）。用了会载入建卡表单，可以再改；局里发生的事不会改动角色库。",
+    "pick_title": "选一个角色",
+    "save_new": "提交时存成新角色",
+    "save_none": "不存",
+    "save_update": "提交时更新角色库里的“{name}”",
+    "scenario": "剧本背景",
+    "summary": "简介（别人选角色时看得到）",
+    "summary_ph": "一两句话，说说这是个什么样的角色",
+    "use": "用这个角色"
   },
   "llm": {
     "messages": "消息",
