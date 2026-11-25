@@ -9,6 +9,7 @@ from pydantic import JsonValue
 
 from smartkeeper import lang as f
 from smartkeeper.contracts import (
+    USE_SEP,
     DerivedValue,
     Effect,
     EntityTemplate,
@@ -23,9 +24,7 @@ from smartkeeper.contracts import (
 
 def open_columns(g: GroupDef, p: GroupPreset) -> list[FieldDef]:
     """固定条目里规则包没写、要玩家建角时填的列（“使用时填写”的列和运行中会变的列不算）。"""
-    return [
-        x for x in g.fields if x.kind != "param" and x.cls != "runtime" and x.name not in p.fields
-    ]
+    return [x for x in g.fields if x.cls != "runtime" and x.name not in p.fields]
 
 
 def table_lookup(pack: RulePack) -> f.TableLookup:
@@ -135,7 +134,7 @@ class EntityContext:
         gdef = next((g for g in self.template.groups if g.name == group), None)
         fields = dict(e.fields)
         for fd in gdef.fields if gdef else ():
-            if fd.kind == "param" or fd.name in fields:
+            if fd.name in fields:
                 continue
             if fd.cls == "runtime" and fd.kind == "boolean" and not fd.initial:
                 fields[fd.name] = False  # 是/否没写初值：否
@@ -180,6 +179,8 @@ class EntityContext:
             if name.startswith("has:"):
                 tag = name[4:]
                 return 1.0 if any(st.tag == tag for st in self.sheet.statuses) else 0.0
+            if name.startswith("toggled:"):
+                return float(self.toggled_count(name[8:]))
             if name.startswith("this."):
                 if entry is None:
                     raise f.FormulaError("formula.this_outside_entry", name=name)
@@ -385,6 +386,19 @@ class EntityContext:
 
     # ---- 推导值 ----
 
+    def is_on(self, entry: str, use: str, default_on: bool) -> bool:
+        """开关类用途现在开着没有（没有记录的按默认）。"""
+        return bool(self.sheet.toggles.get(f"{entry}{USE_SEP}{use}", default_on))
+
+    def toggled_count(self, group: str) -> int:
+        """这个分组里开着的开关类用途有几个（公式 toggled("分组")，例如每个开着的法宝每天多耗法力）。"""
+        return sum(
+            1
+            for entry in self.groups().get(group, ())
+            for u in entry.uses
+            if u.toggle and self.is_on(entry.name, u.name, u.default_on)
+        )
+
     def modifiers_for(self, name: str) -> list[tuple[Effect, Mapping[str, JsonValue] | None, str]]:
         """作用于某个推导值（或数值字段）的全部带公式的效果，按计算顺序：(效果, 所在条目的字段, 来源说明)。
 
@@ -410,6 +424,16 @@ class EntityContext:
                     prio = eff.priority if eff.priority is not None else 1 << 30
                     own.append((prio, len(own), eff, cols, f"{group}:{entry.name}"))
         out += [(eff, fields, src) for _, _, eff, fields, src in sorted(own, key=lambda x: x[:2])]
+        # 开着的开关类用途的修正（例如开着风之结界时力量 +1）
+        for g in self.template.groups:
+            for entry in self.groups().get(g.name, ()):
+                for u in entry.uses:
+                    if not u.toggle or not self.is_on(entry.name, u.name, u.default_on):
+                        continue
+                    effs = [e for e in u.effects if e.is_mechanical and e.target == name]
+                    if effs:
+                        cols = self._live_entry(g.name, entry).fields
+                        out += [(eff, cols, f"{g.name}:{entry.name}/{u.name}") for eff in effs]
         for st in self.sheet.statuses:
             eff = st.modifier
             if eff is not None and eff.is_mechanical and eff.target == name:

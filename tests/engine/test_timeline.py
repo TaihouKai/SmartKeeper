@@ -17,6 +17,7 @@ from smartkeeper.contracts import (
     Location,
     Movement,
     NotFound,
+    PackParam,
     PatchOp,
     Point,
     RulePack,
@@ -382,7 +383,6 @@ def spend_pack() -> RulePack:
             "fields": (
                 *g.fields,
                 FieldDef(name="damage", kind="formula", required=False),
-                FieldDef(name="cost", kind="param", min="1", max="hp", spends="hp"),
             ),
             "presets": (
                 GroupPreset.model_validate(
@@ -395,7 +395,14 @@ def spend_pack() -> RulePack:
         }
     )
     tpl = tpl.model_copy(update={"groups": (g, *tpl.groups[1:])})
-    return pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+    return pack.model_copy(
+        update={"templates": (tpl, *pack.templates[1:]), "params": (cost_param(g.name),)}
+    )
+
+
+def cost_param(group: str, low: str = "1") -> PackParam:
+    """使用时选的 cost（low..hp，从 hp 里扣）。"""
+    return PackParam(name="cost", min=low, max="hp", spends="hp", groups=(group,))
 
 
 def test_param_spends_a_resource_once_per_attempt() -> None:
@@ -553,9 +560,13 @@ def test_placement_formulas_use_chosen_on_use_columns_and_spend() -> None:
             "config": 'target = "none"\nplacement = placement(radius=this.cost * 2, perceive=0.2, charges=1)'
         }
     )
-    cost = FieldDef(name="cost", kind="param", min="1", max="hp", spends="hp")
-    g = g.model_copy(update={"fields": (*g.fields, cost), "presets": (ward,)})
-    pack = pack.model_copy(update={"templates": (tpl.model_copy(update={"groups": (g,)}),)})
+    g = g.model_copy(update={"presets": (ward,)})
+    pack = pack.model_copy(
+        update={
+            "templates": (tpl.model_copy(update={"groups": (g,)}),),
+            "params": (cost_param(g.name),),
+        }
+    )
     t = setup_table("single", 2, pack=pack)
     e, gid = t.engine, t.game_id
     p0 = t.players[0]
@@ -1021,14 +1032,18 @@ def test_cast_time_may_use_chosen_on_use_columns() -> None:
     pack = trap_pack()
     tpl = pack.templates[0]
     g0 = tpl.groups[0]
-    cost = FieldDef(name="cost", kind="param", min="2", max="hp", spends="hp")
     slow = g0.presets[0].model_copy(
         update={
             "config": 'target = "none"\ncast_time = this.cost * 3\nplacement = placement(radius=5)'
         }
     )
-    g0 = g0.model_copy(update={"fields": (*g0.fields, cost), "presets": (slow,)})
-    pack = pack.model_copy(update={"templates": (tpl.model_copy(update={"groups": (g0,)}),)})
+    g0 = g0.model_copy(update={"presets": (slow,)})
+    pack = pack.model_copy(
+        update={
+            "templates": (tpl.model_copy(update={"groups": (g0,)}),),
+            "params": (cost_param(g0.name, "2"),),
+        }
+    )
     t = setup_table("single", 2, pack=pack)
     e0 = t.entities(t.players[0])[0]
     # 解析行动时还不知道这次填多少：按下限 2 算，6 分钟

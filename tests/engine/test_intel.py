@@ -7,10 +7,10 @@ from typing import Any
 import pytest
 
 from smartkeeper.contracts import (
-    FieldDef,
     GroupPreset,
     InsightRule,
     IntelIn,
+    PackParam,
     PatchOp,
     RulePack,
     UseResult,
@@ -28,7 +28,6 @@ def intel_pack(when: str = "") -> RulePack:
     g = tpl.groups[0]
     g = g.model_copy(
         update={
-            "fields": (*g.fields, FieldDef(name="loud", kind="param", choices=("no=0", "yes=1"))),
             "presets": (
                 *g.presets,
                 GroupPreset(name="shout", fields={"level": 1}, config="noise = 100\nrange = 1000"),
@@ -40,7 +39,8 @@ def intel_pack(when: str = "") -> RulePack:
     )
     tpl = tpl.model_copy(update={"groups": (g, *tpl.groups[1:])})
     rule = InsightRule(name="glance", fields=("occupation", "str"), when=when)
-    return pack.model_copy(update={"templates": (tpl,), "insights": (rule,)})
+    loud = PackParam(name="loud", choices=("no=0", "yes=1"), groups=(g.name,))
+    return pack.model_copy(update={"templates": (tpl,), "insights": (rule,), "params": (loud,)})
 
 
 def table(when: str = "") -> tuple[Table, str, str]:

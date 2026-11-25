@@ -22,6 +22,7 @@ from smartkeeper.contracts import (
     GroupDef,
     GroupEntry,
     InsightRule,
+    ParamDef,
     Peers,
     Problem,
     RulePack,
@@ -325,7 +326,7 @@ def preset_ids(tpl: EntityTemplate) -> dict[str, list[str]]:
     """模板里固定条目的 ID -> 那个分组里可以引用的列（“使用时填写”的列不能引用）。"""
     out: dict[str, list[str]] = {}
     for g in tpl.groups:
-        cols = [x.name for x in g.fields if x.kind != "param"]
+        cols = [x.name for x in g.fields]
         for p in g.presets:
             if p.id:
                 out[p.id] = cols
@@ -382,7 +383,7 @@ def _check_list(pack: RulePack, template: EntityTemplate | None, ref: str) -> st
             return None
         col = next((x for x in g.fields if x.name == rest[1]), None)
         if col is not None:
-            return "formula.param_not_referenceable" if col.kind == "param" else None
+            return None
     return "formula.unknown_group"
 
 
@@ -416,22 +417,16 @@ def _check_field_def(
     entry_fields: list[str] | None = None,
 ) -> list[Problem]:
     problems: list[Problem] = []
-    if fd.kind == "param" and entry_fields is None:
-        problems.append(Problem(code="pack.param_only_in_group", path=path))
-    if fd.choices and fd.kind not in ("text", "number", "param"):
+    if fd.choices and fd.kind not in ("text", "number"):
         problems.append(Problem(code="pack.choices_need_text", path=path))
-    if fd.choices and fd.kind in ("number", "param"):
+    if fd.choices and fd.kind == "number":
         try:
             choices.parse(fd.choices)
         except ValueError as e:
             problems.append(
                 Problem(code="pack.bad_number_choice", path=path, params={"item": str(e)})
             )
-    if (
-        fd.cls == "runtime"
-        and fd.kind not in ("text", "boolean", "formula", "param")
-        and fd.initial is None
-    ):
+    if fd.cls == "runtime" and fd.kind not in ("text", "boolean", "formula") and fd.initial is None:
         problems.append(Problem(code="pack.runtime_needs_initial", path=path))
     for attr in ("min", "max", "initial"):
         text = getattr(fd, attr)
@@ -457,24 +452,6 @@ def _check_field_def(
         if fd.cls != "runtime" or fd.kind not in ("number", "resource"):
             problems.append(Problem(code="pack.per_minute_needs_runtime", path=path))
         problems += check_formula(pack, tpl, fd.per_minute, f"{path}.per_minute")
-    if fd.spends is not None and fd.kind != "param":
-        problems.append(Problem(code="pack.spends_needs_param", path=path))
-    if (fd.check or fd.cooldown) and fd.kind != "param":
-        problems.append(Problem(code="pack.option_needs_param", path=path))
-    if fd.check and pack.check(fd.check) is None:
-        problems.append(
-            Problem(code="config.unknown_check", path=f"{path}.check", params={"name": fd.check})
-        )
-    if fd.cooldown and fd.cooldown.strip():
-        problems += check_formula(
-            pack, tpl, fd.cooldown, f"{path}.cooldown", entry_fields=entry_fields
-        )
-    if fd.spends is not None and tpl is not None:
-        target = next((x for x in tpl.fields if x.name == fd.spends), None)
-        if target is None or target.kind not in ("number", "resource"):
-            problems.append(
-                Problem(code="pack.unknown_spend_target", path=path, params={"name": fd.spends})
-            )
     return problems
 
 
@@ -503,11 +480,20 @@ def _check_group(pack: RulePack, tpl: EntityTemplate, g: GroupDef, path: str) ->
             # 条件只看这张卡的字段：固定条目会影响推导值，条件再引用推导值就绕成圈了
             problems += check_formula(pack, None, p.when, f"{pp}.when", extra=field_names)
         problems += _check_entry(pack, tpl, g, p, derived, pp, required_fields=False)
+    if g.use_templates and not g.uses:
+        problems.append(Problem(code="pack.use_templates_need_uses", path=f"{path}.use_templates"))
     for i, u in enumerate(g.use_templates):
         problems += _check_use(pack, tpl, g, "", u, f"{path}.use_templates[{i}]")
     if g.reveal.strip():
         problems += check_formula(
-            pack, tpl, g.reveal, f"{path}.reveal", entry_fields=[x.name for x in g.fields]
+            pack,
+            tpl,
+            g.reveal,
+            f"{path}.reveal",
+            entry_fields=[
+                *(x.name for x in g.fields),
+                *(p.name for p in group_params(pack, g.name)),
+            ],
         )
     own = {x.name for x in tpl.fields} | derived
     for name in g.reveal_fields:
@@ -521,20 +507,123 @@ def _check_group(pack: RulePack, tpl: EntityTemplate, g: GroupDef, path: str) ->
 
 
 def _check_use(
-    pack: RulePack, tpl: EntityTemplate, g: GroupDef, base: str, u: EntryUse, path: str
+    pack: RulePack,
+    tpl: EntityTemplate,
+    g: GroupDef,
+    base: str,
+    u: EntryUse,
+    path: str,
+    names: list[str] | None = None,
+    derived: set[str] | None = None,
 ) -> list[Problem]:
-    """条目的一个用途：设置（在条目的设置上覆盖之后）和脚本。"""
+    """物品的一个用途：设置、脚本、只有它有的参数、开关和开着时的修正。"""
     problems: list[Problem] = []
     cols = [x.name for x in g.fields]
+    names = [
+        *(names or [*cols, *(p.name for p in group_params(pack, g.name))]),
+        *(p.name for p in u.params),
+    ]
     if not u.name.strip():
         problems.append(Problem(code="sheet.required", path=f"{path}.name"))
     elif USE_SEP in u.name:
         problems.append(Problem(code="sheet.bad_use_name", path=f"{path}.name"))
+    for j, prm in enumerate(u.params):
+        problems += check_param(pack, tpl, prm, f"{path}.params[{j}]", cols, names)
     config = f.merge_config(base, u.config)
     if u.script.strip():
-        problems += check_script(pack, tpl, u.script, f"{path}.script", cols, config)
+        problems += check_script(pack, tpl, u.script, f"{path}.script", names, config)
     if u.config.strip():
-        problems += check_config(pack, tpl, g, config, f"{path}.config", cols, u.script)
+        problems += check_config(pack, tpl, g, config, f"{path}.config", names, u.script)
+    if u.effects and not u.toggle:
+        problems.append(Problem(code="sheet.effects_need_toggle", path=path))
+    fdefs = {x.name: x for x in g.fields}
+    all_derived = derived if derived is not None else {d.name for d in tpl.derived}
+    for j, eff in enumerate(u.effects):
+        problems += _check_effect(pack, tpl, eff, fdefs, all_derived, f"{path}.effects[{j}]")
+    return problems
+
+
+def group_params(pack: RulePack, group: str) -> list[ParamDef]:
+    """规则包里适用于这个分组的默认参数。"""
+    return [p for p in pack.params if group in p.groups]
+
+
+_PARAM_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def check_param(
+    pack: RulePack,
+    tpl: EntityTemplate | None,
+    prm: ParamDef,
+    path: str,
+    cols: list[str],
+    names: list[str],
+) -> list[Problem]:
+    """一个参数：名字（英文，不能和条目的列重名）、可选值、各个公式、检定、选了执行的句子。"""
+    problems: list[Problem] = []
+    if not _PARAM_NAME.fullmatch(prm.name) or _keyword(prm.name):
+        problems.append(
+            Problem(code="pack.bad_param_name", path=f"{path}.name", params={"name": prm.name})
+        )
+    elif prm.name in cols:
+        problems.append(
+            Problem(code="pack.param_name_clash", path=f"{path}.name", params={"name": prm.name})
+        )
+    if prm.choices:
+        try:
+            choices.parse(prm.choices)
+        except ValueError as e:
+            problems.append(
+                Problem(
+                    code="pack.bad_number_choice", path=f"{path}.choices", params={"item": str(e)}
+                )
+            )
+    for attr in ("min", "max", "requires", "cooldown", "multiplier", "duration"):
+        text = getattr(prm, attr)
+        if text is not None and text.strip():
+            problems += check_formula(pack, tpl, text, f"{path}.{attr}", entry_fields=names)
+    if prm.check and pack.check(prm.check) is None:
+        problems.append(
+            Problem(code="config.unknown_check", path=f"{path}.check", params={"name": prm.check})
+        )
+    if prm.script.strip() and tpl is not None:
+        problems += check_script(pack, tpl, prm.script, f"{path}.script", names)
+    if prm.spends is not None and tpl is not None:
+        target = next((x for x in tpl.fields if x.name == prm.spends), None)
+        if target is None or target.kind not in ("number", "resource"):
+            problems.append(
+                Problem(
+                    code="pack.unknown_spend_target",
+                    path=f"{path}.spends",
+                    params={"name": prm.spends},
+                )
+            )
+    return problems
+
+
+def _check_pack_params(pack: RulePack) -> list[Problem]:
+    """默认参数：适用的分组要存在；在每个有这个分组的模板上检查公式。"""
+    problems: list[Problem] = []
+    groups = {g.name for t in pack.templates for g in t.groups}
+    for i, prm in enumerate(pack.params):
+        path = f"params[{i}]"
+        for name in prm.groups:
+            if name not in groups:
+                problems.append(
+                    Problem(code="pack.unknown_group", path=f"{path}.groups", params={"name": name})
+                )
+        for tpl in pack.templates:
+            for g in tpl.groups:
+                if g.name not in prm.groups:
+                    continue
+                cols = [x.name for x in g.fields]
+                names = [*cols, *(p.name for p in group_params(pack, g.name))]
+                problems += check_param(pack, tpl, prm, path, cols, names)
+    for gname in sorted({g.name for t in pack.templates for g in t.groups}):
+        for name in sorted(_dupes(p.name for p in group_params(pack, gname))):
+            problems.append(
+                Problem(code="pack.duplicate_name", path="params", params={"name": name})
+            )
     return problems
 
 
@@ -685,6 +774,7 @@ def validate_pack(pack: RulePack) -> list[Problem]:
         problems += check_check(pack, c.config, f"{p}.config")
     for i, rule in enumerate(pack.insights):
         problems += _check_insight(pack, rule, f"insights[{i}]")
+    problems += _check_pack_params(pack)
     problems += _check_handbook_refs(pack)
     if problems:
         return problems
@@ -1050,10 +1140,11 @@ def _check_formula_fields(
     base: str,
     *,
     in_entry: bool,
+    params: Iterable[str] = (),
 ) -> list[Problem]:
-    """掷骰公式字段的值：语法、引用的名字（条目里可以用 this.<字段>），允许掷骰。"""
+    """掷骰公式字段的值：语法、引用的名字（条目里可以用 this.<字段> 和这次使用的参数），允许掷骰。"""
     defs = list(defs)
-    entry_fields = [x.name for x in defs] if in_entry else None
+    entry_fields = [*(x.name for x in defs), *params] if in_entry else None
     problems: list[Problem] = []
     for fd in defs:
         v = values.get(fd.name)
@@ -1118,31 +1209,38 @@ def _check_entry(
     for name, fd in fdefs.items():
         if name in entry.fields:
             problems += _check_value(None, fd, entry.fields[name], f"{ep}.fields.{name}")
-        elif (
-            fd.required
-            and required_fields
-            and fd.kind != "param"
-            and fd.cls != "runtime"
-            and not fd.initial
-        ):
+        elif fd.required and required_fields and fd.cls != "runtime" and not fd.initial:
             problems.append(Problem(code="sheet.missing_field", path=f"{ep}.fields.{name}"))
-    problems += _check_formula_fields(pack, tpl, g.fields, entry.fields, ep, in_entry=True)
+    problems += _check_formula_fields(
+        pack,
+        tpl,
+        g.fields,
+        entry.fields,
+        ep,
+        in_entry=True,
+        params=[*(p.name for p in group_params(pack, g.name)), *(p.name for p in entry.params)],
+    )
     if entry.effects and not g.effects:
         problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
+    # 公式和脚本里 this.<名字>：条目的列，加上这次使用的参数（默认的 + 条目上加的）
+    names = [*fdefs, *(p.name for p in group_params(pack, g.name)), *(p.name for p in entry.params)]
+    for j, prm in enumerate(entry.params):
+        problems += check_param(pack, tpl, prm, f"{ep}.params[{j}]", list(fdefs), names)
+    if g.uses and (entry.config.strip() or entry.script.strip()):
+        # 物品本身不能直接用，只能用它的用途
+        problems.append(Problem(code="sheet.item_not_usable", path=ep))
     if entry.script.strip():
-        problems += check_script(pack, tpl, entry.script, f"{ep}.script", list(fdefs), entry.config)
+        problems += check_script(pack, tpl, entry.script, f"{ep}.script", names, entry.config)
     for j, eff in enumerate(entry.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
     if entry.config.strip():
-        problems += check_config(
-            pack, tpl, g, entry.config, f"{ep}.config", list(fdefs), entry.script
-        )
+        problems += check_config(pack, tpl, g, entry.config, f"{ep}.config", names, entry.script)
     for name in sorted(_dupes(u.name for u in entry.uses)):
         problems.append(Problem(code="sheet.duplicate_use", path=ep, params={"name": name}))
-    if entry.uses and not g.effects:
-        problems.append(Problem(code="sheet.effects_not_allowed", path=ep))
+    if entry.uses and not g.uses:
+        problems.append(Problem(code="sheet.uses_not_allowed", path=ep))
     for j, u in enumerate(entry.uses):
-        problems += _check_use(pack, tpl, g, entry.config, u, f"{ep}.uses[{j}]")
+        problems += _check_use(pack, tpl, g, entry.config, u, f"{ep}.uses[{j}]", names, derived)
     return problems
 
 

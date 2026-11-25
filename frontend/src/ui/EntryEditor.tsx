@@ -6,6 +6,7 @@ import { FormulaInput, Mover, moved } from "./components";
 import { CodeEditor } from "./CodeEditor";
 import { numberOptions } from "./choices";
 import { Described } from "./markdown";
+import { DefaultParams, ParamsEditor, type Param } from "./ParamEditor";
 import { fillConfig, mergeConfig } from "./skillConfig";
 
 /** 多行的提示：第一行是一句话，后面每行一条（以 - 开头的显示成列表）。 */
@@ -37,18 +38,13 @@ type GroupDef = Schemas["GroupDef"];
 
 // formula 算出 target 的新值；写 target 自己的名字表示到这一步为止的值。priority 只有玩家写的效果才有
 export type Effect = { description: string; target: string | null; formula: string | null; priority?: number | null };
-export type Use = { name: string; description?: string; config?: string; script?: string };
-export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; config?: string; script?: string; uses?: Use[] };
+export type Use = { name: string; description?: string; config?: string; script?: string; params?: Param[]; toggle?: boolean; default_on?: boolean; effects?: Effect[] };
+export type Entry = { name: string; id?: string; description: string; fields: Record<string, string | number | boolean>; effects: Effect[]; config?: string; script?: string; uses?: Use[]; params?: Param[] };
 
 type Check = (f: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
 export function FieldInput({ def, value, onChange, validateFormula, onExpand }: { def: FieldDef; value: string | number | boolean | undefined; onChange: (v: string | number | boolean) => void; validateFormula?: Check; onExpand?: () => void }) {
   const { t } = useI18n();
-  if (def.kind === "param") {
-    // 使用时填写（例如这次消耗多少魔力、要不要解放）：建角时不填，行动里说
-    if (def.choices && def.choices.length) return <span className="sk-hint">{t("character.param_choices", { choices: def.choices.join("、") })}</span>;
-    return <span className="sk-hint">{t("character.param_field", { min: def.min ?? "-", max: def.max ?? "-" })}</span>;
-  }
   if (def.cls === "runtime") {
     // 条目运行中会变的列（例如开着没有、还剩几发）：游戏里由技能改，建角时不填
     return <span className="sk-hint">{t("character.runtime_column")}</span>;
@@ -121,7 +117,10 @@ export function fieldLabel(f: { name: string; label?: string; unit?: string | nu
   return `${f.label || f.name || unnamed}${f.unit ? ` (${f.unit})` : ""}`;
 }
 
-/** 分组里的一个条目：名字、说明、字段、修正、技能脚本、范围形状。建角和规则包的固定条目共用。 */
+type Validator = (f: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string, names?: string[]) => Promise<{ problems: { code: string }[]; names: string[] }>;
+
+/** 分组里的一个条目：名字、说明、字段、修正、参数，以及
+ * 动作类分组：技能设置和脚本（条目本身就是一个动作）；物品类分组：几种用途（物品本身不能直接用）。 */
 export function EntryEditor({
   group,
   derived,
@@ -132,32 +131,55 @@ export function EntryEditor({
   withPriority = true,
   mover,
   simple = false,
+  defaults = [],
+  checks = [],
+  spendTargets = [],
 }: {
   group: GroupDef;
   derived: string[];
   entry: Entry;
   onChange: (e: Entry) => void;
   onRemove?: () => void;
-  validate: (f: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
+  validate: Validator;
   /** 玩家写的条目要给效果填计算顺序；规则包的固定条目按定义顺序，不用填 */
   withPriority?: boolean;
   mover?: ReactNode;
   /** 建卡的玩家用：技能设置和脚本收在“让引擎自动执行”里，默认收起 */
   simple?: boolean;
+  /** 规则包给这个分组的默认参数（只读列出） */
+  defaults?: readonly Param[];
+  checks?: readonly string[];
+  spendTargets?: readonly string[];
 }) {
   const { t } = useI18n();
   const fields = group.fields ?? [];
+  const own = (entry.params ?? []).map((x) => x.name).filter(Boolean);
   const v = useCallback((f: string) => validate(f, group.name), [validate, group.name]);
   const vDice = useCallback((f: string) => validate(f, group.name, "dice"), [validate, group.name]);
+  const vParam = (f: string) => validate(f, group.name, undefined, undefined, own);
+  const vParamScript = (f: string) => validate(f, group.name, "script", "", own);
   // 设置和脚本可以互相引用名字：校验一边时带上另一边
-  const vScript = useCallback((f: string) => validate(f, group.name, "script", entry.config ?? ""), [validate, group.name, entry.config]);
-  const vConfig = useCallback((f: string) => validate(f, group.name, "config", entry.script ?? ""), [validate, group.name, entry.script]);
+  const vScript = (f: string) => validate(f, group.name, "script", entry.config ?? "", own);
+  const vConfig = (f: string) => validate(f, group.name, "config", entry.script ?? "", own);
   const idField = (
     <label>
       {t("rules.gt.id")}
       <small className="sk-field-desc">{t("rules.gt.id_hint")}</small>
       <input value={entry.id ?? ""} placeholder={t("rules.gt.id_ph")} onChange={(e) => onChange({ ...entry, id: e.target.value.trim() })} />
     </label>
+  );
+  const item = group.uses === true;
+  const params = (
+    <ParamsEditor
+      params={entry.params ?? []}
+      onChange={(ps) => onChange({ ...entry, params: ps })}
+      validate={vParam}
+      validateScript={vParamScript}
+      checks={checks}
+      spendTargets={spendTargets}
+      title={t(item ? "params.item_own" : "params.own")}
+      hint={t("params.own_hint")}
+    />
   );
   return (
     <div className="sk-entry">
@@ -181,22 +203,36 @@ export function EntryEditor({
         </label>
       ))}
       {group.effects !== false && <EffectsEditor effects={entry.effects} derived={derived} validate={v} withPriority={withPriority} onChange={(effects) => onChange({ ...entry, effects })} />}
+      <DefaultParams params={defaults} />
+      {group.effects !== false && item && (
+        <>
+          {params}
+          <UsesList group={group} uses={entry.uses ?? []} derived={derived} validate={validate} own={own} checks={checks} spendTargets={spendTargets} simple={simple} onChange={(uses) => onChange({ ...entry, uses })} />
+          {simple && (
+            <Fold simple filled={Boolean(entry.id)}>
+              {idField}
+            </Fold>
+          )}
+        </>
+      )}
       {group.effects !== false &&
+        !item &&
         (simple ? (
-          <details className="sk-engine" open={Boolean((entry.config ?? "").trim() || (entry.script ?? "").trim())}>
+          <details className="sk-engine" open={Boolean((entry.config ?? "").trim() || (entry.script ?? "").trim() || (entry.params ?? []).length)}>
             <summary>{t("character.engine_rules")}</summary>
             <p className="sk-hint">{t("character.engine_rules_hint")}</p>
             {idField}
             <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />
             <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />
+            {params}
           </details>
         ) : (
           <>
             <ConfigEditor config={entry.config || fillConfig("", group, t)} validate={vConfig} onChange={(config) => onChange({ ...entry, config })} />
             <ScriptEditor script={entry.script ?? ""} validate={vScript} onChange={(script) => onChange({ ...entry, script })} />
+            {params}
           </>
         ))}
-      {group.effects !== false && <UsesList group={group} uses={entry.uses ?? []} base={entry.config ?? ""} validate={validate} onChange={(uses) => onChange({ ...entry, uses })} />}
       {onRemove && (
         <button type="button" className="sk-link" onClick={onRemove}>
           {t("character.remove_entry")}
@@ -206,9 +242,42 @@ export function EntryEditor({
   );
 }
 
-/** 条目的几种用途（例如一件装备的几种用法）：各有自己的设置和脚本，设置没写的项沿用条目的。
- * 可以从分组的用途模板里选一个照抄。只写说明的用途由 KP 按说明裁定。 */
-function UsesList({ group, uses, base, validate, onChange }: { group: GroupDef; uses: Use[]; base: string; validate: (f: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string) => Promise<{ problems: { code: string }[]; names: string[] }>; onChange: (u: Use[]) => void }) {
+/** 建卡时把设置、脚本、参数收在“让引擎自动执行”里（默认收起；写了东西的标一下）。 */
+function Fold({ simple, filled, children }: { simple: boolean; filled: boolean; children: ReactNode }) {
+  const { t } = useI18n();
+  if (!simple) return <>{children}</>;
+  return (
+    <details className="sk-engine">
+      <summary>{t(filled ? "character.engine_rules_filled" : "character.engine_rules")}</summary>
+      {children}
+    </details>
+  );
+}
+
+/** 物品的几种用途（例如一把枪：枪托砸人、射击）：各有自己的设置、脚本和参数。
+ * 开关类用途每用一次切换开/关，开着的时候它的修正生效。可以从分组的用途模板里选一个照抄。只写说明的用途由 KP 按说明裁定。 */
+function UsesList({
+  group,
+  uses,
+  derived,
+  validate,
+  own,
+  checks,
+  spendTargets,
+  simple,
+  onChange,
+}: {
+  group: GroupDef;
+  uses: Use[];
+  derived: string[];
+  validate: Validator;
+  own: string[];
+  checks: readonly string[];
+  spendTargets: readonly string[];
+  /** 建卡的玩家用：设置、脚本、参数收起来 */
+  simple: boolean;
+  onChange: (u: Use[]) => void;
+}) {
   const { t } = useI18n();
   const templates = group.use_templates ?? [];
   const set = (j: number, u: Use) => onChange(uses.map((x, k) => (k === j ? u : x)));
@@ -216,27 +285,50 @@ function UsesList({ group, uses, base, validate, onChange }: { group: GroupDef; 
     <div className="sk-effects">
       <strong>{t("rules.uses.title")}</strong>
       <p className="sk-hint">{t("character.uses_hint")}</p>
-      {uses.map((u, j) => (
-        <div key={j} className="sk-use">
-          <div className="sk-row">
-            <input placeholder={t("rules.uses.name")} value={u.name} onChange={(e) => set(j, { ...u, name: e.target.value })} />
-            <Mover index={j} count={uses.length} onMove={(from, to) => onChange(moved(uses, from, to))} />
-            <button type="button" className="sk-link" onClick={() => onChange(uses.filter((_, k) => k !== j))}>
-              {t("common.remove")}
-            </button>
+      {uses.map((u, j) => {
+        const names = [...own, ...(u.params ?? []).map((x) => x.name).filter(Boolean)];
+        return (
+          <div key={j} className="sk-use">
+            <div className="sk-row">
+              <input placeholder={t("rules.uses.name")} value={u.name} onChange={(e) => set(j, { ...u, name: e.target.value })} />
+              <label className="sk-inline" title={t("uses.toggle_hint")}>
+                <input type="checkbox" checked={u.toggle ?? false} onChange={(e) => set(j, { ...u, toggle: e.target.checked })} /> {t("uses.toggle")}
+              </label>
+              {u.toggle && (
+                <label className="sk-inline">
+                  <input type="checkbox" checked={u.default_on ?? false} onChange={(e) => set(j, { ...u, default_on: e.target.checked })} /> {t("uses.default_on")}
+                </label>
+              )}
+              <Mover index={j} count={uses.length} onMove={(from, to) => onChange(moved(uses, from, to))} />
+              <button type="button" className="sk-link" onClick={() => onChange(uses.filter((_, k) => k !== j))}>
+                {t("common.remove")}
+              </button>
+            </div>
+            <textarea rows={2} placeholder={t("rules.uses.description")} value={u.description ?? ""} onChange={(e) => set(j, { ...u, description: e.target.value })} />
+            {u.toggle && <EffectsEditor effects={(u.effects ?? []) as Effect[]} derived={derived} validate={(f) => validate(f, group.name, undefined, undefined, names)} withPriority={false} title={t("uses.effects")} onChange={(effects) => set(j, { ...u, effects })} />}
+            <Fold simple={simple} filled={Boolean((u.config ?? "").trim() || (u.script ?? "").trim() || (u.params ?? []).length)}>
+              <ConfigEditor config={u.config ?? ""} validate={(f) => validate(f, group.name, "config", u.script ?? "", names)} onChange={(config) => set(j, { ...u, config })} />
+              <ScriptEditor script={u.script ?? ""} validate={(f) => validate(f, group.name, "script", mergeConfig("", u.config ?? ""), names)} onChange={(script) => set(j, { ...u, script })} />
+              <ParamsEditor
+                params={u.params ?? []}
+                onChange={(ps) => set(j, { ...u, params: ps })}
+                validate={(f) => validate(f, group.name, undefined, undefined, names)}
+                validateScript={(f) => validate(f, group.name, "script", "", names)}
+                checks={checks}
+                spendTargets={spendTargets}
+                title={t("params.use_own")}
+              />
+            </Fold>
+            {!(u.script ?? "").trim() && !(u.config ?? "").trim() && !u.toggle && <p className="sk-hint">{t("rules.uses.kp_rules")}</p>}
           </div>
-          <textarea rows={2} placeholder={t("rules.uses.description")} value={u.description ?? ""} onChange={(e) => set(j, { ...u, description: e.target.value })} />
-          <ConfigEditor config={u.config ?? ""} validate={(f) => validate(f, group.name, "config", u.script ?? "")} onChange={(config) => set(j, { ...u, config })} />
-          <ScriptEditor script={u.script ?? ""} validate={(f) => validate(f, group.name, "script", mergeConfig(base, u.config ?? ""))} onChange={(script) => set(j, { ...u, script })} />
-          {!(u.script ?? "").trim() && !(u.config ?? "").trim() && <p className="sk-hint">{t("rules.uses.kp_rules")}</p>}
-        </div>
-      ))}
+        );
+      })}
       <div className="sk-row">
         <button type="button" onClick={() => onChange([...uses, { name: "", description: "", config: "", script: "" }])}>
           {t("rules.uses.add")}
         </button>
         {templates.length > 0 && (
-          <select value="" onChange={(e) => e.target.value !== "" && onChange([...uses, { ...templates[Number(e.target.value)]! }])}>
+          <select value="" onChange={(e) => e.target.value !== "" && onChange([...uses, { ...(templates[Number(e.target.value)] as unknown as Use) }])}>
             <option value="">{t("character.use_from_template")}</option>
             {templates.map((u, k) => (
               <option key={k} value={String(k)}>
@@ -257,18 +349,20 @@ export function EffectsEditor({
   validate,
   withPriority,
   onChange,
+  title,
 }: {
   effects: Effect[];
   derived: string[];
   validate: Check;
   withPriority: boolean;
   onChange: (effects: Effect[]) => void;
+  title?: string;
 }) {
   const { t } = useI18n();
   const set = (i: number, patch: Partial<Effect>) => onChange(effects.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   return (
     <div className="sk-effects">
-      <strong>{t("character.effects")}</strong>
+      <strong>{title ?? t("character.effects")}</strong>
       {effects.map((ef, i) => (
         <div key={i} className="sk-effect">
           <input placeholder={t("character.effect_description")} value={ef.description} onChange={(e) => set(i, { description: e.target.value })} />

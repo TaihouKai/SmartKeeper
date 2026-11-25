@@ -38,7 +38,9 @@ def plan_script(
     config: str = "",
     outcome: Mapping[str, float] | None = None,
     damage_kind: str = "",
+    scale: float = 1.0,
 ) -> tuple[ScriptStep, ...]:
+    """scale：这次使用的效果倍数（参数放大的），乘在伤害（减免之前）和增加的数值上；扣、设为、修正不乘。"""
     try:
         nodes = f.parse_script(script)
     except f.FormulaError as e:
@@ -51,6 +53,7 @@ def plan_script(
     # 局部变量：算一次，后面的句子按名字取。引擎给的数（距离、双方等级、豁免、是不是当反应用……）
     # 见 skillconfig.SCRIPT_VARS，没给的是 0
     local: dict[str, f.Value] = {k: 0.0 for k in skillconfig.SCRIPT_VARS}
+    local["boost"] = 1.0  # 没选放大效果的参数时是 1
     local.update(outcome or {})
     # 设置的各项：在脚本的公式里换成它们的公式
     env = {k: v for k, v in skillconfig.names(config, script).items() if k in skillconfig.KEYS}
@@ -77,7 +80,9 @@ def plan_script(
                         continue
                     if node.receiver not in f.RECEIVERS and ctx.peer(node.receiver) is None:
                         continue  # 没有这个同伴
-                    steps.append(_step(ctx, lookup, faces, entry, node, local, prep, damage_kind))
+                    steps.append(
+                        _step(ctx, lookup, faces, entry, node, local, prep, damage_kind, scale)
+                    )
                     continue
                 for b in node.branches:
                     if b.condition is None:
@@ -108,6 +113,7 @@ def _step(
     local: dict[str, f.Value],
     prep: Callable[[str], f.Node],
     damage_kind: str = "",
+    scale: float = 1.0,
 ) -> ScriptStep:
     rolls: list[int] = []
 
@@ -159,6 +165,8 @@ def _step(
     assert st.amount is not None
     rolls.clear()
     amount = num(st.amount)
+    if st.verb in ("damage", "add"):
+        amount *= scale
     if st.verb == "damage":
         kind = damage_kind
         if st.kind is not None:

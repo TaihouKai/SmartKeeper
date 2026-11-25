@@ -89,24 +89,60 @@ class PlacementSpec(Frozen):
     """条目是设置物（陷阱、结界等）时的参数。都是公式，在设置者的角色卡和这个条目上求值，设置时算定。"""
 
     radius: str = ""  # 触发范围（米），圆形；building 时不用
-    building: bool = False  # 设置者所在的整栋建筑就是这个设置物（例如把一栋楼做成据点）
+    # 设置者所在的整栋建筑就是这个设置物（例如把一栋楼做成据点）：条件公式，可以按参数选；空是否
+    building: str = ""
     perceive_multiplier: str = "1"  # 别人发现它的距离 = 那人的感知半径 × 这个系数；0 表示发现不了
     charges: str = ""  # 可触发次数；空表示无限
     duration: str = ""  # 持续多少秒；空表示一直存在，直到被移除
     notify_owner: bool = True  # 被触发时是否通知设置者
 
 
-class EntryUse(Frozen):
-    """条目的一个用途：一件东西（例如一件装备）可以有好几种用法，每种用法是一个技能。
+class ParamDef(Frozen):
+    """使用时选的参数（例如“全力发动”“额外加强”“投入多少法力”）。不存进角色卡；KP 按玩家的行动在用的时候给出，
+    没给的取第一个可选值（没有可选值时取下限）。公式和脚本里 this.<name> 是这次选的数。
 
-    用的时候写“条目名/用途名”。用途的技能设置在条目自己的设置上覆盖（没写的项沿用条目的），
-    脚本是用途自己的；公式里 this.<列> 是条目的列。只写说明、不写设置和脚本的用途由 KP 按说明裁定。
+    一次使用实际有的参数 = 规则包的默认参数（适用于这个分组的）+ 条目上加的 + 用途上加的（同名的后者覆盖前者）。
+    下面这些只在选了非 0 时起作用：
+    - requires：能不能选（条件公式，在使用者和条目上算），不成立就拒绝这次使用；
+    - check：要过的检定，没过按 0 算（不扣、不放大）；
+    - cooldown：选过以后这个条目多久（分钟）不能再选；
+    - spends：从使用者的哪个资源里扣，扣的数就是选的数（例如投入多少魔力），不够时拒绝；
+    - script：选了就执行的句子（例如扣同伴身上的资源：mentor.sub(charges, 1)），不管这次打没打中都执行；
+    - multiplier：效果倍数（公式），这次使用的伤害、治疗、增加的数值自动乘上去（消耗不乘），脚本里 boost 是总倍数；
+    - duration：用在被动的条目（没有设置也没有脚本）上时，接下来多少分钟里这个条目的数值列乘上倍数；空表示不行。
+    """
+
+    name: str
+    label: str = ""
+    description: str = ""
+    choices: tuple[str, ...] = ()
+    min: str | None = None
+    max: str | None = None
+    requires: str = ""
+    check: str | None = None
+    cooldown: str | None = None
+    spends: str | None = None
+    script: str = ""
+    multiplier: str = ""
+    duration: str = ""
+
+
+class EntryUse(Frozen):
+    """物品的一种用法（例如一把枪：枪托砸人、射击），每种用法是一个技能。只有物品类的分组（GroupDef.uses）的条目有用途。
+
+    用的时候写“条目名/用途名”。公式里 this.<列> 是物品的列。只写说明、不写设置和脚本的用途由 KP 按说明裁定。
+    toggle：这是一个开关（例如开关风之结界）：每用一次切换开/关，default_on 是一开始开着没有；
+    effects 是开着的时候生效的修正。脚本里 turning_on 是这一次是不是打开。
     """
 
     name: str
     description: str = ""
     config: str = ""
     script: str = ""
+    params: tuple[ParamDef, ...] = ()  # 只有这个用途有的参数
+    toggle: bool = False
+    default_on: bool = False
+    effects: tuple[Effect, ...] = ()
 
 
 USE_SEP = "/"  # 条目名/用途名
@@ -125,8 +161,10 @@ class GroupEntry(Frozen):
     config: str = ""
     # 技能脚本：用这个条目（并且 KP 判定生效）时执行的语句，见 smartkeeper.lang.script
     script: str = ""
-    # 这个条目的几种用法（见 EntryUse）；条目自己的设置和脚本是“直接用它”时的那一种
+    # 物品的几种用法（见 EntryUse）；只有物品类分组的条目有，物品本身不能直接用
     uses: tuple[EntryUse, ...] = ()
+    # 这个条目加的参数（物品的话所有用途共用），加在规则包的默认参数后面
+    params: tuple[ParamDef, ...] = ()
 
 
 class SkillConfig(Frozen):
@@ -189,6 +227,8 @@ class Sheet(Frozen):
     # 固定条目里规则包留空的列，由玩家建角时填：分组名 -> 固定条目名 -> 列名 -> 值
     # （例如每个角色的同一个技能等级各不相同）。固定条目本身不存进角色卡，读卡时把这里的值合并进去
     preset_fields: dict[str, dict[str, dict[str, JsonValue]]] = {}
+    # 开关类用途现在开着没有：“条目名/用途名” -> 是否开着；没有记录的按用途的 default_on
+    toggles: dict[str, bool] = {}
     statuses: tuple[Status, ...] = ()
     items: tuple[Item, ...] = ()
 

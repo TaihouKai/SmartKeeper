@@ -12,7 +12,7 @@ from typing import NamedTuple, cast
 from pydantic import JsonValue
 
 from smartkeeper import lang as f
-from smartkeeper.contracts import USE_SEP
+from smartkeeper.contracts import USE_SEP, GroupEntry
 
 
 def _obj(v: JsonValue) -> dict[str, JsonValue]:
@@ -23,8 +23,17 @@ def _list(v: JsonValue) -> list[JsonValue]:
     return cast(list[JsonValue], v) if isinstance(v, list) else []
 
 
+# 用途当作条目时另外带着的信息（不是条目的格式）
+USE_KEYS = ("is_use", "use_name", "toggle", "default_on")
+
+
+def as_entry(row: dict[str, JsonValue]) -> GroupEntry:
+    """角色卡上的一行（可能是用途）读成条目。"""
+    return GroupEntry.model_validate({k: v for k, v in row.items() if k not in USE_KEYS})
+
+
 def use_row(entry: dict[str, JsonValue], use: dict[str, JsonValue]) -> dict[str, JsonValue]:
-    """条目的一个用途当作一个条目。"""
+    """物品的一个用途当作一个条目：参数是物品上加的加上用途上加的；开关类用途带着它的开关信息。"""
     name = f"{entry.get('name', '')}{USE_SEP}{use.get('name', '')}"
     return {
         **entry,
@@ -35,6 +44,11 @@ def use_row(entry: dict[str, JsonValue], use: dict[str, JsonValue]) -> dict[str,
         "script": str(use.get("script") or ""),
         "effects": [],
         "uses": [],
+        "params": [*_list(entry.get("params")), *_list(use.get("params"))],
+        "is_use": True,
+        "use_name": str(use.get("name", "")),
+        "toggle": bool(use.get("toggle")),
+        "default_on": bool(use.get("default_on")),
     }
 
 

@@ -103,7 +103,7 @@ export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; d
           <h5>{t("ide.n.this", { name: preset.name || "?" })}</h5>
           {(row.fields ?? []).map((f) => {
             const v = (preset.fields ?? {})[f.name];
-            const note = f.kind === "param" ? t("rules.kind.param") : v === undefined || v === "" ? t("ide.n.empty") : `= ${String(v)}`;
+            const note = v === undefined || v === "" ? t("ide.n.empty") : `= ${String(v)}`;
             return <Item key={f.name} code={`this.${f.name}`} note={`${f.label ? `${f.label} ` : ""}${note}`} onClick={() => insert(`this.${f.name}`)} />;
           })}
         </section>
@@ -213,7 +213,8 @@ export function TryPanel({ pack, doc, onGoSamples }: { pack: Pack; doc: Doc | nu
       </div>
     );
   const me = mine.find((x) => x.i === user) ?? mine[0]!;
-  const paramCols = (group?.fields ?? []).filter((f) => f.kind === "param");
+  // 这次使用的参数：规则包给这个分组的默认参数，加上这一条自己的
+  const paramCols = [...(pack.params ?? []).filter((x) => group && (x.groups ?? []).includes(group.name)), ...(preset?.params ?? [])];
   const run = () =>
     void act.run(async () => {
       const entry: Record<string, unknown> = { ...(preset?.fields ?? {}) };

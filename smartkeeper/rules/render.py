@@ -20,8 +20,6 @@ def _field(fd: FieldDef) -> str:
         bits.append(f"initial={fd.initial}")
     if fd.choices:
         bits.append("{" + " | ".join(fd.choices) + "}")
-    if fd.spends:
-        bits.append(f"spends={fd.spends}")
     if fd.per_minute:
         bits.append(f"per_minute={fd.per_minute}")
     if fd.description:
@@ -49,11 +47,7 @@ def _template(t: EntityTemplate, include_hidden: bool) -> list[str]:
             cond = f" when `{p.when}`" if p.when.strip() else ""
             vals = ", ".join(
                 [f"{k}={v}" for k, v in p.fields.items()]
-                + [
-                    f"{x.name}=(player)"
-                    for x in g.fields
-                    if x.kind != "param" and x.name not in p.fields
-                ]
+                + [f"{x.name}=(player)" for x in g.fields if x.name not in p.fields]
             )
             line = f"  - * {p.name}{cond}"
             if vals:
@@ -99,6 +93,31 @@ def render(pack: RulePack, include_hidden: bool = True) -> str:
         for c in pack.checks:
             out.append(f"- `{c.name}`:")
             out += [f"  {line}" for line in c.config.strip().splitlines() if line.strip()]
+        out.append("")
+    if pack.params:
+        out += ["## params (chosen when used; default for these groups)", ""]
+        for p in pack.params:
+            bits = [f"- `{p.name}` {p.label}".rstrip(), f"groups={','.join(p.groups)}"]
+            if p.choices:
+                bits.append("{" + " | ".join(p.choices) + "}")
+            for key in (
+                "min",
+                "max",
+                "requires",
+                "check",
+                "cooldown",
+                "spends",
+                "multiplier",
+                "duration",
+            ):
+                v = getattr(p, key)
+                if v:
+                    bits.append(f"{key}={v}")
+            if p.script.strip():
+                bits.append(f"script={p.script.strip()!r}")
+            if p.description:
+                bits.append(f"— {p.description}")
+            out.append(" ".join(bits))
         out.append("")
     if pack.rules_text.strip():
         out += ["## rules", "", pack.rules_text.strip(), ""]

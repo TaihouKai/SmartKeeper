@@ -92,6 +92,131 @@ T: dict[str, tuple[str, str]] = {
     "join.hello": ("玩家：{name}", "Player: {name}"),
     "join.rename": ("改昵称", "Change nickname"),
     "handbook.title": ("规则书", "Rulebook"),
+    "params.defaults": (
+        "用的时候还可以选（规则包定的参数）：",
+        "When used you can also choose (parameters from the rule pack):",
+    ),
+    "params.own": ("这个条目自己的参数（可选）", "This entry's own parameters (optional)"),
+    "params.item_own": (
+        "这件东西的参数（所有用途都能选，可选）",
+        "This item's parameters (every use can pick them; optional)",
+    ),
+    "params.use_own": ("只有这个用途有的参数（可选）", "Parameters only this use has (optional)"),
+    "params.own_hint": (
+        "参数是用的时候选的数，例如“燃烧寿命：不用=0、用=1”。选了以后可以扣东西、放大效果，也可以只写说明让 KP 裁定。",
+        "A parameter is a number chosen at use time, e.g. “burn lifespan: no=0, yes=1”. Choosing it can cost something or amplify the effect, or just carry a description for the KP.",
+    ),
+    "params.add": ("加一个参数", "Add a parameter"),
+    "params.name": ("英文名", "Name"),
+    "params.label": ("显示名", "Label"),
+    "params.choices": ("可选值，例如 不用=0、用=1", "Choices, e.g. no=0, yes=1"),
+    "params.description": ("说明：选了会怎样", "What choosing it does"),
+    "params.more": (
+        "条件、检定、冷却、扣什么、放大多少……",
+        "Condition, check, cooldown, cost, multiplier…",
+    ),
+    "params.min": ("下限", "Minimum"),
+    "params.max": ("上限", "Maximum"),
+    "params.min_hint": (
+        "没有可选值时能选的范围（公式）",
+        "The range when there are no choices (formulas)",
+    ),
+    "params.requires": ("能选的条件", "Allowed when"),
+    "params.requires_hint": (
+        "选非 0 时要成立的条件，不成立就不能这样用",
+        "Must hold to choose a non-zero value",
+    ),
+    "params.requires_ph": ("例如 this.plus > 0", "e.g. this.plus > 0"),
+    "params.check": ("要过的检定", "Check to pass"),
+    "params.check_hint": (
+        "选了非 0 要过的检定，没过就当没选",
+        "Rolled when chosen; on failure it counts as not chosen",
+    ),
+    "params.none": ("（不要）", "(none)"),
+    "params.cooldown": ("冷却（分钟）", "Cooldown (minutes)"),
+    "params.cooldown_hint": (
+        "选过以后这个条目多久不能再选",
+        "How long before this entry can choose it again",
+    ),
+    "params.cooldown_ph": ("例如 1440 是每天一次", "e.g. 1440 for once a day"),
+    "params.spends": ("从哪个资源里扣", "Spends from"),
+    "params.spends_hint": (
+        "扣的数就是选的数（例如投入多少魔力）",
+        "Deducts the chosen number (e.g. how much mana to put in)",
+    ),
+    "params.multiplier": ("效果倍数", "Effect multiplier"),
+    "params.multiplier_hint": (
+        "选了以后，这次的伤害、治疗、增加的数值自动乘上它（消耗不乘）；脚本里 boost 是总倍数",
+        "When chosen, this use's damage, healing and added amounts are multiplied by it (costs are not); scripts see the total as boost",
+    ),
+    "params.multiplier_ph": ("例如 1 + 0.5 * this.plus", "e.g. 1 + 0.5 * this.plus"),
+    "params.duration": ("被动时放大多久（分钟）", "Passive boost (minutes)"),
+    "params.duration_hint": (
+        "用在被动的条目（没有设置也没有脚本）上时，接下来这么久里它的数值（例如等级）乘上倍数",
+        "On a passive entry (no settings or script), its numbers (e.g. level) are multiplied for this long",
+    ),
+    "params.duration_ph": ("例如 10", "e.g. 10"),
+    "params.script": ("选了就执行的句子", "Runs when chosen"),
+    "params.script_hint": (
+        "打没打中都执行，例如扣同伴身上的资源",
+        "Runs whether or not the use lands, e.g. spend a resource elsewhere",
+    ),
+    "params.script_ph": ("例如 self.sub(hp, 5)", "e.g. self.sub(hp, 5)"),
+    "params.hint": (
+        "公式里 this.<英文名> 是这次选的数。",
+        "In formulas this.<name> is the number chosen this time.",
+    ),
+    "uses.toggle": ("开关", "Toggle"),
+    "uses.toggle_hint": (
+        "每用一次切换开/关，开着的时候下面的修正生效",
+        "Each use flips it on or off; its modifiers apply while on",
+    ),
+    "uses.default_on": ("一开始开着", "Starts on"),
+    "uses.effects": ("开着的时候的修正", "Modifiers while on"),
+    "rules.g.uses": (
+        "物品类：条目本身不能直接用，只能用它的几种用途",
+        "Items: an entry is used only through its uses",
+    ),
+    "rules.path.params": ("默认参数", "Default parameters"),
+    "rules.params": ("默认参数", "Default parameters"),
+    "rules.params_hint": (
+        "使用时选的数（例如“用＋”“投入多少魔力”）：每个参数勾选适用于哪些分组。玩家还可以在自己的条目、用途上加参数；实际能选的是两者加在一起。",
+        "Numbers chosen at use time (e.g. “use +”, “how much mana”): tick the groups each applies to. Players can add their own on entries and uses; what can be chosen is both together.",
+    ),
+    "rules.params_groups": ("适用于：", "Applies to:"),
+    "rules.params_untitled": ("（没起名的参数）", "(unnamed parameter)"),
+    "codes.pack.bad_param_name": (
+        "参数名 {name} 要是英文、数字和下划线",
+        "Parameter name {name} must be letters, digits and underscores",
+    ),
+    "codes.pack.param_name_clash": (
+        "参数名 {name} 和条目的列重名了",
+        "Parameter name {name} clashes with a column",
+    ),
+    "codes.pack.use_templates_need_uses": (
+        "只有物品类的分组才有用途模板",
+        "Only item groups have use templates",
+    ),
+    "codes.sheet.item_not_usable": (
+        "物品本身不能直接用：设置和脚本写在它的用途里",
+        "An item is not used directly: put settings and scripts in its uses",
+    ),
+    "codes.sheet.uses_not_allowed": (
+        "这个分组不是物品类，条目不能有用途",
+        "This group is not for items; entries have no uses",
+    ),
+    "codes.sheet.effects_need_toggle": (
+        "只有开关类的用途才有修正",
+        "Only toggle uses have modifiers",
+    ),
+    "codes.use.item_needs_use": (
+        "“{entry}”是一件东西，要说用它的哪种用途",
+        "“{entry}” is an item: say which use",
+    ),
+    "codes.use.param_requires": (
+        "这次不能选“{name}”（条件：{formula}）",
+        "Cannot choose “{name}” this time (needs {formula})",
+    ),
     "rules.path.handbook": ("规则书", "Rulebook"),
     "rules.handbook": ("规则书", "Rulebook"),
     "rules.handbook_hint": (
@@ -125,6 +250,10 @@ T: dict[str, tuple[str, str]] = {
     ),
     "character.fixed_entries_head": ("自动获得：", "You get these automatically:"),
     "character.engine_rules": ("让引擎自动执行（可选）", "Let the engine run it (optional)"),
+    "character.engine_rules_filled": (
+        "让引擎自动执行（已写好，点开看）",
+        "Let the engine run it (filled in; open to see)",
+    ),
     "character.engine_rules_hint": (
         "不会写也没关系：只写上面的说明，KP 会按说明裁定。写了的话，射程、消耗、伤害这些由引擎自动算。",
         "Optional: with just the description above, the KP rules on it. If you fill this in, the engine works out range, cost and damage itself.",
@@ -1755,8 +1884,8 @@ T: dict[str, tuple[str, str]] = {
         "Changed by skills during play; leave empty",
     ),
     "character.uses_hint": (
-        "这个条目的几种用法：每种用法是一个技能（设置没写的项沿用上面条目的）。只写说明的由 KP 裁定。",
-        "Ways to use this entry: each is a skill (its config falls back to the entry's). Text-only ones are ruled by the KP.",
+        "这件东西的几种用法，每种单独用；可以从模板里挑一个再改。只写说明的由 KP 裁定。勾了“开关”的每用一次切换开/关。",
+        "The ways to use this item, each used on its own; pick one from a template and adjust. Text-only ones are ruled by the KP. A toggle flips on or off each time it is used.",
     ),
     "character.use_from_template": ("从模板加一个用途…", "Add a use from a template…"),
     "ide.op.summon": ("召唤", "summon"),
@@ -1972,6 +2101,10 @@ T: dict[str, tuple[str, str]] = {
     "fh.fn.inside": (
         '是不是站在自己用这个条目放下的设置物里（圆形范围或整栋建筑），例如 inside("营地")',
         'Whether you stand inside a placement you set with this entry (a circle or a whole building), e.g. inside("camp")',
+    ),
+    "fh.fn.toggled": (
+        '这个分组里开着的开关有几个（开关类用途），例如 toggled("装备")',
+        'How many toggles are on in this group (toggle uses), e.g. toggled("gear")',
     ),
     "fh.fn.highest": (
         "掷 n 颗 s 面骰，取最高的 k 颗之和",

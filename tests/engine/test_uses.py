@@ -11,7 +11,9 @@ from smartkeeper.contracts import (
     CheckDef,
     EntryUse,
     FieldDef,
+    GroupDef,
     GroupPreset,
+    PackParam,
     PatchOp,
     RulePack,
     ShapeDef,
@@ -25,44 +27,42 @@ from tests.fixtures import load_pack
 
 
 def kit_pack() -> RulePack:
+    """skills 分组：几个动作（范围、召唤、瞬间移动、飞行、整栋建筑的设置物）；gear 分组是物品类：kit 有几种用途。
+    默认参数 mode / boost / lucky 适用于这两个分组。"""
     pack = load_pack("single")
     tpl = pack.templates[0]
     g = tpl.groups[0]
-    cols = (
+    gear_cols = (
         *g.fields,
-        FieldDef(name="mode", kind="param", choices=("off=0", "on=1")),
-        FieldDef(
-            name="boost", kind="param", choices=("no=0", "yes=1"), check="never", cooldown="60"
-        ),
-        FieldDef(name="lucky", kind="param", choices=("no=0", "yes=1"), check="always"),
         FieldDef(name="on", kind="boolean", cls="runtime", required=False),
         FieldDef(name="charges", kind="number", cls="runtime", initial="3", required=False),
     )
-    presets = (
-        GroupPreset(
-            name="kit",
-            fields={"level": 2},
-            config="range = 1000",
-            effects=(
-                # 开着的时候 str + 2：修正作用在建角时填的字段上
-                {"target": "str", "formula": "str + 2 if this.on else str"},  # type: ignore[arg-type]
-            ),
-            uses=(
-                EntryUse(name="zap", script="target.damage(2 if this.mode else 1)"),
-                EntryUse(
-                    name="arm",
-                    config='target = "self"',
-                    script="self.set(this.on, 1)\nself.sub(this.charges, 1)",
-                ),
-                EntryUse(
-                    name="hype",
-                    config='target = "self"',
-                    script="self.modify(this.level, this.level * 3, 10)",
-                ),
-                EntryUse(name="try", config='target = "self"', script="self.add(hp, 0)"),
-                EntryUse(name="sense", description="KP 按说明裁定"),
-            ),
+    kit = GroupPreset(
+        name="kit",
+        fields={"level": 2},
+        effects=(
+            # 开着的时候 str + 2：修正作用在建角时填的字段上
+            {"target": "str", "formula": "str + 2 if this.on else str"},  # type: ignore[arg-type]
         ),
+        uses=(
+            EntryUse(
+                name="zap", config="range = 1000", script="target.damage(2 if this.mode else 1)"
+            ),
+            EntryUse(
+                name="arm",
+                config='target = "self"',
+                script="self.set(this.on, 1)\nself.sub(this.charges, 1)",
+            ),
+            EntryUse(
+                name="hype",
+                config='target = "self"',
+                script="self.modify(this.level, this.level * 3, 10)",
+            ),
+            EntryUse(name="try", config='target = "self"', script="self.add(hp, 0)"),
+            EntryUse(name="sense", description="KP 按说明裁定"),
+        ),
+    )
+    presets = (
         GroupPreset(
             name="burst",
             fields={"level": 1},
@@ -88,21 +88,31 @@ def kit_pack() -> RulePack:
             config='target = "none"\nplacement = placement(building=True, perceive=0)',
         ),
     )
-    g = g.model_copy(
+    skills = g.model_copy(
         update={
-            "fields": cols,
             "presets": (*g.presets, *presets),
             "shapes": ShapeDef(allowed=("sphere",)),
             "placements": True,
         }
     )
-    tpl = tpl.model_copy(update={"groups": (g, *tpl.groups[1:])})
+    gear = GroupDef(name="gear", fields=gear_cols, presets=(kit,), uses=True, max_count=0)
+    tpl = tpl.model_copy(update={"groups": (skills, gear, *tpl.groups[1:])})
     checks = (
         *pack.checks,
         CheckDef(name="never", config="dice = 1d1\nsuccess = roll > 5"),
         CheckDef(name="always", config="dice = 1d1\nsuccess = roll >= 1"),
     )
-    return pack.model_copy(update={"templates": (tpl, *pack.templates[1:]), "checks": checks})
+    both = ("skills", "gear")
+    params = (
+        PackParam(name="mode", choices=("off=0", "on=1"), groups=both),
+        PackParam(
+            name="boost", choices=("no=0", "yes=1"), check="never", cooldown="60", groups=both
+        ),
+        PackParam(name="lucky", choices=("no=0", "yes=1"), check="always", groups=both),
+    )
+    return pack.model_copy(
+        update={"templates": (tpl, *pack.templates[1:]), "checks": checks, "params": params}
+    )
 
 
 def table() -> tuple[Table, str, str]:
@@ -130,9 +140,9 @@ def state(t: Table) -> dict[str, Any]:
 
 def kit(t: Table, eid: str) -> dict[str, Any]:
     sheet = t.engine.sheets(t.game_id, t.players[0])[0].sheet
-    return next(
-        e for e in cast(dict[str, Any], sheet)["groups"]["skills"] if e["name"] == "kit"
-    ) | {"_": eid}
+    return next(e for e in cast(dict[str, Any], sheet)["groups"]["gear"] if e["name"] == "kit") | {
+        "_": eid
+    }
 
 
 def test_a_use_inherits_the_entrys_config_and_reads_its_columns() -> None:
@@ -179,12 +189,10 @@ def test_entry_columns_change_and_feed_its_effects() -> None:
     u = e.use_entry(g, a, "kit/arm", None, {}, "x")
     h = e.use_entry(g, a, "kit/hype", None, {}, "x")
     publish(t, only=t.players, uses=[UseResult(seq=u.seq), UseResult(seq=h.seq)])
-    stored = state(t)["entities"][a]["sheet"]["preset_fields"]["skills"]["kit"]
+    stored = state(t)["entities"][a]["sheet"]["preset_fields"]["gear"]["kit"]
     assert stored == {"on": True, "charges": 2}
     view = next(v for v in e.sheets(g, t.players[0]) if v.entity_id == a)
-    live = next(
-        x for x in cast(dict[str, Any], view.sheet)["groups"]["skills"] if x["name"] == "kit"
-    )
+    live = next(x for x in cast(dict[str, Any], view.sheet)["groups"]["gear"] if x["name"] == "kit")
     assert live["fields"]["level"] == 6  # 限时修正 kit.level × 3
     strength = next(d for d in view.derived if d.name == "str")
     assert strength.base == base and strength.value == base + 2  # type: ignore[operator]

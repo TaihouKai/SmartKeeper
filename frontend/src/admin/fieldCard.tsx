@@ -10,7 +10,7 @@ export function blankField(): Field {
 }
 
 export type Scope = "any_entity" | "dice" | "script" | "config" | "check" | "damage" | "stealth" | "search";
-export type Validate = (formula: string, template: string | null, inEntry?: string, scope?: Scope, other?: string) => Promise<{ problems: { code: string }[]; names: string[] }>;
+export type Validate = (formula: string, template: string | null, inEntry?: string, scope?: Scope, other?: string, names?: string[]) => Promise<{ problems: { code: string }[]; names: string[] }>;
 
 export function useListEdit<T>(list: T[], set: (l: T[]) => void) {
   return {
@@ -54,8 +54,6 @@ export function FieldCard({
   isHp = false,
   inGroup,
   mover,
-  spendTargets = [],
-  checks = [],
 }: {
   f: Field;
   onChange: (f: Field) => void;
@@ -73,7 +71,7 @@ export function FieldCard({
 }) {
   const { t } = useI18n();
   const cls = f.cls ?? "player";
-  const numeric = f.kind === "number" || f.kind === "resource" || f.kind === "param";
+  const numeric = f.kind === "number" || f.kind === "resource";
   // 引擎必需的字段：名字、类型、类别都不能改，也不能删（生命值的上下限、初值可以改）
   const locked = isAppearance || isFly;
   const fixed = locked || isHp;
@@ -102,7 +100,6 @@ export function FieldCard({
             <option value="text">{t("rules.kind.text")}</option>
             <option value="boolean">{t("rules.kind.boolean")}</option>
             <option value="formula">{t("rules.kind.formula")}</option>
-            {inGroup && <option value="param">{t("rules.kind.param")}</option>}
           </select>
         </label>
         {(!inGroup || f.kind === "number" || f.kind === "boolean") && (
@@ -160,38 +157,6 @@ export function FieldCard({
               </label>
             </>
           )}
-          {f.kind === "param" && (
-            <>
-              <label title={t("rules.f.param_check_hint")}>
-                {t("rules.f.param_check")}
-                <select value={f.check ?? ""} onChange={(e) => onChange({ ...f, check: e.target.value || null })}>
-                  <option value="">{t("rules.f.param_check_none")}</option>
-                  {checks.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label title={t("rules.f.param_cooldown_hint")}>
-                {t("rules.f.param_cooldown")}
-                <FormulaInput value={f.cooldown ?? ""} validate={validate} placeholder={t("rules.ph.param_cooldown")} onChange={(x) => onChange({ ...f, cooldown: x || null })} />
-              </label>
-            </>
-          )}
-          {f.kind === "param" && (
-            <label>
-              {t("rules.f.spends")}
-              <select value={f.spends ?? ""} onChange={(e) => onChange({ ...f, spends: e.target.value || null })}>
-                <option value="">{t("rules.f.spends_none")}</option>
-                {spendTargets.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
           {cls === "runtime" && !inGroup && (f.kind === "number" || f.kind === "resource") && (
             <label className="sk-inline">
               <input type="checkbox" checked={f.vital ?? false} onChange={(e) => onChange({ ...f, vital: e.target.checked })} /> {t("rules.f.vital")}
@@ -203,19 +168,19 @@ export function FieldCard({
               <FormulaInput value={f.per_minute ?? ""} validate={validate} placeholder={t("rules.ph.per_minute")} onChange={(x) => onChange({ ...f, per_minute: x || null })} />
             </label>
           )}
-          {cls === "runtime" && f.kind !== "text" && f.kind !== "formula" && f.kind !== "param" && (
+          {cls === "runtime" && f.kind !== "text" && f.kind !== "formula" && (
             <label>
               {t(f.kind === "boolean" ? "rules.f.initial_bool" : "rules.f.initial_required")}
               <FormulaInput value={f.initial ?? ""} validate={validate} placeholder={t(f.kind === "boolean" ? "rules.ph.initial_bool" : "rules.ph.initial")} onChange={(x) => onChange({ ...f, initial: x || null })} />
               {f.kind === "boolean" && badBool(f.initial) && <small className="sk-invalid">{t("codes.pack.boolean_initial", { value: f.initial ?? "" })}</small>}
             </label>
           )}
-          {(f.kind === "text" || f.kind === "number" || f.kind === "param") && cls === "player" && (
+          {(f.kind === "text" || f.kind === "number") && cls === "player" && (
             <label className="sk-wide">
               {t("rules.f.choices")}
               <input
                 value={choicesText}
-                placeholder={t(f.kind === "number" ? "rules.ph.choices_number" : f.kind === "param" ? "rules.ph.choices_param" : "rules.ph.choices")}
+                placeholder={t(f.kind === "number" ? "rules.ph.choices_number" : "rules.ph.choices")}
                 onChange={(e) => {
                   setChoicesText(e.target.value);
                   onChange({ ...f, choices: parseChoices(e.target.value) });
@@ -224,7 +189,7 @@ export function FieldCard({
             </label>
           )}
           <div className="sk-field-flags">
-            {cls === "player" && f.kind !== "boolean" && f.kind !== "param" && (
+            {cls === "player" && f.kind !== "boolean" && (
               <label className="sk-inline">
                 <input type="checkbox" checked={f.required ?? true} onChange={(e) => onChange({ ...f, required: e.target.checked })} /> {t("rules.f.required")}
               </label>

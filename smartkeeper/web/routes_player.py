@@ -17,6 +17,7 @@ from smartkeeper.contracts import (
     FormulaScope,
     IdentityRules,
     Intent,
+    PackParam,
     Player,
     Point,
     Problem,
@@ -71,6 +72,8 @@ class StatusOut(BaseModel):
 class RulesOut(BaseModel):
     rulebook: str
     handbook: str  # 规则书（Markdown）
+    params: list[PackParam]  # 默认参数（各自适用于哪些分组）
+    checks: list[str]  # 检定名（自己加参数时可以要求过一个检定）
     world_name: str
     templates: list[dict[str, JsonValue]]
     player_entities: list[dict[str, JsonValue]]
@@ -114,6 +117,7 @@ class FormulaIn(BaseModel):
     script: bool = False  # 技能脚本
     config: bool = False  # 技能设置
     other: str = ""  # 条目的另一半（技能设置 / 技能脚本），两边可以互相引用名字
+    names: list[str] = []  # 条目、用途自己加的参数名（公式里 this.<名字>）
 
 
 class FormulaOut(BaseModel):
@@ -310,6 +314,8 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         return RulesOut(
             rulebook=render_rules(pack, include_hidden=False),
             handbook=pack.handbook,
+            params=list(pack.params),
+            checks=[c.name for c in pack.checks],
             world_name=pack.world.name,
             templates=templates,
             player_entities=[x.model_dump(mode="json") for x in pack.player_entities],
@@ -380,7 +386,7 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         )
         return FormulaOut(
             problems=s.rules.validate_formula(
-                pack, body.template, body.formula, body.in_entry, scope, body.other
+                pack, body.template, body.formula, body.in_entry, scope, body.other, body.names
             ),
             names=s.rules.complete_names(pack, body.template, scope),
         )

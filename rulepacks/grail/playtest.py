@@ -249,24 +249,35 @@ def main() -> int:
     m1_dead = "dead" in tags(t, m1)
     print(f"  p1 御主 {'死了' if m1_dead else '活着'}，生命 {fields(t, m1)['hp']}")
 
-    print("\n4. 开关型宝具：风王结界开着时筋力高一级")
+    print("\n4. 开关：风王结界一开始就开着（筋力高一级），用一下关上，再用一下打开")
+
+    def strength() -> tuple[float, float]:
+        view = next(v for v in e.sheets(g, p0) if v.entity_id == s0)
+        d = next((d for d in view.derived if d.name == "str"), None)
+        raw = float(fields(t, s0)["str"])
+        return (d.base, d.value) if d else (raw, raw)  # 没被修正时不在推导值里
+
+    base, now = strength()
+    ok(now == base + 1, f"默认开着：筋力 {base} → {now}")
     begin(t)
-    before = e.derived_all(g)[s0].get("str")
+    w = e.use_entry(g, s0, "风王结界/开关", None, {}, "收起风王结界")
+    publish(t, [w])
+    ok(strength()[1] == base, f"关上：筋力回到 {strength()[1]}")
+    begin(t)
+    mp_before = fields(t, s0)["mp"]
     w = e.use_entry(g, s0, "风王结界/开关", None, {}, "开风王结界")
     publish(t, [w])
-    view = next(v for v in e.sheets(g, p0) if v.entity_id == s0)
-    strength = next((d for d in view.derived if d.name == "str"), None)
     ok(
-        strength is not None and strength.value == strength.base + 1,
-        f"筋力 {strength.base if strength else '?'} → {strength.value if strength else '?'}（之前 {before}）",
+        strength()[1] == base + 1,
+        f"再打开：筋力 {strength()[1]}；打开时耗魔 {mp_before} → {fields(t, s0)['mp']}",
     )
 
     print("\n5. 令咒：空间转移、魔力灌注")
     place(t, s0, 150, 150)
     patch(t, [PatchOp(op="replace", path=f"/entities/{s0}/sheet/fields/mp", value=1)])
     begin(t)
-    c1 = e.use_entry(g, m0, "令咒/空间转移", None, {}, "过来")
-    c2 = e.use_entry(g, m0, "令咒/魔力灌注", None, {}, "拿去")
+    c1 = e.use_entry(g, m0, "令咒：空间转移", None, {}, "过来")
+    c2 = e.use_entry(g, m0, "令咒：魔力灌注", None, {}, "拿去")
     publish(t, [c1, c2])
     s = state(t)["entities"]
     ok(s[s0]["pos"] == s[m0]["pos"], "英灵瞬间回到御主身边")
@@ -354,6 +365,29 @@ def main() -> int:
     print(
         f"  p0 英灵魔力 {mp_before} → {fields(t, s0)['mp']}（对魔力 A + 风王结界开着：每天 2 + 2 + 1 = 5）"
     )
+
+    print("\n12. 参数：没有＋不能用＋；令咒加强让被动的对魔力 10 分钟内 ×3，扣御主一划令咒")
+    begin(t)
+    try:
+        e.use_entry(g, s0, "对魔力", None, {"use_plus": 1}, "没有＋")
+        ok(False, "没有＋不该能用＋")
+    except ValidationFailed as err:
+        ok(err.code == "use.param_requires", "没有＋：用＋被拒绝（use.param_requires）")
+    spells = fields(t, m0)["command_spells"]
+    boost = e.use_entry(g, s0, "对魔力", None, {"command_spell": 1}, "令咒加强对魔力")
+    ok(boost.payload["boost"] == 3, f"效果倍数 {boost.payload['boost']}")
+    publish(t, [boost])
+    ok(
+        fields(t, m0)["command_spells"] == spells - 1,
+        f"御主的令咒 {spells} → {fields(t, m0)['command_spells']}",
+    )
+    view = next(v for v in e.sheets(g, p0) if v.entity_id == s0)
+    am = next(
+        x
+        for x in cast(dict[str, Any], view.sheet)["groups"]["klass_skill"]
+        if x["name"] == "对魔力"
+    )
+    ok(am["fields"]["level"] == 15, f"对魔力等级 5 → {am['fields']['level']}（10 分钟内）")
 
     print("\n11. 情报：KP 判定的线索；没见过的人不能给")
     begin(t)

@@ -118,6 +118,8 @@ export function JoinPage() {
             <CharacterForm
               templates={r.templates as unknown as Schemas["EntityTemplate"][]}
               playerEntities={r.player_entities as unknown as { template: string; min: number; max: number }[]}
+              params={r.params}
+              checks={r.checks}
               onSubmitted={() => {
                 setEditing(false);
                 refresh();

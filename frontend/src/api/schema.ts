@@ -1530,10 +1530,11 @@ export interface components {
         };
         /**
          * EntryUse
-         * @description 条目的一个用途：一件东西（例如一件装备）可以有好几种用法，每种用法是一个技能。
+         * @description 物品的一种用法（例如一把枪：枪托砸人、射击），每种用法是一个技能。只有物品类的分组（GroupDef.uses）的条目有用途。
          *
-         *     用的时候写“条目名/用途名”。用途的技能设置在条目自己的设置上覆盖（没写的项沿用条目的），
-         *     脚本是用途自己的；公式里 this.<列> 是条目的列。只写说明、不写设置和脚本的用途由 KP 按说明裁定。
+         *     用的时候写“条目名/用途名”。公式里 this.<列> 是物品的列。只写说明、不写设置和脚本的用途由 KP 按说明裁定。
+         *     toggle：这是一个开关（例如开关风之结界）：每用一次切换开/关，default_on 是一开始开着没有；
+         *     effects 是开着的时候生效的修正。脚本里 turning_on 是这一次是不是打开。
          */
         EntryUse: {
             /**
@@ -1542,17 +1543,37 @@ export interface components {
              */
             config: string;
             /**
+             * Default On
+             * @default false
+             */
+            default_on: boolean;
+            /**
              * Description
              * @default
              */
             description: string;
+            /**
+             * Effects
+             * @default []
+             */
+            effects: components["schemas"]["Effect"][];
             /** Name */
             name: string;
+            /**
+             * Params
+             * @default []
+             */
+            params: components["schemas"]["ParamDef"][];
             /**
              * Script
              * @default
              */
             script: string;
+            /**
+             * Toggle
+             * @default false
+             */
+            toggle: boolean;
         };
         /** EventOut */
         EventOut: {
@@ -1584,18 +1605,11 @@ export interface components {
          *     - kind=boolean：是/否。公式里是 1/0。没填时按“否”。
          *     - kind=formula：掷骰公式（例如技能的伤害 1d str）。平时不算，KP 裁定时要求引擎掷一次才算；
          *       在分组的条目里可以用 this.<字段> 引用这个条目的字段。
-         *     - kind=param：使用时填写的数（只在分组里），例如这次消耗多少魔力、要不要解放真名。不存进角色卡；KP 按玩家的行动
-         *       在用技能时给出，引擎检查 min..max（公式，可以用 this.<字段>），spends 给了资源字段名时还检查够不够，
-         *       并在这一轮结算时从那个资源里扣掉。公式和脚本里用 this.<字段> 引用这次填的数。
-         *       choices 非空时只能选其中的值（名字=数，例如 不解放=0、解放=1），没给时取第一个。
-         *       check：这次填的不是 0 时使用者要过的检定（检定名），没过就按 0 算；
-         *       cooldown：这次填的不是 0 时，这个条目多久之内（分钟，公式）不能再填非 0。
+         *     - 使用时选的数（参数）不是字段，见 ParamDef。
          *     - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定或技能脚本修改，初值由 initial 公式给出。
          *       分组的列也可以是 runtime：每个条目各存一份（例如护盾开着没有），脚本里写 this.<列> 改它。
          */
         FieldDef: {
-            /** Check */
-            check?: string | null;
             /**
              * Choices
              * @default []
@@ -1607,8 +1621,6 @@ export interface components {
              * @enum {string}
              */
             cls: "player" | "runtime";
-            /** Cooldown */
-            cooldown?: string | null;
             /**
              * Description
              * @default
@@ -1625,7 +1637,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "number" | "text" | "resource" | "boolean" | "formula" | "param";
+            kind: "number" | "text" | "resource" | "boolean" | "formula";
             /**
              * Label
              * @default
@@ -1644,8 +1656,6 @@ export interface components {
              * @default true
              */
             required: boolean;
-            /** Spends */
-            spends?: string | null;
             /** Unit */
             unit?: string | null;
             /**
@@ -1839,6 +1849,11 @@ export interface components {
              * @default []
              */
             use_templates: components["schemas"]["EntryUse"][];
+            /**
+             * Uses
+             * @default false
+             */
+            uses: boolean;
         };
         /** GroupEntry */
         GroupEntry: {
@@ -1871,6 +1886,11 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /**
+             * Params
+             * @default []
+             */
+            params: components["schemas"]["ParamDef"][];
             /**
              * Script
              * @default
@@ -1918,6 +1938,11 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /**
+             * Params
+             * @default []
+             */
+            params: components["schemas"]["ParamDef"][];
             /**
              * Script
              * @default
@@ -2353,6 +2378,128 @@ export interface components {
         PackIn: {
             pack: components["schemas"]["RulePack"];
         };
+        /**
+         * PackParam
+         * @description 规则包的默认参数：适用于 groups 里这些分组（分组名，哪个模板的都算）的每个条目。
+         */
+        PackParam: {
+            /** Check */
+            check?: string | null;
+            /**
+             * Choices
+             * @default []
+             */
+            choices: string[];
+            /** Cooldown */
+            cooldown?: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Duration
+             * @default
+             */
+            duration: string;
+            /**
+             * Groups
+             * @default []
+             */
+            groups: string[];
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Max */
+            max?: string | null;
+            /** Min */
+            min?: string | null;
+            /**
+             * Multiplier
+             * @default
+             */
+            multiplier: string;
+            /** Name */
+            name: string;
+            /**
+             * Requires
+             * @default
+             */
+            requires: string;
+            /**
+             * Script
+             * @default
+             */
+            script: string;
+            /** Spends */
+            spends?: string | null;
+        };
+        /**
+         * ParamDef
+         * @description 使用时选的参数（例如“全力发动”“额外加强”“投入多少法力”）。不存进角色卡；KP 按玩家的行动在用的时候给出，
+         *     没给的取第一个可选值（没有可选值时取下限）。公式和脚本里 this.<name> 是这次选的数。
+         *
+         *     一次使用实际有的参数 = 规则包的默认参数（适用于这个分组的）+ 条目上加的 + 用途上加的（同名的后者覆盖前者）。
+         *     下面这些只在选了非 0 时起作用：
+         *     - requires：能不能选（条件公式，在使用者和条目上算），不成立就拒绝这次使用；
+         *     - check：要过的检定，没过按 0 算（不扣、不放大）；
+         *     - cooldown：选过以后这个条目多久（分钟）不能再选；
+         *     - spends：从使用者的哪个资源里扣，扣的数就是选的数（例如投入多少魔力），不够时拒绝；
+         *     - script：选了就执行的句子（例如扣同伴身上的资源：mentor.sub(charges, 1)），不管这次打没打中都执行；
+         *     - multiplier：效果倍数（公式），这次使用的伤害、治疗、增加的数值自动乘上去（消耗不乘），脚本里 boost 是总倍数；
+         *     - duration：用在被动的条目（没有设置也没有脚本）上时，接下来多少分钟里这个条目的数值列乘上倍数；空表示不行。
+         */
+        ParamDef: {
+            /** Check */
+            check?: string | null;
+            /**
+             * Choices
+             * @default []
+             */
+            choices: string[];
+            /** Cooldown */
+            cooldown?: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Duration
+             * @default
+             */
+            duration: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Max */
+            max?: string | null;
+            /** Min */
+            min?: string | null;
+            /**
+             * Multiplier
+             * @default
+             */
+            multiplier: string;
+            /** Name */
+            name: string;
+            /**
+             * Requires
+             * @default
+             */
+            requires: string;
+            /**
+             * Script
+             * @default
+             */
+            script: string;
+            /** Spends */
+            spends?: string | null;
+        };
         /** PatchGameIn */
         PatchGameIn: {
             /** Action */
@@ -2736,6 +2883,11 @@ export interface components {
              * @default []
              */
             insights: components["schemas"]["InsightRule"][];
+            /**
+             * Params
+             * @default []
+             */
+            params: components["schemas"]["PackParam"][];
             /** Player Entities */
             player_entities: components["schemas"]["PlayerEntities"][];
             /**
@@ -2805,9 +2957,13 @@ export interface components {
         };
         /** RulesOut */
         RulesOut: {
+            /** Checks */
+            checks: string[];
             /** Handbook */
             handbook: string;
             identities: components["schemas"]["IdentityRules"];
+            /** Params */
+            params: components["schemas"]["PackParam"][];
             /** Player Entities */
             player_entities: {
                 [key: string]: components["schemas"]["JsonValue"];
@@ -3034,6 +3190,13 @@ export interface components {
              * @default []
              */
             statuses: components["schemas"]["Status"][];
+            /**
+             * Toggles
+             * @default {}
+             */
+            toggles: {
+                [key: string]: boolean;
+            };
         };
         /**
          * SheetChange
@@ -3301,6 +3464,11 @@ export interface components {
             /** In Entry */
             in_entry?: string | null;
             /**
+             * Names
+             * @default []
+             */
+            names: string[];
+            /**
              * Other
              * @default
              */
@@ -3326,6 +3494,11 @@ export interface components {
             formula: string;
             /** In Entry */
             in_entry?: string | null;
+            /**
+             * Names
+             * @default []
+             */
+            names: string[];
             /**
              * Other
              * @default

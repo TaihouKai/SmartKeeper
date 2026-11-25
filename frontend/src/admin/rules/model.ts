@@ -31,6 +31,7 @@ export function blankPack(t: T): Pack {
     samples: [],
     insights: [],
     handbook: "",
+    params: [],
   };
 }
 
@@ -61,7 +62,7 @@ export function blankTemplate(name: string, t: T): Template {
 }
 
 export function blankGroup(): Group {
-  return { name: "", label: "", description: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: true, timing: true, reactions: true, damage_kind: "", use_templates: [], reveal: "", reveal_fields: [] };
+  return { name: "", label: "", description: "", fields: [], presets: [], min_count: 0, max_count: null, effects: true, shapes: { allowed: [] }, hidden: false, placements: true, timing: true, reactions: true, damage_kind: "", use_templates: [], reveal: "", reveal_fields: [], uses: false };
 }
 
 /** 以前存的规则包可能缺少后来新增的引擎必需项（能否飞行字段、飞行速度等推导值）：打开时补上默认的；必需项的显示名空着就填默认的。 */
@@ -158,6 +159,7 @@ export type Sel =
   | { k: "text" }
   | { k: "insights" }
   | { k: "handbook" }
+  | { k: "params" }
   | { k: "samples" };
 
 export function selKey(s: Sel): string {
@@ -183,6 +185,7 @@ export function selForPath(path: string): Sel {
     rules_text: { k: "text" },
     insights: { k: "insights" },
     handbook: { k: "handbook" },
+    params: { k: "params" },
     samples: { k: "samples" },
   };
   return map[String(s[0])] ?? { k: "world" };

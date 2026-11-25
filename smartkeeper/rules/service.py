@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 from pydantic import JsonValue
 from pydantic import ValidationError as PydanticError
@@ -17,6 +17,7 @@ from smartkeeper.contracts import (
     EntityTemplate,
     Faces,
     FormulaScope,
+    GroupDef,
     IntelValue,
     NotFound,
     Peers,
@@ -53,16 +54,23 @@ class RulesService:
         in_entry: str | None = None,
         scope: FormulaScope | None = None,
         other: str = "",
+        names: Sequence[str] = (),
     ) -> list[Problem]:
-        """other：条目的另一半（校验技能设置时是它的脚本，校验脚本时是它的设置），两边可以互相引用名字。"""
+        """other：条目的另一半（校验技能设置时是它的脚本，校验脚本时是它的设置），两边可以互相引用名字。
+        names：条目里另外能用 this.<名字> 的（条目和用途自己加的参数）。"""
+
+        def cols(grp: GroupDef | None) -> list[str]:
+            if grp is None:
+                return list(names)
+            own = [x.name for x in grp.fields]
+            return [*own, *(x.name for x in validation.group_params(pack, grp.name)), *names]
+
         if scope == "script":
             tpl = pack.template(template) if template else None
             if tpl is None:
                 return []
             grp = next((g for g in tpl.groups if g.name == in_entry), None)
-            return validation.check_script(
-                pack, tpl, formula, "script", [x.name for x in grp.fields] if grp else [], other
-            )
+            return validation.check_script(pack, tpl, formula, "script", cols(grp), other)
         if scope == "check":
             return validation.check_check(pack, formula, "check")
         if scope in ("stealth", "search"):
@@ -88,7 +96,7 @@ class RulesService:
                 grp,
                 formula,
                 "config",
-                [x.name for x in grp.fields] if grp else [],
+                cols(grp),
                 other,
             )
         if scope == "dice" and template is not None:
@@ -97,7 +105,7 @@ class RulesService:
             fields: list[str] | None = None
             if tpl is not None and in_entry is not None:
                 grp = next((g for g in tpl.groups if g.name == in_entry), None)
-                fields = [x.name for x in grp.fields] if grp else []
+                fields = cols(grp)
             return validation.check_formula(
                 pack, tpl, formula, "formula", entry_fields=fields, dice=True
             )
@@ -110,7 +118,7 @@ class RulesService:
         entry_fields: list[str] | None = None
         if tpl is not None and in_entry is not None:
             group = next((g for g in tpl.groups if g.name == in_entry), None)
-            entry_fields = [x.name for x in group.fields] if group else []
+            entry_fields = cols(group)
         extra = validation.CHECK_VARS if template is None else ()
         return validation.check_formula(
             pack, tpl, formula, "formula", entry_fields=entry_fields, extra=extra
@@ -143,6 +151,7 @@ class RulesService:
         config: str = "",
         outcome: Mapping[str, float] | None = None,
         damage_kind: str = "",
+        scale: float = 1.0,
     ) -> tuple[ScriptStep, ...]:
         return scripts.plan_script(
             pack,
@@ -156,6 +165,7 @@ class RulesService:
             config,
             outcome,
             damage_kind,
+            scale,
         )
 
     def choice_allowed(self, choices: tuple[str, ...], value: float) -> bool:
@@ -223,7 +233,7 @@ class RulesService:
             names |= {f"{t.name}.{n}" for n in plain} | {f"{t.name}.template"}
             names |= {f"target.{n}" for n in plain}
             for g in t.groups:
-                gcols = [x.name for x in g.fields if x.kind != "param"]
+                gcols = [x.name for x in g.fields]
                 for head in (t.name, "target", ""):
                     ref = f"{head}.{g.name}" if head else g.name
                     names.add(ref)
@@ -346,7 +356,7 @@ class RulesService:
             entries = ctx.groups().get(group, ())
         except f.FormulaError:
             return ()
-        cols = [x for x in gdef.fields if x.cls == "player" and x.kind != "param" and not x.hidden]
+        cols = [x for x in gdef.fields if x.cls == "player" and not x.hidden]
         out: list[tuple[str, tuple[IntelValue, ...]]] = []
         for e in entries:
             vals: list[IntelValue] = []

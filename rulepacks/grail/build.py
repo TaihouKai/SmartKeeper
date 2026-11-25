@@ -72,8 +72,13 @@ def derived(name: str, label: str, formula: str, unit: str | None = None) -> dic
     return {"name": name, "label": label, "formula": formula, "unit": unit, "hidden": False}
 
 
-def use(name: str, desc: str, config: str = "", script: str = "") -> dict[str, Any]:
-    return {"name": name, "description": desc, "config": code(config), "script": code(script)}
+def use(name: str, desc: str, config: str = "", script: str = "", **kw: Any) -> dict[str, Any]:
+    return {"name": name, "description": desc, "config": code(config), "script": code(script), **kw}
+
+
+def param(name: str, label: str, desc: str, groups: list[str], **kw: Any) -> dict[str, Any]:
+    """规则包的默认参数：适用于 groups 里这些分组的每个条目。"""
+    return {"name": name, "label": label, "description": desc, "groups": groups, **kw}
 
 
 def preset(
@@ -89,6 +94,7 @@ def preset(
         "script": code(script),
         "when": kw.pop("when", ""),
         "uses": kw.pop("uses", []),
+        "params": kw.pop("params", []),
     }
 
 
@@ -195,18 +201,6 @@ def defense_group(dmg: str) -> dict[str, Any]:
     return group("defense", "应对", [counter(dmg), DODGE], reactions=True, effects=False)
 
 
-PLUS_USE = use(
-    "发动＋",
-    "每天一次、持续 10 分钟：这个技能的等级 ×（1 + 0.5 × “+”的个数），由幸运决定成不成功。",
-    """
-    target = "self"
-    requires = this.plus > 0
-    check = "luck"
-    hit = level >= 1
-    cooldown = 1440
-    """,
-    "self.modify(this.level, this.level * (1 + 0.5 * this.plus), 10)",
-)
 KP_USE = use(
     "特殊效果",
     "（任意规则）把这个用法的效果写清楚，由 KP 读了以后裁定：引擎只记下“用了”，消耗和冷却照写在设置里的算。",
@@ -226,38 +220,39 @@ PLUS_COL = field(
 MASTER_MELEE_DMG = "(dice(1, str) if str > 0 else 0) + (dice(1, weapon_db) if weapon_db > 0 else 0)"
 NOT_MUGGLE = 'background != "普通人"'
 
-COMMAND_SPELLS = preset(
-    "令咒",
-    "command_spell",
-    "御主手上的三划令咒：每用一种用法消去一划。令咒用完之后，英灵就不必再听从御主了。",
-    """
-    target = "none"
-    requires = command_spells >= 1
-    noise = 5
-    """,
-    uses=[
-        use(
-            "绝对命令",
-            "对自己的英灵下一道必须服从的命令（越具体越有效）；也可以让英灵做到平时做不到的一件事。效果由 KP 裁定。",
-            script="self.sub(command_spells, 1)",
-        ),
-        use(
-            "空间转移",
-            "无视距离，把自己的英灵瞬间召到身边。",
-            script="servant.teleport(self)\nself.sub(command_spells, 1)",
-        ),
-        use(
-            "魔力灌注",
-            "把令咒里的魔力灌给英灵：英灵的魔力补满。",
-            script="servant.add(mp, servant.mp_max)\nself.sub(command_spells, 1)",
-        ),
-        use(
-            "自害",
-            "命令自己的英灵自尽。",
-            script="servant.set(hp, 0)\nself.sub(command_spells, 1)",
-        ),
-    ],
-)
+
+def command_spell(name: str, pid: str, desc: str, script: str) -> dict[str, Any]:
+    return preset(
+        f"令咒：{name}",
+        pid,
+        desc + " 用一次消去一划令咒。",
+        """
+        target = "none"
+        requires = command_spells >= 1
+        noise = 5
+        """,
+        script + "\nself.sub(command_spells, 1)",
+    )
+
+
+COMMAND_SPELLS = [
+    command_spell(
+        "绝对命令",
+        "cs_order",
+        "对自己的英灵下一道必须服从的命令（越具体越有效）；也可以让英灵做到平时做不到的一件事。效果由 KP 裁定。",
+        "",
+    ),
+    command_spell(
+        "空间转移", "cs_recall", "无视距离，把自己的英灵瞬间召到身边。", "servant.teleport(self)"
+    ),
+    command_spell(
+        "魔力灌注",
+        "cs_mana",
+        "把令咒里的魔力灌给英灵：英灵的魔力补满。",
+        "servant.add(mp, servant.mp_max)",
+    ),
+    command_spell("自害", "cs_suicide", "命令自己的英灵自尽。", "servant.set(hp, 0)"),
+]
 
 MASTER = {
     "name": "master",
@@ -541,27 +536,15 @@ MASTER = {
                     when=NOT_MUGGLE,
                 ),
             ],
-            fields=[
-                field(
-                    "mp_spent",
-                    "消耗魔力值",
-                    "param",
-                    min="1",
-                    max="mp_max",
-                    spends="mp",
-                    description="这次投入多少魔力",
-                ),
-            ],
             damage_kind="magic",
             placements=True,
             max_count=None,
-            use_templates=[KP_USE],
         ),
         group(
             "master_action",
             "御主行动",
             [
-                COMMAND_SPELLS,
+                *COMMAND_SPELLS,
                 preset(
                     "近战攻击",
                     "master_melee",
@@ -635,7 +618,7 @@ UPKEEP = (
         f" + 4 * count({g}.level, 10) + 2 * count({g}.level, 5) + count({g}.level, 4)"
         for g in _SKILLS
     )
-    + " + count(noble_phantasm.active, 1) + servant.madness.level) / 1440"
+    + ' + toggled("noble_phantasm") + servant.madness.level) / 1440'
 )
 STEALTH = code(
     """
@@ -684,7 +667,7 @@ def attr_plus(name: str, label: str) -> dict[str, Any]:
 NP_COST = "lookup(skill_cost, this.level) * lookup(np_cost, this.np_type)"
 NP_DAMAGE = (
     "(dice(lookup(np_dice_count, this.level), lookup(np_dice_sides, this.level))"
-    " + lookup(np_bonus, this.level)) * boost"
+    " + lookup(np_bonus, this.level))"
 )
 
 
@@ -704,7 +687,6 @@ def beam(name: str, shape: str, desc: str) -> dict[str, Any]:
         """,
         f"""
         cost = {NP_COST}
-        boost = 1 + 0.5 * this.plus * this.use_plus
         self.sub(mp, cost)
         target.damage({NP_DAMAGE})
         """,
@@ -718,7 +700,7 @@ NP_TEMPLATES = [
         MELEE_CONFIG.format(requires="not spirit_form"),
         f"""
         half = opposed and level == opp_level
-        target.damage({SERVANT_MELEE_DMG} * (1 + 0.5 * this.plus * this.use_plus) / (2 if half else 1))
+        target.damage({SERVANT_MELEE_DMG} / (2 if half else 1))
         """,
     ),
     beam("真名解放·对人", "", "解放真名，对一个人的必杀一击。"),
@@ -739,15 +721,16 @@ NP_TEMPLATES = [
     ),
     use(
         "开关",
-        "打开或关上宝具（例如隐藏武器的风之结界、封印自己的眼罩）：常驻效果写在宝具的修正里，用 this.active 判断开着没有；开着的宝具每天多耗 1 点魔力。",
+        "打开或关上宝具（例如隐藏武器的风之结界、封印自己的眼罩）：开着的时候下面的修正生效；可以设定一开始开着还是关着。"
+        "打开时按宝具等级消耗魔力，开着的宝具每天多耗 1 点魔力。",
         'target = "self"',
         """
-        if this.active:
-            self.set(this.active, 0)
-        else:
-            self.set(this.active, 1)
+        if turning_on:
             self.sub(mp, lookup(skill_cost, this.level))
         """,
+        toggle=True,
+        default_on=False,
+        effects=[],
     ),
     use(
         "召唤",
@@ -790,39 +773,13 @@ NP_FIELDS = [
         description="决定解放真名时的范围和消耗倍数（对人 1、对军 3、对城 5、对界 10）",
     ),
     PLUS_COL,
-    field(
-        "active",
-        "开着",
-        "boolean",
-        "runtime",
-        required=False,
-        description="可以开关的宝具开着没有（用“开关”这个用法切换）",
-    ),
-    field(
-        "release",
-        "解放真名",
-        "param",
-        choices=["不解放=0", "解放=1"],
-        description="这次要不要解放真名：解放才能用宝具的全力，但附近的人会听到宝具的名字",
-    ),
-    field(
-        "use_plus",
-        "用＋",
-        "param",
-        choices=["不用=0", "用=1"],
-        max="1 if this.plus > 0 else 0",
-        check="luck",
-        cooldown="1440",
-        description="这次要不要用“+”：每天一次，由幸运决定成不成功",
-    ),
 ]
 
 SKILL_COLS = [field("level", "等级", "number", choices=RANKS), PLUS_COL]
 
 
-def klass_skill(name: str, pid: str, desc: str, when: str, **kw: Any) -> dict[str, Any]:
-    uses = kw.pop("uses", [])
-    return preset(name, pid, desc, when=when, uses=[*uses, PLUS_USE], **kw)
+def klass_skill(name: str, pid: str, desc: str, when: str, *args: str, **kw: Any) -> dict[str, Any]:
+    return preset(name, pid, desc, *args, when=when, **kw)
 
 
 MADNESS = [
@@ -1076,25 +1033,18 @@ SERVANT = {
                     "花一天布置自己的阵地：以自己为中心画一个圆，或者把自己所在的整栋建筑做成阵地。有人闯入时你会知道；"
                     "在阵地里每分钟额外回复等级点魔力。参考：等级为魔力，有布阵的事迹再 +1 级。",
                     is_class("Caster"),
-                    uses=[
-                        use(
-                            "圆形阵地",
-                            "以自己为中心、半径 125 米的阵地。",
-                            """
-                            target = "none"
-                            cast_time = 1440
-                            placement = placement(radius=125, perceive=0.2, notify=True)
-                            """,
-                        ),
-                        use(
-                            "建筑阵地",
-                            "把自己所在的整栋建筑做成阵地，不论多大。",
-                            """
-                            target = "none"
-                            cast_time = 1440
-                            placement = placement(building=True, perceive=0.2, notify=True)
-                            """,
-                        ),
+                    """
+                    target = "none"
+                    cast_time = 1440
+                    placement = placement(building=this.form == 1, radius=125, perceive=0.2, notify=True)
+                    """,
+                    params=[
+                        {
+                            "name": "form",
+                            "label": "形式",
+                            "description": "以自己为中心、半径 125 米的圆，或者把自己所在的整栋建筑（不论多大）做成阵地",
+                            "choices": ["圆形=0", "整栋建筑=1"],
+                        }
                     ],
                 ),
                 klass_skill(
@@ -1102,17 +1052,11 @@ SERVANT = {
                     "item_construction",
                     "（任意规则）制作魔术道具：花时间和魔力，做出符合自己传说的道具。做出什么、效果多强由 KP 按等级裁定。",
                     is_class("Caster"),
-                    uses=[
-                        use(
-                            "制作道具",
-                            "花一小时做一件魔术道具，消耗技能等级的魔力；做出什么由 KP 裁定。",
-                            """
-                            target = "none"
-                            cast_time = 60
-                            """,
-                            "self.sub(mp, lookup(skill_cost, this.level))",
-                        )
-                    ],
+                    """
+                    target = "none"
+                    cast_time = 60
+                    """,
+                    "self.sub(mp, lookup(skill_cost, this.level))",
                 ),
                 klass_skill(
                     "狂化",
@@ -1126,7 +1070,6 @@ SERVANT = {
             ],
             fields=SKILL_COLS,
             placements=True,
-            use_templates=[PLUS_USE, KP_USE],
             # 技能没有名字可喊：别人只看到效果，认不认得出由 KP 给线索
             reveal="False",
         ),
@@ -1137,7 +1080,6 @@ SERVANT = {
             fields=SKILL_COLS,
             max_count=None,
             placements=True,
-            use_templates=[PLUS_USE, KP_USE],
             reveal="False",
         ),
         group(
@@ -1275,17 +1217,6 @@ SERVANT = {
                     when='klass == "Caster"',
                 ),
             ],
-            fields=[
-                field(
-                    "mp_spent",
-                    "消耗魔力值",
-                    "param",
-                    min="0",
-                    max="mp_max",
-                    spends="mp",
-                    description="这次投入多少魔力（不需要魔力的填 0）",
-                ),
-            ],
             damage_kind="magic",
             placements=True,
         ),
@@ -1298,6 +1229,7 @@ SERVANT = {
             max_count=None,
             placements=True,
             shapes=["capsule", "sphere", "cone"],
+            uses=True,
             use_templates=NP_TEMPLATES,
             # 平时不暴露宝具的名字；解放真名时喊出来，看见的人就知道了宝具的名字和英灵的真名
             reveal="this.release",
@@ -1479,18 +1411,76 @@ SAMPLE_WIND = {
     "id": "",
     "description": "把武器包裹在风里，让人看不出它的长短和形状：开着的时候近战更难应对。",
     "fields": {"level": 3, "np_type": "对人", "plus": 0},
-    "effects": [
-        {
-            "description": "开着的时候筋力像高一级",
-            "target": "str",
-            "formula": "str + 1 if this.active else str",
-            "priority": 1,
-        }
-    ],
+    "effects": [],
     "config": "",
     "script": "",
-    "uses": [NP_TEMPLATES[5]],
+    "uses": [
+        {
+            **NP_TEMPLATES[5],
+            "default_on": True,
+            "effects": [
+                {
+                    "description": "开着的时候筋力像高一级",
+                    "target": "str",
+                    "formula": "str + 1",
+                    "priority": None,
+                }
+            ],
+        }
+    ],
 }
+
+_SERVANT_SKILLS = ["klass_skill", "personal_skill", "servant_magic", "noble_phantasm"]
+PARAMS = [
+    param(
+        "mp_spent",
+        "投入魔力",
+        "这次投入多少魔力",
+        ["magic"],
+        min="1",
+        max="mp_max",
+        spends="mp",
+    ),
+    param(
+        "mp_spent",
+        "投入魔力",
+        "这次投入多少魔力（不需要魔力的填 0）",
+        ["servant_magic"],
+        min="0",
+        max="mp_max",
+        spends="mp",
+    ),
+    param(
+        "release",
+        "解放真名",
+        "这次要不要解放真名：解放才能用宝具的全力，但附近的人会听到宝具的名字，看得见你的人会知道你的真名",
+        ["noble_phantasm"],
+        choices=["不解放=0", "解放=1"],
+    ),
+    param(
+        "use_plus",
+        "用＋",
+        "每天一次，由幸运决定成不成功：这次的效果 ×(1 + 0.5 × ＋的个数)；用在被动的技能上时，10 分钟内技能的等级这样放大",
+        ["klass_skill", "personal_skill", "noble_phantasm"],
+        choices=["不用=0", "用=1"],
+        requires="this.plus > 0",
+        check="luck",
+        cooldown="1440",
+        multiplier="1 + 0.5 * this.plus",
+        duration="10",
+    ),
+    param(
+        "command_spell",
+        "令咒加强",
+        "御主用一划令咒大幅加强这一次：效果 ×3；用在被动的技能上时，10 分钟内技能的等级 ×3",
+        _SERVANT_SKILLS,
+        choices=["不用=0", "用=1"],
+        requires="master.command_spells >= 1",
+        script="master.sub(command_spells, 1)",
+        multiplier="3",
+        duration="10",
+    ),
+]
 
 PACK = {
     "world": {
@@ -1509,6 +1499,7 @@ PACK = {
     "formulas": [],
     "tables": TABLES,
     "checks": CHECKS,
+    "params": PARAMS,
     "rules_text": RULES_TEXT,
     "handbook": Path(__file__).with_name("handbook.md").read_text(encoding="utf-8"),
     "insights": [

@@ -135,6 +135,7 @@ class FormulaIn(BaseModel):
     in_entry: str | None = None
     scope: FormulaScope | None = None
     other: str = ""  # 条目的另一半（技能设置 / 技能脚本），两边可以互相引用名字
+    names: list[str] = []  # 条目、用途自己加的参数名（公式里 this.<名字>）
 
 
 class FormulaOut(BaseModel):
@@ -400,7 +401,13 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
     def formula(body: FormulaIn) -> FormulaOut:
         return FormulaOut(
             problems=s.rules.validate_formula(
-                body.pack, body.template, body.formula, body.in_entry, body.scope, body.other
+                body.pack,
+                body.template,
+                body.formula,
+                body.in_entry,
+                body.scope,
+                body.other,
+                body.names,
             ),
             names=s.rules.complete_names(body.pack, body.template, body.scope),
         )

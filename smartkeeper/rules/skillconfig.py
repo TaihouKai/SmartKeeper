@@ -44,7 +44,8 @@ SHAPES: dict[str, tuple[str, ...]] = {
 # 用技能时引擎知道的数：设置的公式里能用 CONFIG_VARS；命中条件 hit 还能用双方的等级；技能脚本全都能用
 CONFIG_VARS = ("distance", "unseen")
 HIT_VARS = (*CONFIG_VARS, "level", "opp_level", "opposed")
-SCRIPT_VARS = (*HIT_VARS, "saved", "reacting")
+# boost：这次选的参数的总效果倍数；turning_on：开关类用途这一次是不是打开
+SCRIPT_VARS = (*HIT_VARS, "saved", "reacting", "boost", "turning_on")
 # 设置物的参数：radius 必填（building=True 时不用：设置者所在的整栋建筑就是设置物）；
 # perceive 是别人发现它的距离系数；duration 按分钟
 PLACEMENT_ARGS = ("radius", "perceive", "charges", "duration", "notify", "building")
@@ -167,8 +168,11 @@ def read_config(text: str, script: str = "") -> SkillConfig:
                 for a in args:
                     if a not in PLACEMENT_ARGS:
                         raise _err("config.bad_arg", s, arg=a)
-                building = _bool(s, args["building"]) if "building" in args else False
-                if not building and not args.get("radius", "").strip():
+                # building：条件公式（可以按参数选），写死的 True 时不用半径
+                building = args.get("building", "").strip()
+                if building in ("False", "0"):
+                    building = ""
+                if building not in ("True", "1") and not args.get("radius", "").strip():
                     raise _err("config.missing_arg", s, arg="radius")
                 dur = args.get("duration", "").strip()
                 out["placement"] = PlacementSpec(
@@ -242,9 +246,5 @@ def formulas(text: str, script: str = "") -> list[tuple[int, str, str]]:
         if KEYS.get(s.name) == "formula" and s.value.strip():
             out.append((s.line, s.name, s.value))
         if KEYS.get(s.name) == "placement" and s.call == "placement":
-            out += [
-                (s.line, f"{s.name}.{a}", v)
-                for a, v in s.args
-                if a not in ("notify", "building") and v.strip()
-            ]
+            out += [(s.line, f"{s.name}.{a}", v) for a, v in s.args if a != "notify" and v.strip()]
     return out

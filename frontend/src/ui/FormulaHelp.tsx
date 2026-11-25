@@ -74,6 +74,7 @@ export const FUNCTION_SIGNATURES: [string, string][] = [
   ["dice", "dice(n, s)"],
   ["has", "has(\"status\")"],
   ["inside", "inside(\"entry\")"],
+  ["toggled", "toggled(\"group\")"],
 ];
 
 function Rows({ rows }: { rows: [string, string][] }) {

@@ -5,12 +5,12 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal, cast
 
-from pydantic import Field, JsonValue
+from pydantic import Field, JsonValue, model_validator
 
 from smartkeeper.contracts.base import Frozen
-from smartkeeper.contracts.sheet import EntryUse, GroupEntry
+from smartkeeper.contracts.sheet import EntryUse, GroupEntry, ParamDef
 
 # 引擎必需的推导值。每个实体模板都必须为它们提供公式。
 REQUIRED_DERIVED: tuple[str, ...] = (
@@ -31,7 +31,7 @@ SHIELD_FIELD = "shield"
 DEAD_TAG = "dead"
 COOLDOWN_TAG = "cooldown:"
 
-FieldKind = Literal["number", "text", "resource", "boolean", "formula", "param"]
+FieldKind = Literal["number", "text", "resource", "boolean", "formula"]
 FieldClass = Literal["player", "runtime"]
 
 
@@ -52,12 +52,7 @@ class FieldDef(Frozen):
     - kind=boolean：是/否。公式里是 1/0。没填时按“否”。
     - kind=formula：掷骰公式（例如技能的伤害 1d str）。平时不算，KP 裁定时要求引擎掷一次才算；
       在分组的条目里可以用 this.<字段> 引用这个条目的字段。
-    - kind=param：使用时填写的数（只在分组里），例如这次消耗多少魔力、要不要解放真名。不存进角色卡；KP 按玩家的行动
-      在用技能时给出，引擎检查 min..max（公式，可以用 this.<字段>），spends 给了资源字段名时还检查够不够，
-      并在这一轮结算时从那个资源里扣掉。公式和脚本里用 this.<字段> 引用这次填的数。
-      choices 非空时只能选其中的值（名字=数，例如 不解放=0、解放=1），没给时取第一个。
-      check：这次填的不是 0 时使用者要过的检定（检定名），没过就按 0 算；
-      cooldown：这次填的不是 0 时，这个条目多久之内（分钟，公式）不能再填非 0。
+    - 使用时选的数（参数）不是字段，见 ParamDef。
     - cls=player：建角时玩家填写；cls=runtime：游戏中经裁定或技能脚本修改，初值由 initial 公式给出。
       分组的列也可以是 runtime：每个条目各存一份（例如护盾开着没有），脚本里写 this.<列> 改它。
     """
@@ -74,12 +69,9 @@ class FieldDef(Frozen):
     choices: tuple[str, ...] = ()
     required: bool = True
     hidden: bool = False  # 对玩家隐藏
-    spends: str | None = None  # kind=param：从角色的哪个资源字段里扣
     # 运行值的自然变化：每分钟变化多少（公式；正数恢复、负数消耗），按上下限截断；空表示不变
     per_minute: str | None = None
     vital: bool = False  # 运行值：降到 0（或以下）时角色死亡
-    check: str | None = None  # kind=param：填了非 0 时要过的检定
-    cooldown: str | None = None  # kind=param：填了非 0 之后多久（分钟）不能再填非 0
 
 
 class ShapeDef(Frozen):
@@ -118,7 +110,9 @@ class GroupDef(Frozen):
     # 这个分组的条目在技能脚本里造成的伤害是什么类型（例如 magic）；damage(数量, "类型") 可以单独指定
     damage_kind: str = ""
     hidden: bool = False
-    # 用途的模板：建角时给条目加用途，可以从这里选一个照抄（例如“标准的光炮”），再按需要改
+    # 物品类：条目是一件东西，本身不能直接用，只能用它的几种用途（例如一件法宝）。其他分组的条目本身就是一个动作，没有用途
+    uses: bool = False
+    # 用途的模板：建角时给物品加用途，可以从这里选一个照抄（例如“标准的光炮”），再按需要改
     use_templates: tuple[EntryUse, ...] = ()
     # 察觉到动静、又看得见使用者的人知不知道用的是什么（条件公式，在使用者和这一条上算，可以用 this.<列>，
     # 包括这次使用时填的数；空是知道）。由规则包定，玩家写条目时改不了。
@@ -228,6 +222,12 @@ class InsightRule(Frozen):
     groups: tuple[str, ...] = ()
 
 
+class PackParam(ParamDef):
+    """规则包的默认参数：适用于 groups 里这些分组（分组名，哪个模板的都算）的每个条目。"""
+
+    groups: tuple[str, ...] = ()
+
+
 class RulePack(Frozen):
     world: WorldInfo
     templates: tuple[EntityTemplate, ...]
@@ -241,6 +241,44 @@ class RulePack(Frozen):
     handbook: str = ""
     samples: tuple[SampleSheet, ...] = ()
     insights: tuple[InsightRule, ...] = ()  # 看见就知道的情报
+    params: tuple[PackParam, ...] = ()  # 默认参数
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_params(cls, data: object) -> object:
+        """旧格式：参数是分组里 kind=param 的列（带 spends / check / cooldown）。搬到默认参数里，只适用于那个分组。"""
+        if not isinstance(data, dict):
+            return data
+        d = dict(cast(dict[str, Any], data))
+        params: list[Any] = list(cast(list[Any], d.get("params") or []))
+        templates: list[Any] = []
+        for raw_t in cast(list[Any], d.get("templates") or []):
+            if not isinstance(raw_t, dict):
+                templates.append(raw_t)
+                continue
+            t = dict(cast(dict[str, Any], raw_t))
+            t["fields"] = [_strip_param_keys(x) for x in cast(list[Any], t.get("fields") or [])]
+            groups: list[Any] = []
+            for raw_g in cast(list[Any], t.get("groups") or []):
+                if not isinstance(raw_g, dict):
+                    groups.append(raw_g)
+                    continue
+                g = dict(cast(dict[str, Any], raw_g))
+                kept: list[Any] = []
+                for x in cast(list[Any], g.get("fields") or []):
+                    if isinstance(x, dict) and cast(dict[str, Any], x).get("kind") == "param":
+                        params.append(
+                            _legacy_param(cast(dict[str, Any], x), str(g.get("name", "")))
+                        )
+                    else:
+                        kept.append(_strip_param_keys(x))
+                g["fields"] = kept
+                groups.append(g)
+            t["groups"] = groups
+            templates.append(t)
+        d["templates"] = templates
+        d["params"] = _merge_params(params)
+        return d
 
     def template(self, name: str) -> EntityTemplate | None:
         return next((t for t in self.templates if t.name == name), None)
@@ -269,3 +307,56 @@ class RulePackDraft(Frozen):
     pack_id: str
     pack: RulePack
     updated_at: str
+
+
+def _strip_param_keys(f: Any) -> Any:
+    if not isinstance(f, dict):
+        return f
+    return {
+        k: v for k, v in cast(dict[str, Any], f).items() if k not in ("spends", "check", "cooldown")
+    }
+
+
+def _legacy_param(f: dict[str, Any], group: str) -> dict[str, Any]:
+    name = str(f.get("name", ""))
+    spends = f.get("spends")
+    out: dict[str, Any] = {
+        "name": name,
+        "label": f.get("label") or "",
+        "description": f.get("description") or "",
+        "choices": f.get("choices") or [],
+        "min": f.get("min"),
+        "max": f.get("max"),
+        "check": f.get("check"),
+        "cooldown": f.get("cooldown"),
+        "spends": spends,
+        "groups": [group],
+    }
+    return out
+
+
+def _merge_params(params: list[Any]) -> list[Any]:
+    """同样定义的参数（不同分组各写了一份）合成一个，适用的分组合在一起。"""
+    out: list[dict[str, Any]] = []
+    for p in params:
+        if not isinstance(p, dict):
+            out.append(p)
+            continue
+        pd = cast(dict[str, Any], p)
+        same = next(
+            (
+                o
+                for o in out
+                if {k: v for k, v in o.items() if k != "groups"}
+                == {k: v for k, v in pd.items() if k != "groups"}
+            ),
+            None,
+        )
+        if same is not None:
+            same["groups"] = [
+                *same.get("groups", []),
+                *[g for g in pd.get("groups", []) if g not in same.get("groups", [])],
+            ]
+        else:
+            out.append(dict(pd))
+    return out

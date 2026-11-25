@@ -24,7 +24,7 @@ export function initialSubmissions(playerEntities: { template: string; min: numb
 }
 
 /** 一张角色卡：按模板生成表单，实时试算推导值。 */
-export function SheetEditor({ template, value, onChange }: { template: Template; value: SheetDraft; onChange: (s: SheetDraft) => void }) {
+export function SheetEditor({ template, value, onChange, params = [], checks = [] }: { template: Template; value: SheetDraft; onChange: (s: SheetDraft) => void; params?: readonly Schemas["PackParam"][]; checks?: readonly string[] }) {
   const { t, lang } = useI18n();
   const [preview, setPreview] = useState<Schemas["PreviewOut"] | null>(null);
   const fields = (template.fields ?? []).filter((f) => f.cls !== "runtime");
@@ -34,12 +34,13 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
     ...(template.fields ?? []).filter((f) => (f.cls ?? "player") === "player" && (f.kind === "number" || f.kind === "boolean")).map((f) => f.name),
   ];
   const validate = useCallback(
-    (formula: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string) =>
-      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config", other: other ?? "" } })),
+    (formula: string, inEntry: string, scope?: "dice" | "script" | "config", other?: string, names?: string[]) =>
+      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config", other: other ?? "", names: names ?? [] } })),
     [template.name],
   );
+  const spendTargets = (template.fields ?? []).filter((f) => f.kind === "number" || f.kind === "resource").map((f) => f.name);
   const topDice = useCallback(
-    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true, script: false, config: false, other: "" } })),
+    (formula: string) => call(api.POST("/api/formula/validate", { body: { formula, template: template.name, dice: true, script: false, config: false, other: "", names: [] } })),
     [template.name],
   );
   const body = useMemo(() => JSON.stringify(value), [value]);
@@ -82,7 +83,7 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
             {fixed.map((pname) => {
               // 自动获得的条目：名字和说明；规则包留空的列由玩家填（例如这个角色的对魔力等级）
               const p = (g.presets ?? []).find((x) => x.name === pname);
-              const open = p ? (g.fields ?? []).filter((x) => x.kind !== "param" && x.cls !== "runtime" && !(x.name in (p.fields ?? {}))) : [];
+              const open = p ? (g.fields ?? []).filter((x) => x.cls !== "runtime" && !(x.name in (p.fields ?? {}))) : [];
               const mine = value.preset_fields?.[g.name]?.[pname] ?? {};
               const set = (col: string, v: Value) =>
                 onChange({
@@ -112,6 +113,9 @@ export function SheetEditor({ template, value, onChange }: { template: Template;
                 entry={en}
                 validate={validate}
                 simple
+                defaults={params.filter((x) => (x.groups ?? []).includes(g.name))}
+                checks={checks}
+                spendTargets={spendTargets}
                 onChange={(e) => setEntries(entries.map((x, j) => (j === i ? e : x)))}
                 onRemove={() => setEntries(entries.filter((_, j) => j !== i))}
                 mover={<Mover index={i} count={entries.length} onMove={(from, to) => setEntries(moved(entries, from, to))} />}
@@ -157,10 +161,15 @@ export function CharacterForm({
   templates,
   playerEntities,
   onSubmitted,
+  params = [],
+  checks = [],
 }: {
   templates: Template[];
   playerEntities: { template: string; min: number; max: number }[];
   onSubmitted: () => void;
+  /** 规则包的默认参数和检定名（自己加参数时用） */
+  params?: readonly Schemas["PackParam"][];
+  checks?: readonly string[];
 }) {
   const { t } = useI18n();
   const [subs, setSubs] = useState<Submission[]>(() => initialSubmissions(playerEntities));
@@ -254,7 +263,7 @@ export function CharacterForm({
             </h3>
             {mine.map(([s, i]) => (
               <div key={i}>
-                <SheetEditor template={tpl} value={s.sheet} onChange={(sheet) => setSubs(subs.map((x, j) => (j === i ? { ...x, sheet } : x)))} />
+                <SheetEditor template={tpl} value={s.sheet} params={params} checks={checks} onChange={(sheet) => setSubs(subs.map((x, j) => (j === i ? { ...x, sheet } : x)))} />
                 {mine.length > pe.min && (
                   <button type="button" className="sk-link" onClick={() => setSubs(subs.filter((_, j) => j !== i))}>
                     {t("common.remove")}

@@ -343,32 +343,39 @@ def test_formula_field_values_are_checked_and_may_roll(rules: RulesService) -> N
     )
 
 
-def test_param_columns_only_in_groups_and_spend_a_number(rules: RulesService) -> None:
-    from smartkeeper.contracts import FieldDef
+def test_params_apply_to_groups_and_spend_a_number(rules: RulesService) -> None:
+    from smartkeeper.contracts import PackParam
 
     pack = load_pack("single")
-    tpl = pack.templates[0]
-    g = tpl.groups[0]
-    ok = g.model_copy(
+    g = pack.templates[0].groups[0]
+    good = pack.model_copy(
         update={
-            "fields": (
-                *g.fields,
-                FieldDef(name="cost", kind="param", min="1", max="this.level", spends="hp"),
+            "params": (
+                PackParam(name="cost", min="1", max="this.level", spends="hp", groups=(g.name,)),
             )
         }
     )
-    good = pack.model_copy(update={"templates": (tpl.model_copy(update={"groups": (ok,)}),)})
     assert rules.validate_pack(good) == []
-    bad_target = g.model_copy(
-        update={"fields": (*g.fields, FieldDef(name="cost", kind="param", spends="occupation"))}
+    bad_target = pack.model_copy(
+        update={"params": (PackParam(name="cost", spends="occupation", groups=(g.name,)),)}
     )
-    pack2 = pack.model_copy(
-        update={"templates": (tpl.model_copy(update={"groups": (bad_target,)}),)}
-    )
-    assert "pack.unknown_spend_target" in {p.code for p in rules.validate_pack(pack2)}
-    top = tpl.model_copy(update={"fields": (*tpl.fields, FieldDef(name="cost", kind="param"))})
-    pack3 = pack.model_copy(update={"templates": (top,)})
-    assert "pack.param_only_in_group" in {p.code for p in rules.validate_pack(pack3)}
+    assert "pack.unknown_spend_target" in {p.code for p in rules.validate_pack(bad_target)}
+    nowhere = pack.model_copy(update={"params": (PackParam(name="cost", groups=("nope",)),)})
+    assert "pack.unknown_group" in {p.code for p in rules.validate_pack(nowhere)}
+    clash = pack.model_copy(update={"params": (PackParam(name="level", groups=(g.name,)),)})
+    assert "pack.param_name_clash" in {p.code for p in rules.validate_pack(clash)}
+
+
+def test_old_param_columns_move_to_default_params() -> None:
+    from smartkeeper.contracts import RulePack
+
+    raw = load_pack("single").model_dump(mode="json")
+    g = raw["templates"][0]["groups"][0]
+    g["fields"].append({"name": "cost", "kind": "param", "min": "1", "spends": "hp", "check": None})
+    pack = RulePack.model_validate(raw)
+    assert [x.name for x in pack.templates[0].groups[0].fields] == ["level"]
+    assert pack.params[0].name == "cost" and pack.params[0].spends == "hp"
+    assert pack.params[0].groups == (g["name"],)
 
 
 def test_self_is_your_own_value(rules: RulesService) -> None:

@@ -3,6 +3,7 @@ import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { FormulaInput, Mover } from "../ui/components";
 import { EffectsEditor, FieldInput, fieldLabel, type Effect } from "../ui/EntryEditor";
+import { ParamsEditor } from "../ui/ParamEditor";
 import { FieldCard, blankField, useListEdit, type Validate } from "./fieldCard";
 import { hasProblem, useWorkbench } from "./rules/ctx";
 
@@ -43,8 +44,9 @@ function EditButton({ path, script }: { path: string; script: string }) {
  */
 type Use = Schemas["EntryUse"];
 
-/** 一串用途（条目的几种用法，或分组的用途模板）：名字、说明，设置和脚本点“编辑”在 IDE 里写。 */
-function UsesEditor({ uses, onChange, path, hint }: { uses: Use[]; onChange: (u: Use[]) => void; path: string; hint: string }) {
+/** 一串用途（物品的几种用法，或分组的用途模板）：名字、说明、开关、开着时的修正、这个用途自己的参数；
+ * 设置和脚本点“编辑”在 IDE 里写。 */
+function UsesEditor({ uses, onChange, path, hint, derived, validate, checks, spendTargets }: { uses: Use[]; onChange: (u: Use[]) => void; path: string; hint: string; derived: string[]; validate: (f: string) => ReturnType<Validate>; checks: string[]; spendTargets: string[] }) {
   const { t } = useI18n();
   const ed = useListEdit(uses, onChange);
   return (
@@ -52,18 +54,30 @@ function UsesEditor({ uses, onChange, path, hint }: { uses: Use[]; onChange: (u:
       <strong>{t("rules.uses.title")}</strong>
       <p className="sk-hint">{hint}</p>
       {uses.map((u, j) => (
-        <div key={j} className="sk-effect">
-          <input placeholder={t("rules.uses.name")} value={u.name} onChange={(e) => ed.update(j, { ...u, name: e.target.value })} />
-          <input className="sk-wide" placeholder={t("rules.uses.description")} value={u.description ?? ""} onChange={(e) => ed.update(j, { ...u, description: e.target.value })} />
-          <EditButton path={`${path}[${j}]`} script={u.script ?? ""} />
-          {!(u.script ?? "").trim() && !(u.config ?? "").trim() && <small className="sk-hint">{t("rules.uses.kp_rules")}</small>}
-          <Mover index={j} count={uses.length} onMove={ed.move} />
-          <button type="button" className="sk-link" onClick={() => ed.remove(j)}>
-            {t("common.remove")}
-          </button>
+        <div key={j} className="sk-use">
+          <div className="sk-effect">
+            <input placeholder={t("rules.uses.name")} value={u.name} onChange={(e) => ed.update(j, { ...u, name: e.target.value })} />
+            <input className="sk-wide" placeholder={t("rules.uses.description")} value={u.description ?? ""} onChange={(e) => ed.update(j, { ...u, description: e.target.value })} />
+            <label className="sk-inline" title={t("uses.toggle_hint")}>
+              <input type="checkbox" checked={u.toggle ?? false} onChange={(e) => ed.update(j, { ...u, toggle: e.target.checked })} /> {t("uses.toggle")}
+            </label>
+            {u.toggle && (
+              <label className="sk-inline">
+                <input type="checkbox" checked={u.default_on ?? false} onChange={(e) => ed.update(j, { ...u, default_on: e.target.checked })} /> {t("uses.default_on")}
+              </label>
+            )}
+            <EditButton path={`${path}[${j}]`} script={u.script ?? ""} />
+            {!(u.script ?? "").trim() && !(u.config ?? "").trim() && !u.toggle && <small className="sk-hint">{t("rules.uses.kp_rules")}</small>}
+            <Mover index={j} count={uses.length} onMove={ed.move} />
+            <button type="button" className="sk-link" onClick={() => ed.remove(j)}>
+              {t("common.remove")}
+            </button>
+          </div>
+          {u.toggle && <EffectsEditor effects={(u.effects ?? []).map((e) => ({ description: e.description ?? "", target: e.target ?? null, formula: e.formula ?? null }))} derived={derived} validate={validate} withPriority={false} title={t("uses.effects")} onChange={(effects) => ed.update(j, { ...u, effects })} />}
+          <ParamsEditor params={u.params ?? []} onChange={(params) => ed.update(j, { ...u, params })} validate={validate} checks={checks} spendTargets={spendTargets} title={t("params.use_own")} />
         </div>
       ))}
-      <button type="button" onClick={() => ed.add({ name: "", description: "", config: "", script: "" })}>
+      <button type="button" onClick={() => ed.add({ name: "", description: "", config: "", script: "", params: [], toggle: false, default_on: false, effects: [] })}>
         {t("rules.uses.add")}
       </button>
     </div>
@@ -180,8 +194,8 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   </td>
                   {fields.map((f, i) => (
                     <td key={i}>
-                      {f.kind === "param" || f.cls === "runtime" ? (
-                        <span className="sk-hint">{t(f.kind === "param" ? "rules.gt.param_cell" : "rules.gt.runtime_cell")}</span>
+                      {f.cls === "runtime" ? (
+                        <span className="sk-hint">{t("rules.gt.runtime_cell")}</span>
                       ) : (
                         <FieldInput
                           def={f}
@@ -191,7 +205,7 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                           onExpand={f.kind === "formula" ? () => wb.open(`${rowPath(r)}.fields.${f.name}`) : undefined}
                         />
                       )}
-                      {f.kind !== "param" && f.cls !== "runtime" && !(f.name in (p.fields ?? {})) && <small className="sk-hint" title={t("rules.gt.player_fills_hint")}>{t("rules.gt.player_fills")}</small>}
+                      {f.cls !== "runtime" && !(f.name in (p.fields ?? {})) && <small className="sk-hint" title={t("rules.gt.player_fills_hint")}>{t("rules.gt.player_fills")}</small>}
                     </td>
                   ))}
                   <td className="sk-nowrap">
@@ -206,7 +220,8 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
                   <tr className="sk-subrow">
                     <td colSpan={width}>
                       {g.effects !== false && <EffectsEditor effects={effectsOf(p)} derived={derived} validate={vEff} withPriority={false} onChange={(effects) => setRow(r, { effects })} />}
-                      {g.effects !== false && <UsesEditor uses={p.uses ?? []} path={`${rowPath(r)}.uses`} hint={t("rules.uses.hint")} onChange={(uses) => setRow(r, { uses })} />}
+                      <ParamsEditor params={p.params ?? []} onChange={(params) => setRow(r, { params })} validate={vEff} checks={checks} spendTargets={spendTargets} title={t(g.uses ? "params.item_own" : "params.own")} hint={t("params.own_hint")} />
+                      {g.uses && <UsesEditor uses={p.uses ?? []} path={`${rowPath(r)}.uses`} hint={t("rules.uses.hint")} derived={derived} validate={vEff} checks={checks} spendTargets={spendTargets} onChange={(uses) => setRow(r, { uses })} />}
                     </td>
                   </tr>
                 )}
@@ -222,12 +237,12 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
           </tbody>
         </table>
       </div>
-      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], config: "", script: "", when: "", uses: [] })}>
+      <button type="button" onClick={() => pre.add({ name: "", id: "", description: "", fields: {}, effects: [], config: "", script: "", when: "", uses: [], params: [] })}>
         {t("rules.gt.add_row")}
       </button>
-      {g.effects !== false && (
+      {g.effects !== false && g.uses && (
         <div className="sk-card">
-          <UsesEditor uses={g.use_templates ?? []} path={`${base}.use_templates`} hint={t("rules.uses.templates_hint")} onChange={(use_templates) => onChange({ ...g, use_templates })} />
+          <UsesEditor uses={g.use_templates ?? []} path={`${base}.use_templates`} hint={t("rules.uses.templates_hint")} derived={derived} validate={vEff} checks={checks} spendTargets={spendTargets} onChange={(use_templates) => onChange({ ...g, use_templates })} />
         </div>
       )}
       {col !== null && fields[col] && (
@@ -241,8 +256,6 @@ export function GroupTable({ g, onChange, validate, template, derived, spendTarg
             onChange={(x) => setColumn(col, x)}
             onRemove={() => removeColumn(col)}
             mover={<Mover index={col} count={fields.length} onMove={moveColumn} />}
-            spendTargets={spendTargets}
-            checks={checks}
           />
           <button type="button" className="sk-link" onClick={() => setCol(null)}>
             {t("play.close")}

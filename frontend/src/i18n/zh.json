@@ -40,6 +40,7 @@
     "effect_priority": "顺序",
     "effects": "修正（一直生效）",
     "engine_rules": "让引擎自动执行（可选）",
+    "engine_rules_filled": "让引擎自动执行（已写好，点开看）",
     "engine_rules_hint": "不会写也没关系：只写上面的说明，KP 会按说明裁定。写了的话，射程、消耗、伤害这些由引擎自动算。",
     "entry_description": "描述",
     "entry_name": "名称",
@@ -58,7 +59,7 @@
     "submit": "提交角色卡",
     "unnamed_field": "（这个字段还没起名字）",
     "use_from_template": "从模板加一个用途…",
-    "uses_hint": "这个条目的几种用法：每种用法是一个技能（设置没写的项沿用上面条目的）。只写说明的由 KP 裁定。"
+    "uses_hint": "这件东西的几种用法，每种单独用；可以从模板里挑一个再改。只写说明的由 KP 裁定。勾了“开关”的每用一次切换开/关。"
   },
   "chat": {
     "hint": "闲聊是玩家之间的场外聊天，KP 看不到，也不据此裁定。游戏内的事请走 KP 或广播。",
@@ -192,6 +193,7 @@
     "pack": {
       "bad_count": "最少、最多的数量不对（最多不能小于最少）",
       "bad_number_choice": "可选值“{item}”看不懂：写成 名字=数（E=1）、数（10）或范围（1~5）",
+      "bad_param_name": "参数名 {name} 要是英文、数字和下划线",
       "boolean_initial": "是/否字段的初值要写 True / False（或 1 / 0、一个条件），现在是 {value}",
       "check_needs_dice": "检定要写 dice（掷什么骰子）",
       "check_needs_levels": "检定至少要有一个结果等级",
@@ -207,6 +209,7 @@
       "no_player_entities": "还没设置玩家建角时要创建的实体",
       "no_templates": "至少要有一个模板",
       "option_needs_param": "只有“使用时填写”的列能设检定和冷却",
+      "param_name_clash": "参数名 {name} 和条目的列重名了",
       "reserved_name": "{name} 是保留名字（函数名、检定变量或 d6 这样的骰子写法），请换一个",
       "resource_needs_max": "资源必须填上限",
       "runtime_needs_initial": "运行值必须填初值",
@@ -216,6 +219,7 @@
       "unknown_group": "没有叫 {name} 的分组",
       "unknown_handbook_section": "规则书里没有“{name}”这个标题",
       "unknown_template": "没有叫 {name} 的模板",
+      "use_templates_need_uses": "只有物品类的分组才有用途模板",
       "vital_needs_runtime": "只有运行值（数值或资源）能设成致命"
     },
     "player": {
@@ -269,13 +273,16 @@
       "choice": "“{value}”不在可选值里",
       "derived_not_writable": "推导值不能直接填",
       "duplicate_use": "用途 {name} 重复了",
+      "effects_need_toggle": "只有开关类的用途才有修正",
+      "item_not_usable": "物品本身不能直接用：设置和脚本写在它的用途里",
       "missing_field": "缺少字段",
       "placement_not_allowed": "这个分组的条目不能是设置物（在分组的更多设置里打开）",
       "required": "必须填写",
       "shape_not_allowed": "这个分组不允许这种范围形状",
       "timing_not_allowed": "这个分组没有打开施放时间和冷却（在分组的更多设置里打开）",
       "type": "类型不对",
-      "unknown_field": "没有这个字段"
+      "unknown_field": "没有这个字段",
+      "uses_not_allowed": "这个分组不是物品类，条目不能有用途"
     },
     "talk": {
       "busy": "你的行动还在进行，不能发起对话",
@@ -292,12 +299,14 @@
     "use": {
       "cooling_down": "{entry} 还在冷却",
       "dead": "{entity} 已经死亡，不能用技能",
+      "item_needs_use": "“{entry}”是一件东西，要说用它的哪种用途",
       "needs_target": "{entry} 要选一个对象",
       "no_position": "{entry} 有射程，但使用者或对象不在地图上",
       "not_in_sight": "{entry} 要放在看得见的地方",
       "not_perceived": "{entry} 要看得见（察觉得到）对象才能用",
       "out_of_range": "{entry} 够不着：对象在 {distance} 米外，射程 {range} 米",
       "param_cooling_down": "{entry} 的“{name}”还在冷却，这次不能选",
+      "param_requires": "这次不能选“{name}”（条件：{formula}）",
       "requires": "{entry} 现在不能用：使用条件 {formula} 不成立"
     }
   },
@@ -483,6 +492,7 @@
       "sign": "正数得 1，负数得 -1，零得 0",
       "sqrt": "平方根",
       "sum": "一个分组里所有条目某一列的和",
+      "toggled": "这个分组里开着的开关有几个（开关类用途），例如 toggled(\"装备\")",
       "trunc": "去掉小数部分（向零取整）"
     },
     "functions": "函数",
@@ -712,6 +722,43 @@
     "public": "公开部分 scenario_public.md",
     "scenarios": "剧本"
   },
+  "params": {
+    "add": "加一个参数",
+    "check": "要过的检定",
+    "check_hint": "选了非 0 要过的检定，没过就当没选",
+    "choices": "可选值，例如 不用=0、用=1",
+    "cooldown": "冷却（分钟）",
+    "cooldown_hint": "选过以后这个条目多久不能再选",
+    "cooldown_ph": "例如 1440 是每天一次",
+    "defaults": "用的时候还可以选（规则包定的参数）：",
+    "description": "说明：选了会怎样",
+    "duration": "被动时放大多久（分钟）",
+    "duration_hint": "用在被动的条目（没有设置也没有脚本）上时，接下来这么久里它的数值（例如等级）乘上倍数",
+    "duration_ph": "例如 10",
+    "hint": "公式里 this.<英文名> 是这次选的数。",
+    "item_own": "这件东西的参数（所有用途都能选，可选）",
+    "label": "显示名",
+    "max": "上限",
+    "min": "下限",
+    "min_hint": "没有可选值时能选的范围（公式）",
+    "more": "条件、检定、冷却、扣什么、放大多少……",
+    "multiplier": "效果倍数",
+    "multiplier_hint": "选了以后，这次的伤害、治疗、增加的数值自动乘上它（消耗不乘）；脚本里 boost 是总倍数",
+    "multiplier_ph": "例如 1 + 0.5 * this.plus",
+    "name": "英文名",
+    "none": "（不要）",
+    "own": "这个条目自己的参数（可选）",
+    "own_hint": "参数是用的时候选的数，例如“燃烧寿命：不用=0、用=1”。选了以后可以扣东西、放大效果，也可以只写说明让 KP 裁定。",
+    "requires": "能选的条件",
+    "requires_hint": "选非 0 时要成立的条件，不成立就不能这样用",
+    "requires_ph": "例如 this.plus > 0",
+    "script": "选了就执行的句子",
+    "script_hint": "打没打中都执行，例如扣同伴身上的资源",
+    "script_ph": "例如 self.sub(hp, 5)",
+    "spends": "从哪个资源里扣",
+    "spends_hint": "扣的数就是选的数（例如投入多少魔力）",
+    "use_own": "只有这个用途有的参数（可选）"
+  },
   "placement": {
     "charges": "可触发次数",
     "duration": "持续时间（秒）",
@@ -892,7 +939,8 @@
       "settings": "更多设置：开关和范围形状",
       "shapes": "条目可以带的范围形状（用于范围攻击、光束等，不需要就都不勾）",
       "timing": "条目有施放时间和冷却时间（技能）",
-      "untitled": "未命名分组"
+      "untitled": "未命名分组",
+      "uses": "物品类：条目本身不能直接用，只能用它的几种用途"
     },
     "groups": "可重复分组（技能、能力等）",
     "groups_hint": "一个分组就是角色卡上的一类条目，例如“职业技能”“天赋”“特殊能力”，每一类建一个分组。分组下面的每一条是一个具体的技能或能力。条目有两种来源：玩家建角时自己添加的；你在这里写好的固定条目（可以带生效条件，例如只有某个职业才有）。",
@@ -988,6 +1036,10 @@
       "when": "生效条件（留空表示总是生效）"
     },
     "packs": "规则包",
+    "params": "默认参数",
+    "params_groups": "适用于：",
+    "params_hint": "使用时选的数（例如“用＋”“投入多少魔力”）：每个参数勾选适用于哪些分组。玩家还可以在自己的条目、用途上加参数；实际能选的是两者加在一起。",
+    "params_untitled": "（没起名的参数）",
     "path": {
       "cast_time": "施放时间",
       "checks": "检定",
@@ -1004,6 +1056,7 @@
       "handbook": "规则书",
       "insights": "看见就知道",
       "levels": "结果等级",
+      "params": "默认参数",
       "placement": "设置物",
       "player_entities": "建角实体",
       "presets": "固定条目",
@@ -1226,5 +1279,11 @@
     "hm": "{h} 小时 {m} 分",
     "ms": "{m} 分 {s} 秒",
     "s": "{s} 秒"
+  },
+  "uses": {
+    "default_on": "一开始开着",
+    "effects": "开着的时候的修正",
+    "toggle": "开关",
+    "toggle_hint": "每用一次切换开/关，开着的时候下面的修正生效"
   }
 }

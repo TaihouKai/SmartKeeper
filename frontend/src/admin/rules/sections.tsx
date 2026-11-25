@@ -3,6 +3,7 @@ import { api, call, type Schemas } from "../../api/client";
 import { useI18n } from "../../i18n";
 import { ErrorBox, FormulaInput, Mover } from "../../ui/components";
 import { Markdown } from "../../ui/markdown";
+import { ParamsEditor, blankParam } from "../../ui/ParamEditor";
 import { useAction } from "../../ui/hooks";
 import { FieldCard, blankField, useListEdit, type Validate } from "../fieldCard";
 import { GroupTable } from "../GroupTable";
@@ -190,7 +191,7 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
   const allowed = g.shapes?.allowed ?? [];
   const [settings, setSettings] = useState(false);
   const vReveal = useCallback((f: string) => validate(f, tpl.name, g.name), [validate, tpl.name, g.name]);
-  const flag = (key: "effects" | "hidden" | "placements" | "timing" | "reactions", def: boolean, label: string) => (
+  const flag = (key: "effects" | "hidden" | "placements" | "timing" | "reactions" | "uses", def: boolean, label: string) => (
     <label className="sk-inline">
       <input type="checkbox" checked={g[key] ?? def} onChange={(e) => onChange({ ...g, [key]: e.target.checked })} /> {label}
     </label>
@@ -239,6 +240,7 @@ export function GroupSection({ tpl, g, onChange, onRemove, validate, base, mover
           <div className="wb-settings">
             <div className="sk-field-flags">
               {flag("effects", true, t("rules.g.effects"))}
+              {flag("uses", false, t("rules.g.uses"))}
               {flag("placements", true, t("rules.g.placements"))}
               {flag("timing", true, t("rules.g.timing"))}
               {flag("reactions", true, t("rules.g.reactions"))}
@@ -561,6 +563,47 @@ export function TextSection({ pack, onChange }: { pack: Pack; onChange: (p: Pack
     <>
       <SectionHead title={t("rules.rules_text")} hint={t("rules.rules_text_hint")} />
       <textarea className="wb-longtext" value={pack.rules_text ?? ""} onChange={(e) => onChange({ ...pack, rules_text: e.target.value })} />
+    </>
+  );
+}
+
+/** 默认参数：使用时选的数（例如“用＋”“投入多少魔力”），各自适用于哪些分组。 */
+export function PackParamsSection({ pack, onChange, validate }: { pack: Pack; onChange: (p: Pack) => void; validate: Validate }) {
+  const { t } = useI18n();
+  const params = pack.params ?? [];
+  const groups = [...new Set(pack.templates.flatMap((x) => (x.groups ?? []).map((g) => g.name)))];
+  const checks = (pack.checks ?? []).map((c) => c.name);
+  const spendTargets = [...new Set(pack.templates.flatMap((x) => (x.fields ?? []).filter((f) => f.kind === "number" || f.kind === "resource").map((f) => f.name)))];
+  const set = (i: number, p: (typeof params)[number]) => onChange({ ...pack, params: params.map((x, j) => (j === i ? p : x)) });
+  return (
+    <>
+      <SectionHead title={t("rules.params")} hint={t("rules.params_hint")} />
+      {params.map((prm, i) => {
+        const first = pack.templates.find((x) => (x.groups ?? []).some((g) => (prm.groups ?? []).includes(g.name)));
+        const inGroup = (prm.groups ?? [])[0];
+        return (
+          <div key={i} className="wb-panel">
+            <div className="wb-shapes">
+              <span className="sk-hint">{t("rules.params_groups")}</span>
+              {groups.map((g) => (
+                <label key={g} className="sk-inline">
+                  <input type="checkbox" checked={(prm.groups ?? []).includes(g)} onChange={(e) => set(i, { ...prm, groups: e.target.checked ? [...(prm.groups ?? []), g] : (prm.groups ?? []).filter((x) => x !== g) })} /> {g}
+                </label>
+              ))}
+            </div>
+            <ParamsEditor
+              params={[prm]}
+              onChange={(ps) => (ps.length ? set(i, { ...ps[0]!, groups: prm.groups ?? [] }) : onChange({ ...pack, params: params.filter((_, j) => j !== i) }))}
+              validate={(f) => validate(f, first?.name ?? null, inGroup)}
+              validateScript={(f) => validate(f, first?.name ?? null, inGroup, "script")}
+              checks={checks}
+              spendTargets={spendTargets}
+              title={prm.label || prm.name || t("rules.params_untitled")}
+            />
+          </div>
+        );
+      })}
+      <button onClick={() => onChange({ ...pack, params: [...params, { ...blankParam(), groups: [] }] })}>{t("common.add")}</button>
     </>
   );
 }

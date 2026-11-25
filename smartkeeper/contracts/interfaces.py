@@ -95,8 +95,11 @@ class Rules(Protocol):
         formula: str,
         in_entry: str | None = None,
         scope: FormulaScope | None = None,
+        other: str = "",
+        names: Sequence[str] = (),
     ) -> list[Problem]:
-        """校验一条公式：语法、函数白名单、引用的名字是否存在。in_entry 为分组名时允许 this.<列>。
+        """校验一条公式：语法、函数白名单、引用的名字是否存在。in_entry 为分组名时允许 this.<列>
+        （和这个分组的默认参数，再加上 names：条目、用途自己加的参数）。
 
         scope 不给时：有 template 按模板校验，没有按检定结果条件校验（可用 roll、target 等）。
         any_entity：任何模板的名字都可以（检定目标值、命名公式）；dice：同上并允许掷骰；
@@ -202,8 +205,9 @@ class Rules(Protocol):
         config: str = "",
         outcome: Mapping[str, float] | None = None,
         damage_kind: str = "",
+        scale: float = 1.0,
     ) -> tuple[ScriptStep, ...]:
-        """技能脚本（config 是同一条目的技能设置，脚本里可以用它的各项）：在使用者的角色卡和这个条目（entry 是它的列，含这次使用时填写的数）上，
+        """技能脚本（scale 是这次的效果倍数，乘在伤害和增加的数值上；config 是同一条目的技能设置，脚本里可以用它的各项）：在使用者的角色卡和这个条目（entry 是它的列，含这次使用时填写的数）上，
         掷骰算好每一句的数值；modify 的公式除了被修正的推导值自己，其余名字都换成此刻的值。
         没有对象（target 为 None）时跳过作用在 target 上的句子。出错抛 ValidationFailed。"""
         ...

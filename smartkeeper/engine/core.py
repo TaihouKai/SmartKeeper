@@ -7,12 +7,13 @@ import hashlib
 import json
 import secrets
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 
 import sqlalchemy as sa
 from pydantic import JsonValue
+from pydantic import ValidationError as PydanticError
 
 from smartkeeper.contracts import (
     ADMIN,
@@ -20,6 +21,7 @@ from smartkeeper.contracts import (
     DEAD_TAG,
     ENGINE,
     KP,
+    USE_SEP,
     Activity,
     AdHocCheck,
     Adjudication,
@@ -52,6 +54,7 @@ from smartkeeper.contracts import (
     NotFound,
     Opening,
     OwnEntity,
+    ParamDef,
     PatchOp,
     Peers,
     Place,
@@ -1176,7 +1179,6 @@ class Engine:
             pack = self.rulepack(game_id)
             ent = self._entity(self._state(game_id), entity)
             template = str(ent.get("template", ""))
-            tpl = pack.template(template)
             state = self._state(game_id)
             peers = peers_of(state, entity)
             sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
@@ -1190,8 +1192,8 @@ class Engine:
                     raise NotFound("roll.unknown_entry", entity=entity, entry=entry)
                 gname, row, _owner = hit
                 fields = dict(_obj(row.get("fields")))
-                gdef = next((g for g in tpl.groups if g.name == gname), None) if tpl else None
-                spends = self._use_params(pack, template, sheet, gdef, fields, params, entry, peers)
+                prms = self._params_of(pack, gname, row)
+                spends = self._use_params(pack, template, sheet, prms, fields, params, entry, peers)
                 expr = fields.get(field)
             if not isinstance(expr, str) or not expr.strip():
                 raise ValidationFailed("roll.not_a_formula", field=field)
@@ -1298,11 +1300,16 @@ class Engine:
             spec = self._cfg(row).placement
             assert spec is not None
             fields = dict(_obj(row.get("fields")))
-            tpl = pack.template(template)
-            gdef = next((x for x in tpl.groups if x.name == gname), None) if tpl else None
             try:
                 spent = self._use_params(
-                    pack, template, sheet, gdef, fields, dict(pin.params), pin.entry, peers
+                    pack,
+                    template,
+                    sheet,
+                    self._params_of(pack, gname, row),
+                    fields,
+                    dict(pin.params),
+                    pin.entry,
+                    peers,
                 )
             except ValidationFailed as e:
                 problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
@@ -1319,7 +1326,12 @@ class Engine:
 
             building: str | None = None
             at, at_inside = pin.at, pin.inside
-            if spec.building:
+            try:
+                whole = bool(spec.building.strip()) and val(spec.building) != 0
+            except ValidationFailed as e:
+                problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
+                continue
+            if whole:
                 # 整栋建筑：设置者所在的那栋，放置点就是设置者的位置
                 here_in = ent.get("inside")
                 here_at = point_of(ent.get("pos"))
@@ -1334,18 +1346,14 @@ class Engine:
                     continue
                 building, at, at_inside = here_in, here_at, here_in
             try:
-                radius = val(spec.radius) if not spec.building else 0.0
+                radius = val(spec.radius) if not whole else 0.0
                 mult = val(spec.perceive_multiplier) if spec.perceive_multiplier.strip() else 1.0
                 charges = int(val(spec.charges)) if spec.charges.strip() else None
                 duration = int(val(spec.duration)) if spec.duration.strip() else None
             except ValidationFailed as e:
                 problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
                 continue
-            if (
-                (radius <= 0 and not spec.building)
-                or mult < 0
-                or (charges is not None and charges < 1)
-            ):
+            if (radius <= 0 and not whole) or mult < 0 or (charges is not None and charges < 1):
                 problems.append(
                     Problem(code="adj.bad_placement", path=path, params={"entry": pin.entry})
                 )
@@ -1453,23 +1461,37 @@ class Engine:
             "triggered_this_round": cast(JsonValue, fired),
         }
 
+    @staticmethod
+    def _params_of(pack: RulePack, group: str, row: dict[str, JsonValue]) -> list[ParamDef]:
+        """一次使用实际有的参数：规则包的默认参数（适用于这个分组的）+ 条目上加的 + 用途上加的（同名的后者覆盖前者）。"""
+        out: dict[str, ParamDef] = {}
+        for p in pack.params:
+            if group in p.groups:
+                out[p.name] = ParamDef.model_validate(p.model_dump(exclude={"groups"}))
+        for raw in _list(row.get("params")):
+            try:
+                prm = ParamDef.model_validate(raw)
+            except PydanticError:
+                continue
+            out.pop(prm.name, None)
+            out[prm.name] = prm
+        return list(out.values())
+
     def _use_params(
         self,
         pack: RulePack,
         template: str,
         sheet: dict[str, JsonValue],
-        gdef: GroupDef | None,
+        prms: Sequence[ParamDef],
         fields: dict[str, JsonValue],
         params: dict[str, float],
         entry: str,
         peers: dict[str, JsonValue | None] | None = None,
     ) -> dict[str, JsonValue]:
-        """条目的“使用时填写”的列：检查这次填的数在范围内、资源够，写进 fields（公式里 this.<列>）。
+        """这次使用的参数：检查选的数在范围内、能选、资源够，写进 fields（公式里 this.<参数>）。
         返回要扣的资源：资源字段名 -> 数量。"""
         spends: dict[str, JsonValue] = {}
-        for pf in gdef.fields if gdef else ():
-            if pf.kind != "param":
-                continue
+        for pf in prms:
             given = params.get(pf.name)
             if given is None and pf.choices:
                 given = self._rules.first_choice(pf.choices)  # 有可选值的没给时取第一个
@@ -1501,6 +1523,17 @@ class Engine:
                     raise ValidationFailed("roll.not_enough", name=pf.spends, need=v, have=have)
                 spends[pf.spends] = float(cast(float, spends.get(pf.spends, 0))) + v
             fields[pf.name] = v
+        for pf in prms:
+            v = fields.get(pf.name)
+            if not pf.requires.strip() or not isinstance(v, int | float) or v == 0:
+                continue
+            ok = self._rules.roll(
+                pack, pf.requires, self._dice.faces, template, sheet, fields, peers
+            ).total
+            if ok == 0:
+                raise ValidationFailed(
+                    "use.param_requires", entry=entry, name=pf.name, formula=pf.requires
+                )
         return spends
 
     def _regen_ops(self, pack: RulePack, state: State, seconds: int) -> list[PatchOp]:
@@ -1586,23 +1619,29 @@ class Engine:
             if found is None:
                 raise NotFound("roll.unknown_entry", entity=source, entry=entry)
             gname, row, owner = found  # owner：用途属于的那个条目
-            parsed = GroupEntry.model_validate(row)
+            parsed = entry_refs.as_entry(row)
             tags = {str(_obj(s).get("tag")) for s in _list(_obj(ent.get("sheet")).get("statuses"))}
             if DEAD_TAG in tags:
                 raise ValidationFailed("use.dead", entity=source)
             if COOLDOWN_TAG + parsed.name in tags:
                 raise ValidationFailed("use.cooling_down", entity=source, entry=parsed.name)
             cfg = self._cfg(row)
+            gdef = next((g for g in tpl.groups if g.name == gname), None) if tpl else None
+            if gdef is not None and gdef.uses and not row.get("is_use"):
+                # 物品本身不能直接用，只能用它的用途
+                raise ValidationFailed("use.item_needs_use", entity=source, entry=parsed.name)
+            # 被动的条目（没有设置也没有脚本）：用一下就是对自己发动（例如用参数让它限时变强）
+            passive = not parsed.script.strip() and not parsed.config.strip()
             # 对象由技能设置决定：只能对自己用的没有选择，没有对象的不要对象
-            if cfg.target == "self":
+            if cfg.target == "self" or passive:
                 target = source
             elif cfg.target == "none":
                 target = None
             elif target is None:
                 raise ValidationFailed("use.needs_target", entity=source, entry=parsed.name)
             fields = dict(parsed.fields)
-            gdef = next((g for g in tpl.groups if g.name == gname), None) if tpl else None
-            spends = self._use_params(pack, template, sheet, gdef, fields, params, entry, peers)
+            prms = self._params_of(pack, gname, row)
+            spends = self._use_params(pack, template, sheet, prms, fields, params, entry, peers)
             tgt: tuple[str, JsonValue, Peers | None] | None = None
             if target is not None:
                 tent = self._entity(state, target)
@@ -1626,17 +1665,38 @@ class Engine:
             me = Side(source, template, sheet, peers, partners_of(state, source))
             duel = Duel(self._rules, pack, self._dice.faces)
             param_checks, param_cds = self._param_options(
-                me, duel, gdef, fields, tags, owner, parsed.name, roll
+                me, duel, prms, fields, tags, owner, parsed.name, roll
             )
+            # 选了的参数（过了检定的）：总效果倍数、选了就执行的句子、被动条目的限时放大
+            chosen = [
+                pf for pf in prms if isinstance(v := fields.get(pf.name), int | float) and v != 0
+            ]
+            boost = 1.0
+            for pf in chosen:
+                if pf.multiplier.strip():
+                    boost *= roll(pf.multiplier).total
+            costs = self._param_costs(pack, me, chosen, fields)
+            minutes = max(
+                (roll(pf.duration).total for pf in chosen if pf.duration.strip()), default=0
+            )
+            if passive and boost != 1 and minutes > 0:
+                parsed = parsed.model_copy(
+                    update={"script": self._passive_boost(gdef, fields, boost, minutes)}
+                )
+            # 开关类用途：这一次是打开还是关上
+            toggle: dict[str, JsonValue] | None = None
+            turning_on = False
+            if row.get("toggle"):
+                key = f"{owner}{USE_SEP}{row.get('use_name')}"
+                was = _obj(_obj(ent.get("sheet")).get("toggles")).get(key, row.get("default_on"))
+                turning_on = not bool(was)
+                toggle = {"key": key, "on": turning_on}
+            extra_vars = {"boost": boost, "turning_on": 1.0 if turning_on else 0.0}
             heard = self._reach_checks(game_id, state, pack, source, target, cfg, roll, parsed.name)
             space = self._space_for(self._map(game_id), state, pack)
             # 范围技能（设置了 shape）：形状里的每个人各算一次（各自应对）；消耗、冷却、对自己的那几步只算在第一个上
             victims = self._victims(space, source, target, cfg) if cfg.shape else [target]
-            used_params = {
-                pf.name: fields[pf.name]
-                for pf in (gdef.fields if gdef else ())
-                if pf.kind == "param" and pf.name in fields
-            }
+            used_params = {pf.name: fields[pf.name] for pf in prms if pf.name in fields}
             # 察觉到的人知不知道用的是什么：规则包在分组上定（玩家写条目时改不了）
             revealed = (
                 roll(gdef.reveal).total != 0 if gdef is not None and gdef.reveal.strip() else True
@@ -1687,7 +1747,17 @@ class Engine:
                     )
                     if hit:
                         saved, actions = self._strike_effects(
-                            duel, me, them, parsed, cfg, fields, res, strike, gdef, extra
+                            duel,
+                            me,
+                            them,
+                            parsed,
+                            cfg,
+                            fields,
+                            res,
+                            strike,
+                            gdef,
+                            extra,
+                            extra_vars,
                         )
                 cooldown = int(roll(cfg.cooldown).total * 60) if cfg.cooldown.strip() else 0
                 ev = NewEvent(
@@ -1703,6 +1773,10 @@ class Engine:
                         # 范围技能的其他对象：跟着第一条生效（第一条的 seq）
                         "area_of": first.seq if first is not None else None,
                         "params": cast(JsonValue, used_params),
+                        "boost": boost,
+                        "turning_on": turning_on,
+                        "param_costs": [] if extra else costs,
+                        "toggle": None if extra else cast(JsonValue, toggle),
                         "param_checks": {} if extra else param_checks,
                         "param_cooldowns": {} if extra else param_cds,
                         "spends": {} if extra else spends,
@@ -1790,7 +1864,7 @@ class Engine:
         self,
         me: Side,
         duel: Duel,
-        gdef: GroupDef | None,
+        prms: Sequence[ParamDef],
         fields: dict[str, JsonValue],
         tags: set[str],
         owner: str,
@@ -1801,9 +1875,9 @@ class Engine:
         返回 (参数 -> 检定结果, 冷却状态名 -> 秒数)。还在冷却时拒绝这次使用。"""
         checked: dict[str, JsonValue] = {}
         cools: dict[str, JsonValue] = {}
-        for pf in gdef.fields if gdef else ():
+        for pf in prms:
             v = fields.get(pf.name)
-            if pf.kind != "param" or not isinstance(v, int | float) or v == 0:
+            if not isinstance(v, int | float) or v == 0:
                 continue
             tag = f"{COOLDOWN_TAG}{owner}#{pf.name}"
             if pf.cooldown and tag in tags:
@@ -1826,6 +1900,42 @@ class Engine:
         }
         return DEAD_TAG in tags
 
+    def _param_costs(
+        self, pack: RulePack, me: Side, chosen: Sequence[ParamDef], fields: dict[str, JsonValue]
+    ) -> list[JsonValue]:
+        """选了的参数“选了就执行的句子”（例如扣同伴身上的资源），算好每一步。"""
+        out: list[JsonValue] = []
+        for pf in chosen:
+            if not pf.script.strip():
+                continue
+            steps = self._rules.plan_script(
+                pack, pf.script, self._dice.faces, me.template, me.sheet, fields, me.peers
+            )
+            out += self._step_actions(me, None, steps)
+        return out
+
+    @staticmethod
+    def _passive_boost(
+        gdef: GroupDef | None, fields: dict[str, JsonValue], boost: float, minutes: float
+    ) -> str:
+        """被动的条目用参数放大：接下来 minutes 分钟里，它的每个数值列乘上倍数（例如技能等级）。"""
+        cols = [
+            fd.name
+            for fd in (gdef.fields if gdef else ())
+            if fd.cls == "player"
+            and fd.kind in ("number", "resource")
+            and isinstance(fields.get(fd.name), int | float)
+        ]
+        return "\n".join(f"self.modify(this.{c}, this.{c} * {boost:g}, {minutes:g})" for c in cols)
+
+    def _flip_toggle(self, state: State, who: str, key: str, on: bool, ops: list[PatchOp]) -> State:
+        """开关类用途切换：记在角色卡的 toggles 里。"""
+        sheet = _obj(self._entity(state, who).get("sheet"))
+        now = {**_obj(sheet.get("toggles")), key: on}
+        op = PatchOp(op="add", path=f"/entities/{who}/sheet/toggles", value=cast(JsonValue, now))
+        ops.append(op)
+        return self._world.apply(state, [op])
+
     def _strike_effects(
         self,
         duel: Duel,
@@ -1838,10 +1948,13 @@ class Engine:
         strike: Strike,
         gdef: GroupDef | None,
         only_target: bool = False,
+        extra_vars: Mapping[str, float] | None = None,
     ) -> tuple[JsonValue, list[JsonValue]]:
         """命中之后：对象做豁免（技能设置了 save 时），再算技能脚本的每一步。返回 (豁免结果, 每一步)。
-        only_target：范围技能的其他对象，只留作用在对象身上的步骤（对自己的已经算在第一个对象上）。"""
+        only_target：范围技能的其他对象，只留作用在对象身上的步骤（对自己的已经算在第一个对象上）。
+        extra_vars：这次使用的效果倍数 boost（乘在伤害和增加的数值上）、开关这次是不是打开 turning_on。"""
         outcome = res.outcome(strike)
+        outcome.update(extra_vars or {})
         saved: JsonValue = None
         if cfg.save and them is not None:
             sres = duel.save(them, cfg.save, me, strike)
@@ -1860,6 +1973,7 @@ class Engine:
             row.config,
             outcome,
             gdef.damage_kind if gdef else "",
+            float(outcome.get("boost", 1.0)),
         )
         if only_target:
             steps = tuple(st for st in steps if st.who == "target")
@@ -2082,9 +2196,8 @@ class Engine:
             skills: list[ReactionSkill] = []
             for name, row, g in allowed:
                 params = tuple(
-                    ReactionParam(name=f.name, label=f.label or "")
-                    for f in g.fields
-                    if f.kind == "param"
+                    ReactionParam(name=x.name, label=x.label or "")
+                    for x in self._params_of(pack, g.name, row)
                 )
                 skills.append(
                     ReactionSkill(
@@ -2153,8 +2266,8 @@ class Engine:
         options += [ReactionChoice(seq=ev.seq, kind="check", check=c) for c in checks]
         options += [
             ReactionChoice(seq=ev.seq, kind="skill", entry=n)
-            for n, _row, g in skills
-            if not any(x.kind == "param" for x in g.fields)
+            for n, row, g in skills
+            if not self._params_of(pack, g.name, row)
         ]
         best: tuple[tuple[int, int], NewEvent] | None = None
         for choice in options:
@@ -2181,7 +2294,7 @@ class Engine:
             raise NotFound("roll.unknown_entry", entity=source, entry=entry)
         s_tpl, s_sheet, s_peers, s_group, row = found
         cfg = self._cfg(row)
-        parsed = GroupEntry.model_validate(row)
+        parsed = entry_refs.as_entry(row)
         fields = {**_obj(row.get("fields")), **_obj(p.get("params"))}  # params：这次实际的值
         me = Side(source, s_tpl, s_sheet, s_peers, partners_of(state, source))
         d_ent = self._entity(state, defender)
@@ -2213,10 +2326,17 @@ class Engine:
                 raise ValidationFailed("react.bad_skill", entry=choice.entry)
             rname, rrow, g = pick
             rcfg = self._cfg(rrow)
-            rparsed = GroupEntry.model_validate(rrow)
+            rparsed = entry_refs.as_entry(rrow)
             rfields = dict(_obj(rrow.get("fields")))
             spends = self._use_params(
-                pack, d_tpl, them.sheet, g, rfields, dict(choice.params), rname, d_peers
+                pack,
+                d_tpl,
+                them.sheet,
+                self._params_of(pack, g.name, rrow),
+                rfields,
+                dict(choice.params),
+                rname,
+                d_peers,
             )
             if rcfg.check:
                 # 应对技能自己的检定（几个时取自己等级最高的）
@@ -2258,8 +2378,22 @@ class Engine:
         saved: JsonValue = None
         actions: list[JsonValue] = []
         if res.hit:
+            boost = p.get("boost")
             saved, actions = self._strike_effects(
-                duel, me, them, parsed, cfg, fields, res, strike, gdef, p.get("area_of") is not None
+                duel,
+                me,
+                them,
+                parsed,
+                cfg,
+                fields,
+                res,
+                strike,
+                gdef,
+                p.get("area_of") is not None,
+                {
+                    "boost": float(boost) if isinstance(boost, int | float) else 1.0,
+                    "turning_on": 1.0 if p.get("turning_on") else 0.0,
+                },
             )
         return NewEvent(
             type="reaction_resolved",
@@ -2297,31 +2431,24 @@ class Engine:
         hit = entry_refs.find(sheet, entry)
         if hit is None:
             return 0
-        row = hit[1]
+        gname, row = hit[0], hit[1]
         text = self._cfg(row).cast_time
         if not text.strip():
             return 0
         fields = dict(_obj(row.get("fields")))
-        # 解析行动时还不知道这次填多少：“使用时填写”的列先按下限（没有下限按 0）
-        tpl = pack.template(template)
-        for g in tpl.groups if tpl else ():
-            for fd in g.fields:
-                if fd.kind == "param" and fd.name not in fields:
+        # 解析行动时还不知道这次选多少：参数先按下限（没有下限按 0）
+        for fd in self._params_of(pack, gname, row):
+            if fd.name in fields:
+                continue
+            low = 0.0
+            if fd.min:
+                try:
+                    low = self._rules.roll(
+                        pack, fd.min, self._dice.faces, template, sheet, fields, peers
+                    ).total
+                except ValidationFailed:
                     low = 0.0
-                    if fd.min:
-                        try:
-                            low = self._rules.roll(
-                                pack,
-                                fd.min,
-                                self._dice.faces,
-                                template,
-                                sheet,
-                                fields,
-                                peers,
-                            ).total
-                        except ValidationFailed:
-                            low = 0.0
-                    fields[fd.name] = low
+            fields[fd.name] = low
         try:
             minutes = self._rules.roll(
                 pack, text, self._dice.faces, template, sheet, fields, peers
@@ -2484,10 +2611,17 @@ class Engine:
                 hit = answer.get("hit")
             cur = spend_and_cool(cur, source, p.get("spends"), entry, p.get("cooldown"))
             cur = ap.cool_tags(cur, source, p.get("param_cooldowns"))
+            group, owner = str(p.get("group") or ""), str(p.get("owner_entry") or entry)
+            # 参数选了就执行的句子（例如扣同伴身上的资源）：打没打中都算
+            cur = apply_actions(cur, p.get("param_costs"), source, entry, path, group, owner)
             # 旧数据（引擎还没判命中的）按裁定里的 hit
             if hit is True or (hit is None and p.get("waiting_for") is None and u.hit):
-                group, owner = str(p.get("group") or ""), str(p.get("owner_entry") or entry)
                 cur = apply_actions(cur, listed, source, entry, path, group, owner)
+                tog = _obj(p.get("toggle"))
+                if tog:
+                    cur = self._flip_toggle(
+                        cur, source, str(tog.get("key")), bool(tog.get("on")), ops
+                    )
             # 对别人用了技能：隐匿的使用者暴露给对象
             target = p.get("target")
             if isinstance(target, str) and target != source:

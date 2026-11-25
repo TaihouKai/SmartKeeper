@@ -40,6 +40,7 @@
     "effect_priority": "Order",
     "effects": "Modifiers (always on)",
     "engine_rules": "Let the engine run it (optional)",
+    "engine_rules_filled": "Let the engine run it (filled in; open to see)",
     "engine_rules_hint": "Optional: with just the description above, the KP rules on it. If you fill this in, the engine works out range, cost and damage itself.",
     "entry_description": "Description",
     "entry_name": "Name",
@@ -58,7 +59,7 @@
     "submit": "Submit character",
     "unnamed_field": "(unnamed field)",
     "use_from_template": "Add a use from a template…",
-    "uses_hint": "Ways to use this entry: each is a skill (its config falls back to the entry's). Text-only ones are ruled by the KP."
+    "uses_hint": "The ways to use this item, each used on its own; pick one from a template and adjust. Text-only ones are ruled by the KP. A toggle flips on or off each time it is used."
   },
   "chat": {
     "hint": "Chat is out-of-game talk between players. The keeper can't see it and won't act on it.",
@@ -192,6 +193,7 @@
     "pack": {
       "bad_count": "Min and max counts don't make sense",
       "bad_number_choice": "Can't read the choice “{item}”: write label=number (E=1), a number (10) or a range (1~5)",
+      "bad_param_name": "Parameter name {name} must be letters, digits and underscores",
       "boolean_initial": "A yes/no field's initial value should be True / False (or 1 / 0, or a condition), not {value}",
       "check_needs_dice": "A check needs dice",
       "check_needs_levels": "A check needs at least one result level",
@@ -207,6 +209,7 @@
       "no_player_entities": "Set which entities each player creates",
       "no_templates": "Add at least one template",
       "option_needs_param": "Only use-time columns can have a check or a cooldown",
+      "param_name_clash": "Parameter name {name} clashes with a column",
       "reserved_name": "{name} is reserved (a function, a check variable or dice like d6); pick another",
       "resource_needs_max": "A resource needs a maximum",
       "runtime_needs_initial": "A runtime value needs an initial value",
@@ -216,6 +219,7 @@
       "unknown_group": "No group named {name}",
       "unknown_handbook_section": "The rulebook has no heading “{name}”",
       "unknown_template": "No template named {name}",
+      "use_templates_need_uses": "Only item groups have use templates",
       "vital_needs_runtime": "Only runtime values (number or resource) can be vital"
     },
     "player": {
@@ -269,13 +273,16 @@
       "choice": "'{value}' isn't one of the choices",
       "derived_not_writable": "Derived values can't be entered",
       "duplicate_use": "The use {name} appears twice",
+      "effects_need_toggle": "Only toggle uses have modifiers",
+      "item_not_usable": "An item is not used directly: put settings and scripts in its uses",
       "missing_field": "Missing field",
       "placement_not_allowed": "Entries in this group can't be placements (turn it on in the group's settings)",
       "required": "Required",
       "shape_not_allowed": "This group doesn't allow that area shape",
       "timing_not_allowed": "This group has no cast time or cooldown (turn it on in the group's settings)",
       "type": "Wrong type",
-      "unknown_field": "Unknown field"
+      "unknown_field": "Unknown field",
+      "uses_not_allowed": "This group is not for items; entries have no uses"
     },
     "talk": {
       "busy": "You're busy and can't start a conversation",
@@ -292,12 +299,14 @@
     "use": {
       "cooling_down": "{entry} is still cooling down",
       "dead": "{entity} is dead and can't use skills",
+      "item_needs_use": "“{entry}” is an item: say which use",
       "needs_target": "{entry} needs a target",
       "no_position": "{entry} has a range but the user or target isn't on the map",
       "not_in_sight": "{entry} must be placed within line of sight",
       "not_perceived": "{entry} needs the target to be perceived",
       "out_of_range": "{entry} is out of range: the target is {distance} m away, range {range} m",
       "param_cooling_down": "The “{name}” option of {entry} is still cooling down",
+      "param_requires": "Cannot choose “{name}” this time (needs {formula})",
       "requires": "{entry} can't be used now: its condition {formula} doesn't hold"
     }
   },
@@ -483,6 +492,7 @@
       "sign": "1 if positive, -1 if negative, 0 if zero",
       "sqrt": "Square root",
       "sum": "Sum of one column over all entries of a group",
+      "toggled": "How many toggles are on in this group (toggle uses), e.g. toggled(\"gear\")",
       "trunc": "Drop the fraction (toward zero)"
     },
     "functions": "Functions",
@@ -712,6 +722,43 @@
     "public": "Public part scenario_public.md",
     "scenarios": "Scenarios"
   },
+  "params": {
+    "add": "Add a parameter",
+    "check": "Check to pass",
+    "check_hint": "Rolled when chosen; on failure it counts as not chosen",
+    "choices": "Choices, e.g. no=0, yes=1",
+    "cooldown": "Cooldown (minutes)",
+    "cooldown_hint": "How long before this entry can choose it again",
+    "cooldown_ph": "e.g. 1440 for once a day",
+    "defaults": "When used you can also choose (parameters from the rule pack):",
+    "description": "What choosing it does",
+    "duration": "Passive boost (minutes)",
+    "duration_hint": "On a passive entry (no settings or script), its numbers (e.g. level) are multiplied for this long",
+    "duration_ph": "e.g. 10",
+    "hint": "In formulas this.<name> is the number chosen this time.",
+    "item_own": "This item's parameters (every use can pick them; optional)",
+    "label": "Label",
+    "max": "Maximum",
+    "min": "Minimum",
+    "min_hint": "The range when there are no choices (formulas)",
+    "more": "Condition, check, cooldown, cost, multiplier…",
+    "multiplier": "Effect multiplier",
+    "multiplier_hint": "When chosen, this use's damage, healing and added amounts are multiplied by it (costs are not); scripts see the total as boost",
+    "multiplier_ph": "e.g. 1 + 0.5 * this.plus",
+    "name": "Name",
+    "none": "(none)",
+    "own": "This entry's own parameters (optional)",
+    "own_hint": "A parameter is a number chosen at use time, e.g. “burn lifespan: no=0, yes=1”. Choosing it can cost something or amplify the effect, or just carry a description for the KP.",
+    "requires": "Allowed when",
+    "requires_hint": "Must hold to choose a non-zero value",
+    "requires_ph": "e.g. this.plus > 0",
+    "script": "Runs when chosen",
+    "script_hint": "Runs whether or not the use lands, e.g. spend a resource elsewhere",
+    "script_ph": "e.g. self.sub(hp, 5)",
+    "spends": "Spends from",
+    "spends_hint": "Deducts the chosen number (e.g. how much mana to put in)",
+    "use_own": "Parameters only this use has (optional)"
+  },
   "placement": {
     "charges": "Charges",
     "duration": "Lasts (seconds)",
@@ -892,7 +939,8 @@
       "settings": "More settings: switches and area shapes",
       "shapes": "Area shapes entries may have (for area attacks, beams…; leave all unticked if unused)",
       "timing": "Entries have a casting time and a cooldown (skills)",
-      "untitled": "Untitled group"
+      "untitled": "Untitled group",
+      "uses": "Items: an entry is used only through its uses"
     },
     "groups": "Repeatable groups (skills, abilities…)",
     "groups_hint": "A group is one kind of entry on the sheet, such as class skills, personal skills or special abilities; make one group per kind. Each entry under it is one specific skill or ability. Entries come from two places: players add their own when creating a character, and you can write fixed entries here (optionally with a condition, e.g. only for one class).",
@@ -988,6 +1036,10 @@
       "when": "Condition (empty means always)"
     },
     "packs": "Rule packs",
+    "params": "Default parameters",
+    "params_groups": "Applies to:",
+    "params_hint": "Numbers chosen at use time (e.g. “use +”, “how much mana”): tick the groups each applies to. Players can add their own on entries and uses; what can be chosen is both together.",
+    "params_untitled": "(unnamed parameter)",
     "path": {
       "cast_time": "Cast time",
       "checks": "Check",
@@ -1004,6 +1056,7 @@
       "handbook": "Rulebook",
       "insights": "Seen at a glance",
       "levels": "Result level",
+      "params": "Default parameters",
       "placement": "Placement",
       "player_entities": "Player entities",
       "presets": "Fixed entry",
@@ -1226,5 +1279,11 @@
     "hm": "{h}h {m}m",
     "ms": "{m}m {s}s",
     "s": "{s}s"
+  },
+  "uses": {
+    "default_on": "Starts on",
+    "effects": "Modifiers while on",
+    "toggle": "Toggle",
+    "toggle_hint": "Each use flips it on or off; its modifiers apply while on"
   }
 }
