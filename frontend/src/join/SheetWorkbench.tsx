@@ -197,7 +197,7 @@ export function SheetWorkbench({
             {numbers.map((f) => {
               const range = rangeText(f, preview?.ranges?.[f.name]);
               return (
-                <div key={f.name} className={`cf-cell${missingField(f, value.fields[f.name]) ? " missing" : ""}`}>
+                <div key={f.name} className={`cf-cell${missingField(f, value.fields[f.name]) || problems.some((p) => p.path === `fields.${f.name}`) ? " missing" : ""}`}>
                   <label>
                     <span className="cf-label-line">
                       <span className="cf-label">{fieldLabel(f, t("character.unnamed_field"))}</span>
