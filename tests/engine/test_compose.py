@@ -174,3 +174,42 @@ def test_a_quick_self_only_written_action_nobody_notices_gets_its_result_at_once
     # 不能当场出的（例如要移动）拒绝
     with pytest.raises(IllegalState):
         e.apply_instant_result(g, p0, slow, "x", [])
+
+
+def test_a_skill_out_of_range_is_refused_when_composed() -> None:
+    """不先移动就用的技能：射程不够提交时就拒绝，不用等到结算才知道。先移动再用的到时候再查。"""
+    from smartkeeper.contracts import GroupPreset
+    from smartkeeper.rules import RulesService
+    from tests.engine.harness import setup_table
+    from tests.fixtures import load_pack
+
+    base = load_pack("single")
+    tpl = base.templates[0]
+    g0 = tpl.groups[0]
+    poke = GroupPreset(
+        name="poke", fields={"level": 1}, config="range = 5", script="target.damage(1)"
+    )
+    tpl = tpl.model_copy(
+        update={"groups": (g0.model_copy(update={"presets": (*g0.presets, poke)}), *tpl.groups[1:])}
+    )
+    pack = base.model_copy(update={"templates": (tpl, *base.templates[1:])})
+    assert RulesService().validate_pack(pack) == []
+    t = setup_table("single", 2, pack=pack)
+    e, g = t.engine, t.game_id
+    p0 = t.players[0]
+    a, b = t.entities(p0)[0], t.entities(t.players[1])[0]
+    apart(t)
+    them = TargetRef(kind="entity", id=b)
+    with pytest.raises(ValidationFailed) as err:
+        e.compose_intent(g, p0, [ComposedAction(actor=a, entry="poke", target=them)])
+    assert err.value.code == "use.out_of_range"
+    # 先走过去再用：现在不查
+    near = Location(pos=Point(x=188, y=188))
+    e.compose_intent(
+        g,
+        p0,
+        [
+            ComposedAction(actor=a, destination=near),
+            ComposedAction(actor=a, entry="poke", target=them),
+        ],
+    )

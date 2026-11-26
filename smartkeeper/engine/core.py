@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import hashlib
 import json
@@ -1113,6 +1114,33 @@ class Engine:
                 if cfg.target == "single" and a.target is None:
                     raise ValidationFailed("use.needs_target", entity=a.actor, entry=a.entry)
                 targets = (a.target,) if a.target is not None and cfg.target == "single" else ()
+                moving_first = any(
+                    it.actor == a.actor and it.destination is not None for it in items
+                )
+                if targets and targets[0].kind == "entity" and targets[0].id and not moving_first:
+                    # 不先移动就用：射程、看不看得见现在就查，玩家提交时就知道用不了（不用等到结算）
+                    fields = dict(_obj(found[1].get("fields")))
+                    peers = peers_of(state, a.actor)
+
+                    def roll(text: str) -> DiceResult:
+                        return self._rules.roll(
+                            pack,
+                            text,
+                            self._dice.faces,
+                            template,  # noqa: B023
+                            sheet,  # noqa: B023
+                            fields,  # noqa: B023
+                            peers,  # noqa: B023
+                        )
+
+                    with contextlib.suppress(NotFound):
+                        try:
+                            self._reach_checks(
+                                game_id, state, pack, a.actor, targets[0].id, cfg, roll, a.entry
+                            )
+                        except ValidationFailed as e:
+                            if e.code in ("use.out_of_range", "use.not_perceived"):
+                                raise
                 items.append(
                     ActionItem(
                         actor=a.actor,
@@ -1402,6 +1430,37 @@ class Engine:
                     heard.append(eid)
             if heard:
                 out[t.id] = heard
+        return out
+
+    def outcome_reasons(self, game_id: str) -> dict[str, list[str]]:
+        """给 KP：本轮哪些玩家必须有结果、为什么（裁定之前按进行中的行动推到本轮结束的位置预先算好，
+        KP 不用自己猜）：action_done 行动做完了或没有行动；perception_changed 感知范围里的人变了；
+        overheard 旁听到了对话。KP 另外移动别人、改了谁的角色卡时，引擎在校验时还会再要求。"""
+        out: dict[str, list[str]] = {}
+        for pid in self.outcome_required(game_id):
+            out.setdefault(pid, []).append("action_done")
+        state = self._state(game_id)
+        pack = self.rulepack(game_id)
+        m = self._map(game_id)
+        ops: list[PatchOp] = []
+        for eid, loc in sorted(self.positions_at_end(game_id).items()):
+            ops.append(
+                PatchOp(op="replace", path=f"/entities/{eid}/pos", value=loc.pos.model_dump())
+            )
+            ops.append(PatchOp(op="replace", path=f"/entities/{eid}/inside", value=loc.inside))
+        start = self._space_for(m, state, pack)
+        end = self._space_for(m, self._world.apply(state, ops), pack) if ops else start
+        heard = {e for ents in self.overhearers(game_id).values() for e in ents}
+        for p in self._active_players(game_id):
+            mine = set(self.controlled(game_id, p.id))
+            if any(
+                set(start.perceived_by(e)) != set(end.perceived_by(e))
+                or perceived_placements(start, e) != perceived_placements(end, e)
+                for e in mine
+            ):
+                out.setdefault(p.id, []).append("perception_changed")
+            if mine & heard:
+                out.setdefault(p.id, []).append("overheard")
         return out
 
     def positions_at_end(self, game_id: str) -> dict[str, Location]:
@@ -5684,6 +5743,18 @@ class Engine:
             if "](place:" in raw:
                 told |= places.linked_ids(raw)
         return {k: v for k, v in named.items() if v.public or k in told}
+
+    def feature_place_names(self, game_id: str, player_id: str) -> dict[str, str]:
+        """地物 id -> 这个玩家对它的叫法（他知道的起了名字的地点）。一栋楼有几个名字时
+        （例如“教会”和一片范围“教会中立区”）用不带范围的、最短的那个。"""
+        out: dict[str, str] = {}
+        for p in sorted(
+            self.known_places(game_id, player_id).values(),
+            key=lambda x: (x.radius is not None, len(x.name), x.name),
+        ):
+            if p.feature:
+                out.setdefault(p.feature, p.name)
+        return out
 
     def _place_ops(
         self, game_id: str, state: State, decls: Sequence[PlaceNameIn], path: str

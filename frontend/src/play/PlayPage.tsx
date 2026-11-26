@@ -467,7 +467,10 @@ export function PlayPage() {
       }
       const feature = p.kind === "feature" ? { id: p.id, name: p.name, kind: p.featureKind, height: p.height } : null;
       // 点到的地物是一个我知道名字的地点（例如教会所在的楼）：卡片上写这个名字
-      const named = feature ? scene.data?.places?.find((x) => x.feature === feature.id) : undefined;
+      // 一栋楼有几个名字时（例如“教会”和一片范围“教会中立区”）用不带范围的、最短的那个
+      const named = feature
+        ? (scene.data?.places ?? []).filter((x) => x.feature === feature.id).sort((a, b) => Number(Boolean(a.radius)) - Number(Boolean(b.radius)) || a.name.length - b.name.length)[0]
+        : undefined;
       await openAt(p.lon, p.lat, feature, named?.name);
     });
   // 在一个位置插图钉、开卡片：是哪里、走过去要多久

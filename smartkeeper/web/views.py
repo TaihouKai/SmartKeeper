@@ -217,9 +217,7 @@ def echo(
         return labels.get(eid, "?")
 
     # 地物的叫法：我知道名字的地点（例如教会所在的楼）优先，其次是地图上的名字；都没有是空，界面上写成“地图上的点”
-    named = {
-        p.feature: p.name for p in engine.known_places(game_id, player_id).values() if p.feature
-    }
+    named = engine.feature_place_names(game_id, player_id)
 
     def place_label(fid: str) -> str:
         f = m.feature(fid)

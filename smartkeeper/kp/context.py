@@ -344,7 +344,7 @@ class Contexts:
         skills = self.e.skills(g, player_id)
         m = self.e.map_data(g)
         known = self.e.known_places(g, player_id)
-        by_feature = {p.feature: p.name for p in known.values() if p.feature}
+        by_feature = self.e.feature_place_names(g, player_id)
 
         def where(pos: Point | None, inside: str | None) -> JsonValue:
             """此刻在哪：所在的建筑（我知道名字的地点优先）和坐标。"""
@@ -422,6 +422,12 @@ class Contexts:
         out: list[JsonValue] = []
         for it in fixed.items:
             row: dict[str, JsonValue] = {"actor": ref(it.actor)}
+            if it.verb and it.verb != it.entry:
+                row["verb"] = it.verb
+            if it.detail:
+                row["detail"] = it.detail
+            if it.act_seconds:
+                row["seconds"] = it.act_seconds
             if it.destination is not None:
                 d = it.destination
                 row["move_to"] = {
@@ -511,7 +517,7 @@ class Contexts:
             for eid in ents:
                 act = acts.get(eid)
                 if act is None:
-                    lines.append(f"- 实体 {eid}：没有进行中的行动（强制结算时没提交）。")
+                    lines.append(f"- 实体 {eid}：这一轮没有安排行动（留在原地，没做什么）。")
                     continue
                 actors.add(eid)
                 left = act.end - end
@@ -585,7 +591,11 @@ class Contexts:
             section(
                 "本轮结束时各实体按行动走到的位置（你没有另行安排移动时就在这里）", dumps(ends_at)
             ),
-            section("必须有结果的玩家（行动做完了或没有行动）", dumps(e.outcome_required(game_id))),
+            section(
+                "必须有结果的玩家和原因（引擎按进行中的行动推到本轮结束的位置算好的：action_done 行动做完了"
+                "或没有行动，perception_changed 感知范围里的人变了，overheard 旁听到了对话）",
+                dumps(e.outcome_reasons(game_id)),
+            ),
             section("本轮的对话（对话模式，双方原话）", render_events(talk, names)),
             section(
                 "旁听到对话的实体（对话 id -> 实体 id；他们听到了全部内容，要在他们的结果里转述）",
