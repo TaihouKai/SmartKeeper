@@ -13,7 +13,8 @@ function Page() {
   if (path.startsWith("/admin")) return <AdminPage />;
   if (path.startsWith("/join")) return <JoinPage />;
   if (path.startsWith("/play")) return <PlayPage />;
-  if (path.startsWith("/rulebook")) return <RulebookPage />;
+  if (path.startsWith("/rulebook")) return <RulebookPage part="handbook" />;
+  if (path.startsWith("/scenario")) return <RulebookPage part="scenario" />;
   return <LobbyPage />;
 }
 

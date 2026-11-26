@@ -243,6 +243,10 @@ T: dict[str, tuple[str, str]] = {
     "handbook.toc": ("目录", "Contents"),
     "handbook.scenario": ("剧本", "Scenario"),
     "handbook.empty": ("这个规则包还没有写规则书。", "This rule pack has no rulebook yet."),
+    "handbook.no_scenario": (
+        "这一局的剧本没有公开的介绍。",
+        "This game's scenario has no public introduction.",
+    ),
     "handbook.ref": ("规则书：{title}", "Rulebook: {title}"),
     "handbook.missing": ("规则书里没有“{title}”这一节", "The rulebook has no section “{title}”"),
     "handbook.open": ("在规则书里打开", "Open in the rulebook"),

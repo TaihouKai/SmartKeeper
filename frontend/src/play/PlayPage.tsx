@@ -26,6 +26,9 @@ function StatusBar({ status }: { status: Schemas["StatusOut"] | null }) {
       <a href="/rulebook" target="_blank" rel="noreferrer">
         {t("handbook.title")}
       </a>
+      <a href="/scenario" target="_blank" rel="noreferrer">
+        {t("handbook.scenario")}
+      </a>
       <LangSwitch onChange={(l) => void api.POST("/api/lang", { body: { lang: l } })} />
     </div>
   );

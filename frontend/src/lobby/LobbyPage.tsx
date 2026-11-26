@@ -75,6 +75,9 @@ function Room({ g, onJoined }: { g: Game; onJoined: (link: string) => void }) {
         <a href={`/rulebook?game=${encodeURIComponent(g.id)}`} target="_blank" rel="noreferrer">
           {t("handbook.title")}
         </a>
+        <a href={`/scenario?game=${encodeURIComponent(g.id)}`} target="_blank" rel="noreferrer">
+          {t("handbook.scenario")}
+        </a>
       </div>
       {g.seat ? (
         <div className="sk-row">

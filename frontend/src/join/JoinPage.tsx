@@ -59,7 +59,7 @@ export function JoinPage() {
         <a href="/rulebook" target="_blank" rel="noreferrer">
           {t("handbook.title")}
         </a>
-        <a href="/rulebook#scenario" target="_blank" rel="noreferrer">
+        <a href="/scenario" target="_blank" rel="noreferrer">
           {t("handbook.scenario")}
         </a>
         {docs && (

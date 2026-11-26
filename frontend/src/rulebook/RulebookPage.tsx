@@ -4,10 +4,13 @@ import { useI18n } from "../i18n";
 import { ErrorBox, LangSwitch } from "../ui/components";
 import { headings, Markdown } from "../ui/markdown";
 
-type Book = { title: string; handbook: string; scenario: string };
+type Book = { title: string; text: string };
 
-/** /rulebook：规则书（和剧本的公开部分）。?game=局 id 时从房间列表取（还没加入也能看），否则取自己所在的局。 */
-export function RulebookPage() {
+/**
+ * /rulebook：规则书；/scenario：剧本的公开部分。两者分开（一套规则书下面有很多剧本）。
+ * ?game=局 id 时从房间列表取（还没加入也能看），否则取自己所在的局。
+ */
+export function RulebookPage({ part }: { part: "handbook" | "scenario" }) {
   const { t } = useI18n();
   const game = new URLSearchParams(window.location.search).get("game");
   const [book, setBook] = useState<Book | null>(null);
@@ -16,10 +19,10 @@ export function RulebookPage() {
     const load = async (): Promise<Book> => {
       if (game) {
         const r = await call(api.GET("/api/lobby/{game_id}/rulebook", { params: { path: { game_id: game } } }));
-        return { title: r.game_name, handbook: r.handbook, scenario: r.scenario };
+        return { title: r.game_name, text: r[part] };
       }
       const [r, me] = await Promise.all([call(api.GET("/api/rules")), call(api.GET("/api/me"))]);
-      return { title: me.game_name, handbook: r.handbook, scenario: r.scenario };
+      return { title: me.game_name, text: r[part] };
     };
     load()
       .then((b) => {
@@ -29,7 +32,7 @@ export function RulebookPage() {
         if (hash) window.setTimeout(() => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView(), 50);
       })
       .catch(setError);
-  }, [game]);
+  }, [game, part]);
   if (error) {
     return (
       <main className="sk-page">
@@ -39,35 +42,29 @@ export function RulebookPage() {
     );
   }
   if (!book) return <main className="sk-page">{t("common.loading")}</main>;
-  const toc = headings(book.handbook).filter((h) => h.level <= 2);
+  const toc = headings(book.text).filter((h) => h.level <= 2);
+  const empty = part === "handbook" ? "handbook.empty" : "handbook.no_scenario";
   return (
     <main className="sk-page sk-rulebook">
       <header className="sk-top">
-        <h1>{book.title}</h1>
+        <h1>
+          {book.title} · {t(part === "handbook" ? "handbook.title" : "handbook.scenario")}
+        </h1>
         <LangSwitch />
       </header>
-      <nav className="sk-toc" aria-label={t("handbook.toc")}>
-        <strong>{t("handbook.toc")}</strong>
-        <ul>
-          {toc.map((h) => (
-            <li key={h.id} className={`lv${h.level}`}>
-              <a href={`#${encodeURIComponent(h.id)}`}>{h.title}</a>
-            </li>
-          ))}
-          {book.scenario && (
-            <li className="lv1">
-              <a href="#scenario">{t("handbook.scenario")}</a>
-            </li>
-          )}
-        </ul>
-      </nav>
-      {book.handbook ? <Markdown text={book.handbook} /> : <p className="sk-hint">{t("handbook.empty")}</p>}
-      {book.scenario && (
-        <section id="scenario">
-          <h2>{t("handbook.scenario")}</h2>
-          <Markdown text={book.scenario} />
-        </section>
+      {toc.length > 1 && (
+        <nav className="sk-toc" aria-label={t("handbook.toc")}>
+          <strong>{t("handbook.toc")}</strong>
+          <ul>
+            {toc.map((h) => (
+              <li key={h.id} className={`lv${h.level}`}>
+                <a href={`#${encodeURIComponent(h.id)}`}>{h.title}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
       )}
+      {book.text ? <Markdown text={book.text} /> : <p className="sk-hint">{t(empty)}</p>}
     </main>
   );
 }
