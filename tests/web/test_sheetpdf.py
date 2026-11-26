@@ -43,6 +43,9 @@ def test_cards_hold_what_a_person_reads_and_no_code() -> None:
     [e] = sec.own
     assert e.name == "first aid" and e.text == "Patch someone up. See Healing."
     assert any("30" in t for t in e.tags)
+    # 设置、脚本、加成写成了句子
+    effects = [t for _, t in e.effects]
+    assert any("2" in t for t in effects) and len(effects) >= 3
     printed = repr(card)
     for code in ("range = 2", "target.add", "self.str += 1"):
         assert code not in printed

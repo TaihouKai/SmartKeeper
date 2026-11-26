@@ -18,11 +18,13 @@ from smartkeeper.contracts import (
     DocEntry,
     Effect,
     EntityTemplate,
+    ExplainLine,
     Faces,
     FormulaScope,
     GroupDef,
     IntelValue,
     NotFound,
+    ParamDef,
     Peers,
     Problem,
     RulePack,
@@ -43,7 +45,8 @@ from smartkeeper.rules import (
     validation,
 )
 from smartkeeper.rules import choices as choices_
-from smartkeeper.rules.bonus import compile_bonus
+from smartkeeper.rules import explain as explain_
+from smartkeeper.rules.bonus import compile_bonus, effects_of
 from smartkeeper.rules.evaluator import EntityContext, as_value
 from smartkeeper.rules.render import render as render_markdown
 
@@ -312,6 +315,44 @@ class RulesService:
             return ctx.all_derived() + ctx.modified_fields()
         except f.FormulaError as e:
             raise ValidationFailed(e.code, **e.params) from e
+
+    def explain(
+        self,
+        pack: RulePack,
+        template: str,
+        group: str,
+        entry: JsonValue,
+        words: Mapping[str, str],
+    ) -> list[ExplainLine]:
+        tpl = pack.template(template)
+        e = entry if isinstance(entry, dict) else {}
+        if tpl is None:
+            return []
+        raw_params = e.get("params")
+        raw_effects = e.get("effects")
+        params: list[ParamDef] = []
+        for raw in raw_params if isinstance(raw_params, list) else []:
+            try:
+                params.append(ParamDef.model_validate(raw))
+            except PydanticError:
+                continue
+        legacy: list[Effect] = []
+        for raw in raw_effects if isinstance(raw_effects, list) else []:
+            try:
+                legacy.append(Effect.model_validate(raw))
+            except PydanticError:
+                continue
+        effects = effects_of(str(e.get("bonus") or ""), tuple(legacy))
+        return explain_.explain(
+            pack,
+            tpl,
+            group,
+            str(e.get("config") or ""),
+            str(e.get("script") or ""),
+            effects,
+            params,
+            words,
+        )
 
     def budgets(self, pack: RulePack, template: str, sheet: JsonValue) -> list[BudgetUse]:
         tpl = pack.template(template)

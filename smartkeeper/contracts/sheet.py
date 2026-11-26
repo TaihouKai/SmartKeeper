@@ -284,6 +284,13 @@ class DerivedValue(Frozen):
     modifiers: tuple[str, ...] = ()  # 修正来源的说明
 
 
+class ExplainLine(Frozen):
+    """技能设置、脚本、常驻加成写成的一句话（给人读的）；depth 是缩进层级（如果……下面的句子缩进一层）。"""
+
+    depth: int = 0
+    text: str
+
+
 class BudgetUse(Frozen):
     """一张卡在一项合计上限上用了多少：total 是 None 表示不限（或算不出来）；active 是条件成立（不成立的不用管）。"""
 

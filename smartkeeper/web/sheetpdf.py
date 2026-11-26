@@ -27,11 +27,20 @@ from smartkeeper.contracts import IntelValue, RulePack, Rules, ValidationFailed
 
 
 @dataclass
+class Use:
+    name: str
+    text: str = ""
+    effects: list[tuple[int, str]] = field(default_factory=list[tuple[int, str]])
+
+
+@dataclass
 class Entry:
     name: str
     tags: list[str] = field(default_factory=list[str])  # 列的值，例如“等级 A”“＋ 1”
     text: str = ""
-    uses: list[tuple[str, str]] = field(default_factory=list[tuple[str, str]])  # 用法：名字、说明
+    # 技能设置、脚本、常驻加成写成的句子（缩进层级, 句子）：自己写的和改过的条目才有
+    effects: list[tuple[int, str]] = field(default_factory=list[tuple[int, str]])
+    uses: list[Use] = field(default_factory=list[Use])
 
 
 @dataclass
@@ -114,6 +123,21 @@ def _list(v: Any) -> list[Any]:
     return cast(list[Any], v) if isinstance(v, list) else []
 
 
+def _explain(
+    rules: Rules,
+    pack: RulePack,
+    template: str,
+    group: str,
+    entry: dict[str, Any],
+    words: Mapping[str, str],
+    on: bool,
+) -> list[tuple[int, str]]:
+    if not on:
+        return []
+    lines = rules.explain(pack, template, group, cast(JsonValue, entry), words)
+    return [(ln.depth, ln.text) for ln in lines]
+
+
 def build_cards(
     rules: Rules,
     pack: RulePack,
@@ -182,6 +206,7 @@ def build_cards(
             card.numbers.append((d.label or d.name, _shown(v, d.unit, words)))
 
         groups = _obj(full.get("groups"))
+        edited = _obj(_obj(raw).get("preset_edits"))
         own_names = {
             str(_obj(e).get("name"))
             for es in _obj(_obj(raw).get("groups")).values()
@@ -208,8 +233,14 @@ def build_cards(
             sec = Section(title=g.label or g.name)
             for e in entries:
                 name = str(e.get("name"))
+                # 自己写的、改过的条目：把设置和脚本写成句子（规则书原样给的条目，说明已经写清楚了）
+                explained = name in own_names or name in _obj(edited.get(g.name))
                 uses = [
-                    (str(_obj(u).get("name") or ""), plain(str(_obj(u).get("description") or "")))
+                    Use(
+                        name=str(_obj(u).get("name")),
+                        text=plain(str(_obj(u).get("description") or "")),
+                        effects=_explain(rules, pack, template, g.name, u, words, explained),
+                    )
                     for u in _list(e.get("uses"))
                     if str(_obj(u).get("name") or "")
                 ]
@@ -217,6 +248,7 @@ def build_cards(
                     name=name,
                     tags=tags.get(name, []),
                     text=plain(str(e.get("description") or "")),
+                    effects=_explain(rules, pack, template, g.name, e, words, explained),
                     uses=uses,
                 )
                 (sec.own if name in own_names else sec.auto).append(item)
@@ -318,6 +350,7 @@ def render(cards: Sequence[Card], words: Mapping[str, str], book: str) -> bytes:
     name_s = style("name", fontName=bold, fontSize=10.5, leading=15)
     small = style("small", fontSize=8.5, leading=12)
     use_s = style("use", fontSize=9, leading=13, leftIndent=10)
+    effect_s = style("effect", fontSize=8.5, leading=12, textColor=colors.HexColor(MUTED))
 
     page_w, _page_h = A4
     margin = 16 * mm
@@ -377,6 +410,16 @@ def render(cards: Sequence[Card], words: Mapping[str, str], book: str) -> bytes:
         )
         return t
 
+    def effect_lines(lines: Sequence[tuple[int, str]], base: int) -> list[Flowable]:
+        """效果：小一号的灰字，前面一个“效果”小标签；如果……下面的缩进。"""
+        out: list[Flowable] = []
+        for i, (depth, text) in enumerate(lines):
+            tag = f'<font color="{ACCENT}">{_p(words["pdf.effects"])}</font>　' if i == 0 else ""
+            indent = 10 * (base + 1) + 12 * depth
+            st = ParagraphStyle(f"eff{indent}", parent=effect_s, leftIndent=indent)
+            out.append(Paragraph(tag + _p(text), st))
+        return out
+
     def entry(e: Entry) -> Flowable:
         head = f"<b>{_p(e.name)}</b>"
         if e.tags:
@@ -384,9 +427,11 @@ def render(cards: Sequence[Card], words: Mapping[str, str], book: str) -> bytes:
         parts: list[Flowable] = [Paragraph(head, name_s)]
         if e.text:
             parts.append(Paragraph(_p(e.text), body))
-        for uname, udesc in e.uses:
-            line = f"• <b>{_p(uname)}</b>" + (f"：{_p(udesc)}" if udesc else "")
+        parts += effect_lines(e.effects, 0)
+        for u in e.uses:
+            line = f"• <b>{_p(u.name)}</b>" + (f"：{_p(u.text)}" if u.text else "")
             parts.append(Paragraph(line, use_s))
+            parts += effect_lines(u.effects, 1)
         parts.append(Spacer(1, 7))
         return KeepTogether(parts)
 
@@ -450,8 +495,19 @@ def render(cards: Sequence[Card], words: Mapping[str, str], book: str) -> bytes:
 def words_for(messages: Mapping[str, Mapping[str, str]], lang: str) -> dict[str, str]:
     """PDF 上用到的界面文字（翻译表找不到时用键本身）。"""
     table = messages.get(lang) or messages.get("zh") or {}
-    keys = ("pdf.yes", "pdf.no", "pdf.numbers", "pdf.auto", "pdf.page", "pdf.unnamed")
-    return {k: table.get(k, k) for k in keys}
+    keys = (
+        "pdf.yes",
+        "pdf.no",
+        "pdf.numbers",
+        "pdf.auto",
+        "pdf.page",
+        "pdf.unnamed",
+        "pdf.effects",
+    )
+    # 技能效果的字句（ex.*）也在里面，一起交给 rules.explain
+    return {k: table.get(k, k) for k in keys} | {
+        k: v for k, v in table.items() if k.startswith("ex.")
+    }
 
 
 def export(

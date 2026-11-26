@@ -19,7 +19,14 @@ from smartkeeper.contracts.rulepack import (
     RulePackInfo,
     RulePackVersion,
 )
-from smartkeeper.contracts.sheet import BudgetUse, DerivedValue, Effect, ScriptStep, SkillConfig
+from smartkeeper.contracts.sheet import (
+    BudgetUse,
+    DerivedValue,
+    Effect,
+    ExplainLine,
+    ScriptStep,
+    SkillConfig,
+)
 from smartkeeper.contracts.spatial import (
     Body,
     DocEntry,
@@ -154,6 +161,18 @@ class Rules(Protocol):
         name: str,
         peers: Peers | None = None,
     ) -> float: ...
+
+    def explain(
+        self,
+        pack: RulePack,
+        template: str,
+        group: str,
+        entry: JsonValue,
+        words: Mapping[str, str],
+    ) -> list[ExplainLine]:
+        """条目（或物品的一种用途：带 config、script、bonus、params 的对象）的设置、脚本、常驻加成写成句子。
+        words 是界面翻译表里 ex.* 的字句。写错、转不了的部分跳过。"""
+        ...
 
     def budgets(self, pack: RulePack, template: str, sheet: JsonValue) -> list[BudgetUse]:
         """这张卡在模板的每一项合计上限（例如属性点）上用了多少、最多多少。卡的结构不合法时是空表。"""
