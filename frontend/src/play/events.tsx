@@ -1,5 +1,6 @@
 import type { Schemas } from "../api/client";
 import { useI18n } from "../i18n";
+import { Markdown } from "../ui/markdown";
 import { factText } from "./intel";
 
 export type Ev = Schemas["EventOut"];
@@ -25,6 +26,7 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
   else if (e.actor === "anonymous") who = t("event.anonymous");
   else if (e.actor === "player") who = e.actor_name ?? "?";
   let body: string;
+  let md = false; // 审核意见是 Markdown
   let cls = "sk-event";
   switch (e.type) {
     case "round_opened":
@@ -52,6 +54,7 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
     case "character_approved":
     case "character_rejected":
       body = String(e.payload.comments ?? "");
+      md = true;
       who = t(e.type === "character_approved" ? "event.approved" : "event.rejected");
       break;
     case "character_submitted":
@@ -96,7 +99,13 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
   return (
     <div className={cls}>
       {who && <span className="who">{who}</span>}
-      <span className="text">{body}</span>
+      {md ? (
+        <div className="text md">
+          <Markdown text={body} />
+        </div>
+      ) : (
+        <span className="text">{body}</span>
+      )}
       {onQuote && (
         <button className="sk-link quote" onClick={() => onQuote(e.seq)} title={t("event.quote")}>
           {t("event.quote")}
