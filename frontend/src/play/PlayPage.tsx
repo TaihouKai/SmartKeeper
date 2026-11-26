@@ -42,7 +42,7 @@ function PickCard({ picked, onDestination, onMention, onClose }: { picked: Picke
     <div className="pl-travel sk-card">
       <div className="pl-pick-head">
         <strong>{place}</strong>
-        {f && <span className="sk-hint">{picked.title && f.name && f.name !== picked.title ? `${f.name} · ` : ""}{t(`map.kind.${f.kind}`)}</span>}
+        {f && place !== t(`map.kind.${f.kind}`) && <span className="sk-hint">{picked.title && f.name && f.name !== picked.title ? `${f.name} · ` : ""}{t(`map.kind.${f.kind}`)}</span>}
         {height > 0 && <span className="sk-hint">{t("map.building_size", { m: String(Math.round(height)), n: String(floors) })}</span>}
       </div>
       {height > 0 && (
@@ -375,7 +375,7 @@ export function PlayPage() {
     s.seen.forEach((p) => out.set(p.ref, { ref: p.ref, label: p.label }));
     return [...out.values()];
   }, [scene.data]);
-  const placeViews = useMemo<PlaceView[]>(() => (scene.data?.places ?? []).map((p) => ({ id: p.id, name: p.name, lon: p.pos.lon, lat: p.pos.lat })), [scene.data]);
+  const placeViews = useMemo<PlaceView[]>(() => (scene.data?.places ?? []).map((p) => ({ id: p.id, name: p.name, lon: p.pos.lon, lat: p.pos.lat, feature: p.feature })), [scene.data]);
   const markers = useMemo<MarkerView[]>(() => {
     const s = scene.data;
     if (!s) return [];
@@ -423,7 +423,9 @@ export function PlayPage() {
         return;
       }
       const feature = p.kind === "feature" ? { id: p.id, name: p.name, kind: p.featureKind, height: p.height } : null;
-      await openAt(p.lon, p.lat, feature);
+      // 点到的地物是一个我知道名字的地点（例如教会所在的楼）：卡片上写这个名字
+      const named = feature ? scene.data?.places?.find((x) => x.feature === feature.id) : undefined;
+      await openAt(p.lon, p.lat, feature, named?.name);
     });
   // 在一个位置插图钉、开卡片：是哪里、走过去要多久
   const openAt = async (lon: number, lat: number, feature: Picked["feature"], title?: string, z?: number, fly = false) => {

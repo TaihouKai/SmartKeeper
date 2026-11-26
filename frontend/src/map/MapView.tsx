@@ -45,6 +45,9 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
   const markerRefs = useRef<maplibregl.Marker[]>([]);
   const pickRef = useRef(onPick);
   pickRef.current = onPick;
+  // 地物 id -> 起了名字的地点的名字（鼠标提示用；地图只建一次，所以经 ref 读最新的）
+  const placeNames = useRef(new Map<string, string>());
+  placeNames.current = new Map(places.filter((p) => p.feature).map((p) => [p.feature!, p.name]));
 
   const data = useMemo(() => applyChanges(map, changes), [map, changes]);
 
@@ -148,7 +151,8 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
     const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: "sk-map-tip" });
     for (const layer of ["landmark", "building"]) {
       m.on("mousemove", layer, (ev) => {
-        const name = ev.features?.[0]?.properties?.name;
+        const props = ev.features?.[0]?.properties;
+        const name = placeNames.current.get(String(props?.id)) ?? props?.name;
         m.getCanvas().style.cursor = "pointer";
         if (typeof name === "string" && name) tip.setLngLat(ev.lngLat).setText(name).addTo(m);
         else tip.remove();

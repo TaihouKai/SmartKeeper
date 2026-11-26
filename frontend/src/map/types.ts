@@ -42,6 +42,7 @@ export interface PlaceView {
   name: string;
   lon: number;
   lat: number;
+  feature?: string | null; // 所在的地物（例如这栋楼）：鼠标移到这栋楼上显示这个名字
 }
 
 export type Pick =
