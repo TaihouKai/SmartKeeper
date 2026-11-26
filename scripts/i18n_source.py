@@ -1296,6 +1296,16 @@ T: dict[str, tuple[str, str]] = {
     ),
     "config.c.cooldown": ("冷却（分钟）", "cooldown in minutes"),
     "config.c.shape": ("范围形状，例如 sphere(radius=5)", "area shape, e.g. sphere(radius=5)"),
+    "config.c.fixed_param": (
+        "写定一个参数：这个技能（或用法）用的时候这个参数就是这个值，不用再选。值可以是公式。开关类用法关上时不算参数。"
+        "只能写这个条目的参数（规则包给的或自己加的），不能写列",
+        "Fix a parameter: whenever this entry (or use) is used, the parameter has this value and isn't chosen. "
+        "The value can be a formula. Closing a toggle use doesn't count parameters. Only this entry's parameters, not columns",
+    ),
+    "docs.v.fixed_param.0": (
+        "参数要取的值：有选项的写选项对应的数（例如“解放=1”就写 1）",
+        "The value: for a parameter with choices, the number of the choice (e.g. 1 for “yes=1”)",
+    ),
     "config.c.placement": (
         "设置物，例如 placement(radius=3, charges=1)",
         "placement, e.g. placement(radius=3, charges=1)",

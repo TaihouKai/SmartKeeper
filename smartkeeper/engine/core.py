@@ -1299,7 +1299,9 @@ class Engine:
                 gname, row, _owner = hit
                 fields = dict(_obj(row.get("fields")))
                 prms = self._params_of(pack, gname, row)
-                spends = self._use_params(pack, template, sheet, prms, fields, params, entry, peers)
+                spends = self._use_params(
+                    pack, template, sheet, prms, fields, params, entry, peers, self._cfg(row).fixed
+                )
                 expr = fields.get(field)
             if not isinstance(expr, str) or not expr.strip():
                 raise ValidationFailed("roll.not_a_formula", field=field)
@@ -1403,7 +1405,8 @@ class Engine:
                 )
                 continue
             gname, row, _owner = found
-            spec = self._cfg(row).placement
+            spec_cfg = self._cfg(row)
+            spec = spec_cfg.placement
             assert spec is not None
             fields = dict(_obj(row.get("fields")))
             try:
@@ -1416,6 +1419,7 @@ class Engine:
                     dict(pin.params),
                     pin.entry,
                     peers,
+                    spec_cfg.fixed,
                 )
             except ValidationFailed as e:
                 problems.append(Problem(code=e.code, path=path, params=dict(e.params)))
@@ -1597,12 +1601,19 @@ class Engine:
         params: dict[str, float],
         entry: str,
         peers: dict[str, JsonValue | None] | None = None,
+        fixed: Mapping[str, str] | None = None,
     ) -> dict[str, JsonValue]:
         """这次使用的参数：检查选的数在范围内、能选、资源够，写进 fields（公式里 this.<参数>）。
+        fixed 是技能设置里写定的参数（不管这次选了什么，都用写定的值）。
         返回要扣的资源：资源字段名 -> 数量。"""
         spends: dict[str, JsonValue] = {}
+        fixed = fixed or {}
         for pf in prms:
             given = params.get(pf.name)
+            if pf.name in fixed:
+                given = self._rules.roll(
+                    pack, fixed[pf.name], self._dice.faces, template, sheet, fields, peers
+                ).total
             if given is None and pf.choices:
                 given = self._rules.first_choice(pf.choices)  # 有可选值的没给时取第一个
             if given is None and pf.min is not None:
@@ -1754,7 +1765,26 @@ class Engine:
                 raise ValidationFailed("use.needs_target", entity=source, entry=parsed.name)
             fields = dict(parsed.fields)
             prms = self._params_of(pack, gname, row)
-            spends = self._use_params(pack, template, sheet, prms, fields, params, entry, peers)
+            # 开关类用途：这一次是打开还是关上。关上不算“用”这个效果：不带参数（不选、写定的也不算）
+            toggle: dict[str, JsonValue] | None = None
+            turning_on = False
+            if row.get("toggle"):
+                key = f"{owner}{USE_SEP}{row.get('use_name')}"
+                was = _obj(_obj(ent.get("sheet")).get("toggles")).get(key, row.get("default_on"))
+                turning_on = not bool(was)
+                toggle = {"key": key, "on": turning_on}
+            closing = toggle is not None and not turning_on
+            spends = self._use_params(
+                pack,
+                template,
+                sheet,
+                prms,
+                fields,
+                {} if closing else params,
+                entry,
+                peers,
+                {} if closing else cfg.fixed,
+            )
             tgt: tuple[str, JsonValue, Peers | None] | None = None
             if target is not None:
                 tent = self._entity(state, target)
@@ -1796,14 +1826,6 @@ class Engine:
                 parsed = parsed.model_copy(
                     update={"script": self._passive_boost(gdef, fields, boost, minutes)}
                 )
-            # 开关类用途：这一次是打开还是关上
-            toggle: dict[str, JsonValue] | None = None
-            turning_on = False
-            if row.get("toggle"):
-                key = f"{owner}{USE_SEP}{row.get('use_name')}"
-                was = _obj(_obj(ent.get("sheet")).get("toggles")).get(key, row.get("default_on"))
-                turning_on = not bool(was)
-                toggle = {"key": key, "on": turning_on}
             extra_vars = {"boost": boost, "turning_on": 1.0 if turning_on else 0.0}
             heard = self._reach_checks(game_id, state, pack, source, target, cfg, roll, parsed.name)
             space = self._space_for(self._map(game_id), state, pack)
@@ -2487,6 +2509,7 @@ class Engine:
                 dict(choice.params),
                 rname,
                 d_peers,
+                rcfg.fixed,
             )
             if rcfg.check:
                 # 应对技能自己的检定（几个时取自己等级最高的）

@@ -219,17 +219,18 @@ def main() -> int:
     )
     place(t, m0, -80, -40)
 
-    print("\n3. 宝具：平时当武器用不暴露名字；不解放真名用不了光炮；解放真名时附近的人听到名字")
+    print(
+        "\n3. 宝具：当作武器写定了不解放（选了也不算）；光炮写定了解放真名，不用选；解放时附近的人听到名字"
+    )
     place(t, s0, -42, -40)
     begin(t)
     seq0 = max(x.seq for x in e.view_for(g, "kp"))
-    swing = e.use_entry(g, s0, f"{EXCALIBUR}/当作武器", s1, {}, "挥剑")
+    swing = e.use_entry(g, s0, f"{EXCALIBUR}/当作武器", s1, {"release": 1}, "挥剑")
+    ok(
+        cast(dict[str, Any], swing.payload)["params"].get("release") == 0,
+        "当作武器写定了 release = 0：选了解放也不算",
+    )
     e.react(g, p1, [ReactionChoice(seq=swing.seq)])
-    try:
-        e.use_entry(g, s0, f"{EXCALIBUR}/真名解放·对城", m1, {}, "不解放就放")
-        ok(False, "不解放真名不该能用光炮")
-    except ValidationFailed as err:
-        ok(err.code == "use.requires", "不解放真名：光炮用不了（use.requires）")
     publish(t, [swing])
     heard = noticed(t, p1, seq0)
     ok(heard and all(x is None for x in heard), f"挥剑：p1 只察觉到有人用了点什么 {heard}")
@@ -245,7 +246,7 @@ def main() -> int:
     begin(t)
     seq0 = max(x.seq for x in e.view_for(g, "kp"))
     mp0 = fields(t, s0)["mp"]
-    beam = e.use_entry(g, s0, f"{EXCALIBUR}/真名解放·对城", m1, {"release": 1}, "解放")
+    beam = e.use_entry(g, s0, f"{EXCALIBUR}/真名解放·对城", m1, {}, "解放")  # 写定了解放，不用选
     hit_list = [beam.payload["target"]] + [
         x["target"] for x in e.planned_uses(g) if cast(dict[str, Any], x)["area_of"] == beam.seq
     ]

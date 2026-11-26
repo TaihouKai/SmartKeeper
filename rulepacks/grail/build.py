@@ -743,7 +743,8 @@ def beam(name: str, shape: str, desc: str) -> dict[str, Any]:
         target = "single"
         visible = True
         noise = 1000
-        requires = this.release and not spirit_form and mp >= cost
+        release = 1                # 解放真名：每次都扣魔力，喊出宝具的名字
+        requires = not spirit_form and mp >= cost
         reactions = ["dodge"]
         auto_level = ((3 if distance <= 100 else 2) if this.np_type == "对人" or this.np_type == "对军" else (2 if distance <= 100 else 3))
         {shape}
@@ -759,7 +760,7 @@ NP_TEMPLATES = [
     use(
         "当作武器",
         "不解放真名，只把宝具当成手里的武器：和英灵的近战攻击一样算，对方可以反击或闪避，不暴露宝具的名字。",
-        MELEE_CONFIG.format(requires="not spirit_form"),
+        MELEE_CONFIG.format(requires="not spirit_form") + "    release = 0    # 不解放真名\n",
         f"""
         half = opposed and level == opp_level
         target.damage({SERVANT_MELEE_DMG} * self.melee_mult / (2 if half else 1))
@@ -785,7 +786,7 @@ NP_TEMPLATES = [
         "开关",
         "打开或关上宝具（例如隐藏武器的风之结界、封印自己的眼罩）：开着的时候下面的修正生效；可以设定一开始开着还是关着。"
         "打开时按宝具等级消耗魔力，开着的宝具每天多耗 1 点魔力。",
-        'target = "self"',
+        'target = "self"\nrelease = 0    # 不解放真名；解放真名的开关改成 1（打开时扣解放的魔力、喊出名字），并删掉下面脚本里的耗魔',
         """
         if turning_on:
             self.mp -= lookup(skill_cost, this.level)
@@ -800,7 +801,8 @@ NP_TEMPLATES = [
         """
         target = "none"
         noise = 300
-        requires = this.release and mp >= cost
+        release = 1    # 解放真名
+        requires = mp >= cost
         """,
         f"""
         cost = {NP_COST}
@@ -813,7 +815,8 @@ NP_TEMPLATES = [
         """
         target = "none"
         noise = 200
-        requires = this.release and mp >= cost
+        release = 1    # 解放真名
+        requires = mp >= cost
         placement = placement(radius=50 * this.level, perceive=1, duration=10, notify=True)
         """,
         f"""
@@ -1534,8 +1537,10 @@ PARAMS = [
     param(
         "release",
         "解放真名",
-        "这次要不要解放真名：解放才能用宝具的全力，但附近的人会听到宝具的名字，看得见你的人会知道你的真名。"
-        "解放就要耗魔（技能消耗按宝具等级 × 类型倍数），打没打中都扣",
+        "解放真名：解放才能用宝具的全力，但附近的人会听到宝具的名字，看得见你的人会知道你的真名。"
+        "解放就要耗魔（技能消耗按宝具等级 × 类型倍数），打没打中都扣。"
+        "用途的“怎么用”里写了 release = 1（一定解放）或 release = 0（不解放）的，用的时候不用选；没写的每次自己选。"
+        "开关类用途只在打开时算",
         ["noble_phantasm"],
         choices=["不解放=0", "解放=1"],
         requires=f"self.mp >= {NP_COST}",

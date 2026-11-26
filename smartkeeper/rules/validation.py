@@ -279,7 +279,22 @@ def check_config(
     except f.FormulaError as e:
         return [Problem(code=e.code, path=path, params={"formula": text, **e.params})]
     problems: list[Problem] = []
+    # 写定的参数：只能是这个条目的参数（不是列）；不是的就是写错了的设置项
+    columns = {x.name for x in g.fields} if g is not None else set[str]()
+    params = [x for x in entry_fields if x not in columns]
+    lines = {s.name: s.line for s in skillconfig.settings(text, script)}
+    for name in cfg.fixed:
+        if name not in params:
+            problems.append(
+                Problem(
+                    code="config.unknown_key",
+                    path=path,
+                    params={"formula": text, "name": name, "line": lines.get(name, 1)},
+                )
+            )
     for line, name, formula in skillconfig.formulas(text, script):
+        if name in cfg.fixed and name not in params:
+            continue
         extra = skillconfig.HIT_VARS if name == "hit" else skillconfig.CONFIG_VARS
         found = check_formula(pack, template, formula, path, entry_fields=entry_fields, extra=extra)
         problems += [p.model_copy(update={"params": {**p.params, "line": line}}) for p in found]

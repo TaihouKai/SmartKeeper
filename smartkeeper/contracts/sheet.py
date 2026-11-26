@@ -194,6 +194,9 @@ class SkillConfig(Frozen):
     # 守护（和光环一起用）：圈里符合 affects 的人受光环主人守护，敌人对他们用的技能（单体和范围）落到光环主人身上
     guard: bool = False
     placement: PlacementSpec | None = None  # 是设置物（陷阱、结界）时的参数
+    # 写定的参数：参数名 -> 值（公式）。这个技能用的时候这个参数就是这个值，不用再选
+    # （例如某个用途每次都要付某种代价）。开关类用途关上时不算参数
+    fixed: dict[str, str] = {}
     # 打没打中由引擎判：使用者做 check 里的检定（几个时都掷，取等级高的；空 = 不掷骰）。
     # auto_level 是不掷骰、直接定下的等级（公式）。等级见 CheckSpec：1 起是成功。
     # 能被应对时（reactions 列了检定或应对技能的 ID / 名字，或 reactions_any），对象是玩家的由他从中选

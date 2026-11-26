@@ -512,3 +512,55 @@ def test_sheets_before_the_start_use_the_scenario_start_time() -> None:
     t, _players, _ents = table()
     t.engine.admin_patch(t.game_id, [PatchOp(op="replace", path="/game_seconds", value=3 * 3600)])
     assert t.engine.sheet_clock(t.game_id)["$clock"] == {"time": 23.0, "day": 1}
+
+
+def test_params_fixed_in_the_config_are_always_used_but_not_when_closing() -> None:
+    """怎么用里写定的参数：用的时候就是这个值（选了别的也不算）；开关类用途关上时不算参数。"""
+    from smartkeeper.contracts import FieldDef, GroupDef
+
+    pack = area_pack()
+    tpl = pack.templates[0]
+    gear = GroupDef(name="gear", fields=(FieldDef(name="level", kind="number"),), uses=True)
+    pack = pack.model_copy(
+        update={"templates": (tpl.model_copy(update={"groups": (*tpl.groups, gear)}),)}
+    )
+    t = setup_table("single", 1, pack=pack)
+    e0 = t.entities(t.players[0])[0]
+    pay = {"name": "pay", "label": "p", "choices": ["no=0", "yes=1"], "script": "self.hp -= 3"}
+    uses = [
+        {"name": "seal", "config": 'target = "self"\npay = 1', "toggle": True, "default_on": False},
+        {"name": "strike", "config": 'target = "self"\npay = 1', "script": "self.hp -= 0"},
+    ]
+    t.engine.admin_patch(
+        t.game_id,
+        [
+            PatchOp(
+                op="add",
+                path=f"/entities/{e0}/sheet/groups/gear",
+                value=cast(
+                    JsonValue,
+                    [{"name": "wall", "fields": {"level": 1}, "params": [pay], "uses": uses}],
+                ),
+            )
+        ],
+    )
+    begin(t)
+
+    def used(name: str, chosen: dict[str, float]) -> object:
+        u = t.engine.use_entry(t.game_id, e0, name, None, chosen, "x")
+        return cast(dict[str, Any], u.payload)["params"].get("pay")
+
+    assert used("wall/strike", {"pay": 0}) == 1  # 写定的，选了 0 也是 1
+    assert used("wall/seal", {}) == 1  # 打开
+    t.engine.admin_patch(
+        t.game_id,
+        [PatchOp(op="add", path=f"/entities/{e0}/sheet/toggles", value={"wall/seal": True})],
+    )
+    assert used("wall/seal", {"pay": 1}) == 0  # 关上：不算参数
+    rules = RulesService()
+    ok = rules.validate_formula(
+        pack, "person", 'target = "self"\npay = 1', "gear", "config", names=["pay"]
+    )
+    assert ok == []
+    bad = rules.validate_formula(pack, "person", "nope = 1", "gear", "config", names=["pay"])
+    assert [p.code for p in bad] == ["config.unknown_key"]

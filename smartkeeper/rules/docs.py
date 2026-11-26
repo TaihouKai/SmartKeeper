@@ -288,6 +288,17 @@ def catalog() -> tuple[DocEntry, ...]:
                 example=_CONFIG_EXAMPLES[key],
             )
         )
+    # 写定的参数：“怎么用”里 参数名 = 值
+    out.append(
+        DocEntry(
+            name="fixed_param",
+            category="config",
+            sig="<param> = …",
+            desc="config.c.fixed_param",
+            values=(("公式", "docs.v.fixed_param.0"),),
+            example="release = 1    # 这个用法一定选这个参数的这个值",
+        )
+    )
     for shape, args in skillconfig.SHAPES.items():
         out.append(
             DocEntry(

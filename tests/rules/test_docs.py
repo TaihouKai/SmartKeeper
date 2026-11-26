@@ -19,13 +19,15 @@ def names(category: str) -> set[str]:
 def test_every_part_of_the_language_is_documented() -> None:
     assert names("function") == set(f.FUNCTIONS)
     assert names("verb") == set(f.VERBS)
-    assert names("config") == set(skillconfig.KEYS)
+    assert names("config") == {*skillconfig.KEYS, "fixed_param"}  # 写定的参数不是设置项
     assert names("shape") == {*skillconfig.SHAPES, "placement"}
     assert set(skillconfig.SCRIPT_VARS) <= names("variable")
     assert {*checkconfig.KEYS, *checkconfig.VARS} == names("check")
     for d in RulesService().docs():
         if d.category in ("config", "check") and d.sig.endswith("= …"):
-            assert d.values and d.example.startswith(f"{d.name} ="), d.name
+            assert d.values, d.name
+            if d.name != "fixed_param":  # 写定的参数：名字是参数名
+                assert d.example.startswith(f"{d.name} ="), d.name
     placement = next(
         d for d in RulesService().docs() if d.name == "placement" and d.category == "shape"
     )

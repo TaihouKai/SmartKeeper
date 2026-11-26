@@ -425,6 +425,7 @@
       "check": "the user's check (a check name); best(\"a\", \"b\") rolls several and keeps the best; None / True always hits",
       "cooldown": "cooldown in minutes",
       "difficulty": "the user's difficulty (a formula; distance is available)",
+      "fixed_param": "Fix a parameter: whenever this entry (or use) is used, the parameter has this value and isn't chosen. The value can be a formula. Closing a toggle use doesn't count parameters. Only this entry's parameters, not columns",
       "guard": "Guard (with an aura): those inside who match affects are guarded by you; enemy skills aimed at them (areas too) land on you",
       "hit": "hit condition (level, opp_level, opposed); None: success, and above the opponent when opposed",
       "noise": "noise radius in metres; None = silent",
@@ -605,6 +606,9 @@
       "difficulty": {
         "0": "your side's difficulty; may use distance (metres)",
         "1": "no difficulty (default)"
+      },
+      "fixed_param": {
+        "0": "The value: for a parameter with choices, the number of the choice (e.g. 1 for “yes=1”)"
       },
       "guard": {
         "0": "guard: enemy skills aimed at those inside land on you instead; in an area you are hit once",

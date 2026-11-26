@@ -8,7 +8,7 @@ config.unknown_key、config.bad_value（name、expected）、config.bad_call（n
 from __future__ import annotations
 
 import contextlib
-from typing import Literal
+from typing import Literal, cast
 
 from smartkeeper import lang as f
 from smartkeeper.contracts import PlacementSpec, Shape, SkillConfig
@@ -144,7 +144,12 @@ def read_config(text: str, script: str = "") -> SkillConfig:
     for s in settings(text, script):
         kind = KEYS.get(s.name)
         if kind is None:
-            raise _err("config.unknown_key", s)
+            # 不是设置项：当作写定的参数（是不是这个条目的参数由 validation.check_config 查）
+            if s.call is not None or s.items is not None or not s.value.strip():
+                raise _err("config.unknown_key", s)
+            fixed = cast(dict[str, str], out.setdefault("fixed", {}))
+            fixed[s.name] = s.value
+            continue
         if kind in ("shape", "placement"):
             if s.call is None:
                 if s.value.strip():
@@ -250,7 +255,7 @@ def formulas(text: str, script: str = "") -> list[tuple[int, str, str]]:
         return []
     out: list[tuple[int, str, str]] = []
     for s in found:
-        if KEYS.get(s.name) == "formula" and s.value.strip():
+        if (KEYS.get(s.name) == "formula" or s.name not in KEYS) and s.value.strip():
             out.append((s.line, s.name, s.value))
         if KEYS.get(s.name) == "placement" and s.call == "placement":
             out += [(s.line, f"{s.name}.{a}", v) for a, v in s.args if a != "notify" and v.strip()]
