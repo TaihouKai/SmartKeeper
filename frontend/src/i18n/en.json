@@ -1308,7 +1308,7 @@
     "handle_label": "Label",
     "handle_note": "Private note",
     "intel": "What I know ({n})",
-    "map_hint": "Tap a person to @ them. Tap anywhere else to drop a pin: see what it is and how long it takes, then make it your destination (pick a floor or the roof of a building). Brown dots are named places; hover to see the name.",
+    "map_hint": "Tap a person to @ them. Tap anywhere else to drop a pin: see what it is and how long it takes, then make it your destination (pick a floor or the roof of a building). Brown dots are named map features (hover to see the name); labelled tags are places named in the story, and place names in messages can be tapped too.",
     "mention_hint": "Click to @ them in your action",
     "nobody": "(nobody nearby)",
     "placement_unknown": "unknown placed object",

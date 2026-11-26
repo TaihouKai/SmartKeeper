@@ -230,7 +230,8 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
         e.stopPropagation();
         pickRef.current?.({ kind: "place", id: p.id });
       });
-      return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([p.lon, p.lat]).addTo(m);
+      // 名字挂在位置的下方：点它时插的图钉在上方，不会挡住名字
+      return new maplibregl.Marker({ element: el, anchor: "top", offset: [0, 4] }).setLngLat([p.lon, p.lat]).addTo(m);
     });
   }, [places, map]);
 
