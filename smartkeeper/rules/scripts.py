@@ -13,8 +13,11 @@ from smartkeeper.rules import skillconfig, validation
 from smartkeeper.rules.checks import context
 from smartkeeper.rules.evaluator import EntityContext, table_lookup
 
-type Op = Literal["damage", "add", "subtract", "set", "modify", "negate", "summon", "teleport"]
+type Op = Literal[
+    "damage", "add", "subtract", "set", "modify", "negate", "summon", "teleport", "locate"
+]
 _OPS: dict[str, Op] = {
+    "locate": "locate",
     "summon": "summon",
     "teleport": "teleport",
     "damage": "damage",
@@ -130,6 +133,8 @@ def _step(
 
     if st.verb == "negate":
         return ScriptStep(who=st.receiver, op="negate")
+    if st.verb == "locate":
+        return ScriptStep(who=st.receiver, op="locate")
     if st.verb == "teleport":
         return ScriptStep(who=st.receiver, op="teleport", to=st.to)
     seconds = int(num(st.minutes) * 60) if st.minutes is not None else None

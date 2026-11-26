@@ -19,6 +19,7 @@ from smartkeeper.contracts.adjudication import (
     ReactionParam,
     ReactionPrompt,
     ReactionSkill,
+    TellIn,
     UseResult,
 )
 from smartkeeper.contracts.base import Frozen, JsonDict, JsonValue
@@ -320,6 +321,7 @@ __all__ = [
     "TalkMessage",
     "TalkStatus",
     "TargetRef",
+    "TellIn",
     "UseResult",
     "ValidationFailed",
     "Visibility",

@@ -163,6 +163,26 @@ def check_memory_entities(adj: Adjudication, entities: set[str]) -> list[Problem
     return problems
 
 
+def check_tells(adj: Adjudication, *, players: set[str], entities: set[str]) -> list[Problem]:
+    """转告：告诉的一方是玩家或实体，听的是玩家，说的是存在的实体。"""
+    problems: list[Problem] = []
+    for i, x in enumerate(adj.tells):
+        path = f"tells[{i}]"
+        if x.player not in players:
+            problems.append(
+                Problem(code="adj.tell_unknown_player", path=path, params={"player": x.player})
+            )
+        if x.source not in players and x.source not in entities:
+            problems.append(
+                Problem(code="adj.tell_unknown_source", path=path, params={"id": x.source})
+            )
+        if x.about not in entities:
+            problems.append(
+                Problem(code="adj.tell_unknown_entity", path=path, params={"id": x.about})
+            )
+    return problems
+
+
 def check_intel(
     adj: Adjudication,
     *,

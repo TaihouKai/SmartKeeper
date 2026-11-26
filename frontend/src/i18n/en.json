@@ -209,6 +209,9 @@
       "placement_needs_building": "{entry} must be set up inside a building (the whole building becomes the placement)",
       "reaction_pending": "This use is still waiting for the target's reaction",
       "summon_bad_sheet": "The summoned sheet is invalid ({problem}): the summon must fill the template's required fields",
+      "tell_unknown_entity": "Tell about unknown entity {id}",
+      "tell_unknown_player": "Tell for unknown player {player}",
+      "tell_unknown_source": "The teller {id} is neither a player nor an entity",
       "unknown_use": "The ruling refers to an unknown skill use {seq}",
       "use_bad_field": "The target has no runtime value {name}"
     },
@@ -395,7 +398,7 @@
       "unknown_field": "The summoned template has no field {name}",
       "unknown_receiver": "{name} isn't an object: use self or target",
       "unknown_template": "There is no template {name}",
-      "unknown_verb": "No action {name}: use damage, add, sub, set, modify, negate, summon or teleport"
+      "unknown_verb": "No action {name}: use damage, add, sub, set, modify, negate, summon, teleport or locate"
     },
     "sheet": {
       "above_max": "{value} is above the maximum {max}",
@@ -437,6 +440,7 @@
       "no_position": "{entry} has a range but the user or target isn't on the map",
       "not_in_sight": "{entry} must be placed within line of sight",
       "not_perceived": "{entry} needs the target to be perceived",
+      "not_seen_recently": "{entry} needs you to have known where the target was within {minutes} minutes (seen, told or located)",
       "out_of_range": "{entry} is out of range: the target is {distance} m away, range {range} m",
       "param_cooling_down": "The “{name}” option of {entry} is still cooling down",
       "param_requires": "Cannot choose “{name}” this time (needs {formula})",
@@ -475,6 +479,7 @@
       "reactions": "if set the target may react: list checks and reaction skills (ID or name), or True for any reaction skill; players choose, NPCs get the best; a target who hasn't noticed the user can't react",
       "requires": "condition to use, e.g. not silenced",
       "save": "a save the target makes after a hit (a check name, against difficulty); saved in the script",
+      "seen_within": "minutes within which you must have known where the target was (seen, told or located); None = not needed",
       "shape": "area shape, e.g. sphere(radius=5)",
       "target": "single needs a target / self only / none",
       "visible": "the target must be perceived; a placement must be put within line of sight"
@@ -588,6 +593,7 @@
     "verb": {
       "add": "Old form; now write target.hp += 10 (timed: inside with minutes(…):). Adds to a runtime value, clamped to its limits",
       "damage": "Take damage: shield first, then hp",
+      "locate": "Learn where they are right now (divination, scrying, a familiar's report): your side records a sighting, which seen_within skills use",
       "modify": "Old form; now write inside with minutes(10):, e.g. target.str -= 2. Modifies a value for a while",
       "negate": "As a reaction: void the attack on you (does nothing otherwise)",
       "set": "Old form; now write self.hp = 0. Sets a runtime value, clamped to its limits",
@@ -709,6 +715,10 @@
       },
       "save": {
         "0": "a save the target makes after a hit (against difficulty); saved in the script"
+      },
+      "seen_within": {
+        "0": "you must have known where the target was within this many minutes: seen by your side, told, or found with locate",
+        "1": "not needed (default)"
       },
       "shape": {
         "0": "ball centred on the target (or you)",
@@ -893,6 +903,7 @@
     "op": {
       "add": "add",
       "damage": "takes damage",
+      "locate": "locate",
       "modify": "timed modifier",
       "negate": "void the attack",
       "set": "set",

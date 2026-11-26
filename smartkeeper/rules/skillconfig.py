@@ -23,6 +23,7 @@ KEYS: dict[str, Kind] = {
     "target": "choice",
     "range": "formula",
     "visible": "bool",
+    "seen_within": "formula",
     "requires": "formula",
     "noise": "formula",
     "cast_time": "formula",

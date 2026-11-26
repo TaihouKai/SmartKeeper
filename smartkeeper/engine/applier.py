@@ -25,6 +25,7 @@ from smartkeeper.contracts import (
     ValidationFailed,
     World,
 )
+from smartkeeper.engine import sightings
 from smartkeeper.engine.space import peers_of
 
 
@@ -332,6 +333,12 @@ class StepApplier:
             field = str(a.get("field") or "")
             if op == "teleport":
                 state = self._teleport(state, who, a.get("to_entity"))
+                continue
+            if op == "locate":
+                marks = {who: {sightings.side_of(state, source): self.end}}
+                lops = sightings.stamp_ops(state, marks)
+                self.ops += lops
+                state = self.world.apply(state, lops) if lops else state
                 continue
             if op == "summon":
                 state = self._summon(state, who, field, int(amount), dur, _obj(a.get("values")))

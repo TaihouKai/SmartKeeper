@@ -1587,6 +1587,11 @@ export interface components {
              */
             state_patch: components["schemas"]["PatchOp"][];
             /**
+             * Tells
+             * @default []
+             */
+            tells: components["schemas"]["TellIn"][];
+            /**
              * Uses
              * @default []
              */
@@ -3933,7 +3938,8 @@ export interface components {
          *     - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值；
          *       modify 给 field 这个数值（推导值、字段）加一条限时修正（formula 是冻结好的新值公式）。
          *       field 写成 this.<列> 时是使用的这个条目的列（运行中会变的列，或 modify 修正的列）；
-         *       summon 召唤 amount 个 field 这个模板的角色；teleport 瞬间移动到 to 身边
+         *       summon 召唤 amount 个 field 这个模板的角色；teleport 瞬间移动到 to 身边；
+         *       locate 使用者这一方掌握了 who 此刻的位置（记一次目击）
          *     - seconds：add 的限时（到期扣回加上去还剩下的部分）或 modify 的持续时间；None 表示永久
          */
         ScriptStep: {
@@ -3955,7 +3961,7 @@ export interface components {
              * Op
              * @enum {string}
              */
-            op: "damage" | "add" | "subtract" | "set" | "modify" | "negate" | "summon" | "teleport";
+            op: "damage" | "add" | "subtract" | "set" | "modify" | "negate" | "summon" | "teleport" | "locate";
             /** Raw */
             raw?: number | null;
             /**
@@ -4310,6 +4316,21 @@ export interface components {
             from?: string | null;
             /** To */
             to: string;
+        };
+        /**
+         * TellIn
+         * @description 裁定里的转告：source 这一方（玩家 id，或者 NPC 的实体 id）把 about 在哪告诉了 player（玩家 id）。
+         *
+         *     引擎把 source 关于 about 最近一次的目击复制给 player（时间还是当初目击的时间），source 没有就没有效果。
+         *     两边此刻能不能说上话（在一起、打电话、念话……）由 KP 判，判了能才写。
+         */
+        TellIn: {
+            /** About */
+            about: string;
+            /** Player */
+            player: string;
+            /** Source */
+            source: string;
         };
         /** TextBody */
         TextBody: {

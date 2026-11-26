@@ -48,12 +48,15 @@ class ScriptStep(Frozen):
     - op：damage 受到伤害（先扣护盾 shield 再扣生命值 hp）；add / subtract / set 改 field 这个运行值；
       modify 给 field 这个数值（推导值、字段）加一条限时修正（formula 是冻结好的新值公式）。
       field 写成 this.<列> 时是使用的这个条目的列（运行中会变的列，或 modify 修正的列）；
-      summon 召唤 amount 个 field 这个模板的角色；teleport 瞬间移动到 to 身边
+      summon 召唤 amount 个 field 这个模板的角色；teleport 瞬间移动到 to 身边；
+      locate 使用者这一方掌握了 who 此刻的位置（记一次目击）
     - seconds：add 的限时（到期扣回加上去还剩下的部分）或 modify 的持续时间；None 表示永久
     """
 
     who: str
-    op: Literal["damage", "add", "subtract", "set", "modify", "negate", "summon", "teleport"]
+    op: Literal[
+        "damage", "add", "subtract", "set", "modify", "negate", "summon", "teleport", "locate"
+    ]
     field: str | None = None
     amount: float = 0
     rolls: tuple[int, ...] = ()
@@ -179,6 +182,9 @@ class SkillConfig(Frozen):
     target: Literal["single", "self", "none"] = "single"
     range: str = ""  # 射程（米）；空表示不限
     visible: bool = False  # 对象必须在使用者此刻的感知里（看得见或察觉得到）
+    # 对象的位置要在这么多分钟之内掌握过（公式）：使用者这一方（玩家的所有角色算一起）亲眼察觉到、
+    # 别人转告、或者用技能找到（target.locate()）都算；此刻察觉得到是 0。空表示不要求
+    seen_within: str = ""
     noise: str = ""  # 动静范围（米）：范围内的其他玩家会察觉到有人用了这个技能；空表示悄无声息
     requires: str = ""  # 使用条件（公式），不成立就不能用
     cast_time: str = ""  # 施放时间（分钟）：不到 1 分钟算瞬发；用这个技能的行动至少要这么久

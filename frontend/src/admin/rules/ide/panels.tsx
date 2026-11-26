@@ -88,6 +88,7 @@ export function NamesPanel({ pack, doc, insert, part = "main" }: { pack: Pack; d
             ["target.modify(", "fh.s.modify"],
             ["self.summon(", "doc.verb.summon"],
             ["target.teleport(self", "doc.verb.teleport"],
+            ["target.locate(", "doc.verb.locate"],
           ].map(([code, key]) => (
             <Item key={code} code={`${code!}…)`} note={t(key!)} onClick={() => insert(code!)} />
           ))}

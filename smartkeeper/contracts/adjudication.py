@@ -120,6 +120,18 @@ class IntelIn(Frozen):
     fields: tuple[str, ...] = ()
 
 
+class TellIn(Frozen):
+    """裁定里的转告：source 这一方（玩家 id，或者 NPC 的实体 id）把 about 在哪告诉了 player（玩家 id）。
+
+    引擎把 source 关于 about 最近一次的目击复制给 player（时间还是当初目击的时间），source 没有就没有效果。
+    两边此刻能不能说上话（在一起、打电话、念话……）由 KP 判，判了能才写。
+    """
+
+    source: str
+    player: str
+    about: str
+
+
 class Adjudication(Frozen):
     """一回合的裁定。推进多久由引擎决定（最早结束的行动），KP 只裁定这段时间里发生的事。"""
 
@@ -134,6 +146,7 @@ class Adjudication(Frozen):
     state_patch: tuple[PatchOp, ...] = ()
     memory_entries: tuple[MemoryEntryIn, ...] = ()
     intel: tuple[IntelIn, ...] = ()  # 玩家得知的关于别人的情报
+    tells: tuple[TellIn, ...] = ()  # 谁把谁在哪告诉了谁（技能的 seen_within 按它判）
     kp_notes: str | None = None
     game_over: bool = False
 

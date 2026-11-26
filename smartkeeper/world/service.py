@@ -159,7 +159,15 @@ class WorldService:
             return [Problem(code="state.type", path=base)]
         problems: list[Problem] = []
         for key in ent:
-            if key not in ("template", "pos", "inside", "sheet", "detected_by", "summoned"):
+            if key not in (
+                "template",
+                "pos",
+                "inside",
+                "sheet",
+                "detected_by",
+                "summoned",
+                "seen_at",
+            ):
                 problems.append(Problem(code="state.unknown_key", path=f"{base}/{key}"))
         template = ent.get("template")
         if not isinstance(template, str) or pack.template(template) is None:
@@ -178,6 +186,13 @@ class WorldService:
         ):
             # 隐匿的角色：已经发现了它的观察者
             problems.append(Problem(code="state.type", path=f"{base}/detected_by"))
+        stamps = ent.get("seen_at")
+        if stamps is not None and not (
+            isinstance(stamps, dict)
+            and all(isinstance(v, int) and not isinstance(v, bool) for v in stamps.values())
+        ):
+            # 各方最近一次掌握这个实体位置的游戏内秒（见 engine 的 sightings）
+            problems.append(Problem(code="state.type", path=f"{base}/seen_at"))
         summoned = ent.get("summoned")
         if summoned is not None and not (
             isinstance(summoned, dict)

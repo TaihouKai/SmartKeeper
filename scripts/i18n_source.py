@@ -403,6 +403,11 @@ T: dict[str, tuple[str, str]] = {
         "the target must be in your perception right now",
     ),
     "docs.v.visible.1": ("不用（默认）", "not needed (default)"),
+    "docs.v.seen_within.0": (
+        "对象的位置要在这么多分钟之内掌握过：自己这一方察觉到、别人转告、或用技能找到（locate）都算",
+        "you must have known where the target was within this many minutes: seen by your side, told, or found with locate",
+    ),
+    "docs.v.seen_within.1": ("不要求（默认）", "not needed (default)"),
     "docs.v.requires.0": (
         "成立才能用，例如 self.mp >= 5 and not self.silenced",
         "usable only when true, e.g. self.mp >= 5 and not self.silenced",
@@ -927,6 +932,18 @@ T: dict[str, tuple[str, str]] = {
     "rules.ins.groups": ("得知对象分组里的条目：", "Learns the entries in the subject's groups:"),
     "codes.pack.unknown_field": ("没有叫 {name} 的字段", "No field named {name}"),
     "codes.pack.unknown_group": ("没有叫 {name} 的分组", "No group named {name}"),
+    "codes.adj.tell_unknown_player": (
+        "转告给了不在这一局的玩家 {player}",
+        "Tell for unknown player {player}",
+    ),
+    "codes.adj.tell_unknown_source": (
+        "转告的一方 {id} 既不是玩家也不是实体",
+        "The teller {id} is neither a player nor an entity",
+    ),
+    "codes.adj.tell_unknown_entity": (
+        "转告的是不存在的实体 {id}",
+        "Tell about unknown entity {id}",
+    ),
     "codes.adj.intel_unknown_player": (
         "情报给了不在这一局的玩家 {player}",
         "Intel for unknown player {player}",
@@ -1455,6 +1472,10 @@ T: dict[str, tuple[str, str]] = {
         "对象必须在施法者的感知里；设置物要放在施法者看得见的地方",
         "the target must be perceived; a placement must be put within line of sight",
     ),
+    "config.c.seen_within": (
+        "对象的位置要在多少分钟之内掌握过（自己这一方察觉到、别人转告、用技能找到都算），None 表示不要求",
+        "minutes within which you must have known where the target was (seen, told or located); None = not needed",
+    ),
     "config.c.requires": ("使用条件，例如 not silenced", "condition to use, e.g. not silenced"),
     "config.c.noise": (
         "动静范围（米），None 表示悄无声息",
@@ -1731,6 +1752,10 @@ T: dict[str, tuple[str, str]] = {
     "check.v.opponent.template": (
         "对抗时对方的模板（没有对手是空的），只能用在结果条件里",
         "the opponent's template when opposed (empty otherwise); only in the result conditions",
+    ),
+    "doc.verb.locate": (
+        "掌握对方此刻的位置（占卜、远视、使魔回报……）：你这一方记一次目击，要求 seen_within 的技能按它判",
+        "Learn where they are right now (divination, scrying, a familiar's report): your side records a sighting, which seen_within skills use",
     ),
     "doc.verb.negate": (
         "当反应时：让打在自己身上的这次攻击无效（平时没有效果）",
@@ -2026,8 +2051,8 @@ T: dict[str, tuple[str, str]] = {
         "{name} isn't an object: use self or target",
     ),
     "codes.script.unknown_verb": (
-        "没有 {name} 这个动作：可以用 damage、add、sub、set、modify、negate、summon、teleport",
-        "No action {name}: use damage, add, sub, set, modify, negate, summon or teleport",
+        "没有 {name} 这个动作：可以用 damage、add、sub、set、modify、negate、summon、teleport、locate",
+        "No action {name}: use damage, add, sub, set, modify, negate, summon, teleport or locate",
     ),
     "codes.script.arity": (
         "{name} 的参数个数不对（写了 {count} 个）",
@@ -2207,6 +2232,10 @@ T: dict[str, tuple[str, str]] = {
     "codes.use.not_perceived": (
         "{entry} 要看得见（察觉得到）对象才能用",
         "{entry} needs the target to be perceived",
+    ),
+    "codes.use.not_seen_recently": (
+        "{entry} 要在 {minutes} 分钟之内掌握过对象的位置（自己这一方察觉到、别人转告或用技能找到）",
+        "{entry} needs you to have known where the target was within {minutes} minutes (seen, told or located)",
     ),
     "codes.use.no_position": (
         "{entry} 有射程，但使用者或对象不在地图上",
@@ -2491,6 +2520,7 @@ T: dict[str, tuple[str, str]] = {
     "ide.op.summon": ("召唤", "summon"),
     "ide.op.teleport": ("瞬间移动", "teleport"),
     "ide.op.negate": ("作废攻击", "void the attack"),
+    "ide.op.locate": ("掌握位置", "locate"),
     "doc.p.damage_kind": (
         '伤害类型，例如 "magic"；不写就用这个技能所在分组的伤害类型。受伤的一方按自己模板的“受到伤害的公式”减免',
         "damage type, e.g. \"magic\"; defaults to the group's damage type. The one hurt applies their template's damage-taken formula",

@@ -50,6 +50,7 @@ _VERBS: dict[str, tuple[str, tuple[tuple[str, str], ...]]] = {
         ),
     ),
     "teleport": ("teleport(to)", (("to", "doc.p.teleport_to"),)),
+    "locate": ("locate()", ()),
 }
 
 # 函数的签名。和 lang.FUNCTIONS 一一对应
@@ -167,6 +168,10 @@ _CONFIG_VALUES: dict[str, tuple[tuple[str, str], ...]] = {
         ("True", "docs.v.visible.0"),
         ("False", "docs.v.visible.1"),
     ),
+    "seen_within": (
+        ("公式", "docs.v.seen_within.0"),
+        ("None", "docs.v.seen_within.1"),
+    ),
     "requires": (
         ("条件公式", "docs.v.requires.0"),
         ("None", "docs.v.requires.1"),
@@ -233,6 +238,7 @@ _CONFIG_EXAMPLES: dict[str, str] = {
     "target": 'target = "single"',
     "range": "range = 30 + this.level * 5",
     "visible": "visible = True",
+    "seen_within": "seen_within = 60",
     "requires": "requires = self.mp >= 5",
     "noise": "noise = 20",
     "cast_time": "cast_time = 10",

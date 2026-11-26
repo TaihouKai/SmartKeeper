@@ -52,6 +52,8 @@ VERBS: dict[str, tuple[str, ...]] = {
     # minutes 是存在多久（不写是一直在）；名字=公式 是新角色卡上的字段，例如 summon(familiar, 3, 60, hp=1)
     "summon": ("template", "count", "minutes?"),
     "teleport": ("to",),  # 瞬间移动到另一个角色身边：to 是 self、target 或同伴的模板名
+    # 掌握接收者此刻的位置（占卜、远视、使魔回报……）：使用者这一方记一次目击，seen_within 按它判
+    "locate": (),
 }
 
 

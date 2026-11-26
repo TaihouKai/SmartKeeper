@@ -102,7 +102,7 @@ from smartkeeper.contracts import (
     World,
 )
 from smartkeeper.engine import adjudication as adjv
-from smartkeeper.engine import alliance, intel, library, scenario
+from smartkeeper.engine import alliance, intel, library, scenario, sightings
 from smartkeeper.engine import entries as entry_refs
 from smartkeeper.engine.applier import StepApplier
 from smartkeeper.engine.duel import Duel, Side, Strike
@@ -832,6 +832,7 @@ class Engine:
             self._detect(game_id, 1)
             self._auras(game_id, 1)
             self._insights(game_id, 1)
+            self._record_sightings(game_id, 1)
             self.refresh_handles(game_id)
             return self.round(game_id)
 
@@ -2265,7 +2266,9 @@ class Engine:
     ) -> list[str]:
         """射程、对象要在感知里：不满足就不能用。返回会察觉到动静的玩家（不含使用者自己的玩家）。"""
         need_space = (
-            target is not None and target != source and (cfg.range.strip() or cfg.visible)
+            target is not None
+            and target != source
+            and (cfg.range.strip() or cfg.visible or cfg.seen_within.strip())
         ) or cfg.noise.strip()
         if not need_space:
             return []
@@ -2290,6 +2293,23 @@ class Engine:
                 raise ValidationFailed(
                     "use.not_perceived", entity=source, target=target, entry=entry
                 )
+            if cfg.seen_within.strip():
+                within = roll(cfg.seen_within).total
+                ago = sightings.minutes_since(
+                    state,
+                    space,
+                    sightings.side_of(state, source),
+                    target,
+                    int(cast(int, state.get("game_seconds", 0))),
+                )
+                if ago is None or ago > within + 1e-9:
+                    raise ValidationFailed(
+                        "use.not_seen_recently",
+                        entity=source,
+                        target=target,
+                        entry=entry,
+                        minutes=round(within, 1),
+                    )
         if not cfg.noise.strip() or me is None:
             return []
         return self._heard(space, source, roll(cfg.noise).total)
@@ -3239,6 +3259,19 @@ class Engine:
                     groups.append(("uses", use_ops))
             except ValidationFailed as e:
                 problems += e.problems or [Problem(code=e.code, params=dict(e.params))]
+        problems += adjv.check_tells(adj, players=set(players), entities=entities)
+        if not problems and adj.tells:
+            # 转告：告诉的一方关于对象的目击复制给听的玩家（时间不变；没有就没有效果）
+            marks: dict[str, dict[str, int]] = {}
+            for x in adj.tells:
+                for about, by in sightings.told_marks(cur, x.source, x.player, x.about).items():
+                    for side, sec in by.items():
+                        have = marks.setdefault(about, {})
+                        have[side] = max(sec, have.get(side, sec))
+            tell_ops = sightings.stamp_ops(cur, marks)
+            if tell_ops:
+                cur = self._world.apply(cur, tell_ops)
+                groups.append(("tells", tell_ops))
         if not problems:
             # 先结算这一轮的伤害造成的死亡（死了的不再自然回复），再算时间流逝（回复、消耗），
             # 时间流逝也可能致死（例如魔力耗尽），所以之后再结算一次
@@ -3927,6 +3960,7 @@ class Engine:
                 self._detect(game_id, r.no + 1)
                 self._auras(game_id, r.no + 1)
                 self._insights(game_id, r.no + 1)
+                self._record_sightings(game_id, r.no + 1)
             adj_seq = written[0].seq
             self._memory.add(self._memory_entries(game_id, r.no, adj, adj_seq))
             self.refresh_handles(game_id)
@@ -4020,6 +4054,18 @@ class Engine:
     def _group(pack: RulePack, template: str, group: str) -> GroupDef | None:
         tpl = pack.template(template)
         return next((g for g in tpl.groups if g.name == group), None) if tpl else None
+
+    def _record_sightings(self, game_id: str, round_no: int) -> None:
+        """每轮开始时：每一方此刻察觉到的实体记一次目击（技能的 seen_within 按它判）。"""
+        state = self._state(game_id)
+        space = self._space(game_id)
+        seconds = int(cast(int, state.get("game_seconds", 0)))
+        found = sightings.observe(space, lambda e: self._dead(state, e))
+        ops = sightings.stamp_ops(state, sightings.sight_marks(found, seconds))
+        if ops:
+            self._events.append(
+                game_id, round_no, [self._patch_event(ops, cause="sighting", actor=ENGINE)]
+            )
 
     def _known_intel(self, game_id: str) -> intel.Known:
         return intel.known(self._events.view_for(game_id, KP, types=["intel_gained"]))
