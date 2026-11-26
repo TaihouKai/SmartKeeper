@@ -1755,6 +1755,75 @@ export interface components {
             /** Text */
             text: string;
         };
+        /**
+         * BudgetDef
+         * @description 几个数值的合计上限，例如“六项属性合计最多 10 点”“＋ 合计最多 3 个”。
+         *
+         *     fields：这张卡上算进去的数值字段（值就是花掉的点数，负数退回点数）；columns：“分组.列”，这个分组
+         *     每一条（自己写的和自动获得的）这一列的值都算进去。total 是合计最多多少（公式，在这张卡上算，可以随出身变），
+         *     空是不限、只显示合计；when 是条件公式，成立时才限制（空是总是）。只看建角时填的值，不看游戏中的临时修正。
+         */
+        BudgetDef: {
+            /**
+             * Columns
+             * @default []
+             */
+            columns: string[];
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Fields
+             * @default []
+             */
+            fields: string[];
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Name */
+            name: string;
+            /**
+             * Total
+             * @default
+             */
+            total: string;
+            /**
+             * When
+             * @default
+             */
+            when: string;
+        };
+        /**
+         * BudgetUse
+         * @description 一张卡在一项合计上限上用了多少：total 是 None 表示不限（或算不出来）；active 是条件成立（不成立的不用管）。
+         */
+        BudgetUse: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Name */
+            name: string;
+            /** Total */
+            total?: number | null;
+            /** Used */
+            used: number;
+        };
         /** ChangeOut */
         ChangeOut: {
             /** Above Z */
@@ -2080,6 +2149,11 @@ export interface components {
              */
             appearance_field: string;
             /**
+             * Budgets
+             * @default []
+             */
+            budgets: components["schemas"]["BudgetDef"][];
+            /**
              * Damage Taken
              * @default
              */
@@ -2240,6 +2314,8 @@ export interface components {
              * @default
              */
             description: string;
+            /** Gain Blocked */
+            gain_blocked?: string | null;
             /**
              * Hidden
              * @default false
@@ -3434,6 +3510,11 @@ export interface components {
         };
         /** PreviewOut */
         PreviewOut: {
+            /**
+             * Budgets
+             * @default []
+             */
+            budgets: components["schemas"]["BudgetUse"][];
             /** Derived */
             derived: components["schemas"]["DerivedValue"][];
             /**

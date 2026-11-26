@@ -33,7 +33,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "can_fly",
@@ -49,7 +50,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "background",
@@ -72,7 +74,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "story",
@@ -88,7 +91,8 @@
             "required": false,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "hp",
@@ -103,8 +107,9 @@
             "choices": [],
             "required": true,
             "hidden": false,
-            "per_minute": "0.1 + con / 20 - hp_drain",
-            "vital": true
+            "per_minute": "(0 if hp_regen_blocked > 0 else max(0, 0.1 + con / 20)) - hp_drain",
+            "vital": true,
+            "gain_blocked": "hp_heal_blocked > 0"
           },
           {
             "name": "mp",
@@ -119,8 +124,9 @@
             "choices": [],
             "required": true,
             "hidden": false,
-            "per_minute": "(0.1 + ap / 20) * (3 if inside(\"据点\") else 1) - mp_drain",
-            "vital": false
+            "per_minute": "(0 if mp_regen_blocked > 0 else (0.1 + ap / 20) * (3 if inside(\"据点\") else 1)) - mp_drain",
+            "vital": false,
+            "gain_blocked": "mp_heal_blocked > 0"
           },
           {
             "name": "shield",
@@ -136,7 +142,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "command_spells",
@@ -152,7 +159,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "str",
@@ -161,14 +169,15 @@
             "kind": "number",
             "cls": "player",
             "unit": null,
-            "min": "-4",
-            "max": "6",
+            "min": "-4 if background == \"普通人\" or background == \"人造人\" else -2",
+            "max": "1 if background == \"人造人\" else 6 if background == \"普通人\" or background == \"人造人\" else 5",
             "initial": null,
             "choices": [],
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "agi",
@@ -177,14 +186,15 @@
             "kind": "number",
             "cls": "player",
             "unit": null,
-            "min": "-4",
-            "max": "6",
+            "min": "-4 if background == \"普通人\" or background == \"人造人\" else -2",
+            "max": "1 if background == \"人造人\" else 6 if background == \"普通人\" or background == \"人造人\" else 5",
             "initial": null,
             "choices": [],
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "con",
@@ -193,14 +203,15 @@
             "kind": "number",
             "cls": "player",
             "unit": null,
-            "min": "-4",
-            "max": "6",
+            "min": "-4 if background == \"普通人\" or background == \"人造人\" else -2",
+            "max": "1 if background == \"人造人\" else 6 if background == \"普通人\" or background == \"人造人\" else 5",
             "initial": null,
             "choices": [],
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "int",
@@ -209,14 +220,15 @@
             "kind": "number",
             "cls": "player",
             "unit": null,
-            "min": "-4",
-            "max": "6",
+            "min": "-4 if background == \"普通人\" or background == \"人造人\" else -2",
+            "max": "6 if background == \"普通人\" or background == \"人造人\" else 5",
             "initial": null,
             "choices": [],
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "per",
@@ -225,14 +237,15 @@
             "kind": "number",
             "cls": "player",
             "unit": null,
-            "min": "-4",
-            "max": "6",
+            "min": "-4 if background == \"普通人\" or background == \"人造人\" else -2",
+            "max": "6 if background == \"普通人\" or background == \"人造人\" else 5",
             "initial": null,
             "choices": [],
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "cha",
@@ -241,14 +254,15 @@
             "kind": "number",
             "cls": "player",
             "unit": null,
-            "min": "-4",
-            "max": "6",
+            "min": "-4 if background == \"普通人\" or background == \"人造人\" else -2",
+            "max": "6 if background == \"普通人\" or background == \"人造人\" else 5",
             "initial": null,
             "choices": [],
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "mp_mult",
@@ -264,7 +278,8 @@
             "required": false,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "weapon_db",
@@ -280,7 +295,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "weapon_mystic",
@@ -296,7 +312,8 @@
             "required": false,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "silenced",
@@ -312,7 +329,8 @@
             "required": true,
             "hidden": true,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           }
         ],
         "groups": [
@@ -699,6 +717,34 @@
             "hidden": true
           },
           {
+            "name": "hp_regen_blocked",
+            "label": "禁止自然回复生命",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
+            "name": "mp_regen_blocked",
+            "label": "禁止自然回复魔力",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
+            "name": "hp_heal_blocked",
+            "label": "禁止治疗生命",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
+            "name": "mp_heal_blocked",
+            "label": "禁止补充魔力",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
             "name": "melee_mult",
             "label": "近战伤害倍数",
             "formula": "1",
@@ -734,6 +780,37 @@
             "hidden": false
           }
         ],
+        "budgets": [
+          {
+            "name": "attr_points",
+            "label": "属性点",
+            "description": "六项属性合计：10 点自由属性点，降到 0 以下的退回点数；普通人多 3 点，人造人多 1 点。[[属性点]]",
+            "fields": [
+              "str",
+              "agi",
+              "con",
+              "int",
+              "per",
+              "cha"
+            ],
+            "columns": [],
+            "total": "10 + 3 * muggle + (1 if background == \"人造人\" else 0)",
+            "when": ""
+          },
+          {
+            "name": "homunculus_body",
+            "label": "人造人的身体",
+            "description": "人造人的力量、敏捷、体质合计要牺牲 5 点以上（合计不大于 -5）。[[出身]]",
+            "fields": [
+              "str",
+              "agi",
+              "con"
+            ],
+            "columns": [],
+            "total": "-5",
+            "when": "background == \"人造人\""
+          }
+        ],
         "damage_taken": "",
         "stealth": "",
         "search": "1d20 + per",
@@ -761,7 +838,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "true_name",
@@ -777,7 +855,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "legend",
@@ -793,7 +872,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "weapons",
@@ -809,7 +889,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "weakness",
@@ -825,7 +906,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "manner",
@@ -841,7 +923,8 @@
             "required": false,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "can_fly",
@@ -857,7 +940,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "hp",
@@ -872,8 +956,9 @@
             "choices": [],
             "required": true,
             "hidden": false,
-            "per_minute": "hp_max * 0.05 * lookup(class_heal, klass) - hp_drain",
-            "vital": true
+            "per_minute": "(0 if hp_regen_blocked > 0 else hp_max * 0.05 * lookup(class_heal, klass)) - hp_drain",
+            "vital": true,
+            "gain_blocked": "hp_heal_blocked > 0"
           },
           {
             "name": "mp",
@@ -888,8 +973,9 @@
             "choices": [],
             "required": true,
             "hidden": false,
-            "per_minute": "-(2 + 4 * count(klass_skill.level, 10) + 2 * count(klass_skill.level, 5) + count(klass_skill.level, 4) + 4 * count(personal_skill.level, 10) + 2 * count(personal_skill.level, 5) + count(personal_skill.level, 4) + toggled(\"noble_phantasm\") + servant.madness.level) / 1440 + (servant.territory.level if inside(\"阵地作成\") else 0) - mp_drain",
-            "vital": true
+            "per_minute": "-(2 + 4 * count(klass_skill.level, 10) + 2 * count(klass_skill.level, 5) + count(klass_skill.level, 4) + 4 * count(personal_skill.level, 10) + 2 * count(personal_skill.level, 5) + count(personal_skill.level, 4) + toggled(\"noble_phantasm\") + servant.madness.level) / 1440 + (0 if mp_regen_blocked > 0 else servant.territory.level if inside(\"阵地作成\") else 0) - mp_drain",
+            "vital": true,
+            "gain_blocked": "mp_heal_blocked > 0"
           },
           {
             "name": "shield",
@@ -905,7 +991,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "klass",
@@ -929,7 +1016,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "str",
@@ -952,7 +1040,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "agi",
@@ -975,7 +1064,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "con",
@@ -998,7 +1088,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "int",
@@ -1021,7 +1112,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "luk",
@@ -1044,7 +1136,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "np",
@@ -1067,7 +1160,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "str_plus",
@@ -1088,7 +1182,8 @@
             "required": false,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "agi_plus",
@@ -1109,7 +1204,8 @@
             "required": false,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "con_plus",
@@ -1130,7 +1226,8 @@
             "required": false,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "int_plus",
@@ -1151,7 +1248,8 @@
             "required": false,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "luk_plus",
@@ -1172,7 +1270,8 @@
             "required": false,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "spirit_form",
@@ -1188,7 +1287,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "riding",
@@ -1204,7 +1304,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "masterless",
@@ -1220,7 +1321,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "remaining",
@@ -1236,7 +1338,8 @@
             "required": true,
             "hidden": false,
             "per_minute": "-1 if masterless else 0",
-            "vital": true
+            "vital": true,
+            "gain_blocked": null
           },
           {
             "name": "kills",
@@ -1252,7 +1355,8 @@
             "required": true,
             "hidden": true,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           }
         ],
         "groups": [
@@ -1422,7 +1526,8 @@
                 "required": true,
                 "hidden": false,
                 "per_minute": null,
-                "vital": false
+                "vital": false,
+                "gain_blocked": null
               },
               {
                 "name": "plus",
@@ -1443,7 +1548,8 @@
                 "required": false,
                 "hidden": false,
                 "per_minute": null,
-                "vital": false
+                "vital": false,
+                "gain_blocked": null
               }
             ],
             "presets": [
@@ -1601,7 +1707,8 @@
                 "required": true,
                 "hidden": false,
                 "per_minute": null,
-                "vital": false
+                "vital": false,
+                "gain_blocked": null
               },
               {
                 "name": "plus",
@@ -1622,7 +1729,8 @@
                 "required": false,
                 "hidden": false,
                 "per_minute": null,
-                "vital": false
+                "vital": false,
+                "gain_blocked": null
               }
             ],
             "presets": [],
@@ -1834,7 +1942,8 @@
                 "required": true,
                 "hidden": false,
                 "per_minute": null,
-                "vital": false
+                "vital": false,
+                "gain_blocked": null
               },
               {
                 "name": "np_type",
@@ -1855,7 +1964,8 @@
                 "required": true,
                 "hidden": false,
                 "per_minute": null,
-                "vital": false
+                "vital": false,
+                "gain_blocked": null
               },
               {
                 "name": "plus",
@@ -1876,7 +1986,8 @@
                 "required": false,
                 "hidden": false,
                 "per_minute": null,
-                "vital": false
+                "vital": false,
+                "gain_blocked": null
               }
             ],
             "presets": [],
@@ -2124,6 +2235,34 @@
             "hidden": true
           },
           {
+            "name": "hp_regen_blocked",
+            "label": "禁止自然回复生命",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
+            "name": "mp_regen_blocked",
+            "label": "禁止自然回复魔力",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
+            "name": "hp_heal_blocked",
+            "label": "禁止治疗生命",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
+            "name": "mp_heal_blocked",
+            "label": "禁止补充魔力",
+            "formula": "0",
+            "unit": null,
+            "hidden": true
+          },
+          {
             "name": "melee_mult",
             "label": "近战伤害倍数",
             "formula": "1",
@@ -2159,6 +2298,27 @@
             "hidden": false
           }
         ],
+        "budgets": [
+          {
+            "name": "plus",
+            "label": "＋",
+            "description": "属性、技能和宝具上的“＋”合计最多 3 个。[[＋]]",
+            "fields": [
+              "str_plus",
+              "agi_plus",
+              "con_plus",
+              "int_plus",
+              "luk_plus"
+            ],
+            "columns": [
+              "klass_skill.plus",
+              "personal_skill.plus",
+              "noble_phantasm.plus"
+            ],
+            "total": "3",
+            "when": ""
+          }
+        ],
         "damage_taken": "0 if kind == \"mundane\" or (spirit_form and kind != \"magic\" and kind != \"mystic\") else max(0, amount - 5 * servant.anti_magic.level) if kind == \"magic\" else amount",
         "stealth": "max(\n    (10 + min(servant.presence_concealment.level, 6) * ceil(max(distance, 1) / 40) if distance <= 200 else 999) if servant.presence_concealment.level > 0 else 0,\n    999 if spirit_form and observer.template == \"master\" and observer.muggle else 0,\n)",
         "search": "1d20 + int + agi",
@@ -2186,7 +2346,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "can_fly",
@@ -2202,7 +2363,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "per",
@@ -2218,7 +2380,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "hp",
@@ -2234,7 +2397,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": true
+            "vital": true,
+            "gain_blocked": null
           }
         ],
         "groups": [
@@ -2333,6 +2497,7 @@
             "hidden": false
           }
         ],
+        "budgets": [],
         "damage_taken": "",
         "stealth": "",
         "search": "1d20 + per",
@@ -2360,7 +2525,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "can_fly",
@@ -2376,7 +2542,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "rank",
@@ -2399,7 +2566,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "size",
@@ -2415,7 +2583,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           },
           {
             "name": "hp",
@@ -2431,7 +2600,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": true
+            "vital": true,
+            "gain_blocked": null
           },
           {
             "name": "shield",
@@ -2447,7 +2617,8 @@
             "required": true,
             "hidden": false,
             "per_minute": null,
-            "vital": false
+            "vital": false,
+            "gain_blocked": null
           }
         ],
         "groups": [
@@ -2637,6 +2808,7 @@
             "hidden": false
           }
         ],
+        "budgets": [],
         "damage_taken": "0 if kind == \"mundane\" else amount",
         "stealth": "",
         "search": "1d20 + rank",
@@ -3125,7 +3297,7 @@
       }
     ],
     "rules_text": "引擎已经执行的规则（检定、对抗、伤害、神秘、魔力、隐匿、令咒、召唤、阵地、死亡）不用 KP 再算。下面这些由 KP 按型月的设定处理：\n\n1. 情报：陌生人的名字、身份、职阶、能力都要从蛛丝马迹里拼出来，玩家左右不了。引擎自动处理两件事：\n   御主看见英灵时得知它的职阶和六项参数（“看见就知道”的“御主的透视”）；宝具解放真名时，看得见的人得知宝具的名字和英灵的真名。\n   其余的由 KP 在裁定的 intel 里给线索：武器的样子、战斗风格、口音和言行、技能和宝具的效果，都可能让人联想到某个传说（英灵卡上的出处与生平、武器与战法、弱点、性格与言行写了它是谁）。\n   观察者的学识决定他能认出多少：魔术师、代行者、英灵认得出的东西，普通人未必。一次只多给一点，别人已经知道的不重复；\n   对方亲口承认、被查到铁证时，才直接给出 true_name 这类字段。英灵通常对外自称职阶，但不是非报不可。\n2. 神秘的隐匿：魔术和英灵的存在要对普通人保密；在普通人面前大打出手、留下痕迹会招来监督者和其他御主的注意。\n3. 通讯：御主和英灵之间可以用念话交流，不受距离限制。任何一方进入战斗，另一方没有别的观测手段时，视作双方共感、同时进入战斗状态。战斗中不准和队友交流。\n4. 令咒的“绝对命令”：命令越具体越有效（“立刻撤退”比“永远服从我”强）；也可以让英灵做到平时做不到的一件事（例如瞬间跨越很远的距离、在必死的一击下活下来）。\n   令咒用完以后，英灵不必再服从御主；英灵可能因此背叛。\n5. 宝具和保有技能：玩家可以自己设计，须经过 KP 审核。用法里写成“任意规则”的（只有说明、没有设置和脚本），由 KP 按说明裁定效果；\n   宝具特效需要对抗魔力或幸运时，技能设置写 save = \"magic_save\" 或 \"luck_save\"，difficulty 写 10 + 宝具等级。其他特效依照 Fate 原作的宝具效果比对。\n6. 结界宝具（例如固有结界）：结界里发生什么按宝具的说明裁定；引擎负责范围、持续时间和进出的通知。\n7. 狂化：等级越高越难沟通，C 以上几乎不能说话；狂化的英灵用技能和宝具时，复杂的用法由 KP 判断能不能做到。\n8. 暗示、强化、瞬间移动、道具作成等写成“任意规则”的魔术，叙事效果由 KP 裁定；写在设置和脚本里的消耗照常扣。",
-    "handbook": "# 圣杯战争规则书\n\n以 Fate 系列的圣杯战争为基础的跑团规则。设定以型月原作为准；规则只是工具，RP 和合理优先，不求平衡。\n\n这一页就是规则书：建卡页上的说明里写着“见规则书”的地方，点开就是这里对应的一节。\n\n## 建卡\n\n每个玩家建两张卡：一张**御主**（Master），一张**英灵**（Servant）。\n\n1. 想好御主是谁：出身、来历、为什么卷进这场战争。出身决定你会不会魔术、魔力有多少，见[[出身]]。\n2. 分配御主的属性点，见[[属性点]]。\n3. 想好英灵是谁：出自哪个传说或历史，按他的事迹定参数，见[[英灵参数]]。\n4. 选职阶（同一局里每个职阶只有一骑），填职阶技能的等级，见[[职阶]]和[[职阶技能]]。\n5. 写保有技能和宝具，见[[保有技能]]和[[宝具]]。\n6. 提交以后 KP 会审卡：不合理的地方会打回来，按意见改了再交。\n\n写不成规则的东西（特殊的技能、宝具的奇怪效果）就只写说明，由 KP 读了以后裁定。\n\n# 御主\n\n## 属性点\n\n御主有六项属性：\n\n| 属性 | 管什么 |\n|---|---|\n| 力量 | 运动能力、近战格斗能力、力气 |\n| 敏捷 | 身体灵活性、回避攻击、远程射击、隐藏、小技巧 |\n| 体质 | 身体健康程度，直接决定生命值和对毒素等的耐受 |\n| 智力 | 记忆力、推理分析，以及有明确技法传承的魔术（符文、魔术道具） |\n| 感知 | 感官的敏锐度、对幻术的耐受，以及借助地脉或神灵力量的魔术 |\n| 魅力 | 影响他人的能力，以及血缘性的魔术、各种超能力 |\n\n- 六项属性起始都是 0，你有 **10 点自由属性点**可以分配。\n- 每项属性一般在 **-2 ～ 5** 之间；把某项降到 0 以下，可以换回同样多的自由点数。\n- 按出身调整（例如普通人的补偿点数、人造人的牺牲）之后，可以到 **-4 ～ 6**，由 KP 审核。\n- 请注意角色扮演要符合自己的身份。\n\n## 出身\n\n出身决定你在型月世界里是什么人、会不会魔术、魔力有多少（“魔力倍数”）。角色卡上选出身，再在下表的范围里填魔力倍数（不填按范围的下限算），由 KP 审核。\n\n| 出身 | 在型月世界里是什么人 | 魔力倍数 | 代价和特点 |\n|---|---|---|---|\n| 普通人 | 没有魔术回路、和神秘毫无关系的人：学生、上班族、警察、黑道……偶然被圣杯选中，手上出现了令咒。 | — | 没有魔力（魔力值为 0），不会魔术。作为补偿多 2～4 点自由属性，英灵的幸运提升一级。给英灵补魔要靠特殊的办法（见[[补魔]]）。 |\n| 魔术师 | 正统的魔术师：魔术协会（时钟塔）或古老世家出身，继承家族的魔术刻印，毕生追求“根源”。把神秘视为必须隐匿的东西，看不起科学技术和普通人，有魔术师的自尊与傲慢。例：远坂家、埃尔梅罗一门。 | 3～4 | 精通自己学派的魔术和常用魔术；轻视枪械等物理兵器。 |\n| 人造人 | 用炼金术造出的人工生命（Homunculus），例如爱因兹贝伦家为圣杯战争造的人造人。身上的魔术回路远多于常人，但身体脆弱、寿命短，性格常有明显的异常。不限于现有的家族。 | 20～30 | 体质、力量、敏捷合计要牺牲 5 点以上，最终每项都不大于 1；只会炼金术相关的魔术；智力、感知、魅力至少一项额外 +1。 |\n| 魔术使 | 把魔术当成工具用的人，不追求根源，也不讲魔术师的体面：混用现代武器和魔术，用一切手段达成目的。例：“魔术师杀手”卫宫切嗣。 | 2～3 | 熟悉一套实用的魔术和普通人的生存方法，性格偏向冷酷、阴险。 |\n| 代行者 | 圣堂教会的战斗人员，专门猎杀死徒和异端。用黑键、洗礼咏唱等教会的秘迹和武具战斗，常常是疯子一样的狂信者。 | 1～30（一般 1～3） | 想好自己的性格和战斗方式，设计具体的招式，再按强度调整属性点、魔力倍数和特质，由 KP 审核。 |\n| 其他 | 你想得出来的任何存在：混血、超能力者、退魔一族、死徒……合理即可。 | 1～30 | 写清楚是什么、会什么，由 KP 审核。 |\n\n普通人以外的出身都会[[御主的魔术]]里列出的魔术。\n\n## 御主的数值\n\n确定属性点以后，下面这些由系统自动算：\n\n- 生命值 = 30 + 体质 × 4；每分钟自然回复 0.1 + 体质 ÷ 20。\n- 魔力值 = (10 + (智力和感知中较高的一项 + 魅力) × 2) × 魔力倍数；普通人为 0。每分钟回复 0.1 + 魔术能力 ÷ 20（每小时 6 + 3 × 魔术能力），在自己的[[据点]]里是平时的 3 倍。\n- 魔术能力 = 智力、感知、魅力中最高的一项（普通人为 0），用来算魔术的效果。\n- 移动速度 = 80 + 敏捷 × 10 米/分钟；感知半径 = 50 + 感知 × 10 米；听力范围 = 10 + 感知 × 4 米。\n- 能不能飞写在角色卡上；能飞的角色飞行速度等于移动速度。\n\n## 武器\n\n御主的近战伤害 = 1d(力量)（力量大于 0 时）+ 1d(武器伤害骰)。近战攻击的射程是 3 米，对方可以反击或闪避（见[[对抗]]）。\n\n角色卡上的“武器伤害骰”填武器的伤害骰面数，空手填 0。参考：\n\n| 武器 | 伤害骰 | 说明 |\n|---|---|---|\n| 空手、拳脚 | 0 | 只有力量的伤害 |\n| 小刀、匕首、指虎 | 4 | 好藏，随身带着没人注意 |\n| 警棍、铁棍、球棒 | 6 | 普通人也找得到 |\n| 短剑、斧头、开山刀、黑键 | 6 | 藏在衣服里勉强可以 |\n| 日本刀、长剑、长枪 | 8 | 很显眼，带着走在街上会被注意 |\n| 大剑、双手斧、长柄武器 | 10 | 几乎没法藏，在室内也施展不开 |\n| 超大型武器 | 12 | 只适合不在乎被人看见的角色 |\n\n伤害骰不是越高越好：武器越大越显眼，违反“神秘的隐匿”会招来监督者和其他御主的注意（见[[神秘]]），在室内、人群里也施展不开。请考虑和御主战斗风格的相性。\n\n“武器伤害骰”只管拿武器（或礼装）砸人、砍人的物理伤害。礼装的特殊能力（例如扇子扇出风刃、展开结界）不算在这里，写在“魔术”一栏里，按魔术算。\n\n**普通的武器伤不到英灵**。武器是魔术礼装（附了魔的武器、教会的黑键、魔术师的礼装）时才可以：在角色卡上勾选“武器是魔术礼装”，由 KP 审核。这时近战这一下是“带神秘的物理伤害”：伤得到英灵，灵体化的也碰得到，不被对魔力减免（对魔力挡的是魔术）。\n\n枪械等远程武器：初版没有御主的远程攻击规则，由 KP 裁定。\n\n## 御主的魔术\n\n普通人以外的御主都会下面这些魔术，效果以这里为准；被沉默时不能用魔术。“投入 X 点魔力”是使用时说的。\n\n1. **攻击魔术**：对 100 米内、看得见的一个目标，每投入满 5 点魔力打出一颗 1d(4 + 魔术能力) 的魔力伤害（至少一颗），没有上限，只受自己的魔力限制。100 米内能听到动静；对方可以闪避；魔力伤害会被对魔力减免。\n2. **治疗魔术**：恢复 100 米内、看得见的一个单位的生命值，每 1 点魔力恢复 2 + 魔术能力 ÷ 2（向下取整）点，瞬间完成，10 米内能听到动静。\n3. **防护魔术**：为 100 米内、看得见的一个单位制造防护罩，每 1 点魔力给 5 + 魔术能力 ÷ 2（向下取整）点护盾，护盾持续的分钟数等于投入的魔力。受伤时先扣护盾再扣生命值。\n4. **警戒结界**：在自己所在的位置布置一个看不见的结界，投入 X 点魔力时半径 (50 + 魔术能力) × X 米、持续 10 × X 分钟。任何实体闯入时你会知道。\n5. **补魔魔术**：把自己的魔力分给 10 米内、看得见的一个单位，没有视觉效果也没有动静。每 1 点魔力让英灵恢复 2 点，其他人恢复 1 点。\n6. **暗示**：对一个普通人下达命令，做魅力检定，成功就生效；危险或复杂的命令由 KP 判定对方会不会执行。\n7. **使魔**：每 1 点魔力放出一只小型使魔（鸟、猫、虫……），最多 3 + 魔术能力 只，存在一天。使魔由你控制，和你共享知觉，会飞，只有 1 点生命值，攻击它的难度 +5。\n8. **强化**：强化一件物品或自己的身体，变得更坚固、更锋利、更快。效果按投入的魔力由 KP 裁定。\n\n出身相关的特殊魔术（炼金术、教会的秘迹……）自己写在“魔术”一栏里，由 KP 审核。\n\n## 令咒\n\n每个御主手上有三划令咒，每用一次消去一划。用法有四种：\n\n- **绝对命令**：英灵必须服从的一道命令。命令越具体越有效（“立刻撤退”比“永远服从我”强）；也可以让英灵做到平时做不到的一件事，例如瞬间跨越很远的距离、在必死的一击下活下来。效果由 KP 裁定。\n- **空间转移**：无视距离，把英灵瞬间召到身边。\n- **魔力灌注**：英灵的魔力补满。\n- **自害**：命令英灵自尽。\n- **令咒加强**：英灵用技能或宝具时，御主用一划令咒大幅加强这一次：效果 ×3（用在被动的技能上时，10 分钟内技能的等级 ×3）。见[[参数]]。\n\n令咒用完之后，英灵不必再服从御主，可能因此背叛。令咒也可能通过剧情得到补充（由 KP 裁定）。和失去御主的英灵缔结契约也要至少一划令咒（见[[失去御主]]）。\n\n## 据点\n\n御主可以花一小时，把自己所在的整栋建筑设为据点（魔术师叫它“工房”）。有人闯入时你会知道；在据点里，魔力回复是平时的 3 倍。\n\n# 英灵\n\n## 英灵的构成\n\n- **六项参数**：筋力、耐久、敏捷、魔力、幸运、宝具，各有 E～A、EX 的等级，见[[英灵参数]]。\n- **真名和来历**：英灵对外只以职阶相称，真名只写在角色卡上。英灵是谁分几栏写：出处与生平、武器与战法、弱点，以及（可不填的）性格与言行。这些只有你和 KP 看得到；KP 据此判断别人能从你的样子、战斗方式和言行里认出什么（见[[情报]]）。\n- **职阶技能**：对魔力、骑乘、阵地作成……按职阶出现，见[[职阶技能]]。\n- **保有技能**：英灵本人的技能，例如直感、战斗续行、避矢的加护、卢恩魔术，见[[保有技能]]。\n- **宝具**：英灵传说的结晶，见[[宝具]]。\n\n## 英灵参数\n\n参数的等级 E～A 分别是 1～5，EX 是 10，请务必慎重考虑 EX。根据英灵的事迹定各项参数：\n\n- **筋力**：曾出入战场拼杀的为 C；在战场上勇猛过人、一骑当千的为 B；有关于怪力的具体传说的能到 A（项羽举鼎、赫拉克勒斯托天），反之亦然。决定近战攻击和近战物理伤害。\n- **敏捷**：曾出入战场拼杀的为 C；勇猛过人的为 B；有关于惊人身法的具体传说的能到 A（威廉·退尔射苹果、源义经八艘飞跃），反之亦然。决定速度、远程物理伤害、闪避。\n- **耐久**：曾出入战场拼杀的为 C；有身负重伤依然力战的经历为 B；身负致命伤仍坚持战斗、或经历过高强度的磨练而胜利的能到 A。决定生命值。\n- **魔力**：基本为 D；富有智谋或天命可升为 C；研习过法术或熟读兵法为 B；有使用法术的著名传说的能到 A。决定魔力值、魔力豁免。\n- **幸运**：基本为 C。善终、一生无败、心愿达成、避过高风险，每一条升一级；凶死、被背叛、壮志未酬、因命运犯下后悔之事、被诅咒，每一条降一级。用于一切由天意决定的事：幸运豁免、发动“+”、失去御主后还能存在多久。\n- **宝具**：没有具体标准。参考：越古老越强；和神魔等超人类存在越有关越强；越为人所熟知、赞颂越强。\n\n> 当然完全不管上面这些也可以！毕竟 Extra 可以随便给从者加点，所以怎么都好！用爱加点也可以！但是请自重！\n\n## 职阶\n\n初版只有经典七骑。同一局里每个职阶只有一骑。\n\n| 职阶 | 近战伤害骰 | 每级耐久的生命值 | 速度系数 | 生命恢复系数 | 职阶技能 |\n|---|---|---|---|---|---|\n| Saber | 10 | 16 | 6 | 1 | 对魔力（参考 +3 级）、骑乘（+1 级） |\n| Archer | 8 | 14 | 8 | 1 | 对魔力（+1 级）、单独行动 |\n| Lancer | 10 | 14 | 7 | 1.1 | 对魔力（+2 级） |\n| Rider | 10 | 14 | 9 | 1 | 对魔力（+1 级）、骑乘（+3 级） |\n| Caster | 4 | 10 | 5 | 1.2 | 阵地作成、道具作成、英灵魔术 |\n| Assassin | 6 | 12 | 8 | 0.9 | 气息遮蔽 |\n| Berserker | 12 | 18 | 6 | 1.3 | 狂化 |\n\n由此算出：\n\n- 近战伤害 = (筋力)d(近战伤害骰)，射程 3 米，30 米内能听到动静。Assassin 用敏捷代替筋力；对方没发现 Assassin 时伤害骰变成 d12。\n- 生命值 = 耐久 × 每级生命值；每分钟恢复生命值上限的 5% × 生命恢复系数。\n- 魔力值 = 魔力 × 30。\n- 速度 = (3 + 速度系数) × 敏捷 米/秒。例：敏捷 A 的 Lancer 是 50 米/秒，敏捷 B 的 Saber 是 36 米/秒，敏捷 EX 的 Rider 是 120 米/秒。灵体化时速度 +30%；骑乘时 + 骑乘等级 × 5 米/秒；能飞的英灵飞行速度是移动速度的 4 倍。\n- 远程攻击：敏捷 + 1d(近战伤害骰)，射程 1000 米，10 米内能听到动静；距离每增加 500 米难度 +1。Archer 的远程伤害是 (敏捷)d8。Caster 没有普通远程攻击，改用魔术攻击：(魔力)d4 的魔力伤害。\n- 听力范围 = (10 + 敏捷 × 4) × 3 米；感知半径 = 150 + 30 × (敏捷和魔力中较高的一项) 米。\n\n**灵体化**：随时可以开关，不耗魔力。灵体化时普通人看不见你，你也不能攻击，不能骑乘；物理攻击碰不到你，只有魔力伤害有效。\n\n## 职阶技能\n\n职阶技能的等级在建卡时自己填，参考上表的“上升几级”。\n\n- **对魔力**（Saber、Archer、Lancer、Rider）：受到魔力伤害（魔术、魔术攻击）时，无视其中 5/10/15/20/25 点（E～A），EX 为 50 点。宝具伤害一般不算魔力伤害，除非这个宝具本身是魔术。\n- **骑乘**（Saber、Rider）：骑上或跳下坐骑。骑乘时速度 + 骑乘等级 × 5 米/秒，骑上时按技能等级消耗魔力；灵体化时不能骑乘。B 以下的骑乘无需表述。\n  - 会飞的坐骑（天马、飞龙……）：不勾卡上的“飞行能力”，在“骑乘”那一行点“修改”，在常驻加成里加上骑上时才能飞：\n\n    ```\n    if self.riding == 1:\n        self.can_fly = 1\n    ```\n\n    跳下坐骑就落地。飞行速度照样是移动速度（含骑乘加速）的 4 倍。\n- **单独行动**（Archer）：没有御主也能存在 1/3/6/10/15 天（E～A），EX 为 30 天。等级为耐久和魔力中较高的一项。\n- **气息遮蔽**（Assassin）：见[[隐匿与侦查]]。等级参考敏捷。\n- **阵地作成**（Caster）：花一天布置阵地，用的时候选“形式”：以自己为中心、半径 125 米的圆，或者把自己所在的整栋建筑（不论多大）做成阵地。有人闯入时你会知道；在阵地里每分钟额外恢复 1/2/3/4/5 点魔力。等级等于魔力，有布置阵法的事迹再 +1 级。\n- **道具作成**（Caster）：花一小时和技能等级的魔力做一件魔术道具，做出什么由 KP 裁定。\n- **狂化**（Berserker）：以理性为代价提升能力，等级由御主决定：\n  - E：筋力 +1 级，幸运、魔力 -1 级。\n  - D：筋力、耐久 +1 级，魔力 -1 级。\n  - C：筋力、耐久、敏捷 +1 级。\n  - B：筋力、耐久、敏捷、魔力 +1 级。\n  - A：筋力 +2 级，耐久、敏捷、魔力 +1 级。\n  - 等级越高越难沟通，C 以上几乎不能说话；每天的魔力消耗多出狂化等级点。\n\n## 英灵魔术\n\nCaster 会下面这些魔术（其他职阶有施法的传说时，写成保有技能，由 KP 审核）：\n\n- **魔术攻击**：(魔力)d4 的魔力伤害，射程 1000 米。\n- **咏唱攻击魔术**：每 3 点魔力咏唱一小节，造成 1d4 魔力伤害，最多 15 小节。咏唱有破绽，靠近你的人可以借机攻击。\n- **治疗**：恢复 25 米内一个单位的生命值，1 点魔力恢复 10 点。\n- **防护魔术**：为 25 米内一个单位制造防护罩，每 1 点魔力 10 点护盾，最多持续 3 小时。\n- **暗示**：对普通人下达的命令必定被执行；对魔术师要做魔力检定，危险或复杂的命令由 KP 判定难度。\n- **警戒结界**：花 3 分钟布置半径 250 米的结界，有人闯入时你会知道。\n- **使魔**：花 5 点魔力放出 10 只使魔，和你共享知觉，能瞬间移动，只有 1 点生命值，攻击它的难度 +5，存在一天。\n- **傀儡兵**：叫出一队傀儡兵，每个兵 5 点魔力，最多 5 × 魔力 个；全部能力等于魔力 - 2 级。一队算一个角色，由你指挥：生命值是每个兵 等级 × 10，打掉的折算成减员；伤害是 等级d6 + 剩下的人数；存在一天。\n- **飞行**：飞在空中，每 5 点魔力飞 1 分钟。\n- **瞬间移动**：花一个动作瞬间出现在别处，每 1 点魔力移动 5 米，由 KP 裁定。\n- **强化**：把一件物品升级为宝具，等级为魔力 - 1 级，效果由 KP 裁定。\n\n## 保有技能\n\n保有技能自己随便脑洞，不限于下面这些；效果按 E～A 的顺序。写不成规则的效果只写说明，由 KP 裁定。\n\n- **直感**：只要你神智清醒，对你的一切攻击，命中 -1/2/3/4/5。\n- **心眼（真/伪）**：遭到攻击时，你可以掷 1d20 -2/-1/+0/+1/+2，比攻击方的点数大就回避了这次攻击。\n- **统御力**：你视线内、能感受到你存在的友军，攻击和伤害 +1/2/3/4/5。\n- **投掷**：用投掷武器远程攻击时，命中 +1～+5，伤害每级 +1d6。\n- **避矢的加护**：对你的远程攻击命中 -1～-5。\n- **千里眼**：你的远程攻击命中 +1～+5，无视 500/1000/1500/2000/2500 米内的距离修正。\n- **战斗续行**：生命值降到 0/10/20/30/40 时仍能持续战斗 1～5 回合；之后生命值没有回到 1 以上就死亡。\n- **施法**：可以使用符合英灵设定的任何魔术，参考[[英灵魔术]]。\n\n**光环**：一直生效、只对身边的人起作用的技能（例如统御力、威压），在技能的“怎么用”里写 `aura = sphere(radius=米)` 和 `affects = \"allies\"`（友军，包括自己，见[[结盟]]）、`\"other_allies\"`（除了自己的友军）或 `\"enemies\"`（只对敌人），再在“常驻加成”里写加成，例如 `self.str = self.str + 2`。加成里的 `self.` 是圈里的每个人自己，例如 `self.str = self.str + (2 if self.template == \"master\" else 1)` 是御主 +2、英灵 +1；`this.` 是你这一条的列（例如等级）。圈里符合条件的人（包括你自己）一直带着这个加成，每轮按位置重算：进圈就有，出圈就没。再加一行 `guard = True` 就是**守护**：敌人对圈里的人用技能（包括范围技能）时，对象换成你。宝具的开关用途上也能写光环：开着的时候才有，例如张开城墙保护身边的同伴；只写 `# 说明` 的效果由 KP 理解，圈里的人身上会挂着这条说明。\n\n## 宝具\n\n宝具是英灵传说的结晶。请想想它属于哪一类：\n\n- **常驻宝具**：一直生效，例如十二试炼。\n- **可以开关的增益/减益**：例如风王结界的隐藏效果、自我封印·暗黑神殿。\n- **强力的范围效果、结界**：例如固有结界、鲜血神殿。\n- **召唤物**：例如骑英之缰绳。\n- **光炮**：解放真名的大招，见[[宝具伤害]]。\n- **任意规则**：不能写成规则的效果写成说明，由 KP 读了以后裁定。\n\n宝具在角色卡上是一件“东西”：有自己的等级、类型（对人、对军、对城、对界），本身不能直接用，只能用它的几种用法，例如同一把剑：平时当武器用、开关风之结界、解放真名放出光炮。每种用法可以从模板里挑（当作武器、真名解放·对人/对军/对城/对界、开关、召唤、结界、特殊效果），也可以只写说明由 KP 裁定。用的时候可以选“解放真名”“用＋”“令咒加强”这些参数（见[[参数]]）。\n\n**开关**：可以开关的宝具（例如风王结界、自我封印·暗黑神殿）加一个“开关”用法，设定一开始开着还是关着；开着的时候生效的效果写在这个用法里（例如“筋力 +1”）。每用一次切换开/关，打开时按宝具等级耗魔，开着的宝具每天多耗 1 点魔力。\n\n**解放真名**：宝具平时当武器用不会暴露名字；解放真名时，附近的人会听到宝具的名字，看得见你的人会因此知道你的真名（见[[情报]]）。\n\n**哪个用法是解放真名**：写在用法的“怎么用”里。`release = 1` 是这个用法一定解放真名：每次用都按宝具等级 × 类型倍数扣魔力，喊出宝具的名字；`release = 0` 是一定不解放（例如“当作武器”）。没写的，用的时候自己在行动里说解不解放。模板里的“真名解放·×××”“召唤”“结界”已经写了 `release = 1`，“当作武器”“开关”写了 `release = 0`。\n\n可以开关的用法只在**打开**时算解放（扣魔力、喊出名字），关上时不算。例如一个解放真名才能展开的城墙：开关用法的“怎么用”里写 `release = 1`，打开时扣解放的魔力，关上不扣。\n\n## 宝具伤害\n\n宝具和固有技能可以自行设计，但须经过 KP 审核。\n\n- 解放真名的爆发性宝具伤害约为：E 3d6+1，D 3d10+3，C 4d10+5，B 5d10+7，A 5d12+9，EX 6d12+15。\n- 对方只能闪避，不能反击。100 米内，对人、对军默认极难成功，对城、对界默认困难成功；更远时反过来。\n- 消耗魔力 = 技能消耗（按宝具等级，E～EX 为 1/2/3/4/5/8）× 类型倍数（对人 1、对军 3、对城 5、对界 10）。\n- 对军以上的宝具打到范围里的每个人：对军是 200 米长、20 米宽的一条，对城是 1 公里长、80 米宽，对界是半径 500 米。范围里的人各自闪避；使用者身后的人不受波及。\n- 宝具的特效需要对抗魔力或幸运时：按宝具等级有一个豁免难度 10 + 1/2/3/4/5（EX 为 20）；对抗的人掷 1d20 加魔力或幸运的修正（E～A 为 -4/-2/0/+2/+4，EX +8），高于难度就豁免成功。御主对抗时加智力，幸运豁免不加修正。\n- 其他特效依照 Fate 原作的宝具效果比对。\n- 常驻的伤害加成（例如带着这件宝具，近战伤害一直翻倍）：在宝具的“常驻加成”里改伤害倍数，`self.melee_mult *= 2`（近战）、`self.ranged_mult *= 2`（远程）、`self.magic_mult *= 2`（魔术）。所有攻击技能的伤害都乘上它们；解放真名的宝具伤害不受影响。\n\n## ＋\n\n- 建卡时可以给任意属性、技能和宝具选择“+”的个数（+、++、+++）。**推荐每个英灵合计不超过 3 个**，自由分配到宝具、技能或属性上；A 级的最多到 ++，没有 A+++。系统暂时不检查，由 KP 审核。分配和使用“+”不增加魔力消耗。\n- 每天一次，可以让效果提升：+ 是 ×1.5，++ 是 ×2，+++ 是 ×2.5。由幸运决定能不能发动成功。\n- 技能和宝具的“+”是使用时的参数“用＋”（见[[参数]]）：\n  - 主动技能、宝具的用法：这一次的效果放大（伤害、治疗、护盾……）；\n  - 被动技能（对魔力、狂化这种没有主动效果的）：“用一下”并选“用＋”，接下来 10 分钟里技能的等级放大。\n- 属性的“+”是单独的动作“发动＋：属性”：10 分钟内这项属性放大，最多到 9。\n\n## 参数\n\n用技能、宝具的时候，可以选几个“参数”，在行动里说就行，例如“解放真名，用令咒加强”。也可以在条目或用法的“怎么用”里写定：`参数名 = 值`（例如 `release = 1`），这样用的时候就不用选，一定是这个值。规则包定好的参数：\n\n| 参数 | 能用在 | 效果 |\n|---|---|---|\n| 解放真名 | 宝具 | 解放真名才能用宝具的全力（光炮、召唤、结界）；附近的人会听到宝具的名字，看得见你的人会知道你的真名。用法里写定了（`release = 1` / `0`）的不用选 |\n| 用＋ | 职阶技能、保有技能、宝具 | 每天一次，掷幸运：效果 ×(1 + 0.5 × ＋的个数)；被动技能 10 分钟内等级这样放大 |\n| 令咒加强 | 英灵的技能、魔术、宝具 | 御主消去一划令咒：效果 ×3；被动技能 10 分钟内等级 ×3 |\n| 投入魔力 | 魔术 | 这次投入多少魔力 |\n\n“效果放大”是引擎自动做的：这一次的伤害、治疗、护盾、增加的数值乘上倍数，消耗不乘；几个参数一起选时倍数相乘。\n\n你也可以给自己的技能、宝具（或宝具的某个用途）加参数，例如“燃烧寿命：用了扣 10 点生命，效果 ×2”。参数可以有：能选的条件、要过的检定、冷却、扣什么、效果倍数，或者只写说明，由 KP 裁定。\n\n# 行动与战斗\n\n## 检定\n\n主动做一件可能失败的事时，掷 1d20 加上相应的修正（属性），结果大于 10 就成功：大于 15 是困难成功，大于 20 是极难成功。初版不使用大成功、大失败。\n\n- 难度加在需要的点数上：例如难度 1 时，结果要大于 11 才算成功。\n- 攻击使魔时难度 +5。\n- 主动的一方掷骰：发动攻击、搜索、说服的一方。\n\n比如：感知 2 的土狼想在一堆破烂里找到剑鞘，掷 1d20 得 6，加上感知 2 是 8，于是他可耻地失败了。\n\n## 对抗\n\n双方意图相反时比较成功等级。攻击方声明攻击，防御方声明应对：一般是**反击**或**闪避**。\n\n- 英灵在力量、速度、魔力上有巨大优势：英灵对人类的攻击和魔术对抗默认至少困难成功；召唤出的军势（傀儡兵、宝具召唤的军势）同样。\n- 解放真名的宝具只能闪避，见[[宝具伤害]]。\n\n**近战攻击，对方反击**：攻击方同时掷筋力和敏捷、取成功等级高的；反击方掷筋力。成功等级高的一方伤到对方、自己不受伤；平手时攻击方命中，但只造成一半伤害；双方都失败则无事发生。\n\n**近战攻击，对方闪避**：攻击方同时掷筋力和敏捷、取高的；闪避方掷敏捷。攻击方等级高就命中；闪避方等级高或者平手就躲开了；双方都失败则无事发生。\n\n没有发现攻击者（看不见、被隐匿）的一方不能反击或闪避，只能硬吃这次攻击。\n\n## 神秘\n\n- 普通的攻击（没有神秘的武器、拳脚、枪弹）伤不到英灵和召唤出的军势，只有魔术、魔术礼装、英灵和宝具的攻击才行。\n- 伤害分三种：普通的伤害（伤不到英灵）、魔力伤害（魔术，会被对魔力减免）、带神秘的物理伤害（魔术礼装、附魔的武器：伤得到英灵，不被对魔力减免）。\n- 灵体化的英灵只有魔力伤害和带神秘的物理伤害碰得到。\n- 神秘必须对普通人隐匿：在普通人面前大打出手、留下痕迹，会招来监督者和其他御主的注意。\n\n## 隐匿与侦查\n\n有气息遮蔽的角色，别人要掷侦查才能发现：御主用 1d20 + 感知，英灵用 1d20 + 魔力 + 敏捷（加上其他侦查技能）。结果小于难度就发现不了。\n\n难度 = 10 + 等级 × ⌈距离 ÷ 40 米⌉（EX 按 6 算），超过 200 米发现不了：\n\n| 距离 | E | D | C | B | A | EX |\n|---|---|---|---|---|---|---|\n| 0～40 米 | 11 | 12 | 13 | 14 | 15 | 16 |\n| 40～80 米 | 12 | 14 | 16 | 18 | 20 | 22 |\n| 80～120 米 | 13 | 16 | 19 | 22 | 25 | 28 |\n| 120～160 米 | 14 | 18 | 22 | 26 | 30 | 34 |\n| 160～200 米 | 15 | 20 | 25 | 30 | 35 | 40 |\n\n每一轮开始时系统自动替看得见你的人掷侦查。你攻击谁，就暴露给谁。\n\n## 情报\n\n陌生人的名字、身份、职阶、能力，都要从蛛丝马迹里一点一点拼出来。\n\n- **御主的透视**：御主看见英灵（自己的或别人的）时，看得到它的职阶和六项参数；看不到真名、技能和宝具。\n- **解放真名**：宝具解放真名时，看得见使用者的人知道宝具的名字和英灵的真名。\n- **线索**：其余的由 KP 判定：武器的样子、战斗风格、口音和言行、技能和宝具的效果，都可能让人联想到某个传说。观察者的学识决定他能认出多少：魔术师、代行者、英灵认得出的东西，普通人未必。\n- 你知道的关于别人的事，记在游戏页面“见过的人”下面的“我知道的”里。\n\n## 结盟\n\n圣杯战争里临时结盟、背刺都很常见。在地图页对着认识的角色点“提议结盟”，对方同意就结成：\n\n- 结了盟的玩家，双方的御主、英灵、召唤物互为**友军**；同一个玩家的角色本来就是友军。\n- 友军会影响写了 `affects = \"allies\"`（只对友军）或 `\"enemies\"`（只对敌人）的技能，以及光环。技能脚本里的 `ally` 表示这个对象是不是友军，例如范围技能里对友军加护盾、对敌人造成伤害。\n- 任何一方可以随时单方面解除，对方会收到通知；结盟本身不会告诉别的玩家。\n- 双方互相提议，直接结成。对着不认识的人提议也行，但对方不一定会回应。\n\n## 通讯\n\n- 御主和英灵之间可以用念话交流，不受距离限制。\n- 任何一方进入战斗状态时，除非另一方对战场有别的观测手段，否则视作双方共感、同时进入战斗状态，无视地理位置。所以战斗中不准和队友交流。\n- 没有共感、也没有观测手段时，英灵想和御主通讯，那一回合的检定变成困难，并且没法在紧急时刻回避攻击。\n\n（初版由 KP 按这一节裁定。）\n\n# 魔力\n\n## 日常消耗\n\n英灵的存在、行动、战斗都会消耗魔力；魔力为 0 的英灵会立刻消失。\n\n- 每天基础消耗 2 点；英灵每有一个 EX 级技能 +4，A 级 +2，B 级 +1；每个开着的宝具再 +1；狂战士再多狂化等级点。系统按分钟持续扣。\n- 例：某英灵有 A 级战斗续行（2）和 EX 级的常驻宝具（4），还开着一个宝具（1），加上基础 2，一天合计 9 点。\n- 技能和宝具每次使用都要消耗魔力：技能 E～EX 为 1/2/3/4/5/8 点，宝具见[[宝具伤害]]。规则包写好的技能已经包含消耗；自己写的技能要在说明或脚本里写清楚。\n\n## 补魔\n\n- 英灵先用自己的魔力。普通人以外的御主可以用补魔魔术（10 米内、看得见）把自己的魔力分给英灵，每 1 点给英灵 2 点。\n- 普通人御主没法用一般方法补魔，但可以每天一次、花 2 小时（要在 1 米内）为英灵恢复魔力上限一半的魔力（请铺垫好坚实的剧情基础）。\n- 英灵可以靠杀人恢复魔力：每杀 1 人恢复 5 点；杀死超过 10 人后降为 4 点，超过 30 人降为 3 点，60 人降为 2 点，100 人降为 1 点。\n- 御主的魔力每分钟自然回复，见[[御主的数值]]；在据点里是 3 倍。\n\n## 失去御主\n\n御主死亡，或者魔力供应断裂时：\n\n- Archer 等有单独行动的英灵按天数存在；其他英灵只能存在 1d(幸运) 小时就会消失。\n- 这期间可以和别的御主重新缔结契约（10 米内，对方要有至少一划令咒），签约后停止消散。\n",
+    "handbook": "# 圣杯战争规则书\n\n以 Fate 系列的圣杯战争为基础的跑团规则。设定以型月原作为准；规则只是工具，RP 和合理优先，不求平衡。\n\n这一页就是规则书：建卡页上的说明里写着“见规则书”的地方，点开就是这里对应的一节。\n\n## 建卡\n\n每个玩家建两张卡：一张**御主**（Master），一张**英灵**（Servant）。\n\n1. 想好御主是谁：出身、来历、为什么卷进这场战争。出身决定你会不会魔术、魔力有多少，见[[出身]]。\n2. 分配御主的属性点，见[[属性点]]。\n3. 想好英灵是谁：出自哪个传说或历史，按他的事迹定参数，见[[英灵参数]]。\n4. 选职阶（同一局里每个职阶只有一骑），填职阶技能的等级，见[[职阶]]和[[职阶技能]]。\n5. 写保有技能和宝具，见[[保有技能]]和[[宝具]]。\n6. 提交以后 KP 会审卡：不合理的地方会打回来，按意见改了再交。\n\n写不成规则的东西（特殊的技能、宝具的奇怪效果）就只写说明，由 KP 读了以后裁定。\n\n# 御主\n\n## 属性点\n\n御主有六项属性：\n\n| 属性 | 管什么 |\n|---|---|\n| 力量 | 运动能力、近战格斗能力、力气 |\n| 敏捷 | 身体灵活性、回避攻击、远程射击、隐藏、小技巧 |\n| 体质 | 身体健康程度，直接决定生命值和对毒素等的耐受 |\n| 智力 | 记忆力、推理分析，以及有明确技法传承的魔术（符文、魔术道具） |\n| 感知 | 感官的敏锐度、对幻术的耐受，以及借助地脉或神灵力量的魔术 |\n| 魅力 | 影响他人的能力，以及血缘性的魔术、各种超能力 |\n\n- 六项属性起始都是 0，你有 **10 点自由属性点**可以分配（普通人 13 点，人造人 11 点，见[[出身]]）；把某项降到 0 以下，可以换回同样多的自由点数。建卡页上会显示还剩几点，超出了不能提交。\n- 每项属性在 **-2 ～ 5** 之间；普通人和人造人放宽到 **-4 ～ 6**（人造人的力量、敏捷、体质最多 1）。\n- 请注意角色扮演要符合自己的身份。\n\n## 出身\n\n出身决定你在型月世界里是什么人、会不会魔术、魔力有多少（“魔力倍数”）。角色卡上选出身，再在下表的范围里填魔力倍数（不填按范围的下限算），由 KP 审核。\n\n| 出身 | 在型月世界里是什么人 | 魔力倍数 | 代价和特点 |\n|---|---|---|---|\n| 普通人 | 没有魔术回路、和神秘毫无关系的人：学生、上班族、警察、黑道……偶然被圣杯选中，手上出现了令咒。 | — | 没有魔力（魔力值为 0），不会魔术。作为补偿多 3 点自由属性，英灵的幸运提升一级。给英灵补魔要靠特殊的办法（见[[补魔]]）。 |\n| 魔术师 | 正统的魔术师：魔术协会（时钟塔）或古老世家出身，继承家族的魔术刻印，毕生追求“根源”。把神秘视为必须隐匿的东西，看不起科学技术和普通人，有魔术师的自尊与傲慢。例：远坂家、埃尔梅罗一门。 | 3～4 | 精通自己学派的魔术和常用魔术；轻视枪械等物理兵器。 |\n| 人造人 | 用炼金术造出的人工生命（Homunculus），例如爱因兹贝伦家为圣杯战争造的人造人。身上的魔术回路远多于常人，但身体脆弱、寿命短，性格常有明显的异常。不限于现有的家族。 | 20～30 | 体质、力量、敏捷合计要牺牲 5 点以上，最终每项都不大于 1；只会炼金术相关的魔术；多 1 点自由属性，加在智力、感知或魅力上。 |\n| 魔术使 | 把魔术当成工具用的人，不追求根源，也不讲魔术师的体面：混用现代武器和魔术，用一切手段达成目的。例：“魔术师杀手”卫宫切嗣。 | 2～3 | 熟悉一套实用的魔术和普通人的生存方法，性格偏向冷酷、阴险。 |\n| 代行者 | 圣堂教会的战斗人员，专门猎杀死徒和异端。用黑键、洗礼咏唱等教会的秘迹和武具战斗，常常是疯子一样的狂信者。 | 1～30（一般 1～3） | 想好自己的性格和战斗方式，设计具体的招式，再按强度调整属性点、魔力倍数和特质，由 KP 审核。 |\n| 其他 | 你想得出来的任何存在：混血、超能力者、退魔一族、死徒……合理即可。 | 1～30 | 写清楚是什么、会什么，由 KP 审核。 |\n\n普通人以外的出身都会[[御主的魔术]]里列出的魔术。\n\n## 御主的数值\n\n确定属性点以后，下面这些由系统自动算：\n\n- 生命值 = 30 + 体质 × 4；每分钟自然回复 0.1 + 体质 ÷ 20。\n- 魔力值 = (10 + (智力和感知中较高的一项 + 魅力) × 2) × 魔力倍数；普通人为 0。每分钟回复 0.1 + 魔术能力 ÷ 20（每小时 6 + 3 × 魔术能力），在自己的[[据点]]里是平时的 3 倍。\n- 魔术能力 = 智力、感知、魅力中最高的一项（普通人为 0），用来算魔术的效果。\n- 移动速度 = 80 + 敏捷 × 10 米/分钟；感知半径 = 50 + 感知 × 10 米；听力范围 = 10 + 感知 × 4 米。\n- 能不能飞写在角色卡上；能飞的角色飞行速度等于移动速度。\n\n## 武器\n\n御主的近战伤害 = 1d(力量)（力量大于 0 时）+ 1d(武器伤害骰)。近战攻击的射程是 3 米，对方可以反击或闪避（见[[对抗]]）。\n\n角色卡上的“武器伤害骰”填武器的伤害骰面数，空手填 0。参考：\n\n| 武器 | 伤害骰 | 说明 |\n|---|---|---|\n| 空手、拳脚 | 0 | 只有力量的伤害 |\n| 小刀、匕首、指虎 | 4 | 好藏，随身带着没人注意 |\n| 警棍、铁棍、球棒 | 6 | 普通人也找得到 |\n| 短剑、斧头、开山刀、黑键 | 6 | 藏在衣服里勉强可以 |\n| 日本刀、长剑、长枪 | 8 | 很显眼，带着走在街上会被注意 |\n| 大剑、双手斧、长柄武器 | 10 | 几乎没法藏，在室内也施展不开 |\n| 超大型武器 | 12 | 只适合不在乎被人看见的角色 |\n\n伤害骰不是越高越好：武器越大越显眼，违反“神秘的隐匿”会招来监督者和其他御主的注意（见[[神秘]]），在室内、人群里也施展不开。请考虑和御主战斗风格的相性。\n\n“武器伤害骰”只管拿武器（或礼装）砸人、砍人的物理伤害。礼装的特殊能力（例如扇子扇出风刃、展开结界）不算在这里，写在“魔术”一栏里，按魔术算。\n\n**普通的武器伤不到英灵**。武器是魔术礼装（附了魔的武器、教会的黑键、魔术师的礼装）时才可以：在角色卡上勾选“武器是魔术礼装”，由 KP 审核。这时近战这一下是“带神秘的物理伤害”：伤得到英灵，灵体化的也碰得到，不被对魔力减免（对魔力挡的是魔术）。\n\n枪械等远程武器：初版没有御主的远程攻击规则，由 KP 裁定。\n\n## 御主的魔术\n\n普通人以外的御主都会下面这些魔术，效果以这里为准；被沉默时不能用魔术。“投入 X 点魔力”是使用时说的。\n\n1. **攻击魔术**：对 100 米内、看得见的一个目标，每投入满 5 点魔力打出一颗 1d(4 + 魔术能力) 的魔力伤害（至少一颗），没有上限，只受自己的魔力限制。100 米内能听到动静；对方可以闪避；魔力伤害会被对魔力减免。\n2. **治疗魔术**：恢复 100 米内、看得见的一个单位的生命值，每 1 点魔力恢复 2 + 魔术能力 ÷ 2（向下取整）点，瞬间完成，10 米内能听到动静。\n3. **防护魔术**：为 100 米内、看得见的一个单位制造防护罩，每 1 点魔力给 5 + 魔术能力 ÷ 2（向下取整）点护盾，护盾持续的分钟数等于投入的魔力。受伤时先扣护盾再扣生命值。\n4. **警戒结界**：在自己所在的位置布置一个看不见的结界，投入 X 点魔力时半径 (50 + 魔术能力) × X 米、持续 10 × X 分钟。任何实体闯入时你会知道。\n5. **补魔魔术**：把自己的魔力分给 10 米内、看得见的一个单位，没有视觉效果也没有动静。每 1 点魔力让英灵恢复 2 点，其他人恢复 1 点。\n6. **暗示**：对一个普通人下达命令，做魅力检定，成功就生效；危险或复杂的命令由 KP 判定对方会不会执行。\n7. **使魔**：每 1 点魔力放出一只小型使魔（鸟、猫、虫……），最多 3 + 魔术能力 只，存在一天。使魔由你控制，和你共享知觉，会飞，只有 1 点生命值，攻击它的难度 +5。\n8. **强化**：强化一件物品或自己的身体，变得更坚固、更锋利、更快。效果按投入的魔力由 KP 裁定。\n\n出身相关的特殊魔术（炼金术、教会的秘迹……）自己写在“魔术”一栏里，由 KP 审核。\n\n## 令咒\n\n每个御主手上有三划令咒，每用一次消去一划。用法有四种：\n\n- **绝对命令**：英灵必须服从的一道命令。命令越具体越有效（“立刻撤退”比“永远服从我”强）；也可以让英灵做到平时做不到的一件事，例如瞬间跨越很远的距离、在必死的一击下活下来。效果由 KP 裁定。\n- **空间转移**：无视距离，把英灵瞬间召到身边。\n- **魔力灌注**：英灵的魔力补满。\n- **自害**：命令英灵自尽。\n- **令咒加强**：英灵用技能或宝具时，御主用一划令咒大幅加强这一次：效果 ×3（用在被动的技能上时，10 分钟内技能的等级 ×3）。见[[参数]]。\n\n令咒用完之后，英灵不必再服从御主，可能因此背叛。令咒也可能通过剧情得到补充（由 KP 裁定）。和失去御主的英灵缔结契约也要至少一划令咒（见[[失去御主]]）。\n\n## 据点\n\n御主可以花一小时，把自己所在的整栋建筑设为据点（魔术师叫它“工房”）。有人闯入时你会知道；在据点里，魔力回复是平时的 3 倍。\n\n# 英灵\n\n## 英灵的构成\n\n- **六项参数**：筋力、耐久、敏捷、魔力、幸运、宝具，各有 E～A、EX 的等级，见[[英灵参数]]。\n- **真名和来历**：英灵对外只以职阶相称，真名只写在角色卡上。英灵是谁分几栏写：出处与生平、武器与战法、弱点，以及（可不填的）性格与言行。这些只有你和 KP 看得到；KP 据此判断别人能从你的样子、战斗方式和言行里认出什么（见[[情报]]）。\n- **职阶技能**：对魔力、骑乘、阵地作成……按职阶出现，见[[职阶技能]]。\n- **保有技能**：英灵本人的技能，例如直感、战斗续行、避矢的加护、卢恩魔术，见[[保有技能]]。\n- **宝具**：英灵传说的结晶，见[[宝具]]。\n\n## 英灵参数\n\n参数的等级 E～A 分别是 1～5，EX 是 10，请务必慎重考虑 EX。根据英灵的事迹定各项参数：\n\n- **筋力**：曾出入战场拼杀的为 C；在战场上勇猛过人、一骑当千的为 B；有关于怪力的具体传说的能到 A（项羽举鼎、赫拉克勒斯托天），反之亦然。决定近战攻击和近战物理伤害。\n- **敏捷**：曾出入战场拼杀的为 C；勇猛过人的为 B；有关于惊人身法的具体传说的能到 A（威廉·退尔射苹果、源义经八艘飞跃），反之亦然。决定速度、远程物理伤害、闪避。\n- **耐久**：曾出入战场拼杀的为 C；有身负重伤依然力战的经历为 B；身负致命伤仍坚持战斗、或经历过高强度的磨练而胜利的能到 A。决定生命值。\n- **魔力**：基本为 D；富有智谋或天命可升为 C；研习过法术或熟读兵法为 B；有使用法术的著名传说的能到 A。决定魔力值、魔力豁免。\n- **幸运**：基本为 C。善终、一生无败、心愿达成、避过高风险，每一条升一级；凶死、被背叛、壮志未酬、因命运犯下后悔之事、被诅咒，每一条降一级。用于一切由天意决定的事：幸运豁免、发动“+”、失去御主后还能存在多久。\n- **宝具**：没有具体标准。参考：越古老越强；和神魔等超人类存在越有关越强；越为人所熟知、赞颂越强。\n\n> 当然完全不管上面这些也可以！毕竟 Extra 可以随便给从者加点，所以怎么都好！用爱加点也可以！但是请自重！\n\n## 职阶\n\n初版只有经典七骑。同一局里每个职阶只有一骑。\n\n| 职阶 | 近战伤害骰 | 每级耐久的生命值 | 速度系数 | 生命恢复系数 | 职阶技能 |\n|---|---|---|---|---|---|\n| Saber | 10 | 16 | 6 | 1 | 对魔力（参考 +3 级）、骑乘（+1 级） |\n| Archer | 8 | 14 | 8 | 1 | 对魔力（+1 级）、单独行动 |\n| Lancer | 10 | 14 | 7 | 1.1 | 对魔力（+2 级） |\n| Rider | 10 | 14 | 9 | 1 | 对魔力（+1 级）、骑乘（+3 级） |\n| Caster | 4 | 10 | 5 | 1.2 | 阵地作成、道具作成、英灵魔术 |\n| Assassin | 6 | 12 | 8 | 0.9 | 气息遮蔽 |\n| Berserker | 12 | 18 | 6 | 1.3 | 狂化 |\n\n由此算出：\n\n- 近战伤害 = (筋力)d(近战伤害骰)，射程 3 米，30 米内能听到动静。Assassin 用敏捷代替筋力；对方没发现 Assassin 时伤害骰变成 d12。\n- 生命值 = 耐久 × 每级生命值；每分钟恢复生命值上限的 5% × 生命恢复系数。\n- 魔力值 = 魔力 × 30。\n- 速度 = (3 + 速度系数) × 敏捷 米/秒。例：敏捷 A 的 Lancer 是 50 米/秒，敏捷 B 的 Saber 是 36 米/秒，敏捷 EX 的 Rider 是 120 米/秒。灵体化时速度 +30%；骑乘时 + 骑乘等级 × 5 米/秒；能飞的英灵飞行速度是移动速度的 4 倍。\n- 远程攻击：敏捷 + 1d(近战伤害骰)，射程 1000 米，10 米内能听到动静；距离每增加 500 米难度 +1。Archer 的远程伤害是 (敏捷)d8。Caster 没有普通远程攻击，改用魔术攻击：(魔力)d4 的魔力伤害。\n- 听力范围 = (10 + 敏捷 × 4) × 3 米；感知半径 = 150 + 30 × (敏捷和魔力中较高的一项) 米。\n\n**灵体化**：随时可以开关，不耗魔力。灵体化时普通人看不见你，你也不能攻击，不能骑乘；物理攻击碰不到你，只有魔力伤害有效。\n\n## 职阶技能\n\n职阶技能的等级在建卡时自己填，参考上表的“上升几级”。\n\n- **对魔力**（Saber、Archer、Lancer、Rider）：受到魔力伤害（魔术、魔术攻击）时，无视其中 5/10/15/20/25 点（E～A），EX 为 50 点。宝具伤害一般不算魔力伤害，除非这个宝具本身是魔术。\n- **骑乘**（Saber、Rider）：骑上或跳下坐骑。骑乘时速度 + 骑乘等级 × 5 米/秒，骑上时按技能等级消耗魔力；灵体化时不能骑乘。B 以下的骑乘无需表述。\n  - 会飞的坐骑（天马、飞龙……）：不勾卡上的“飞行能力”，在“骑乘”那一行点“修改”，在常驻加成里加上骑上时才能飞：\n\n    ```\n    if self.riding == 1:\n        self.can_fly = 1\n    ```\n\n    跳下坐骑就落地。飞行速度照样是移动速度（含骑乘加速）的 4 倍。\n- **单独行动**（Archer）：没有御主也能存在 1/3/6/10/15 天（E～A），EX 为 30 天。等级为耐久和魔力中较高的一项。\n- **气息遮蔽**（Assassin）：见[[隐匿与侦查]]。等级参考敏捷。\n- **阵地作成**（Caster）：花一天布置阵地，用的时候选“形式”：以自己为中心、半径 125 米的圆，或者把自己所在的整栋建筑（不论多大）做成阵地。有人闯入时你会知道；在阵地里每分钟额外恢复 1/2/3/4/5 点魔力。等级等于魔力，有布置阵法的事迹再 +1 级。\n- **道具作成**（Caster）：花一小时和技能等级的魔力做一件魔术道具，做出什么由 KP 裁定。\n- **狂化**（Berserker）：以理性为代价提升能力，等级由御主决定：\n  - E：筋力 +1 级，幸运、魔力 -1 级。\n  - D：筋力、耐久 +1 级，魔力 -1 级。\n  - C：筋力、耐久、敏捷 +1 级。\n  - B：筋力、耐久、敏捷、魔力 +1 级。\n  - A：筋力 +2 级，耐久、敏捷、魔力 +1 级。\n  - 等级越高越难沟通，C 以上几乎不能说话；每天的魔力消耗多出狂化等级点。\n\n## 英灵魔术\n\nCaster 会下面这些魔术（其他职阶有施法的传说时，写成保有技能，由 KP 审核）：\n\n- **魔术攻击**：(魔力)d4 的魔力伤害，射程 1000 米。\n- **咏唱攻击魔术**：每 3 点魔力咏唱一小节，造成 1d4 魔力伤害，最多 15 小节。咏唱有破绽，靠近你的人可以借机攻击。\n- **治疗**：恢复 25 米内一个单位的生命值，1 点魔力恢复 10 点。\n- **防护魔术**：为 25 米内一个单位制造防护罩，每 1 点魔力 10 点护盾，最多持续 3 小时。\n- **暗示**：对普通人下达的命令必定被执行；对魔术师要做魔力检定，危险或复杂的命令由 KP 判定难度。\n- **警戒结界**：花 3 分钟布置半径 250 米的结界，有人闯入时你会知道。\n- **使魔**：花 5 点魔力放出 10 只使魔，和你共享知觉，能瞬间移动，只有 1 点生命值，攻击它的难度 +5，存在一天。\n- **傀儡兵**：叫出一队傀儡兵，每个兵 5 点魔力，最多 5 × 魔力 个；全部能力等于魔力 - 2 级。一队算一个角色，由你指挥：生命值是每个兵 等级 × 10，打掉的折算成减员；伤害是 等级d6 + 剩下的人数；存在一天。\n- **飞行**：飞在空中，每 5 点魔力飞 1 分钟。\n- **瞬间移动**：花一个动作瞬间出现在别处，每 1 点魔力移动 5 米，由 KP 裁定。\n- **强化**：把一件物品升级为宝具，等级为魔力 - 1 级，效果由 KP 裁定。\n\n## 保有技能\n\n保有技能自己随便脑洞，不限于下面这些；效果按 E～A 的顺序。写不成规则的效果只写说明，由 KP 裁定。\n\n- **直感**：只要你神智清醒，对你的一切攻击，命中 -1/2/3/4/5。\n- **心眼（真/伪）**：遭到攻击时，你可以掷 1d20 -2/-1/+0/+1/+2，比攻击方的点数大就回避了这次攻击。\n- **统御力**：你视线内、能感受到你存在的友军，攻击和伤害 +1/2/3/4/5。\n- **投掷**：用投掷武器远程攻击时，命中 +1～+5，伤害每级 +1d6。\n- **避矢的加护**：对你的远程攻击命中 -1～-5。\n- **千里眼**：你的远程攻击命中 +1～+5，无视 500/1000/1500/2000/2500 米内的距离修正。\n- **战斗续行**：生命值降到 0/10/20/30/40 时仍能持续战斗 1～5 回合；之后生命值没有回到 1 以上就死亡。\n- **施法**：可以使用符合英灵设定的任何魔术，参考[[英灵魔术]]。\n\n**光环**：一直生效、只对身边的人起作用的技能（例如统御力、威压），在技能的“怎么用”里写 `aura = sphere(radius=米)` 和 `affects = \"allies\"`（友军，包括自己，见[[结盟]]）、`\"other_allies\"`（除了自己的友军）或 `\"enemies\"`（只对敌人），再在“常驻加成”里写加成，例如 `self.str = self.str + 2`。加成里的 `self.` 是圈里的每个人自己，例如 `self.str = self.str + (2 if self.template == \"master\" else 1)` 是御主 +2、英灵 +1；`this.` 是你这一条的列（例如等级）。圈里符合条件的人（包括你自己）一直带着这个加成，每轮按位置重算：进圈就有，出圈就没。再加一行 `guard = True` 就是**守护**：敌人对圈里的人用技能（包括范围技能）时，对象换成你。宝具的开关用途上也能写光环：开着的时候才有，例如张开城墙保护身边的同伴；只写 `# 说明` 的效果由 KP 理解，圈里的人身上会挂着这条说明。\n\n## 宝具\n\n宝具是英灵传说的结晶。请想想它属于哪一类：\n\n- **常驻宝具**：一直生效，例如十二试炼。\n- **可以开关的增益/减益**：例如风王结界的隐藏效果、自我封印·暗黑神殿。\n- **强力的范围效果、结界**：例如固有结界、鲜血神殿。\n- **召唤物**：例如骑英之缰绳。\n- **光炮**：解放真名的大招，见[[宝具伤害]]。\n- **任意规则**：不能写成规则的效果写成说明，由 KP 读了以后裁定。\n\n宝具在角色卡上是一件“东西”：有自己的等级、类型（对人、对军、对城、对界），本身不能直接用，只能用它的几种用法，例如同一把剑：平时当武器用、开关风之结界、解放真名放出光炮。每种用法可以从模板里挑（当作武器、真名解放·对人/对军/对城/对界、开关、召唤、结界、特殊效果），也可以只写说明由 KP 裁定。用的时候可以选“解放真名”“用＋”“令咒加强”这些参数（见[[参数]]）。\n\n**开关**：可以开关的宝具（例如风王结界、自我封印·暗黑神殿）加一个“开关”用法，设定一开始开着还是关着；开着的时候生效的效果写在这个用法里（例如“筋力 +1”）。每用一次切换开/关，打开时按宝具等级耗魔，开着的宝具每天多耗 1 点魔力。\n\n**解放真名**：宝具平时当武器用不会暴露名字；解放真名时，附近的人会听到宝具的名字，看得见你的人会因此知道你的真名（见[[情报]]）。\n\n**哪个用法是解放真名**：写在用法的“怎么用”里。`release = 1` 是这个用法一定解放真名：每次用都按宝具等级 × 类型倍数扣魔力，喊出宝具的名字；`release = 0` 是一定不解放（例如“当作武器”）。没写的，用的时候自己在行动里说解不解放。模板里的“真名解放·×××”“召唤”“结界”已经写了 `release = 1`，“当作武器”“开关”写了 `release = 0`。\n\n可以开关的用法只在**打开**时算解放（扣魔力、喊出名字），关上时不算。例如一个解放真名才能展开的城墙：开关用法的“怎么用”里写 `release = 1`，打开时扣解放的魔力，关上不扣。\n\n## 宝具伤害\n\n宝具和固有技能可以自行设计，但须经过 KP 审核。\n\n- 解放真名的爆发性宝具伤害约为：E 3d6+1，D 3d10+3，C 4d10+5，B 5d10+7，A 5d12+9，EX 6d12+15。\n- 对方只能闪避，不能反击。100 米内，对人、对军默认极难成功，对城、对界默认困难成功；更远时反过来。\n- 消耗魔力 = 技能消耗（按宝具等级，E～EX 为 1/2/3/4/5/8）× 类型倍数（对人 1、对军 3、对城 5、对界 10）。\n- 对军以上的宝具打到范围里的每个人：对军是 200 米长、20 米宽的一条，对城是 1 公里长、80 米宽，对界是半径 500 米。范围里的人各自闪避；使用者身后的人不受波及。\n- 宝具的特效需要对抗魔力或幸运时：按宝具等级有一个豁免难度 10 + 1/2/3/4/5（EX 为 20）；对抗的人掷 1d20 加魔力或幸运的修正（E～A 为 -4/-2/0/+2/+4，EX +8），高于难度就豁免成功。御主对抗时加智力，幸运豁免不加修正。\n- 其他特效依照 Fate 原作的宝具效果比对。\n- 常驻的伤害加成（例如带着这件宝具，近战伤害一直翻倍）：在宝具的“常驻加成”里改伤害倍数，`self.melee_mult *= 2`（近战）、`self.ranged_mult *= 2`（远程）、`self.magic_mult *= 2`（魔术）。所有攻击技能的伤害都乘上它们；解放真名的宝具伤害不受影响。\n\n## ＋\n\n- 建卡时可以给任意属性、技能和宝具选择“+”的个数（+、++、+++）。**每个英灵合计最多 3 个**（建卡页会检查），自由分配到宝具、技能或属性上；A 级的最多到 ++，没有 A+++（由 KP 审核）。分配和使用“+”不增加魔力消耗。\n- 每天一次，可以让效果提升：+ 是 ×1.5，++ 是 ×2，+++ 是 ×2.5。由幸运决定能不能发动成功。\n- 技能和宝具的“+”是使用时的参数“用＋”（见[[参数]]）：\n  - 主动技能、宝具的用法：这一次的效果放大（伤害、治疗、护盾……）；\n  - 被动技能（对魔力、狂化这种没有主动效果的）：“用一下”并选“用＋”，接下来 10 分钟里技能的等级放大。\n- 属性的“+”是单独的动作“发动＋：属性”：10 分钟内这项属性放大，最多到 9。\n\n## 参数\n\n用技能、宝具的时候，可以选几个“参数”，在行动里说就行，例如“解放真名，用令咒加强”。也可以在条目或用法的“怎么用”里写定：`参数名 = 值`（例如 `release = 1`），这样用的时候就不用选，一定是这个值。规则包定好的参数：\n\n| 参数 | 能用在 | 效果 |\n|---|---|---|\n| 解放真名 | 宝具 | 解放真名才能用宝具的全力（光炮、召唤、结界）；附近的人会听到宝具的名字，看得见你的人会知道你的真名。用法里写定了（`release = 1` / `0`）的不用选 |\n| 用＋ | 职阶技能、保有技能、宝具 | 每天一次，掷幸运：效果 ×(1 + 0.5 × ＋的个数)；被动技能 10 分钟内等级这样放大 |\n| 令咒加强 | 英灵的技能、魔术、宝具 | 御主消去一划令咒：效果 ×3；被动技能 10 分钟内等级 ×3 |\n| 投入魔力 | 魔术 | 这次投入多少魔力 |\n\n“效果放大”是引擎自动做的：这一次的伤害、治疗、护盾、增加的数值乘上倍数，消耗不乘；几个参数一起选时倍数相乘。\n\n你也可以给自己的技能、宝具（或宝具的某个用途）加参数，例如“燃烧寿命：用了扣 10 点生命，效果 ×2”。参数可以有：能选的条件、要过的检定、冷却、扣什么、效果倍数，或者只写说明，由 KP 裁定。\n\n# 行动与战斗\n\n## 检定\n\n主动做一件可能失败的事时，掷 1d20 加上相应的修正（属性），结果大于 10 就成功：大于 15 是困难成功，大于 20 是极难成功。初版不使用大成功、大失败。\n\n- 难度加在需要的点数上：例如难度 1 时，结果要大于 11 才算成功。\n- 攻击使魔时难度 +5。\n- 主动的一方掷骰：发动攻击、搜索、说服的一方。\n\n比如：感知 2 的土狼想在一堆破烂里找到剑鞘，掷 1d20 得 6，加上感知 2 是 8，于是他可耻地失败了。\n\n## 对抗\n\n双方意图相反时比较成功等级。攻击方声明攻击，防御方声明应对：一般是**反击**或**闪避**。\n\n- 英灵在力量、速度、魔力上有巨大优势：英灵对人类的攻击和魔术对抗默认至少困难成功；召唤出的军势（傀儡兵、宝具召唤的军势）同样。\n- 解放真名的宝具只能闪避，见[[宝具伤害]]。\n\n**近战攻击，对方反击**：攻击方同时掷筋力和敏捷、取成功等级高的；反击方掷筋力。成功等级高的一方伤到对方、自己不受伤；平手时攻击方命中，但只造成一半伤害；双方都失败则无事发生。\n\n**近战攻击，对方闪避**：攻击方同时掷筋力和敏捷、取高的；闪避方掷敏捷。攻击方等级高就命中；闪避方等级高或者平手就躲开了；双方都失败则无事发生。\n\n没有发现攻击者（看不见、被隐匿）的一方不能反击或闪避，只能硬吃这次攻击。\n\n## 神秘\n\n- 普通的攻击（没有神秘的武器、拳脚、枪弹）伤不到英灵和召唤出的军势，只有魔术、魔术礼装、英灵和宝具的攻击才行。\n- 伤害分三种：普通的伤害（伤不到英灵）、魔力伤害（魔术，会被对魔力减免）、带神秘的物理伤害（魔术礼装、附魔的武器：伤得到英灵，不被对魔力减免）。\n- 灵体化的英灵只有魔力伤害和带神秘的物理伤害碰得到。\n- 神秘必须对普通人隐匿：在普通人面前大打出手、留下痕迹，会招来监督者和其他御主的注意。\n\n## 隐匿与侦查\n\n有气息遮蔽的角色，别人要掷侦查才能发现：御主用 1d20 + 感知，英灵用 1d20 + 魔力 + 敏捷（加上其他侦查技能）。结果小于难度就发现不了。\n\n难度 = 10 + 等级 × ⌈距离 ÷ 40 米⌉（EX 按 6 算），超过 200 米发现不了：\n\n| 距离 | E | D | C | B | A | EX |\n|---|---|---|---|---|---|---|\n| 0～40 米 | 11 | 12 | 13 | 14 | 15 | 16 |\n| 40～80 米 | 12 | 14 | 16 | 18 | 20 | 22 |\n| 80～120 米 | 13 | 16 | 19 | 22 | 25 | 28 |\n| 120～160 米 | 14 | 18 | 22 | 26 | 30 | 34 |\n| 160～200 米 | 15 | 20 | 25 | 30 | 35 | 40 |\n\n每一轮开始时系统自动替看得见你的人掷侦查。你攻击谁，就暴露给谁。\n\n## 情报\n\n陌生人的名字、身份、职阶、能力，都要从蛛丝马迹里一点一点拼出来。\n\n- **御主的透视**：御主看见英灵（自己的或别人的）时，看得到它的职阶和六项参数；看不到真名、技能和宝具。\n- **解放真名**：宝具解放真名时，看得见使用者的人知道宝具的名字和英灵的真名。\n- **线索**：其余的由 KP 判定：武器的样子、战斗风格、口音和言行、技能和宝具的效果，都可能让人联想到某个传说。观察者的学识决定他能认出多少：魔术师、代行者、英灵认得出的东西，普通人未必。\n- 你知道的关于别人的事，记在游戏页面“见过的人”下面的“我知道的”里。\n\n## 结盟\n\n圣杯战争里临时结盟、背刺都很常见。在地图页对着认识的角色点“提议结盟”，对方同意就结成：\n\n- 结了盟的玩家，双方的御主、英灵、召唤物互为**友军**；同一个玩家的角色本来就是友军。\n- 友军会影响写了 `affects = \"allies\"`（只对友军）或 `\"enemies\"`（只对敌人）的技能，以及光环。技能脚本里的 `ally` 表示这个对象是不是友军，例如范围技能里对友军加护盾、对敌人造成伤害。\n- 任何一方可以随时单方面解除，对方会收到通知；结盟本身不会告诉别的玩家。\n- 双方互相提议，直接结成。对着不认识的人提议也行，但对方不一定会回应。\n\n## 通讯\n\n- 御主和英灵之间可以用念话交流，不受距离限制。\n- 任何一方进入战斗状态时，除非另一方对战场有别的观测手段，否则视作双方共感、同时进入战斗状态，无视地理位置。所以战斗中不准和队友交流。\n- 没有共感、也没有观测手段时，英灵想和御主通讯，那一回合的检定变成困难，并且没法在紧急时刻回避攻击。\n\n（初版由 KP 按这一节裁定。）\n\n# 魔力\n\n## 日常消耗\n\n英灵的存在、行动、战斗都会消耗魔力；魔力为 0 的英灵会立刻消失。\n\n- 每天基础消耗 2 点；英灵每有一个 EX 级技能 +4，A 级 +2，B 级 +1；每个开着的宝具再 +1；狂战士再多狂化等级点。系统按分钟持续扣。\n- 例：某英灵有 A 级战斗续行（2）和 EX 级的常驻宝具（4），还开着一个宝具（1），加上基础 2，一天合计 9 点。\n- 技能和宝具每次使用都要消耗魔力：技能 E～EX 为 1/2/3/4/5/8 点，宝具见[[宝具伤害]]。规则包写好的技能已经包含消耗；自己写的技能要在说明或脚本里写清楚。\n\n## 补魔\n\n- 英灵先用自己的魔力。普通人以外的御主可以用补魔魔术（10 米内、看得见）把自己的魔力分给英灵，每 1 点给英灵 2 点。\n- 普通人御主没法用一般方法补魔，但可以每天一次、花 2 小时（要在 1 米内）为英灵恢复魔力上限一半的魔力（请铺垫好坚实的剧情基础）。\n- 英灵可以靠杀人恢复魔力：每杀 1 人恢复 5 点；杀死超过 10 人后降为 4 点，超过 30 人降为 3 点，60 人降为 2 点，100 人降为 1 点。\n- 御主的魔力每分钟自然回复，见[[御主的数值]]；在据点里是 3 倍。\n\n## 失去御主\n\n御主死亡，或者魔力供应断裂时：\n\n- Archer 等有单独行动的英灵按天数存在；其他英灵只能存在 1d(幸运) 小时就会消失。\n- 这期间可以和别的御主重新缔结契约（10 米内，对方要有至少一划令咒），签约后停止消散。\n",
     "samples": [
       {
         "name": "示例御主",

@@ -368,3 +368,11 @@ tr.inactive { opacity: 0.5; }
 .cp-input { position: sticky; bottom: 0; background: var(--bg); padding: 8px 0 12px; border-top: 1px solid var(--line); }
 .cp-input textarea { width: 100%; box-sizing: border-box; }
 .cp-input .sk-row { justify-content: space-between; margin-top: 6px; }
+/* 合计上限（属性点等）：用了多少、还剩几点；超了标红，正好用完标绿 */
+.cf-budget { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 0 0 12px; }
+.cf-budget-line { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.cf-budget-left { margin-left: auto; color: var(--muted); }
+.cf-budget.full .cf-budget-left { color: var(--ok); }
+.cf-budget.over { border-color: var(--warn); }
+.cf-budget.over .cf-budget-left { color: var(--warn); font-weight: 600; }
+.cf-budget .cf-desc { margin-top: 4px; }

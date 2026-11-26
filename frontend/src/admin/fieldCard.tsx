@@ -168,6 +168,12 @@ export function FieldCard({
               <FormulaInput value={f.per_minute ?? ""} validate={validate} placeholder={t("rules.ph.per_minute")} onChange={(x) => onChange({ ...f, per_minute: x || null })} />
             </label>
           )}
+          {cls === "runtime" && !inGroup && (f.kind === "number" || f.kind === "resource") && (
+            <label>
+              {t("rules.f.gain_blocked")}
+              <FormulaInput value={f.gain_blocked ?? ""} validate={validate} placeholder={t("rules.ph.gain_blocked")} onChange={(x) => onChange({ ...f, gain_blocked: x || null })} />
+            </label>
+          )}
           {cls === "runtime" && f.kind !== "text" && f.kind !== "formula" && (
             <label>
               {t(f.kind === "boolean" ? "rules.f.initial_bool" : "rules.f.initial_required")}

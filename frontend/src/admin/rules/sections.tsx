@@ -185,6 +185,64 @@ export function DerivedSection({ tpl, onChange, validate, base }: { tpl: Templat
         })}
         <button onClick={() => ded.add({ name: "", label: "", formula: "", hidden: false })}>{t("rules.add_derived")}</button>
       </div>
+      <BudgetsPanel tpl={tpl} onChange={onChange} validate={v} base={base} />
+    </>
+  );
+}
+
+type Budget = Schemas["BudgetDef"];
+
+/** 合计上限（例如属性点）：哪些字段、哪些分组的哪一列合计起来，最多多少，什么时候才限制。 */
+function BudgetsPanel({ tpl, onChange, validate, base }: { tpl: Template; onChange: (t: Template) => void; validate: (f: string) => ReturnType<Validate>; base: string }) {
+  const { t } = useI18n();
+  const wb = useWorkbench();
+  const budgets = tpl.budgets ?? [];
+  const ed = useListEdit(budgets, (b) => onChange({ ...tpl, budgets: b }));
+  const numeric = (f: Field) => f.kind === "number" || f.kind === "boolean";
+  const fieldOpts = (tpl.fields ?? []).filter((f) => (f.cls ?? "player") === "player" && numeric(f));
+  const colOpts = (tpl.groups ?? []).flatMap((g) => (g.fields ?? []).filter((c) => (c.cls ?? "player") === "player" && numeric(c)).map((c) => ({ ref: `${g.name}.${c.name}`, label: `${g.label || g.name} · ${c.label || c.name}` })));
+  const toggle = (list: readonly string[], x: string, on: boolean) => (on ? [...list, x] : list.filter((y) => y !== x));
+  return (
+    <>
+      <SectionHead crumbs={[t("rules.templates"), tpl.label || tpl.name]} title={t("rules.budgets")} hint={t("rules.budgets_hint")} />
+      <div className="wb-panel">
+        {budgets.map((b: Budget, i) => (
+          <div key={i} className="wb-budget">
+            <div className="sk-derived-row">
+              <input value={b.name} placeholder={t("rules.ph.budget_name")} onChange={(e) => ed.update(i, { ...b, name: e.target.value })} />
+              <input value={b.label ?? ""} placeholder={t("rules.ph.budget_label")} onChange={(e) => ed.update(i, { ...b, label: e.target.value })} />
+              <FormulaInput value={b.total ?? ""} validate={validate} placeholder={t("rules.ph.budget_total")} onChange={(x) => ed.update(i, { ...b, total: x })} onExpand={() => wb.open(`${base}.budgets[${i}].total`)} />
+              <FormulaInput value={b.when ?? ""} validate={validate} placeholder={t("rules.ph.budget_when")} onChange={(x) => ed.update(i, { ...b, when: x })} onExpand={() => wb.open(`${base}.budgets[${i}].when`)} />
+              <span className="sk-side-actions">
+                <Mover index={i} count={budgets.length} onMove={ed.move} />
+                <button className="sk-link" onClick={() => ed.remove(i)}>
+                  {t("common.remove")}
+                </button>
+              </span>
+            </div>
+            <input className="wb-budget-desc" value={b.description ?? ""} placeholder={t("rules.ph.budget_desc")} onChange={(e) => ed.update(i, { ...b, description: e.target.value })} />
+            <fieldset className="wb-budget-pick">
+              <legend>{t("rules.budget_fields")}</legend>
+              {fieldOpts.map((f) => (
+                <label key={f.name} className="sk-inline">
+                  <input type="checkbox" checked={(b.fields ?? []).includes(f.name)} onChange={(e) => ed.update(i, { ...b, fields: toggle(b.fields ?? [], f.name, e.target.checked) })} /> {f.label || f.name}
+                </label>
+              ))}
+            </fieldset>
+            {colOpts.length > 0 && (
+              <fieldset className="wb-budget-pick">
+                <legend>{t("rules.budget_columns")}</legend>
+                {colOpts.map((c) => (
+                  <label key={c.ref} className="sk-inline">
+                    <input type="checkbox" checked={(b.columns ?? []).includes(c.ref)} onChange={(e) => ed.update(i, { ...b, columns: toggle(b.columns ?? [], c.ref, e.target.checked) })} /> {c.label}
+                  </label>
+                ))}
+              </fieldset>
+            )}
+          </div>
+        ))}
+        <button onClick={() => ed.add({ name: "", label: "", description: "", fields: [], columns: [], total: "", when: "" })}>{t("rules.add_budget")}</button>
+      </div>
     </>
   );
 }

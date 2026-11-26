@@ -106,11 +106,32 @@ export function SheetWorkbench({
     return !g.hidden && !(fixed.length === 0 && mine.length === 0 && g.max_count === 0);
   });
   const problems = preview?.derived.length ? preview.problems : [];
-  const inGroup = (g: Group) => problems.filter((p) => (p.path ?? "").startsWith(`groups.${g.name}`) || (p.path ?? "").startsWith(`preset_edits.${g.name}.`)).length;
+  // 每个问题记在哪一节：条目的在它的分组；数值超出范围的在“数值”；合计超了的在它的字段所在的一节
+  const numberNames = new Set(numbers.map((f) => f.name));
+  const budgetDefs = template.budgets ?? [];
+  const sectionOf = (p: Schemas["Problem"]): string | null => {
+    const path = p.path ?? "";
+    const g = /^(?:groups|preset_edits)\.([^.[]+)/.exec(path);
+    if (g) return `group:${g[1]}`;
+    const fd = /^fields\.([^.]+)$/.exec(path);
+    if (fd && numberNames.has(fd[1]!) && !["sheet.missing_field", "sheet.required"].includes(p.code)) return "numbers";
+    const b = /^budgets\.(.+)$/.exec(path);
+    const def = b ? budgetDefs.find((x) => x.name === b[1]) : undefined;
+    if (def) {
+      if ((def.fields ?? []).some((n) => numberNames.has(n))) return "numbers";
+      const col = (def.columns ?? [])[0];
+      if (col) return `group:${col.split(".")[0]}`;
+    }
+    return null;
+  };
+  const problemsIn = (key: string) => problems.filter((p) => sectionOf(p) === key).length;
+  const inGroup = (g: Group) => problemsIn(`group:${g.name}`);
+  const uses = (preview?.budgets ?? []).filter((u) => u.active !== false);
+  const budgetsFor = (names: (d: Schemas["BudgetDef"]) => boolean) => uses.filter((u) => budgetDefs.some((d) => d.name === u.name && names(d)));
 
   const sections: Section[] = [
     { key: "identity", label: t("cf.identity"), missing: (value.name.trim() ? 0 : 1) + identity.filter((f) => missingField(f, value.fields[f.name])).length },
-    { key: "numbers", label: t("cf.numbers"), missing: numbers.filter((f) => missingField(f, value.fields[f.name])).length },
+    { key: "numbers", label: t("cf.numbers"), missing: numbers.filter((f) => missingField(f, value.fields[f.name])).length + problemsIn("numbers") },
     ...groups.map((g) => {
       const mine = value.groups[g.name] ?? [];
       const fixed = preview?.presets?.[g.name] ?? [];
@@ -122,7 +143,7 @@ export function SheetWorkbench({
       return { key: `group:${g.name}`, label: g.label || g.name, missing: inGroup(g) + Math.max(0, (g.min_count ?? 0) - mine.length) + openMissing };
     }),
   ];
-  const total = sections.reduce((n, s) => n + s.missing, 0) + problems.filter((p) => !(p.path ?? "").startsWith("groups.") && !(p.path ?? "").startsWith("preset_edits.")).length;
+  const total = sections.reduce((n, s) => n + s.missing, 0) + problems.filter((p) => sectionOf(p) === null).length;
   sections.push({ key: "review", label: t("cf.review"), missing: 0 });
   useEffect(() => {
     onStatus(total);
@@ -169,6 +190,8 @@ export function SheetWorkbench({
             {extra}
           </>
         )}
+        {sec.key === "numbers" && budgetsFor((d) => (d.fields ?? []).some((n) => numberNames.has(n))).map((u) => <BudgetLine key={u.name} u={u} />)}
+        {group && budgetsFor((d) => (d.columns ?? []).some((c) => c.split(".")[0] === group.name)).map((u) => <BudgetLine key={u.name} u={u} />)}
         {sec.key === "numbers" && (
           <div className="cf-grid">
             {numbers.map((f) => {
@@ -206,6 +229,25 @@ export function SheetWorkbench({
         </div>
       </section>
       <Stats template={template} preview={preview} />
+    </div>
+  );
+}
+
+/** 一项合计上限（例如属性点）：用了多少、最多多少、还剩几点（超了标红）。 */
+function BudgetLine({ u }: { u: Schemas["BudgetUse"] }) {
+  const { t } = useI18n();
+  const n = (x: number) => String(Math.round(x * 100) / 100);
+  const total = u.total ?? null;
+  const left = total === null ? null : total - u.used;
+  const over = left !== null && left < -1e-9;
+  return (
+    <div className={`cf-budget${over ? " over" : left !== null && Math.abs(left) < 1e-9 ? " full" : ""}`}>
+      <div className="cf-budget-line">
+        <strong>{u.label || u.name}</strong>
+        <span>{total === null ? t("cf.budget_sum", { used: n(u.used) }) : t("cf.budget_used", { used: n(u.used), total: n(total) })}</span>
+        {left !== null && <span className="cf-budget-left">{over ? t("cf.budget_over", { n: n(-left) }) : t("cf.budget_left", { n: n(left) })}</span>}
+      </div>
+      <Described text={u.description} className="cf-desc" />
     </div>
   );
 }

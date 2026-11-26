@@ -72,6 +72,9 @@ class FieldDef(Frozen):
     # 运行值的自然变化：每分钟变化多少（公式；正数恢复、负数消耗），按上下限截断；空表示不变
     per_minute: str | None = None
     vital: bool = False  # 运行值：降到 0（或以下）时角色死亡
+    # 运行值：条件公式，成立时技能脚本加不上去（治疗、补充都无效，减少照常）；自然变化（per_minute）不受影响。
+    # 例如 hp_heal_blocked > 0。空是不限制
+    gain_blocked: str | None = None
 
 
 class ShapeDef(Frozen):
@@ -122,6 +125,23 @@ class GroupDef(Frozen):
     reveal_fields: tuple[str, ...] = ()
 
 
+class BudgetDef(Frozen):
+    """几个数值的合计上限，例如“六项属性合计最多 10 点”“＋ 合计最多 3 个”。
+
+    fields：这张卡上算进去的数值字段（值就是花掉的点数，负数退回点数）；columns：“分组.列”，这个分组
+    每一条（自己写的和自动获得的）这一列的值都算进去。total 是合计最多多少（公式，在这张卡上算，可以随出身变），
+    空是不限、只显示合计；when 是条件公式，成立时才限制（空是总是）。只看建角时填的值，不看游戏中的临时修正。
+    """
+
+    name: str
+    label: str = ""
+    description: str = ""
+    fields: tuple[str, ...] = ()
+    columns: tuple[str, ...] = ()
+    total: str = ""
+    when: str = ""
+
+
 class DerivedDef(Frozen):
     name: str
     label: str = ""
@@ -142,6 +162,7 @@ class EntityTemplate(Frozen):
     fields: tuple[FieldDef, ...] = ()
     groups: tuple[GroupDef, ...] = ()
     derived: tuple[DerivedDef, ...] = ()
+    budgets: tuple[BudgetDef, ...] = ()  # 合计上限（例如属性点），建角时由引擎检查
     # 受到伤害的公式：在受伤的角色身上算，amount 是原始伤害、kind 是伤害类型，结果就是实际受到的伤害
     # （不会小于 0）。例如 max(0, amount - 5 * anti_magic) if kind == "magic" else amount。空表示原样受伤
     damage_taken: str = ""

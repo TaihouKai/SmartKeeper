@@ -22,6 +22,7 @@ from smartkeeper.contracts import (
     Rules,
     State,
     Status,
+    ValidationFailed,
     World,
 )
 from smartkeeper.engine.space import peers_of
@@ -76,6 +77,24 @@ class StepApplier:
 
         return ev(fd.min), ev(fd.max)
 
+    def _blocked(self, state: State, eid: str, cond: str) -> bool:
+        ent = _obj(_obj(state.get("entities")).get(eid))
+        try:
+            return (
+                self.rules.roll(
+                    self.pack,
+                    cond,
+                    self.faces,
+                    str(ent.get("template", "")),
+                    ent.get("sheet"),
+                    None,
+                    peers_of(state, eid),
+                ).total
+                != 0
+            )
+        except ValidationFailed:
+            return False
+
     def put(self, state: State, eid: str, name: str, value: float) -> State:
         ent = _obj(_obj(state.get("entities")).get(eid))
         tpl = self.pack.template(str(ent.get("template", "")))
@@ -86,6 +105,11 @@ class StepApplier:
             op = PatchOp(op="replace", path=f"/entities/{eid}/sheet/fields/{name}", value=v)
             self.ops.append(op)
             return self.world.apply(state, [op])
+        if fd is not None and fd.gain_blocked:
+            # 加不上去的时候（例如被禁止治疗）：只能减少
+            cur = self.num(state, eid, name)
+            if cur is not None and value > cur and self._blocked(state, eid, fd.gain_blocked):
+                value = cur
         lo, hi = self._bound(state, eid, name)
         if lo is not None:
             value = max(value, lo)

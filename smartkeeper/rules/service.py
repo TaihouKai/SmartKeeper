@@ -10,6 +10,7 @@ from pydantic import ValidationError as PydanticError
 from smartkeeper import lang as f
 from smartkeeper.contracts import (
     AdHocCheck,
+    BudgetUse,
     CheckResult,
     CheckSpec,
     DerivedValue,
@@ -31,6 +32,7 @@ from smartkeeper.contracts import (
     ValidationFailed,
 )
 from smartkeeper.rules import (
+    budgets,
     checkconfig,
     checks,
     docs,
@@ -310,6 +312,16 @@ class RulesService:
             return ctx.all_derived() + ctx.modified_fields()
         except f.FormulaError as e:
             raise ValidationFailed(e.code, **e.params) from e
+
+    def budgets(self, pack: RulePack, template: str, sheet: JsonValue) -> list[BudgetUse]:
+        tpl = pack.template(template)
+        if tpl is None or not tpl.budgets:
+            return []
+        try:
+            parsed = Sheet.model_validate(sheet)
+        except PydanticError:
+            return []
+        return budgets.uses(EntityContext(pack, tpl, parsed))
 
     def derived_value(
         self,

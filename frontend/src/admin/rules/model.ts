@@ -53,6 +53,7 @@ export function blankTemplate(name: string, t: T): Template {
     stealth: "",
     search: "",
     on_death: "",
+    budgets: [],
     derived: REQUIRED_DERIVED.map((n) => ({
       name: n,
       label: defaultLabel(t, n),
@@ -175,7 +176,7 @@ export function selForPath(path: string): Sel {
   const s = parsePath(path);
   if (s[0] === "templates" && typeof s[1] === "number") {
     if (s[2] === "groups" && typeof s[3] === "number") return { k: "group", t: s[1], g: s[3] };
-    if (s[2] === "derived") return { k: "derived", t: s[1] };
+    if (s[2] === "derived" || s[2] === "budgets") return { k: "derived", t: s[1] };
     return { k: "fields", t: s[1] };
   }
   const map: Record<string, Sel> = {
@@ -207,7 +208,7 @@ export type Doc = {
   entry?: { t: number; g: number; r: number; u?: number };
 };
 
-const TEMPLATE_FORMULA_KEYS = new Set(["min", "max", "initial", "per_minute"]);
+const TEMPLATE_FORMULA_KEYS = new Set(["min", "max", "initial", "per_minute", "gain_blocked"]);
 
 /** 这个路径是不是一段能在 IDE 里打开的公式或脚本；是的话返回校验它需要的上下文。 */
 export function docFor(pack: Pack, path: string): Doc | null {
@@ -221,6 +222,7 @@ export function docFor(pack: Pack, path: string): Doc | null {
   if (!tpl) return null;
   const template = tpl.name;
   if (s[2] === "derived" && s[4] === "formula") return { path, kind: "formula", template };
+  if (s[2] === "budgets" && (s[4] === "total" || s[4] === "when")) return { path, kind: "formula", template };
   if (s[2] === "damage_taken") return { path, kind: "formula", template, scope: "damage" };
   if (s[2] === "stealth" || s[2] === "search") return { path, kind: "formula", template, scope: s[2] };
   if (s[2] === "on_death") return { path, kind: "formula", template, scope: "script" };

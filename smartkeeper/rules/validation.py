@@ -28,7 +28,7 @@ from smartkeeper.contracts import (
     RulePack,
     Sheet,
 )
-from smartkeeper.rules import checkconfig, choices, skillconfig, stealth
+from smartkeeper.rules import budgets, checkconfig, choices, skillconfig, stealth
 from smartkeeper.rules.bonus import effects_of
 from smartkeeper.rules.evaluator import CLOCK_VARS, EntityContext, open_columns
 from smartkeeper.rules.sheets import init_sheet
@@ -479,6 +479,10 @@ def _check_field_def(
         if fd.cls != "runtime" or fd.kind not in ("number", "resource"):
             problems.append(Problem(code="pack.per_minute_needs_runtime", path=path))
         problems += check_formula(pack, tpl, fd.per_minute, f"{path}.per_minute")
+    if fd.gain_blocked is not None:
+        if fd.cls != "runtime" or fd.kind not in ("number", "resource"):
+            problems.append(Problem(code="pack.gain_blocked_needs_runtime", path=path))
+        problems += check_formula(pack, tpl, fd.gain_blocked, f"{path}.gain_blocked")
     return problems
 
 
@@ -676,6 +680,12 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
         problems += check_formula(
             pack, tpl, tpl.damage_taken, f"{path}.damage_taken", extra=DAMAGE_VARS
         )
+    problems += budgets.check_pack(tpl, path)
+    for i, b in enumerate(tpl.budgets):
+        for key in ("total", "when"):
+            text = str(getattr(b, key))
+            if text.strip():
+                problems += check_formula(pack, tpl, text, f"{path}.budgets[{i}].{key}")
     for name in [tpl.name, *(g.name for g in tpl.groups)]:
         if _keyword(name):
             problems.append(Problem(code="pack.reserved_name", path=path, params={"name": name}))
@@ -1097,6 +1107,7 @@ def validate_sheet(
             problems += _check_value(ctx, fd, sheet.fields[name], f"fields.{name}")
     problems += _check_active_presets(ctx, tpl, sheet)
     problems += _check_preset_edits(pack, ctx, tpl, sheet, derived)
+    problems += budgets.check_sheet(ctx)
     if problems:
         return problems
     for d in tpl.derived:

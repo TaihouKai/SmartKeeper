@@ -23,6 +23,8 @@ def _field(fd: FieldDef) -> str:
         bits.append("{" + " | ".join(fd.choices) + "}")
     if fd.per_minute:
         bits.append(f"per_minute={fd.per_minute}")
+    if fd.gain_blocked:
+        bits.append(f"gain_blocked_when={fd.gain_blocked}")
     if fd.description:
         bits.append(f"— {fd.description}")
     return "- " + " ".join(b for b in bits if b)
@@ -37,6 +39,12 @@ def _template(t: EntityTemplate, include_hidden: bool) -> list[str]:
         if include_hidden or not d.hidden:
             unit = f" ({d.unit})" if d.unit else ""
             out.append(f"- `{d.name}` {d.label} = `{d.formula}`{unit}")
+    for b in t.budgets:
+        parts = [*b.fields, *(f"{c}[*]" for c in b.columns)]
+        total = f" <= `{b.total}`" if b.total.strip() else ""
+        cond = f" when `{b.when}`" if b.when.strip() else ""
+        desc = f" — {b.description}" if b.description else ""
+        out.append(f"- budget {b.label or b.name}: sum({', '.join(parts)}){total}{cond}{desc}")
     for g in t.groups:
         if not include_hidden and g.hidden:
             continue

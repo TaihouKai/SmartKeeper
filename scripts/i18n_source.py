@@ -658,6 +658,59 @@ T: dict[str, tuple[str, str]] = {
         "{name}: what is missing or wrong; click to go there.",
     ),
     "cf.remove_sheet": ("删除这张卡", "Remove this sheet"),
+    "cf.budget_used": ("已用 {used} / {total}", "{used} of {total} used"),
+    "cf.budget_sum": ("合计 {used}", "Total {used}"),
+    "cf.budget_left": ("还剩 {n}", "{n} left"),
+    "cf.budget_over": ("超出 {n}", "{n} over"),
+    "rules.f.gain_blocked": (
+        "加不上去的条件（例如被禁止治疗时）",
+        "Can't be raised when (e.g. while healing is blocked)",
+    ),
+    "rules.ph.gain_blocked": (
+        "留空表示不限制，例如 hp_heal_blocked > 0：成立时技能脚本只能让它减少",
+        "empty means never, e.g. hp_heal_blocked > 0: while true, skill scripts can only lower it",
+    ),
+    "rules.budgets": ("合计上限", "Totals"),
+    "rules.budgets_hint": (
+        "几个数值合计起来最多多少（例如六项属性合计 10 点、＋合计 3 个），建角时由引擎检查。"
+        "负数退回点数；上限可以是公式，按这张卡算（例如随出身变）；没写上限只显示合计。",
+        "A cap on the sum of several values (e.g. 10 attribute points, 3 pluses), checked when characters are made. "
+        "Negative values give points back; the cap may be a formula on the sheet; with no cap only the sum is shown.",
+    ),
+    "rules.ph.budget_name": ("名字，例如 attr_points", "name, e.g. attr_points"),
+    "rules.ph.budget_label": ("显示名，例如 属性点", "label, e.g. Attribute points"),
+    "rules.ph.budget_total": ("最多多少，例如 10 + 3 * muggle", "cap, e.g. 10 + 3 * muggle"),
+    "rules.ph.budget_when": ("什么时候才限制（留空是总是）", "only when (empty: always)"),
+    "rules.ph.budget_desc": (
+        "给建角的玩家看的一句说明",
+        "a line for the player making the character",
+    ),
+    "rules.budget_fields": ("算进去的字段", "Fields counted"),
+    "rules.budget_columns": (
+        "算进去的列（这个分组每一条的这一列）",
+        "Columns counted (this column of every entry)",
+    ),
+    "rules.add_budget": ("+ 合计上限", "+ Total"),
+    "codes.sheet.budget_over": (
+        "{label}超出了：合计 {used}，最多 {total}",
+        "{label} is over: {used} used, at most {total}",
+    ),
+    "codes.pack.budget_field": (
+        "{name} 不是这张卡上的数值字段",
+        "{name} isn't a number field on this sheet",
+    ),
+    "codes.pack.budget_column": (
+        "{name} 不是“分组.列”形式的数值列",
+        "{name} isn't a number column written as group.column",
+    ),
+    "codes.pack.budget_empty": (
+        "合计上限没选任何字段或列",
+        "The total counts no fields or columns",
+    ),
+    "codes.pack.gain_blocked_needs_runtime": (
+        "只有运行值（数值或资源）能设“加不上去的条件”",
+        "Only runtime values (number or resource) can have a can't-be-raised condition",
+    ),
     "cf.save_failed": ("自动保存失败", "Autosave failed"),
     "codes.pack.unknown_handbook_section": (
         "规则书里没有“{name}”这个标题",

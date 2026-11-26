@@ -48,7 +48,7 @@ export function Outline({ pack, current, onSelect, problems, onAddTemplate, onAd
               <Node sel={{ k: "fields", t: ti }} current={current} onSelect={onSelect} bad={bad(`${base}.fields`) || problems.some((p) => p.path === base)} depth={1} extra={<span className="wb-count">{(tpl.fields ?? []).length}</span>}>
                 {t("rules.fields")}
               </Node>
-              <Node sel={{ k: "derived", t: ti }} current={current} onSelect={onSelect} bad={bad(`${base}.derived`)} depth={1} extra={<span className="wb-count">{(tpl.derived ?? []).length}</span>}>
+              <Node sel={{ k: "derived", t: ti }} current={current} onSelect={onSelect} bad={bad(`${base}.derived`) || bad(`${base}.budgets`)} depth={1} extra={<span className="wb-count">{(tpl.derived ?? []).length}</span>}>
                 {t("rules.derived")}
               </Node>
               {groups.map((g, gi) => (

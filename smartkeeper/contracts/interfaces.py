@@ -19,7 +19,7 @@ from smartkeeper.contracts.rulepack import (
     RulePackInfo,
     RulePackVersion,
 )
-from smartkeeper.contracts.sheet import DerivedValue, Effect, ScriptStep, SkillConfig
+from smartkeeper.contracts.sheet import BudgetUse, DerivedValue, Effect, ScriptStep, SkillConfig
 from smartkeeper.contracts.spatial import (
     Body,
     DocEntry,
@@ -154,6 +154,10 @@ class Rules(Protocol):
         name: str,
         peers: Peers | None = None,
     ) -> float: ...
+
+    def budgets(self, pack: RulePack, template: str, sheet: JsonValue) -> list[BudgetUse]:
+        """这张卡在模板的每一项合计上限（例如属性点）上用了多少、最多多少。卡的结构不合法时是空表。"""
+        ...
 
     def describe(
         self,

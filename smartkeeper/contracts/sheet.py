@@ -278,6 +278,17 @@ class DerivedValue(Frozen):
     modifiers: tuple[str, ...] = ()  # 修正来源的说明
 
 
+class BudgetUse(Frozen):
+    """一张卡在一项合计上限上用了多少：total 是 None 表示不限（或算不出来）；active 是条件成立（不成立的不用管）。"""
+
+    name: str
+    label: str = ""
+    description: str = ""
+    used: float
+    total: float | None = None
+    active: bool = True
+
+
 class SheetChange(Frozen):
     """角色卡一个可见数值的一次变更。source 是对应的玩家可见事件序号（通常是那轮的反馈）。"""
 

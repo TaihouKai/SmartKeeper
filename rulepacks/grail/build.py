@@ -120,7 +120,17 @@ def derived(name: str, label: str, formula: str, unit: str | None = None) -> dic
 DRAIN = [
     {**derived("hp_drain", "每分钟流失生命", "0"), "hidden": True},
     {**derived("mp_drain", "每分钟流失魔力", "0"), "hidden": True},
+    # 禁止自然恢复 / 禁止治疗：平时是 0，大于 0 时生效，例如诅咒期间
+    #     with minutes(60):
+    #         target.hp_regen_blocked += 1    # 不再自然回血（治疗照样有效）
+    #         target.hp_heal_blocked += 1     # 治疗、补充都加不上去（自然回血照样有）
+    {**derived("hp_regen_blocked", "禁止自然回复生命", "0"), "hidden": True},
+    {**derived("mp_regen_blocked", "禁止自然回复魔力", "0"), "hidden": True},
+    {**derived("hp_heal_blocked", "禁止治疗生命", "0"), "hidden": True},
+    {**derived("mp_heal_blocked", "禁止补充魔力", "0"), "hidden": True},
 ]
+HP_HEAL_BLOCKED = "hp_heal_blocked > 0"
+MP_HEAL_BLOCKED = "mp_heal_blocked > 0"
 
 # 伤害倍数：平时是 1，所有攻击技能的伤害都乘上它。常驻加成改它就是“近战伤害一直 ×2”，例如
 #     self.melee_mult *= 2
@@ -275,6 +285,30 @@ PLUS_COL = field(
 
 MASTER_MELEE_DMG = "(dice(1, str) if str > 0 else 0) + (dice(1, weapon_db) if weapon_db > 0 else 0)"
 NOT_MUGGLE = 'background != "普通人"'
+HOMUNCULUS = 'background == "人造人"'
+# 属性范围：一般 -2～5；普通人（补偿点数）和人造人（牺牲身体）放宽到 -4～6；人造人的力量、敏捷、体质最多 1
+WIDE = f'background == "普通人" or {HOMUNCULUS}'
+ATTR_MIN = f"-4 if {WIDE} else -2"
+ATTR_MAX = f"6 if {WIDE} else 5"
+BODY_MAX = f"1 if {HOMUNCULUS} else {ATTR_MAX}"
+MASTER_ATTRS = ["str", "agi", "con", "int", "per", "cha"]
+MASTER_BUDGETS = [
+    {
+        "name": "attr_points",
+        "label": "属性点",
+        "description": "六项属性合计：10 点自由属性点，降到 0 以下的退回点数；普通人多 3 点，人造人多 1 点。[[属性点]]",
+        "fields": MASTER_ATTRS,
+        "total": f"10 + 3 * muggle + (1 if {HOMUNCULUS} else 0)",
+    },
+    {
+        "name": "homunculus_body",
+        "label": "人造人的身体",
+        "description": "人造人的力量、敏捷、体质合计要牺牲 5 点以上（合计不大于 -5）。[[出身]]",
+        "fields": ["str", "agi", "con"],
+        "total": "-5",
+        "when": HOMUNCULUS,
+    },
+]
 
 
 def command_spell(name: str, pid: str, desc: str, script: str) -> dict[str, Any]:
@@ -341,7 +375,9 @@ MASTER = {
             min="0",
             max="hp_max",
             initial="hp_max",
-            per_minute="0.1 + con / 20 - hp_drain",
+            # 自然回血：体质再低也只是不回血，不会倒扣
+            per_minute="(0 if hp_regen_blocked > 0 else max(0, 0.1 + con / 20)) - hp_drain",
+            gain_blocked=HP_HEAL_BLOCKED,
             vital=True,
             description="生命值",
         ),
@@ -354,7 +390,8 @@ MASTER = {
             max="mp_max",
             initial="mp_max",
             # 在自己的据点（魔术工房）里休息时回复得快
-            per_minute='(0.1 + ap / 20) * (3 if inside("据点") else 1) - mp_drain',
+            per_minute='(0 if mp_regen_blocked > 0 else (0.1 + ap / 20) * (3 if inside("据点") else 1)) - mp_drain',
+            gain_blocked=MP_HEAL_BLOCKED,
             description="魔力值。在自己的据点里回复速度是平时的 3 倍",
         ),
         field(
@@ -371,46 +408,51 @@ MASTER = {
             description="剩下几划令咒",
         ),
         field(
-            "str", "力量", "number", min="-4", max="6", description="运动能力、近战格斗能力、力气"
+            "str",
+            "力量",
+            "number",
+            min=ATTR_MIN,
+            max=BODY_MAX,
+            description="运动能力、近战格斗能力、力气",
         ),
         field(
             "agi",
             "敏捷",
             "number",
-            min="-4",
-            max="6",
+            min=ATTR_MIN,
+            max=BODY_MAX,
             description="身体灵活性、回避攻击的能力、远程射击能力、隐藏技巧、小技巧等",
         ),
         field(
             "con",
             "体质",
             "number",
-            min="-4",
-            max="6",
+            min=ATTR_MIN,
+            max=BODY_MAX,
             description="身体健康程度、直接关系HP和对毒素等的耐受能力",
         ),
         field(
             "int",
             "智力",
             "number",
-            min="-4",
-            max="6",
+            min=ATTR_MIN,
+            max=ATTR_MAX,
             description="记忆力、推理分析能力、魔力（符文、魔法道具等有明确技法传承的魔术）",
         ),
         field(
             "per",
             "感知",
             "number",
-            min="-4",
-            max="6",
+            min=ATTR_MIN,
+            max=ATTR_MAX,
             description="感官的敏锐度、对幻术的耐受能力、魔力（借助自然地脉或神灵力量的魔术）",
         ),
         field(
             "cha",
             "魅力",
             "number",
-            min="-4",
-            max="6",
+            min=ATTR_MIN,
+            max=ATTR_MAX,
             description="影响他人的能力、魔力（血缘性魔术、各种超能力）",
         ),
         field(
@@ -443,6 +485,7 @@ MASTER = {
         ),
         field("silenced", "沉默", "boolean", "runtime", initial="False", hidden=True),
     ],
+    "budgets": MASTER_BUDGETS,
     "derived": [
         derived("perception_radius", "感知半径", "50 + per * 10", "m"),
         derived("concealment", "匿踪系数", "1"),
@@ -917,7 +960,8 @@ SERVANT = {
             min="0",
             max="hp_max",
             initial="hp_max",
-            per_minute="hp_max * 0.05 * lookup(class_heal, klass) - hp_drain",
+            per_minute="(0 if hp_regen_blocked > 0 else hp_max * 0.05 * lookup(class_heal, klass)) - hp_drain",
+            gain_blocked=HP_HEAL_BLOCKED,
             vital=True,
             description="生命值",
         ),
@@ -930,7 +974,8 @@ SERVANT = {
             max="mp_max",
             initial="mp_max",
             # 日常消耗按分钟扣；Caster 在自己的阵地里每分钟回复阵地作成等级点
-            per_minute=f'-{UPKEEP} + (servant.territory.level if inside("阵地作成") else 0) - mp_drain',
+            per_minute=f'-{UPKEEP} + (0 if mp_regen_blocked > 0 else servant.territory.level if inside("阵地作成") else 0) - mp_drain',
+            gain_blocked=MP_HEAL_BLOCKED,
             vital=True,
             description="魔力值。每天的日常消耗按分钟扣：基础 2，加上 EX/A/B 级技能各 4/2/1，开着的宝具各 1；降到 0 会消失",
         ),
@@ -992,6 +1037,16 @@ SERVANT = {
             hidden=True,
             description="靠杀人回魔力时，杀得越多收益越少",
         ),
+    ],
+    "budgets": [
+        {
+            "name": "plus",
+            "label": "＋",
+            "description": "属性、技能和宝具上的“＋”合计最多 3 个。[[＋]]",
+            "fields": [f"{n}_plus" for n, _ in ATTRS],
+            "columns": ["klass_skill.plus", "personal_skill.plus", "noble_phantasm.plus"],
+            "total": "3",
+        }
     ],
     "derived": [
         derived("perception_radius", "感知半径", "150 + 30 * max(agi, int)", "m"),

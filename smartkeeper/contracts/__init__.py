@@ -97,6 +97,7 @@ from smartkeeper.contracts.rulepack import (
     HP_FIELD,
     REQUIRED_DERIVED,
     SHIELD_FIELD,
+    BudgetDef,
     CheckDef,
     CheckSpec,
     DerivedDef,
@@ -119,6 +120,7 @@ from smartkeeper.contracts.rulepack import (
 )
 from smartkeeper.contracts.sheet import (
     USE_SEP,
+    BudgetUse,
     DerivedValue,
     Effect,
     EntryUse,
@@ -185,6 +187,8 @@ __all__ = [
     "AreaEffect",
     "Audience",
     "Body",
+    "BudgetDef",
+    "BudgetUse",
     "BuildingHit",
     "ChatMessage",
     "ChatStore",

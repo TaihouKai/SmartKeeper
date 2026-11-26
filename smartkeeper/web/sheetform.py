@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, JsonValue
 
 from smartkeeper.contracts import (
+    BudgetUse,
     CopilotAnswer,
     CopilotQuestion,
     DerivedValue,
@@ -37,6 +38,8 @@ class PreviewOut(BaseModel):
     presets: dict[str, list[str]] = {}  # 分组名 -> 按当前填写会生效的固定条目名
     # 上下限是公式的字段（例如随出身变的范围）：按当前填写算出来的 [下限, 上限]，算不出的是 null
     ranges: dict[str, list[float | None]] = {}
+    # 合计上限（例如属性点）：用了多少、最多多少
+    budgets: list[BudgetUse] = []
 
 
 class SheetFormulaIn(BaseModel):
@@ -133,6 +136,7 @@ def preview(
             problems=[Problem(code=err.code, params=err.params)],
             presets=presets,
             ranges=_ranges(rules, pack, body.template, body.sheet),
+            budgets=rules.budgets(pack, body.template, body.sheet),
         )
     problems = rules.validate_sheet(pack, body.template, sheet)
     # 别处还没填完也照样算：算得出来的数值都给（例如第二个物品没填完，力量、生命值照样看得到）
@@ -146,6 +150,7 @@ def preview(
         problems=problems,
         presets=_presets(rules, pack, body.template, sheet),
         ranges=_ranges(rules, pack, body.template, sheet),
+        budgets=rules.budgets(pack, body.template, sheet),
     )
 
 
