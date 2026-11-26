@@ -52,3 +52,18 @@ def test_someone_first_seen_this_round_is_named_before_the_feedback_is_written()
     label = next(h.label for h in e.handles(pid) if h.entity_id == "npc_far")
     feedback = g.llm.by_purpose("feedback")[-1].prompt
     assert f"@{label}" in feedback.split("## 该玩家本轮的结果")[1][:200]
+
+
+def test_an_instant_action_asks_the_kp_once_and_writes_the_result() -> None:
+    import json
+
+    from smartkeeper.contracts import ActionItem, Intent
+
+    g = new_game(1)
+    (pid,) = g.players
+    me = g.engine.controlled(g.game_id, pid)[0]
+    g.llm.on("instant", lambda c: json.dumps({"result": "手机没有新消息。", "state_patch": []}))
+    quick = Intent(items=(ActionItem(actor=me, verb="看手机", act_seconds=2),), instant=True)
+    ev = g.kp.instant_action(pid, "我看一眼手机", quick)
+    assert ev.payload["text"] == "手机没有新消息。"
+    assert "我看一眼手机" in g.llm.by_purpose("instant")[-1].prompt

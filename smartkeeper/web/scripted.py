@@ -187,6 +187,12 @@ def install_scripted(llm: FakeLLM, engine: Engine) -> None:
     llm.on("parse_intent", intent)
     llm.on("claim_check", lambda c: json.dumps({"verdict": "holds", "evidence": [], "note": ""}))
     llm.on("plan", plan)
+    llm.on(
+        "instant",
+        lambda c: json.dumps(
+            {"result": "（脚本化 KP）你做完了。", "state_patch": []}, ensure_ascii=False
+        ),
+    )
     llm.on("adjudicate", adjudicate)
     llm.on("feedback", lambda c: "（脚本化 KP）本轮你的行动完成了，时间过去了一分钟。")
     llm.on("broadcast", lambda c: "（脚本化 KP）公共消息。")

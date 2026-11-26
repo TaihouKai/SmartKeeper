@@ -72,6 +72,11 @@ export function describeEvent(e: Ev, t: (k: string, p?: Record<string, string>) 
       cls += " feedback";
       break;
     }
+    case "instant_result":
+      body = eventText(e);
+      cls += " feedback";
+      who = t("event.feedback");
+      break;
     case "instant_used": {
       const on = e.payload.on;
       const key = on === true ? "event.instant_on" : on === false ? "event.instant_off" : "event.instant";

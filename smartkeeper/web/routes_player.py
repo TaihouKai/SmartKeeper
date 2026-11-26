@@ -21,6 +21,7 @@ from smartkeeper.contracts import (
     Intent,
     LibraryCharacter,
     LibraryCharacterFull,
+    LLMError,
     Location,
     PackParam,
     Player,
@@ -30,9 +31,11 @@ from smartkeeper.contracts import (
     SheetSubmission,
     SheetView,
     SkillView,
+    SmartKeeperError,
     TargetRef,
 )
 from smartkeeper.engine import split_front_matter
+from smartkeeper.kp import OutputError
 from smartkeeper.mapdata import display_geojson, to_meters
 from smartkeeper.rules import render as render_rules
 from smartkeeper.web import sheetform
@@ -598,6 +601,14 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         if intent.conflict:
             raise HTTPException(status_code=409, detail={"code": "action.conflict"})
         intent = intent.model_copy(update={"quotes": tuple(sorted(set(body.quotes)))})
+        if e.instant_ok_intent(p.game_id, p.id, intent):
+            # 几秒以内、只涉及自己、没人察觉的小事：当场出结果，不等本轮结算；KP 出不了结果就照常交上去
+            try:
+                ev = s.kp.instant_action(p.id, text, intent)
+                parsed.pop(p.id, None)
+                return event_for_player(e, p.id, ev, names(p.game_id))
+            except (LLMError, OutputError, SmartKeeperError):
+                pass
         ev = e.declare_action(p.id, text, intent)
         parsed.pop(p.id, None)
         bg.add_task(background(s.kp.on_action, p.game_id))

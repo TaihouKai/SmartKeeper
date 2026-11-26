@@ -18,6 +18,7 @@ from smartkeeper.contracts import (
     ActionItem,
     Adjudication,
     ClaimRef,
+    Event,
     IllegalState,
     Intent,
     LLMCallLog,
@@ -40,6 +41,7 @@ from smartkeeper.kp.render import entity_tokens
 from smartkeeper.kp.schemas import (
     ClaimCheckOut,
     HandleOut,
+    InstantOut,
     IntentOut,
     LeakOut,
     NpcTalkOut,
@@ -237,6 +239,18 @@ class KP:
         self.engine.post_kp_chat(player_id, reply, from_kp=True)
         return reply
 
+    def instant_action(self, player_id: str, text: str, intent: Intent) -> Event:
+        """当场出结果（引擎已经核对过能当场出）：KP 写给玩家的结果和他自己角色的变化，引擎校验后写入。"""
+        game_id = self.engine.player(player_id).game_id
+
+        def apply(out: InstantOut) -> Event:
+            return self.engine.apply_instant_result(
+                game_id, player_id, intent, out.result, out.state_patch, text
+            )
+
+        prompt = self.ctx.instant(player_id, text, intent)
+        return self._structured("instant", game_id, prompt, InstantOut, apply, judge=True)
+
     def parse_intent(self, player_id: str, text: str, fixed: Intent | None = None) -> Intent:
         """意图解析：不写入。玩家确认后才由调用方调用 engine.declare_action。
 
@@ -310,6 +324,7 @@ class KP:
                 claims=claims,
                 unresolved=tuple(dict.fromkeys(unresolved)),
                 conflict=out.conflict.strip(),
+                instant=out.instant,
             )
 
         return self._structured("parse_intent", game_id, prompt, IntentOut, convert, judge=False)

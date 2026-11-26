@@ -306,6 +306,30 @@ class Contexts:
         )
         return Prompt(self._system(g, "chat"), user)
 
+    def instant(self, player_id: str, text: str, intent: Intent) -> Prompt:
+        """当场出结果：这个玩家的角色卡、此刻的状态、他能看到的历史、他的行动。"""
+        p = self.e.player(player_id)
+        g = p.game_id
+        view = self.e.view_for(g, player_id)
+        sheets = [s.model_dump(mode="json") for s in self.e.sheets(g, player_id)]
+        user = "\n".join(
+            [
+                section("规则书", self.e.rulebook(g)),
+                section("剧本（全部）", self._scenario(g, kp=True)),
+                section(
+                    "该玩家能看到的历史（最近的在后）",
+                    render_events(view, self.names(g), self.cfg.history_events),
+                ),
+                section("该玩家的角色卡（entity_id 是实体 id，state_patch 里用它）", dumps(sheets)),
+                section(
+                    "该玩家各实体此刻感知范围内的状态", dumps(self.e.state_slice(g, player_id))
+                ),
+                section("行动（已解析）", dumps(self._fixed_items(g, player_id, intent))),
+                section("行动原文", player_text(text, p.display_name)),
+            ]
+        )
+        return Prompt(self._system(g, "instant"), user)
+
     def intent(
         self, player_id: str, text: str, fixed: Intent | None = None
     ) -> tuple[Prompt, dict[str, str]]:

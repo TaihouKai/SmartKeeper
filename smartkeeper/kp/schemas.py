@@ -8,7 +8,7 @@ from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from smartkeeper.contracts import AdHocCheck, Place, PlaceNameIn, Point, SpatialQuery
+from smartkeeper.contracts import AdHocCheck, PatchOp, Place, PlaceNameIn, Point, SpatialQuery
 
 
 class _Out(BaseModel):
@@ -69,6 +69,12 @@ class IntentOut(_Out):
     claims: list[ClaimOut] = []
     unresolved: list[str] = []
     conflict: str = ""  # 补充文字和界面上点的行动矛盾时写原因
+    instant: bool = False  # 几秒以内、只涉及自己、别人察觉不到的小事
+
+
+class InstantOut(_Out):
+    result: str = Field(min_length=1)
+    state_patch: list[PatchOp] = []
 
 
 class ClaimCheckOut(_Out):

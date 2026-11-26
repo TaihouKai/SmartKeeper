@@ -1328,6 +1328,7 @@
     "add": "Add",
     "conflict": "The KP rejected it: {why}",
     "empty": "Pick a character below and tap actions, skills or switches; tap a spot on the map and “Use as destination” to move. You can also just write and let the KP read it.",
+    "instant": "A quick thing that only involves you and nobody can notice right now: you get the result as soon as you confirm, without waiting for the round.",
     "move": "{who} → {where}",
     "move_hint": "Move: tap a spot on the map, then “Use as destination” (for the selected character)",
     "off": "off",

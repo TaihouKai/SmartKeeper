@@ -84,3 +84,5 @@ class Intent(Frozen):
     unresolved: tuple[str, ...] = ()  # 对应不上的指代；非空时不能提交
     # 玩家写的补充文字和他在界面上点的行动矛盾：KP 写下原因，不能提交
     conflict: str = ""
+    # KP 解析时判断：几秒以内的小事、只涉及他自己的角色、别人察觉不到。引擎再核对（没人看得见他）后当场出结果
+    instant: bool = False

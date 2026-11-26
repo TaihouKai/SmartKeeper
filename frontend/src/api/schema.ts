@@ -1592,6 +1592,11 @@ export interface components {
              * @default
              */
             conflict: string;
+            /**
+             * Instant
+             * @default false
+             */
+            instant: boolean;
             /** Items */
             items: components["schemas"]["EchoItem"][];
             /** Parse Id */

@@ -1051,6 +1051,10 @@ T: dict[str, tuple[str, str]] = {
         "Someone can see you, so this switch takes effect when the round resolves; it was added to your actions.",
     ),
     "plan.conflict": ("KP 驳回：{why}", "The KP rejected it: {why}"),
+    "plan.instant": (
+        "这是几秒以内、只涉及你自己的小事，现在没人察觉得到你：确认后立即出结果，不等本回合结算。",
+        "A quick thing that only involves you and nobody can notice right now: you get the result as soon as you confirm, without waiting for the round.",
+    ),
     "plan.target": ("对象", "Target"),
     "plan.pick_target": ("选一个……", "Pick one…"),
     "plan.add": ("加入行动", "Add"),

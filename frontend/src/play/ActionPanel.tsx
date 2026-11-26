@@ -97,6 +97,7 @@ export function ActionPanel({
         <p>
           <strong>{t("kp.estimate", { total: formatDuration(t, echo.total_seconds) })}</strong> <span className="sk-hint">{t("kp.confirm_hint")}</span>
         </p>
+        {echo.instant && <p className="pl-note">{t("plan.instant")}</p>}
         {echo.conflict && <div className="sk-warn">{t("plan.conflict", { why: echo.conflict })}</div>}
         {echo.unresolved.length > 0 && (
           <div className="sk-warn">

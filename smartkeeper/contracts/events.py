@@ -36,7 +36,8 @@ EventType = Literal[
     "entry_used",
     "entry_noticed",
     "instant_used",  # 当场生效的技能（例如开关灵体化）：只告诉用的玩家
-    "use_refused",  # 行动里用的技能引擎没用成（冷却、条件、射程……）：给 KP 看原因
+    "use_refused",
+    "instant_result",  # 只写了文字的小事当场出的结果（KP 写的）：只告诉这个玩家  # 行动里用的技能引擎没用成（冷却、条件、射程……）：给 KP 看原因
     "plan_done",
     "reaction_requested",
     "reaction_resolved",

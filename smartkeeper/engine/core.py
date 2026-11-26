@@ -1276,6 +1276,83 @@ class Engine:
             )
             return self._events.append(game_id, r.no, evs)[-1]
 
+    def instant_ok_intent(self, game_id: str, player_id: str, intent: Intent) -> bool:
+        """这份行动能不能当场出结果：KP 判断是几秒以内、只涉及自己的小事（intent.instant），
+        引擎核对没有移动、对象只有自己的角色、用的技能都能当场生效，此刻没有别的玩家察觉得到他的角色。"""
+        if not intent.instant or intent.conflict or intent.unresolved or not intent.items:
+            return False
+        if self.round(game_id).status != "collecting":
+            return False
+        own = set(self.controlled(game_id, player_id))
+        for it in intent.items:
+            if it.destination is not None or it.act_seconds > INSTANT_SECONDS:
+                return False
+            if it.actor not in own:
+                return False
+            if any(t.kind != "entity" or t.id not in own for t in it.targets):
+                return False
+            if it.entry and not self.instant_ok(game_id, player_id, it.actor, it.entry):
+                return False
+        actors = {it.actor for it in intent.items}
+        space = self._space(game_id)
+        return not any(
+            p.id != player_id and actors & space.player_perceived(p.id)
+            for p in self._active_players(game_id)
+        )
+
+    def apply_instant_result(
+        self,
+        game_id: str,
+        player_id: str,
+        intent: Intent,
+        result: str,
+        ops: Sequence[PatchOp],
+        action_text: str = "",
+    ) -> Event:
+        """当场出结果：先执行行动里用的技能（按规则书的脚本），再写 KP 给的结果和状态变化。
+        状态变化只能改这个玩家自己的角色，不能改位置，不推进时间。"""
+        with self._lock:
+            if not self.instant_ok_intent(game_id, player_id, intent):
+                raise IllegalState("action.not_instant")
+            own = set(self.controlled(game_id, player_id))
+            state = self._state(game_id)
+            problems = adjv.check_patch_paths(ops, set(_obj(state.get("entities"))))
+            for i, op in enumerate(ops):
+                for path in [op.path] + ([op.from_] if op.from_ else []):
+                    parts = path.split("/")
+                    if len(parts) < 3 or parts[1] != "entities" or parts[2] not in own:
+                        problems.append(
+                            Problem(
+                                code="instant.not_own",
+                                path=f"state_patch[{i}]",
+                                params={"path": path},
+                            )
+                        )
+            if problems:
+                raise ValidationFailed("instant.invalid", problems)
+            self._validated(game_id, state, ops)  # 先整体校验，再执行技能
+            for it in intent.items:
+                if it.entry:
+                    self.instant_use(game_id, player_id, it.actor, it.entry, dict(it.params))
+            r = self.round(game_id)
+            state = self._state(game_id)
+            evs: list[NewEvent] = []
+            if ops:
+                self._validated(game_id, state, ops)
+                evs.append(self._patch_event(ops, cause="instant", actor=KP))
+            evs.append(
+                NewEvent(
+                    type="instant_result",
+                    actor=KP,
+                    visibility=Visibility.to(player_id),
+                    payload={
+                        "text": self._link_places(game_id, _text(result)),
+                        "action": _text(action_text),
+                    },
+                )
+            )
+            return self._events.append(game_id, r.no, evs)[-1]
+
     def plan_intent(self, game_id: str, intent: Intent) -> Intent:
         """给解析出的意图算上移动耗时（确认框显示用）。"""
         items = plan_items(self._space(game_id), intent.items)
@@ -5736,6 +5813,9 @@ class Engine:
             self._state_cache[game_id] = (seq, state)
             return state
 
+
+# 当场出结果的行动最多这么多秒（“几秒以内的小事”）
+INSTANT_SECONDS = 5
 
 # 别人看不清样子时给 KP 的外观描述（起外号、写反馈时用；只察觉得到有人在）
 LOOKS_HIDDEN = "（看不清样子，只察觉得到有人在）"

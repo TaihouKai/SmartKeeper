@@ -204,6 +204,7 @@ class ActionEcho(BaseModel):
     unresolved: list[str]
     total_seconds: int  # 各实体按顺序做完自己的条目，取最长的那个
     conflict: str = ""  # 补充文字和界面上点的行动矛盾（KP 写的原因）：不能提交
+    instant: bool = False  # 确认后当场出结果（几秒以内、只涉及自己、没人察觉）
 
 
 def echo(
@@ -265,6 +266,7 @@ def echo(
         items=items,
         unresolved=list(intent.unresolved),
         conflict=intent.conflict,
+        instant=engine.instant_ok_intent(game_id, player_id, intent),
         total_seconds=max(per_actor.values(), default=0),
     )
 

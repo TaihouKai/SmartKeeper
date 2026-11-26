@@ -127,3 +127,50 @@ def test_moving_together_after_other_steps_arrives_at_the_same_moment() -> None:
     )
     _, mine, theirs = intent.items
     assert 60 + mine.move_seconds == theirs.move_seconds
+
+
+def test_a_quick_self_only_written_action_nobody_notices_gets_its_result_at_once() -> None:
+    from smartkeeper.contracts import IllegalState
+
+    t, a, b = table()
+    e, g = t.engine, t.game_id
+    p0 = t.players[0]
+    quick = Intent(
+        items=(ActionItem(actor=a, verb="glance at phone", act_seconds=2),), instant=True
+    )
+    assert not e.instant_ok_intent(g, p0, quick)  # 对方就在旁边，看得见
+    apart(t)
+    assert e.instant_ok_intent(g, p0, quick)
+    assert not e.instant_ok_intent(g, p0, quick.model_copy(update={"instant": False}))
+    slow = Intent(items=(ActionItem(actor=a, verb="search", act_seconds=60),), instant=True)
+    assert not e.instant_ok_intent(g, p0, slow)
+    on_them = Intent(
+        items=(
+            ActionItem(
+                actor=a, verb="poke", act_seconds=1, targets=(TargetRef(kind="entity", id=b),)
+            ),
+        ),
+        instant=True,
+    )
+    assert not e.instant_ok_intent(g, p0, on_them)
+    tired = PatchOp(
+        op="add",
+        path=f"/entities/{a}/sheet/statuses/-",
+        value={"tag": "tired", "source": "phone", "expires_at": None},
+    )
+    ev = e.apply_instant_result(g, p0, quick, "Nothing new.", [tired], "glance")
+    assert ev.type == "instant_result" and ev.payload["text"] == "Nothing new."
+    tags = [
+        s["tag"] for s in cast(dict[str, Any], e.world_state(g))["entities"][a]["sheet"]["statuses"]
+    ]
+    assert "tired" in tags
+    # 只能改自己的角色，不能改位置
+    for bad in (
+        tired.model_copy(update={"path": f"/entities/{b}/sheet/statuses/-"}),
+        PatchOp(op="replace", path=f"/entities/{a}/pos", value={"x": 0, "y": 0, "z": 0}),
+    ):
+        with pytest.raises(ValidationFailed):
+            e.apply_instant_result(g, p0, quick, "x", [bad])
+    # 不能当场出的（例如要移动）拒绝
+    with pytest.raises(IllegalState):
+        e.apply_instant_result(g, p0, slow, "x", [])
