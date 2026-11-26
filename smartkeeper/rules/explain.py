@@ -191,10 +191,15 @@ class Explainer:
         if fn in ("has", "inside", "toggled") and args:
             raw = args[0].value if isinstance(args[0], f.Str) else say[0]
             return self.w(f"fn.{fn}", x=str(raw)), 9
+        # 一串式子作参数时加括号，免得“……（向下取整）”“……中较大的”看不出管到哪
+        grouped = [
+            x if isinstance(a, f.Num | f.Name) or " " not in x else f"({x})"
+            for a, x in zip(args, say, strict=True)
+        ]
         if fn in ("min", "max"):
-            return self.w(f"fn.{fn}", x=self.w("list_sep").join(say)), 9
+            return self.w(f"fn.{fn}", x=self.w("list_sep").join(grouped)), 9
         if fn in ("floor", "ceil", "round", "abs", "sqrt", "trunc", "sign") and len(say) == 1:
-            return self.w(f"fn.{fn}", x=say[0]), 9
+            return self.w(f"fn.{fn}", x=grouped[0]), 9
         if fn in ("pow", "mod") and len(say) == 2:
             return self.w(f"fn.{fn}", a=say[0], b=say[1]), 9
         if fn == "clamp" and len(say) == 3:
