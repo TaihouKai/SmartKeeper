@@ -36,7 +36,16 @@ export interface MarkerView {
   own: boolean;
 }
 
+/** 起了名字的地点：地图上一直显示名字。 */
+export interface PlaceView {
+  id: string;
+  name: string;
+  lon: number;
+  lat: number;
+}
+
 export type Pick =
   | { kind: "entity"; ref: string; label: string }
+  | { kind: "place"; id: string }
   | { kind: "feature"; id: string; name: string; featureKind: FeatureKind; height: number; lon: number; lat: number }
   | { kind: "point"; lon: number; lat: number };

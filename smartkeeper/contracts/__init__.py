@@ -63,7 +63,14 @@ from smartkeeper.contracts.game import (
     Round,
     RoundStatus,
 )
-from smartkeeper.contracts.geometry import Location, Place, Placement, Point
+from smartkeeper.contracts.geometry import (
+    Location,
+    NamedPlace,
+    Place,
+    Placement,
+    PlaceNameIn,
+    Point,
+)
 from smartkeeper.contracts.interfaces import (
     Dice,
     EventLog,
@@ -265,6 +272,7 @@ __all__ = [
     "MemoryStore",
     "Message",
     "Movement",
+    "NamedPlace",
     "NewEvent",
     "NotFound",
     "Opening",
@@ -276,6 +284,7 @@ __all__ = [
     "Peers",
     "Place",
     "PlaceIn",
+    "PlaceNameIn",
     "Placement",
     "PlacementSeen",
     "PlacementSpec",

@@ -191,12 +191,18 @@ class KP:
         prompt, need = self.ctx.opening(game_id)
 
         def apply(out: OpeningOut) -> Round:
+            declared = [*self.engine.scenario_places(game_id), *out.places]
             positions = {
-                k: self.engine.resolve_place(game_id, v)
+                k: self.engine.resolve_place(game_id, v, declared)
                 for k, v in out.positions.items()
                 if k in need
             }
-            opening = Opening(broadcast=out.broadcast, messages=out.messages, positions=positions)
+            opening = Opening(
+                broadcast=out.broadcast,
+                messages=out.messages,
+                places=tuple(out.places),
+                positions=positions,
+            )
             return self.engine.start_game(game_id, opening)
 
         r = self._structured("opening", game_id, prompt, OpeningOut, apply, judge=True)

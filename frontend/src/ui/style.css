@@ -464,3 +464,4 @@ tr.inactive { opacity: 0.5; }
 .pl-pick-height { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0; }
 .pl-pick-height input[type="number"] { width: 4.5em; }
 .pl-map-hint { max-width: calc(100% - 200px); }
+.pl-place-link { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; font: inherit; }

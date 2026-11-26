@@ -3,7 +3,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useI18n } from "../i18n";
 import { applyChanges } from "./layers";
-import type { DisplayMap, FeatureKind, MapChangeView, MarkerView, Pick } from "./types";
+import type { DisplayMap, FeatureKind, MapChangeView, MarkerView, Pick, PlaceView } from "./types";
 import "./map.css";
 
 export interface MapViewProps {
@@ -15,6 +15,10 @@ export interface MapViewProps {
   height?: string;
   /** 点选的位置：插一个图钉 */
   pin?: { lon: number; lat: number } | null;
+  /** 起了名字的地点：一直显示名字，点了算点选这个地点 */
+  places?: PlaceView[];
+  /** 把地图移到这里（key 变了才移，同一个地方可以再移一次） */
+  focus?: { lon: number; lat: number; key: number } | null;
 }
 
 const COLORS = {
@@ -34,7 +38,7 @@ const BLANK_STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: "bg", type: "background", paint: { "background-color": COLORS.background } }],
 };
 
-export function MapView({ map, markers, changes, onPick, selected, height = "60vh", pin = null }: MapViewProps) {
+export function MapView({ map, markers, changes, onPick, selected, height = "60vh", pin = null, places = [], focus = null }: MapViewProps) {
   const { t } = useI18n();
   const container = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -208,6 +212,36 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
       return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([mv.lon, mv.lat]).addTo(m);
     });
   }, [markers, map]);
+
+  // 起了名字的地点：小旗子加名字
+  const placeRefs = useRef<maplibregl.Marker[]>([]);
+  useEffect(() => {
+    const m = mapRef.current;
+    placeRefs.current.forEach((mk) => mk.remove());
+    placeRefs.current = [];
+    if (!m) return;
+    placeRefs.current = places.map((p) => {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "sk-place";
+      el.textContent = p.name;
+      el.title = p.name;
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        pickRef.current?.({ kind: "place", id: p.id });
+      });
+      return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([p.lon, p.lat]).addTo(m);
+    });
+  }, [places, map]);
+
+  // 移到指定的地方（例如点了消息里的地名）
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !focus) return;
+    m.flyTo({ center: [focus.lon, focus.lat], zoom: Math.max(m.getZoom(), 17), essential: true });
+    // 只在 key 变了的时候移
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.key]);
 
   // 点选位置的图钉
   const pinRef = useRef<maplibregl.Marker | null>(null);

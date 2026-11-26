@@ -4,6 +4,7 @@ import { useI18n } from "../i18n";
 import { ErrorBox, formatDuration } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { Markdown } from "../ui/markdown";
+import { PlaceText, type PlaceTarget } from "./PlaceText";
 import { describeEvent, prettyMentions, type Ev } from "./events";
 
 export interface Mentionable {
@@ -68,7 +69,11 @@ export function ChatPanel({
   setQuotes,
   mentionables,
   onChanged,
+  places,
+  onPlace,
 }: {
+  places: { id: string; name: string }[];
+  onPlace: (p: PlaceTarget) => void;
   events: Ev[];
   status: Schemas["StatusOut"] | null;
   talks: Talk[];
@@ -202,7 +207,7 @@ export function ChatPanel({
           {bubbles.map((b) => (
             <div key={b.id} className={`pl-msg ${b.mine ? "mine" : ""} ${b.tone}`}>
               {b.tone !== "sys" && b.who && <div className="pl-who">{b.who}</div>}
-              <div className="pl-bubble">{b.md ? <Markdown text={b.body} /> : b.body}</div>
+              <div className="pl-bubble">{b.md ? <Markdown text={b.body} /> : <PlaceText text={b.body} places={places} onOpen={onPlace} />}</div>
               {b.quote !== undefined && !b.mine && b.tone !== "sys" && (
                 <button type="button" className="sk-link pl-quote" onClick={() => quote(b.quote!)}>
                   {t("event.quote")}

@@ -330,10 +330,21 @@ class ChangeOut(BaseModel):
     above_z: float | None
 
 
+class PlaceOut(BaseModel):
+    """起了名字的地点（所有玩家看到的都一样）。feature 是所在的地物（例如这栋楼），没有是 None。"""
+
+    id: str
+    name: str
+    pos: LonLatPoint
+    inside: str | None
+    feature: str | None
+
+
 class SceneOut(BaseModel):
     entities: list[OwnOut]
     map_changes: list[ChangeOut]
     seen: list[SeenOut]
+    places: list[PlaceOut] = []
 
 
 def scene(engine: Engine, game_id: str, player_id: str) -> SceneOut:
@@ -365,4 +376,8 @@ def scene(engine: Engine, game_id: str, player_id: str) -> SceneOut:
             ChangeOut(feature=c.feature, status=c.status, above_z=c.above_z) for c in s.map_changes
         ],
         seen=[SeenOut(ref=x.ref, label=x.label, note=x.note, intel=list(x.intel)) for x in s.seen],
+        places=[
+            PlaceOut(id=pid, name=p.name, pos=lonlat(m, p.pos), inside=p.inside, feature=p.feature)
+            for pid, p in sorted(engine.places(game_id).items())
+        ],
     )

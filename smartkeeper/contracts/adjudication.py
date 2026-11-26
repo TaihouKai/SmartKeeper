@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import ConfigDict, Field, JsonValue
 
 from smartkeeper.contracts.base import Frozen
-from smartkeeper.contracts.geometry import Location, Point
+from smartkeeper.contracts.geometry import Location, PlaceNameIn, Point
 
 
 class PatchOp(Frozen):
@@ -147,6 +147,7 @@ class Adjudication(Frozen):
     memory_entries: tuple[MemoryEntryIn, ...] = ()
     intel: tuple[IntelIn, ...] = ()  # 玩家得知的关于别人的情报
     tells: tuple[TellIn, ...] = ()  # 谁把谁在哪告诉了谁（技能的 seen_within 按它判）
+    places: tuple[PlaceNameIn, ...] = ()  # 新起名字的地点（所有玩家共用、永久有效）
     kp_notes: str | None = None
     game_over: bool = False
 
@@ -188,4 +189,5 @@ class AdHocCheck(Frozen):
 class Opening(Frozen):
     broadcast: str
     messages: dict[str, str]  # 玩家 id -> 开场私信
+    places: tuple[PlaceNameIn, ...] = ()  # 开场时新起名字的地点
     positions: dict[str, Location] = {}  # 实体 id -> 初始位置；剧本没有指定的

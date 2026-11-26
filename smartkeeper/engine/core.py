@@ -58,6 +58,7 @@ from smartkeeper.contracts import (
     MapStore,
     MemoryEntry,
     MemoryStore,
+    NamedPlace,
     NewEvent,
     NotFound,
     Opening,
@@ -68,6 +69,7 @@ from smartkeeper.contracts import (
     Place,
     Placement,
     PlacementSeen,
+    PlaceNameIn,
     Player,
     Point,
     PresenceEntry,
@@ -104,7 +106,7 @@ from smartkeeper.contracts import (
     World,
 )
 from smartkeeper.engine import adjudication as adjv
-from smartkeeper.engine import alliance, intel, library, scenario, sightings
+from smartkeeper.engine import alliance, intel, library, places, scenario, sightings
 from smartkeeper.engine import entries as entry_refs
 from smartkeeper.engine.applier import StepApplier
 from smartkeeper.engine.duel import Duel, Side, Strike
@@ -822,11 +824,24 @@ class Engine:
             start = scenario.start_clock(g.scenario_public)
             if start is not None:
                 ops.append(PatchOp(op="replace", path="/clock", value=start))
+            # 起了名字的地点先登记：NPC 和初始位置可以写这些名字
+            place_ops, place_problems = self._place_ops(
+                game_id, state, [*meta.places, *opening.places], "places"
+            )
+            if place_problems:
+                raise ValidationFailed("opening.invalid_places", place_problems)
+            ops += place_ops
+            named = (
+                places.of(self._world.apply(state, place_ops)) if place_ops else places.of(state)
+            )
+            named_state: State = {
+                "places": {k: v.model_dump(mode="json") for k, v in named.items()}
+            }
             for npc in meta.npcs:
                 if npc.id in _obj(state.get("entities")):
                     raise ValidationFailed("opening.npc_id_taken", id=npc.id)
                 sheet = self._rules.init_sheet(pack, npc.template, npc.sheet)
-                loc = self.resolve_place(game_id, npc.location) if npc.location else None
+                loc = self._resolve_place(game_id, npc.location, named)[0] if npc.location else None
                 ops.append(
                     PatchOp(
                         op="add",
@@ -839,7 +854,7 @@ class Engine:
                         },
                     )
                 )
-            positions = self._initial_positions(game_id, state, meta, opening)
+            positions = self._initial_positions(game_id, state, meta, opening, named)
             for eid, loc in sorted(positions.items()):
                 ops.append(
                     PatchOp(op="replace", path=f"/entities/{eid}/pos", value=loc.pos.model_dump())
@@ -848,7 +863,7 @@ class Engine:
             m = self._map(game_id)
             problems: list[Problem] = []
             npc_locs = {
-                n.id: self.resolve_place(game_id, n.location)
+                n.id: self._resolve_place(game_id, n.location, named)[0]
                 for n in meta.npcs
                 if n.location is not None
             }
@@ -865,7 +880,10 @@ class Engine:
                     type="broadcast",
                     actor=KP,
                     visibility=Visibility.public(),
-                    payload={"text": _text(opening.broadcast), "anonymous": False},
+                    payload={
+                        "text": self._link_places(game_id, _text(opening.broadcast), named_state),
+                        "anonymous": False,
+                    },
                 )
             )
             for p in players:
@@ -875,7 +893,9 @@ class Engine:
                         actor=KP,
                         visibility=Visibility.to(p.id),
                         payload={
-                            "text": _text(opening.messages[p.id]),
+                            "text": self._link_places(
+                                game_id, _text(opening.messages[p.id]), named_state
+                            ),
                             "from": "kp",
                             "kind": "opening",
                         },
@@ -902,7 +922,12 @@ class Engine:
             return self.round(game_id)
 
     def _initial_positions(
-        self, game_id: str, state: State, meta: scenario.KpMeta, opening: Opening
+        self,
+        game_id: str,
+        state: State,
+        meta: scenario.KpMeta,
+        opening: Opening,
+        named: Mapping[str, NamedPlace],
     ) -> dict[str, Location]:
         """剧本指定的初始位置优先（按身份 id 或玩家显示名），其余用 KP 在开场时给出的。"""
         controls = _obj(state.get("controls"))
@@ -912,7 +937,7 @@ class Engine:
             spec = next(
                 (meta.initial_positions[k] for k in keys if k in meta.initial_positions), None
             )
-            loc = self.resolve_place(game_id, spec) if spec is not None else None
+            loc = self._resolve_place(game_id, spec, named)[0] if spec is not None else None
             ents = controls.get(p.id)
             if loc is not None and isinstance(ents, list):
                 for e in ents:
@@ -950,7 +975,11 @@ class Engine:
             type="pm_kp",
             actor=KP if from_kp else player_id,
             visibility=Visibility.to(player_id),
-            payload={"text": _text(text), "from": "kp" if from_kp else "player", "kind": "chat"},
+            payload={
+                "text": self._link_places(g.id, _text(text)) if from_kp else _text(text),
+                "from": "kp" if from_kp else "player",
+                "kind": "chat",
+            },
         )
         return self._events.append(g.id, g.current_round, [ev])[0]
 
@@ -1312,7 +1341,16 @@ class Engine:
             else:
                 raise IllegalState("talk.not_participant")
             return self._talk_event(
-                game_id, t, "talk_message", speaker, {"from": entity, "text": _text(text)}
+                game_id,
+                t,
+                "talk_message",
+                speaker,
+                {
+                    "from": entity,
+                    "text": self._link_places(game_id, _text(text))
+                    if speaker == KP
+                    else _text(text),
+                },
             )
 
     def end_talk(self, game_id: str, talk_id: str, by: str) -> Talk:
@@ -3337,6 +3375,12 @@ class Engine:
             if tell_ops:
                 cur = self._world.apply(cur, tell_ops)
                 groups.append(("tells", tell_ops))
+        if not problems and adj.places:
+            place_ops, place_problems = self._place_ops(game_id, cur, adj.places, "places")
+            problems += place_problems
+            if place_ops and not place_problems:
+                cur = self._world.apply(cur, place_ops)
+                groups.append(("places", place_ops))
         if not problems:
             # 先结算这一轮的伤害造成的死亡（死了的不再自然回复），再算时间流逝（回复、消耗），
             # 时间流逝也可能致死（例如魔力耗尽），所以之后再结算一次
@@ -3975,7 +4019,7 @@ class Engine:
                         actor=KP,
                         visibility=Visibility.to(o.player_id),
                         payload={
-                            "text": feedback[o.player_id],
+                            "text": self._link_places(game_id, str(feedback[o.player_id]), final),
                             "round": r.no,
                             "game_seconds": seconds,
                         },
@@ -3990,7 +4034,11 @@ class Engine:
                         type="broadcast",
                         actor=KP,
                         visibility=Visibility.public(),
-                        payload={"text": bc, "anonymous": False, "round": r.no},
+                        payload={
+                            "text": self._link_places(game_id, bc, final),
+                            "anonymous": False,
+                            "round": r.no,
+                        },
                     )
                 )
             # 回合对玩家不可见：没被通知的玩家不能从回合切得快慢推断别人在做什么
@@ -5101,18 +5149,51 @@ class Engine:
             out[eid] = {d.name: round(d.value, 4) for d in vals}
         return out
 
-    def resolve_place(self, game_id: str, place: Place) -> Location:
-        """把地名或坐标解析成位置。地名先找完全同名的地物，再找包含这个名字的；建筑优先。"""
+    def resolve_place(
+        self, game_id: str, place: Place, declared: Sequence[PlaceNameIn] = ()
+    ) -> Location:
+        """把地名或坐标解析成位置。地名先找起过的名字，再找完全同名的地物，再找包含这个名字的；建筑优先。
+
+        declared：还没登记、但这次一起起的名字（例如开场时剧本和 KP 起的名字），也认得。
+        """
+        state = self._state(game_id)
+        if declared:
+            ops, _problems = self._place_ops(game_id, state, declared, "places")
+            if ops:
+                state = self._world.apply(state, ops)
+        return self._resolve_place(game_id, place, places.of(state))[0]
+
+    def scenario_places(self, game_id: str) -> tuple[PlaceNameIn, ...]:
+        """剧本里开场时就起好名字的地点。"""
+        return scenario.kp_meta(self.game(game_id).scenario_kp).places
+
+    def _resolve_place(
+        self, game_id: str, place: Place, named: Mapping[str, NamedPlace]
+    ) -> tuple[Location, str | None]:
+        """位置和它所在的地物（没有是 None）。"""
         if place.pos is not None:
-            return Location(pos=place.pos, inside=place.inside)
+            return Location(pos=place.pos, inside=place.inside), place.inside
         if not place.place:
             raise ValidationFailed("place.empty")
         m = self._map(game_id)
-        ids = [place.place] if m.feature(place.place) else self._spatial.locate(m, name=place.place)
-        if not ids:
-            raise ValidationFailed("place.not_found", place=place.place)
-        ids.sort(key=lambda i: (0 if (f := m.feature(i)) and f.kind == "building" else 1, i))
-        fid = ids[0]
+        fid: str | None = None
+        pid = places.find(named, place.place)
+        if pid is not None:
+            np = named[pid]
+            if np.feature is None or (place.floor is None and not place.roof):
+                return Location(pos=np.pos, inside=np.inside), np.feature
+            fid = np.feature  # 起过名字的楼里的某一层、楼顶
+        if fid is None:
+            ids = (
+                [place.place]
+                if m.feature(place.place)
+                else [x for x in [self._feature_named(m, place.place)] if x]
+                or self._spatial.locate(m, name=place.place)
+            )
+            if not ids:
+                raise ValidationFailed("place.not_found", place=place.place)
+            ids.sort(key=lambda i: (0 if (f := m.feature(i)) and f.kind == "building" else 1, i))
+            fid = ids[0]
         f = m.feature(fid)
         assert f is not None
         z: float | None = None
@@ -5120,7 +5201,77 @@ class Engine:
             z = f.height
         elif place.floor is not None:
             z = (place.floor - 1) * 3.0 if place.floor >= 1 else place.floor * 3.0
-        return self.feature_location(game_id, fid, z)
+        return self.feature_location(game_id, fid, z), fid
+
+    @staticmethod
+    def _feature_named(m: MapData, name: str) -> str | None:
+        """名字完全相同的地物（建筑优先）。"""
+        want = places.clean(name).casefold()
+        hits = sorted(
+            (0 if f.kind == "building" else 1, f.id)
+            for f in m.features
+            if f.name and places.clean(f.name).casefold() == want
+        )
+        return hits[0][1] if hits else None
+
+    def places(self, game_id: str) -> dict[str, NamedPlace]:
+        """起了名字的地点：id -> 地点。所有玩家看到的都一样。"""
+        return places.of(self._state(game_id))
+
+    def _place_ops(
+        self, game_id: str, state: State, decls: Sequence[PlaceNameIn], path: str
+    ) -> tuple[list[PatchOp], list[Problem]]:
+        """给地点起名字：登记新的名字；同名同地的跳过；同名不同地、和地图上别的地物重名的报错。"""
+        m = self._map(game_id)
+        have = places.of(state)
+        ops: list[PatchOp] = []
+        problems: list[Problem] = []
+        for i, d in enumerate(decls):
+            at = f"{path}[{i}]"
+            name = places.clean(d.name)
+            if not name:
+                problems.append(Problem(code="place.empty_name", path=at))
+                continue
+            try:
+                loc, fid = self._resolve_place(game_id, d.at, have)
+            except (ValidationFailed, NotFound) as e:
+                problems.append(Problem(code=e.code, path=f"{at}.at", params=dict(e.params)))
+                continue
+            loc_problems = self._check_location(m, name, loc, f"{at}.at")
+            if loc_problems:
+                problems += loc_problems
+                continue
+            new = NamedPlace(name=name, pos=loc.pos, inside=loc.inside, feature=fid)
+            pid = places.find(have, name)
+            if pid is not None:
+                if not places.same_spot(have[pid], new):
+                    old = have[pid]
+                    f = m.feature(old.feature) if old.feature else None
+                    where = (f.name or f.id) if f else f"{old.pos.x:.0f},{old.pos.y:.0f}"
+                    problems.append(
+                        Problem(
+                            code="place.name_taken", path=at, params={"name": name, "where": where}
+                        )
+                    )
+                continue
+            same = self._feature_named(m, name)
+            if same is not None and same != fid:
+                problems.append(
+                    Problem(code="place.name_is_other_feature", path=at, params={"name": name})
+                )
+                continue
+            pid = places.new_id(have)
+            have[pid] = new
+            ops.append(PatchOp(op="add", path=f"/places/{pid}", value=new.model_dump(mode="json")))
+        return ops, problems
+
+    def _link_places(self, game_id: str, text: str, state: State | None = None) -> str:
+        """KP 文字里的 {{place:名字}} 换成可以点的链接。"""
+        if "{{place:" not in text:
+            return text
+        m = self._map(game_id)
+        named = places.of(state if state is not None else self._state(game_id))
+        return places.link(text, named, lambda n: self._feature_named(m, n))
 
     def feature_location(self, game_id: str, feature_id: str, z: float | None = None) -> Location:
         """地物里的一个代表点：建筑取轮廓内的一点，z 默认地面（楼顶写建筑高度）。"""

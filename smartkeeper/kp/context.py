@@ -214,6 +214,7 @@ class Contexts:
                         }
                     ),
                 ),
+                self._places_for_judge(game_id),
                 section("需要初始位置的实体", dumps(need)),
             ]
         )
@@ -229,6 +230,34 @@ class Contexts:
             ]
         )
         return Prompt(templates.render("name_handle", language=lang), user)
+
+    # ---------------- 起了名字的地点 ----------------
+
+    def _places_for_judge(self, game_id: str) -> str:
+        """起过的名字和它们在哪（所在地物、楼层、坐标），给要决定位置、起新名字的调用。"""
+        m = self.e.map_data(game_id)
+        out: list[JsonValue] = []
+        for _pid, p in sorted(self.e.places(game_id).items()):
+            f = m.feature(p.feature) if p.feature else None
+            out.append(
+                {
+                    "name": p.name,
+                    "feature": (f.name or f.id) if f else None,
+                    "floor": int(p.pos.z // 3) + 1 if p.inside and p.pos.z > 0 else None,
+                    "pos": [round(p.pos.x), round(p.pos.y), round(p.pos.z)],
+                }
+            )
+        return section(
+            "起了名字的地点（所有玩家共用，地图上都显示；文字里的写法见上面的说明）", dumps(out)
+        )
+
+    def _place_names(self, game_id: str) -> str:
+        """只有名字：给写文字的调用（反馈、广播、聊天、NPC 对话）。"""
+        names = sorted(p.name for p in self.e.places(game_id).values())
+        return section(
+            "起了名字的地点（写法见上面的说明，玩家点了能在地图上看到）",
+            "、".join(names) or "（无）",
+        )
 
     # ---------------- 行动期 ----------------
 
@@ -248,6 +277,7 @@ class Contexts:
                 section(
                     "该玩家各实体此刻感知范围内的状态", dumps(self.e.state_slice(g, player_id))
                 ),
+                self._place_names(g),
                 "请回答上面历史里该玩家在聊天框里最后提出的问题。",
             ]
         )
@@ -395,6 +425,7 @@ class Contexts:
             section("规则书", e.rulebook(game_id)),
             section("剧本（全部）", self._scenario(game_id, kp=True)),
             section("世界状态", dumps(state)),
+            self._places_for_judge(game_id),
             section(
                 "结盟（每组里的角色互为友军；技能的 affects、脚本里的 ally、光环都按这个算，由引擎处理）",
                 dumps(e.alliances_for_kp(game_id)),
@@ -545,6 +576,7 @@ class Contexts:
                     dumps(learned),
                 ),
                 section("公共事件", dumps(public)),
+                self._place_names(game_id),
                 section(
                     "出场人物的外观（性别、相貌、人称以此为准）",
                     "\n".join(f"- {k}：{v}" for k, v in looks.items()) or "（无）",
@@ -570,6 +602,7 @@ class Contexts:
                     "本轮公共事件",
                     dumps([replace_entity_tokens(x, {}, unknown) for x in adj.public_events]),
                 ),
+                self._place_names(game_id),
             ]
         )
         return Prompt(templates.render("broadcast", language=templates.language_name(lang)), user)
@@ -628,6 +661,7 @@ class Contexts:
                     "对方的外观（NPC 只知道这些）",
                     player_text(appearance or "（没有描述）", "sheet"),
                 ),
+                self._place_names(game_id),
                 section("对话原文（最近的在后）", "\n".join(lines) or "（对方刚发起对话）"),
             ]
         )

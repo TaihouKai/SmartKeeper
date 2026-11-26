@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { api, call, withGame, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { IntelFacts } from "./intel";
-import { MapView, heightCode, type DisplayMap, type MarkerView, type Pick } from "../map";
+import { MapView, featureCenter, heightCode, type DisplayMap, type MarkerView, type Pick, type PlaceView } from "../map";
+import type { PlaceTarget } from "./PlaceText";
 import { ErrorBox, LangSwitch, formatDuration, formatGameTime } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { ReactionPanel } from "./ReactionPanel";
@@ -17,6 +18,8 @@ type Picked = {
   y: number;
   feature: { id: string; name: string; kind: string; height: number } | null;
   list: Schemas["TravelOut"][];
+  title?: string; // 起了名字的地点：卡片上写这个名字
+  z?: number; // 这个地点的高度（例如楼里的某一层）
 };
 
 const FLOOR_M = 3; // 一层按 3 米算（和地图的高度说明一致）
@@ -27,10 +30,11 @@ function PickCard({ picked, onDestination, onMention, onClose }: { picked: Picke
   const f = picked.feature;
   const height = f && f.kind === "building" ? Math.max(0, f.height) : 0;
   const floors = Math.max(1, Math.floor(height / FLOOR_M));
-  const [where, setWhere] = useState<"ground" | "floor" | "roof">("ground");
-  const [floor, setFloor] = useState(1);
+  const z0 = picked.z ?? 0;
+  const [where, setWhere] = useState<"ground" | "floor" | "roof">(height > 0 && z0 > 0 ? (Math.abs(z0 - height) < 0.5 ? "roof" : "floor") : "ground");
+  const [floor, setFloor] = useState(Math.floor(z0 / FLOOR_M) + 1);
   const z = where === "roof" ? height : where === "floor" ? Math.min(height, (Math.min(Math.max(floor, 1), floors) - 1) * FLOOR_M) : 0;
-  const place = f?.name || (f ? t(`map.kind.${f.kind}`) : t("kp.a_point"));
+  const place = picked.title || f?.name || (f ? t(`map.kind.${f.kind}`) : t("kp.a_point"));
   const h = heightCode(z, height ? { height } : null);
   const heightText = t(h.key, Object.fromEntries(Object.entries(h.params).map(([k, v]) => [k, String(v)])));
   const label = where === "ground" ? place : `${place} · ${heightText}`;
@@ -38,7 +42,7 @@ function PickCard({ picked, onDestination, onMention, onClose }: { picked: Picke
     <div className="pl-travel sk-card">
       <div className="pl-pick-head">
         <strong>{place}</strong>
-        {f && <span className="sk-hint">{t(`map.kind.${f.kind}`)}</span>}
+        {f && <span className="sk-hint">{picked.title && f.name && f.name !== picked.title ? `${f.name} · ` : ""}{t(`map.kind.${f.kind}`)}</span>}
         {height > 0 && <span className="sk-hint">{t("map.building_size", { m: String(Math.round(height)), n: String(floors) })}</span>}
       </div>
       {height > 0 && (
@@ -66,7 +70,7 @@ function PickCard({ picked, onDestination, onMention, onClose }: { picked: Picke
         <button className="sk-primary" onClick={() => onDestination(label, z)}>
           {t("play.use_destination")}
         </button>
-        {f?.name && <button onClick={onMention}>{t("map.mention_it")}</button>}
+        {(picked.title || f?.name) && <button onClick={onMention}>{t("map.mention_it")}</button>}
         <button className="sk-link" onClick={onClose}>
           {t("play.close")}
         </button>
@@ -353,6 +357,7 @@ export function PlayPage() {
   const map = usePoll(async () => (await call(api.GET("/api/map"))) as unknown as DisplayMap, 3_600_000);
   const talks = usePoll(() => call(api.GET("/api/talks")), inTalk ? 2_000 : 6_000, [inTalk]);
   const [picked, setPicked] = useState<Picked | null>(null);
+  const [focus, setFocus] = useState<{ lon: number; lat: number; key: number } | null>(null);
   const err = useAction();
   const evs = events.data ?? [];
   const refresh = () => {
@@ -370,6 +375,7 @@ export function PlayPage() {
     s.seen.forEach((p) => out.set(p.ref, { ref: p.ref, label: p.label }));
     return [...out.values()];
   }, [scene.data]);
+  const placeViews = useMemo<PlaceView[]>(() => (scene.data?.places ?? []).map((p) => ({ id: p.id, name: p.name, lon: p.pos.lon, lat: p.pos.lat })), [scene.data]);
   const markers = useMemo<MarkerView[]>(() => {
     const s = scene.data;
     if (!s) return [];
@@ -412,11 +418,37 @@ export function PlayPage() {
         setChannel("kp");
         return;
       }
-      const m = await call(api.GET("/api/map/project", { params: { query: { lon: p.lon, lat: p.lat } } }));
-      const list = await call(api.GET("/api/travel", { params: { query: { lon: p.lon, lat: p.lat } } }));
+      if (p.kind === "place") {
+        await openPlace({ kind: "place", id: p.id, name: "" });
+        return;
+      }
       const feature = p.kind === "feature" ? { id: p.id, name: p.name, kind: p.featureKind, height: p.height } : null;
-      setPicked({ lon: p.lon, lat: p.lat, x: m.x, y: m.y, feature, list });
+      await openAt(p.lon, p.lat, feature);
     });
+  // 在一个位置插图钉、开卡片：是哪里、走过去要多久
+  const openAt = async (lon: number, lat: number, feature: Picked["feature"], title?: string, z?: number, fly = false) => {
+    const m = await call(api.GET("/api/map/project", { params: { query: { lon, lat } } }));
+    const list = await call(api.GET("/api/travel", { params: { query: { lon, lat } } }));
+    setPicked({ lon, lat, x: m.x, y: m.y, feature, list, title, z });
+    if (fly) setFocus({ lon, lat, key: Date.now() });
+  };
+  const featureInfo = (id: string): Picked["feature"] => {
+    const f = map.data?.features.find((x) => x.properties.id === id);
+    return f ? { id, name: f.properties.name, kind: f.properties.kind, height: f.properties.height } : null;
+  };
+  // 消息里点了地名、地图上点了地名的小旗子：移过去，开卡片
+  const openPlace = async (target: PlaceTarget) => {
+    if (target.kind === "place") {
+      const p = scene.data?.places?.find((x) => x.id === target.id);
+      if (!p) return;
+      await openAt(p.pos.lon, p.pos.lat, p.feature ? featureInfo(p.feature) : null, p.name, p.pos.z, true);
+      return;
+    }
+    const f = map.data?.features.find((x) => x.properties.id === target.id);
+    const c = f ? featureCenter(f.geometry) : null;
+    if (!c) return;
+    await openAt(c[0], c[1], featureInfo(target.id), target.name, undefined, true);
+  };
   const useDestination = (label: string, z: number) => {
     if (!picked) return;
     setDraft(`${draft}@[${label}](point:${Math.round(picked.x * 10) / 10},${Math.round(picked.y * 10) / 10},${z}) `);
@@ -424,9 +456,11 @@ export function PlayPage() {
     setChannel("kp");
   };
   const mentionPicked = () => {
-    const f = picked?.feature;
-    if (!f) return;
-    setDraft(`${draft}@[${f.name || f.id}](feature:${f.id}) `);
+    if (!picked) return;
+    const f = picked.feature;
+    const label = picked.title || f?.name || f?.id || t("kp.a_point");
+    const ref = f ? `feature:${f.id}` : `point:${Math.round(picked.x * 10) / 10},${Math.round(picked.y * 10) / 10},${picked.z ?? 0}`;
+    setDraft(`${draft}@[${label}](${ref}) `);
     setPicked(null);
     setChannel("kp");
   };
@@ -445,7 +479,7 @@ export function PlayPage() {
       <div className="pl-main">
         <section className="pl-left">
           <div className="pl-map">
-            {map.data && scene.data ? <MapView map={map.data} markers={markers} changes={scene.data.map_changes} onPick={onPick} height="100%" pin={picked ? { lon: picked.lon, lat: picked.lat } : null} /> : <p className="sk-hint">{t("common.loading")}</p>}
+            {map.data && scene.data ? <MapView map={map.data} markers={markers} changes={scene.data.map_changes} onPick={onPick} height="100%" pin={picked ? { lon: picked.lon, lat: picked.lat } : null} places={placeViews} focus={focus} /> : <p className="sk-hint">{t("common.loading")}</p>}
             {picked && <PickCard key={`${picked.lon},${picked.lat}`} picked={picked} onDestination={useDestination} onMention={mentionPicked} onClose={() => setPicked(null)} />}
             <p className="pl-map-hint">{t("play.map_hint")}</p>
           </div>
@@ -474,6 +508,8 @@ export function PlayPage() {
           setQuotes={setQuotes}
           mentionables={mentionables}
           onChanged={refresh}
+          places={scene.data?.places ?? []}
+          onPlace={(p) => void err.run(() => openPlace(p))}
         />
       </div>
       {sheetOpen && <SheetDrawer onClose={() => setSheetOpen(false)} />}

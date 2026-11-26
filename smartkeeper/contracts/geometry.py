@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pydantic import Field
+
 from smartkeeper.contracts.base import Frozen
 
 
@@ -48,3 +50,23 @@ class Place(Frozen):
     roof: bool = False
     pos: Point | None = None
     inside: str | None = None
+
+
+class NamedPlace(Frozen):
+    """KP 或剧本给地图上一个位置起的名字，世界状态 /places/<id>。
+
+    一个名字只指一个地方，起了就一直有效，所有玩家看到的都一样（地图上显示，消息里可以点）。
+    feature 是这个位置所在的地物（例如这栋楼），没有是 None。
+    """
+
+    name: str
+    pos: Point
+    inside: str | None = None
+    feature: str | None = None
+
+
+class PlaceNameIn(Frozen):
+    """给一个位置起名字：name 是名字，at 是位置（地图上的地名、已经起过的名字，或坐标）。"""
+
+    name: str = Field(min_length=1, max_length=40)
+    at: Place

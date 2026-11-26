@@ -1,4 +1,8 @@
 ---
+# 开场时就有名字的地点：所有玩家的地图上都显示，消息里提到时可以点
+places:
+  - {name: 教会, at: {place: bldg_155749494}}      # 宫下公园东边的矮楼
+  - {name: 宫下公园, at: {place: lm_9855737969}}
 npcs:
   - id: npc_kurokawa
     template: master

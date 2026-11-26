@@ -11,6 +11,7 @@ from pydantic import ValidationError as PydanticError
 
 from smartkeeper.contracts import (
     Activity,
+    NamedPlace,
     PatchOp,
     Placement,
     Problem,
@@ -33,6 +34,7 @@ TOP_LEVEL = (
     "flags",
     "kp_notes",
     "clock",  # 游戏开始那一刻是一天里的第几秒（剧本的起始时刻）；公式里的 time / day 由它算
+    "places",  # 起了名字的地点：id -> NamedPlace
 )
 
 
@@ -77,6 +79,7 @@ class WorldService:
             "flags": {},
             "kp_notes": "",
             "clock": 0,
+            "places": {},
         }
 
     def apply(self, state: State, ops: Sequence[PatchOp]) -> State:
@@ -116,6 +119,15 @@ class WorldService:
         for eid, ent in sorted(entities.items()):
             problems += self._validate_entity(eid, ent, pack, _peers(state, eid))
         problems += self._validate_activities(state["activities"], entities)
+        named = _obj(state["places"])
+        if named is None:
+            problems.append(Problem(code="state.type", path="/places"))
+        else:
+            for pid, raw in sorted(named.items()):
+                try:
+                    NamedPlace.model_validate(raw)
+                except PydanticError:
+                    problems.append(Problem(code="state.bad_place", path=f"/places/{pid}"))
         places = _obj(state["placements"])
         if places is None:
             problems.append(Problem(code="state.type", path="/placements"))

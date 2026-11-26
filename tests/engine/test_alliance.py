@@ -505,7 +505,7 @@ def test_sheets_before_the_start_use_the_scenario_start_time() -> None:
             rulepack_version=1,
             map_id="small",
             scenario_public=SCENARIO_PUBLIC,
-            scenario_kp=SCENARIO_KP.format(npc_template="person", npc_sheet="{}"),
+            scenario_kp=SCENARIO_KP.format(npc_template="person", npc_sheet="{}", extra=""),
         )
     )
     assert engine.sheet_clock(game.id) == {"$clock": {"time": 20.0, "day": 1}}

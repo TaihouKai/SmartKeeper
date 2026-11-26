@@ -1090,8 +1090,8 @@ T: dict[str, tuple[str, str]] = {
     "play.tab.chat": ("闲聊", "Chat"),
     "play.tab.sheet": ("角色卡", "Sheet"),
     "play.map_hint": (
-        "点人：在行动里 @ 他。点别的地方：插图钉，看是哪里、走过去要多久，可以设为目的地（建筑可以选楼层、楼顶）。棕色圆点是有名字的地点，鼠标移上去看名字。",
-        "Tap a person to @ them. Tap anywhere else to drop a pin: see what it is and how long it takes, then make it your destination (pick a floor or the roof of a building). Brown dots are named places; hover to see the name.",
+        "点人：在行动里 @ 他。点别的地方：插图钉，看是哪里、走过去要多久，可以设为目的地（建筑可以选楼层、楼顶）。棕色圆点是地图上有名字的地物，鼠标移上去看名字；带名字的小牌子是剧情里起了名字的地点，消息里的地名也可以点。",
+        "Tap a person to @ them. Tap anywhere else to drop a pin: see what it is and how long it takes, then make it your destination (pick a floor or the roof of a building). Brown dots are named map features (hover to see the name); labelled tags are places named in the story, and place names in messages can be tapped too.",
     ),
     "play.presence": ("此刻能感知到的：", "Currently perceived:"),
     "play.nobody": ("（附近没有人）", "(nobody nearby)"),

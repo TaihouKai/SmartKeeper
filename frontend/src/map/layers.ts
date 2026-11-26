@@ -46,3 +46,35 @@ export function heightCode(
   if (z < 0.5) return { key: "map.height.ground", params: {} };
   return { key: "map.height.above", params: { m: Math.round(z) } };
 }
+
+/** 地物的代表点（经纬度）：点就是它自己，面取外圈的平均，线取中间的一个点。 */
+export function featureCenter(g: GeoJSON.Geometry): [number, number] | null {
+  const avg = (ring: GeoJSON.Position[]): [number, number] | null => {
+    if (!ring.length) return null;
+    let x = 0;
+    let y = 0;
+    for (const p of ring) {
+      x += p[0] ?? 0;
+      y += p[1] ?? 0;
+    }
+    return [x / ring.length, y / ring.length];
+  };
+  const mid = (line: GeoJSON.Position[]): [number, number] | null => {
+    const p = line[Math.floor(line.length / 2)];
+    return p ? [p[0] ?? 0, p[1] ?? 0] : null;
+  };
+  switch (g.type) {
+    case "Point":
+      return [g.coordinates[0] ?? 0, g.coordinates[1] ?? 0];
+    case "Polygon":
+      return avg(g.coordinates[0] ?? []);
+    case "MultiPolygon":
+      return avg(g.coordinates[0]?.[0] ?? []);
+    case "LineString":
+      return mid(g.coordinates);
+    case "MultiLineString":
+      return mid(g.coordinates[0] ?? []);
+    default:
+      return null;
+  }
+}

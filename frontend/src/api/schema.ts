@@ -1612,6 +1612,11 @@ export interface components {
              */
             placements: components["schemas"]["PlaceIn"][];
             /**
+             * Places
+             * @default []
+             */
+            places: components["schemas"]["PlaceNameIn"][];
+            /**
              * Public Events
              * @default []
              */
@@ -3493,6 +3498,28 @@ export interface components {
             player_id: string;
         };
         /**
+         * Place
+         * @description 写剧本和开场时用的位置：可以直接给坐标，也可以给地图上的地名（引擎解析成坐标）。
+         *
+         *     - place：地物的名字或 id，例如 "新宿駅"；在建筑里时实体就在这栋楼内
+         *     - floor：楼层（1 是地面层，负数是地下）；roof=true 表示楼顶
+         *     - pos / inside：直接给坐标（米）
+         */
+        Place: {
+            /** Floor */
+            floor?: number | null;
+            /** Inside */
+            inside?: string | null;
+            /** Place */
+            place?: string | null;
+            pos?: components["schemas"]["Point"] | null;
+            /**
+             * Roof
+             * @default false
+             */
+            roof: boolean;
+        };
+        /**
          * PlaceIn
          * @description 裁定里放下一个设置物：参数取自设置者角色卡上那个条目的设置物参数。
          */
@@ -3513,6 +3540,30 @@ export interface components {
             params: {
                 [key: string]: number;
             };
+        };
+        /**
+         * PlaceNameIn
+         * @description 给一个位置起名字：name 是名字，at 是位置（地图上的地名、已经起过的名字，或坐标）。
+         */
+        PlaceNameIn: {
+            at: components["schemas"]["Place"];
+            /** Name */
+            name: string;
+        };
+        /**
+         * PlaceOut
+         * @description 起了名字的地点（所有玩家看到的都一样）。feature 是所在的地物（例如这栋楼），没有是 None。
+         */
+        PlaceOut: {
+            /** Feature */
+            feature: string | null;
+            /** Id */
+            id: string;
+            /** Inside */
+            inside: string | null;
+            /** Name */
+            name: string;
+            pos: components["schemas"]["LonLatPoint"];
         };
         /** PlacementOut */
         PlacementOut: {
@@ -4023,6 +4074,11 @@ export interface components {
             entities: components["schemas"]["OwnOut"][];
             /** Map Changes */
             map_changes: components["schemas"]["ChangeOut"][];
+            /**
+             * Places
+             * @default []
+             */
+            places: components["schemas"]["PlaceOut"][];
             /** Seen */
             seen: components["schemas"]["SeenOut"][];
         };
