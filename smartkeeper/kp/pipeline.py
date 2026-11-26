@@ -391,6 +391,12 @@ class KP:
         if not self.engine.pending_reactions(game_id):
             self.run_round(game_id)
 
+    def force_close(self, game_id: str) -> None:
+        """管理员强制结算（维护：有玩家一直不来、要让这一局往下走时）：没交行动的玩家本轮视为没有行动。"""
+        with self._lock(game_id):
+            self.engine.close_round(game_id, forced=True)
+        self.run_round(game_id)
+
     # ================= 回合裁定管线 =================
 
     def run_round(self, game_id: str) -> None:

@@ -520,7 +520,15 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
         bg.add_task(background(kp.review_character, player_id))
         return OkOut()
 
-    # ---------------- 维护：出错停下的一轮接着跑 ----------------
+    # ---------------- 维护：强制结算、出错停下的一轮接着跑 ----------------
+
+    @guarded.post("/games/{game_id}/round/close")
+    def force_close(game_id: str, bg: BackgroundTasks) -> OkOut:
+        """强制结算这一轮：没交行动的玩家本轮视为没有行动（管理员的维护操作，引擎不会自己这么做）。"""
+        if e.round(game_id).status != "collecting":
+            raise IllegalState("round.not_collecting")
+        bg.add_task(background(kp.force_close, game_id))
+        return OkOut()
 
     @guarded.post("/games/{game_id}/round/rerun")
     def rerun(game_id: str, bg: BackgroundTasks) -> OkOut:
