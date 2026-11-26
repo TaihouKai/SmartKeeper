@@ -31,6 +31,12 @@ export function numberOptions(choices: readonly string[]): NumberOption[] {
 }
 
 /** 这个数显示成什么：有名字显示名字（EX），没有就是数本身。 */
+/** 数值加上单位（规则包给的，例如 m、m/min）；小数保留两位。 */
+export function withUnit(value: number | string, unit?: string | null): string {
+  const text = typeof value === "number" ? String(Math.round(value * 100) / 100) : value;
+  return unit ? `${text} ${unit}` : text;
+}
+
 export function showNumber(choices: readonly string[] | undefined, value: number): string {
   const hit = choices?.length ? numberOptions(choices).find((o) => o.value === value && o.label) : undefined;
   return hit?.label ?? String(value);

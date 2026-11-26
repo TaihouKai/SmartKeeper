@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { toCode } from "../ui/effectsCode";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { numberOptions } from "../ui/choices";
+import { numberOptions, withUnit } from "../ui/choices";
 import { Mover, moved } from "../ui/components";
 import { EntryEditor, FieldInput, fieldLabel, rangeText, type Entry } from "../ui/EntryEditor";
 import { translateCode } from "../ui/errors";
@@ -193,6 +193,7 @@ function FieldRow({ label, required, missing, desc, children }: { label: string;
 function Stats({ template, preview }: { template: Template; preview: Preview | null }) {
   const { t } = useI18n();
   const labels = new Map<string, string>([...(template.derived ?? []).map((d) => [d.name, d.label || d.name] as const), ...(template.fields ?? []).map((f) => [f.name, f.label || f.name] as const)]);
+  const units = new Map<string, string | null | undefined>([...(template.derived ?? []).map((d) => [d.name, d.unit] as const), ...(template.fields ?? []).map((f) => [f.name, f.unit] as const)]);
   const shown = (preview?.derived ?? []).filter((d) => labels.has(d.name));
   return (
     <aside className="cf-side">
@@ -204,7 +205,7 @@ function Stats({ template, preview }: { template: Template; preview: Preview | n
           {shown.map((d) => (
             <div key={d.name}>
               <dt>{labels.get(d.name)}</dt>
-              <dd>{Math.round(d.value * 100) / 100}</dd>
+              <dd>{withUnit(d.value, units.get(d.name))}</dd>
             </div>
           ))}
         </dl>

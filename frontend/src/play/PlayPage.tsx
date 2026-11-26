@@ -6,7 +6,7 @@ import { MapView, type DisplayMap, type MarkerView, type Pick } from "../map";
 import { ErrorBox, LangSwitch, Tabs, formatDuration, formatGameTime } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { ReactionPanel } from "./ReactionPanel";
-import { showNumber } from "../ui/choices";
+import { showNumber, withUnit } from "../ui/choices";
 import { EventRow, type Ev } from "./events";
 import { KpTab, type Mentionable } from "./KpTab";
 import { TalkTab } from "./TalkTab";
@@ -311,6 +311,7 @@ function SheetTab() {
       {(sheets.data ?? []).map((s) => {
         const tpl = ((rules.data?.templates ?? []) as unknown as Schemas["EntityTemplate"][]).find((x) => x.name === s.template);
         const fdef = (k: string) => tpl?.fields?.find((f) => f.name === k);
+        const ddef = (k: string) => tpl?.derived?.find((d) => d.name === k);
         const sheet = s.sheet as { name?: string; fields?: Record<string, unknown>; groups?: Record<string, { name: string; description?: string }[]>; statuses?: { tag: string }[]; items?: { name: string; qty?: number }[] };
         return (
           <div key={s.entity_id} className="sk-card">
@@ -321,15 +322,15 @@ function SheetTab() {
                   <tr key={k}>
                     <th>{fdef(k)?.label || k}</th>
                     <td>
-                      {typeof v === "boolean" ? t(v ? "sheet.yes" : "sheet.no") : typeof v === "number" ? showNumber(fdef(k)?.choices, v) : String(v)}
+                      {typeof v === "boolean" ? t(v ? "sheet.yes" : "sheet.no") : typeof v === "number" ? (fdef(k)?.choices?.length ? showNumber(fdef(k)?.choices, v) : withUnit(v, fdef(k)?.unit)) : String(v)}
                       {fdef(k)?.description && <div className="sk-hint">{fdef(k)?.description}</div>}
                     </td>
                   </tr>
                 ))}
                 {s.derived.map((d) => (
                   <tr key={d.name}>
-                    <th>{d.name}</th>
-                    <td>{Math.round(d.value * 100) / 100}</td>
+                    <th>{ddef(d.name)?.label || d.name}</th>
+                    <td>{withUnit(d.value, ddef(d.name)?.unit)}</td>
                   </tr>
                 ))}
               </tbody>
