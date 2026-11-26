@@ -115,7 +115,15 @@ from smartkeeper.engine.placements import (
 )
 from smartkeeper.engine.repo import Repo
 from smartkeeper.engine.sheetview import build_sheet_views, visible_sheet
-from smartkeeper.engine.space import EMPTY_MAP, Space, partners_of, peers_of, point_of
+from smartkeeper.engine.space import (
+    CLOCK_KEY,
+    EMPTY_MAP,
+    Space,
+    clock_of,
+    partners_of,
+    peers_of,
+    point_of,
+)
 from smartkeeper.engine.timeline import (
     activities_of,
     build_activities,
@@ -183,6 +191,17 @@ class Engine:
 
     def game(self, game_id: str) -> Game:
         return self._repo.get_game(game_id)
+
+    def sheet_clock(self, game_id: str) -> dict[str, JsonValue | None]:
+        """算角色卡用的钟点（公式里的 time / day）：开局以后是此刻，开局以前是剧本的起始时刻。
+        建卡预览和提交时的初值按它算，和开局那一刻一致。剧本没写起始时刻时是空的（按求值器的默认）。"""
+        g = self.game(game_id)
+        if g.status in ("running", "ended"):
+            return {CLOCK_KEY: clock_of(self._state(game_id))}
+        start = scenario.start_clock(g.scenario_public)
+        if start is None:
+            return {}
+        return {CLOCK_KEY: {"time": round(start / 3600, 6), "day": 1}}
 
     def list_games(self) -> list[Game]:
         return self._repo.list_games()
@@ -545,8 +564,10 @@ class Engine:
             filled: list[JsonValue] = []
             raws = [x.sheet.model_dump(mode="json") for x in sheets]
 
+            clock = self.sheet_clock(p.game_id)
+
             def peers_at(i: int) -> dict[str, JsonValue | None]:
-                out: dict[str, JsonValue | None] = {}
+                out: dict[str, JsonValue | None] = dict(clock)
                 for j, other in enumerate(sheets):
                     if j != i:
                         out[other.template] = None if other.template in out else raws[j]

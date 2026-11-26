@@ -7,7 +7,14 @@ from typing import Any, cast
 import pytest
 from pydantic import JsonValue
 
-from smartkeeper.contracts import NotFound, PatchOp, RulePack, ShapeDef, ValidationFailed
+from smartkeeper.contracts import (
+    GameConfig,
+    NotFound,
+    PatchOp,
+    RulePack,
+    ShapeDef,
+    ValidationFailed,
+)
 from smartkeeper.rules import RulesService
 from tests.engine.harness import Table, setup_table
 from tests.engine.test_timeline import wait
@@ -481,3 +488,27 @@ def test_guard_redirects_enemy_skills_to_the_guardian() -> None:
     # 友军对受守护的人用技能，不转移
     u = e.use_entry(t.game_id, a2, "pat", a1, {}, "x")
     assert u.payload["target"] == a1 and u.payload["guarded_from"] is None
+
+
+def test_sheets_before_the_start_use_the_scenario_start_time() -> None:
+    """建卡预览和提交时还没有钟点：按剧本的起始时刻（20:00）算，不是随便一个时刻；开局以后按此刻。"""
+    from tests.engine.harness import SCENARIO_KP, SCENARIO_PUBLIC, make_engine
+
+    engine, packs = make_engine()
+    pack = area_pack()
+    pack_id = packs.create_pack(pack.world.name)
+    packs.save_version(pack_id, pack)
+    game = engine.create_game(
+        GameConfig(
+            name="t",
+            rulepack_id=pack_id,
+            rulepack_version=1,
+            map_id="small",
+            scenario_public=SCENARIO_PUBLIC,
+            scenario_kp=SCENARIO_KP.format(npc_template="person", npc_sheet="{}"),
+        )
+    )
+    assert engine.sheet_clock(game.id) == {"$clock": {"time": 20.0, "day": 1}}
+    t, _players, _ents = table()
+    t.engine.admin_patch(t.game_id, [PatchOp(op="replace", path="/game_seconds", value=3 * 3600)])
+    assert t.engine.sheet_clock(t.game_id)["$clock"] == {"time": 23.0, "day": 1}

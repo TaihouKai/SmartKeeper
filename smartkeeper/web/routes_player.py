@@ -421,8 +421,9 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
     @r.post("/character/preview")
     def preview(p: Annotated[Player, Depends(require_player)], body: PreviewIn) -> PreviewOut:
         pack = e.rulepack(p.game_id)
+        clock = e.sheet_clock(p.game_id)  # 按开局时刻算（例如只在某个时段生效的加成）
         try:
-            sheet = s.rules.init_sheet(pack, body.template, body.sheet)
+            sheet = s.rules.init_sheet(pack, body.template, body.sheet, clock)
         except ValidationFailed as err:
             # 还没填完、算不出数值时，自动获得的条目照样按已经填了的算出来
             try:
@@ -439,7 +440,7 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         # 别处还没填完也照样算：算得出来的数值都给（例如第二个物品没填完，力量、生命值照样看得到）
         derived: list[DerivedValue] = []
         try:
-            derived = s.rules.derive(pack, body.template, sheet)
+            derived = s.rules.derive(pack, body.template, sheet, clock)
         except ValidationFailed:
             derived = []
         return PreviewOut(
