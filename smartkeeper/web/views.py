@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, JsonValue
@@ -25,6 +26,14 @@ class LonLatPoint(BaseModel):
     z: float
     lon: float
     lat: float
+
+
+_TAG = re.compile(r"</?\s*player_text[^>]*>", re.IGNORECASE)
+
+
+def _untag(text: str) -> str:
+    """模型有时把 prompt 里包玩家文字的标签照抄进细节：显示时去掉。"""
+    return _TAG.sub("", text).strip()
 
 
 def lonlat(m: MapData, p: Point) -> LonLatPoint:
@@ -145,7 +154,7 @@ class RefIntent(BaseModel):
                     for t in it.targets
                 ],
                 destination=it.destination,
-                detail=it.detail,
+                detail=_untag(it.detail),
                 act_seconds=it.act_seconds,
                 move_seconds=it.move_seconds,
             )
@@ -180,6 +189,7 @@ class EchoItem(BaseModel):
     detail: str
     move_seconds: int
     act_seconds: int
+    entry: str | None = None  # 用的是哪个技能（没用技能是 None）
 
 
 class ActionEcho(BaseModel):
@@ -234,9 +244,10 @@ def echo(
                 targets=targets,
                 destination=dest,
                 destination_label=dest_label,
-                detail=it.detail,
+                detail=_untag(it.detail),
                 move_seconds=it.move_seconds,
                 act_seconds=it.act_seconds,
+                entry=it.entry,
             )
         )
     per_actor: dict[str, int] = {}

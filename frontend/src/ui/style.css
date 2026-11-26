@@ -435,12 +435,14 @@ tr.inactive { opacity: 0.5; }
 .pl-modes button { border: 1px solid var(--line); background: none; border-radius: 14px; padding: 2px 12px; font-size: 13px; }
 .pl-modes button.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .pl-modes .sk-hint { font-size: 11px; flex-basis: 100%; }
-.pl-tools { justify-content: flex-start; }
+.pl-tools { justify-content: flex-start; flex-wrap: wrap; }
+.pl-tools select { flex: 1 1 9em; min-width: 0; max-width: 100%; }
 .pl-send { margin-left: auto; }
 .pl-note { margin: 0; padding: 6px 10px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 8%, var(--card)); font-size: 13px; }
 .pl-echo { max-height: 35vh; overflow-y: auto; }
 .pl-sheet { width: min(520px, 100vw); }
 .pl-sheet-card { margin-bottom: 16px; }
+.pl-sheet-card th { white-space: nowrap; vertical-align: top; }
 
 /* 窄屏：地图在上，聊天在下，整页可以滚动；会话列表变成一排可横向滚动的标签 */
 @media (max-width: 900px) {
@@ -469,3 +471,8 @@ tr.inactive { opacity: 0.5; }
 .pl-at { position: absolute; left: 0; bottom: calc(100% + 4px); z-index: 20; list-style: none; margin: 0; padding: 4px 0; min-width: 14em; max-width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
 .pl-at button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 5px 10px; color: inherit; font: inherit; cursor: pointer; }
 .pl-at button.active, .pl-at button:hover { background: var(--wb-sunken); color: var(--accent); }
+.pl-skills { margin: 8px 0 10px; }
+.pl-skills ul { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.pl-skills button { padding: 2px 10px; }
+.pl-skill-desc { margin: 2px 0 0 0; white-space: pre-wrap; }
+.pl-echo-skill { color: var(--accent); font-weight: 600; }

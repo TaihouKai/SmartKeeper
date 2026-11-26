@@ -8,6 +8,16 @@ import { PlaceText, type PlaceTarget } from "./PlaceText";
 import { filterMentions, insertMention, mentionQuery } from "./mention";
 import { describeEvent, prettyMentions, type Ev } from "./events";
 
+/** 自己的角色能主动用的一个技能。ref 是角色的 ref，owner 是角色的名字。 */
+export interface SkillItem {
+  ref: string;
+  owner: string;
+  name: string;
+  group: string;
+  description: string;
+  cooldown: boolean;
+}
+
 export interface Mentionable {
   ref: string;
   label: string;
@@ -73,9 +83,13 @@ export function ChatPanel({
   onChanged,
   places,
   onPlace,
+  skills,
+  onUseSkill,
 }: {
   places: { id: string; name: string }[];
   onPlace: (p: PlaceTarget) => void;
+  skills: SkillItem[];
+  onUseSkill: (s: SkillItem) => void;
   events: Ev[];
   status: Schemas["StatusOut"] | null;
   talks: Talk[];
@@ -219,7 +233,7 @@ export function ChatPanel({
           ))}
           <div ref={end} />
         </div>
-        {active.key === "kp" && <KpComposer status={status} events={events} draft={draft} setDraft={setDraft} quotes={quotes} setQuotes={setQuotes} mentionables={mentionables} onChanged={onChanged} />}
+        {active.key === "kp" && <KpComposer status={status} events={events} draft={draft} setDraft={setDraft} quotes={quotes} setQuotes={setQuotes} mentionables={mentionables} onChanged={onChanged} skills={skills} onUseSkill={onUseSkill} />}
         {active.key === "broadcast" && <BroadcastComposer onChanged={onChanged} />}
         {active.key.startsWith("talk:") && (
           <TalkComposer talk={talks.find((x) => `talk:${x.id}` === active.key)} onChanged={onChanged} />
@@ -347,7 +361,11 @@ function KpComposer({
   setQuotes,
   mentionables,
   onChanged,
+  skills,
+  onUseSkill,
 }: {
+  skills: SkillItem[];
+  onUseSkill: (s: SkillItem) => void;
   status: Schemas["StatusOut"] | null;
   events: Ev[];
   draft: string;
@@ -412,7 +430,8 @@ function KpComposer({
                   <li key={i}>
                     <b>{it.actor_label}</b> · {it.verb}
                     {it.targets.length > 0 && <> → {it.targets.map((x) => (x.kind === "entity" ? `@${x.label}` : x.label || t("kp.a_point"))).join(", ")}</>}
-                    {it.destination_label && <> ⇒ {it.destination_label}</>}
+                    {it.destination && <> ⇒ {it.destination_label || t("kp.a_point")}</>}
+                    {it.entry && <div className="pl-echo-skill">{t("skill.echo", { name: it.entry })}</div>}
                     <div className="sk-hint">{t("kp.item_time", { move: formatDuration(t, it.move_seconds), act: formatDuration(t, it.act_seconds) })}</div>
                     {it.detail && <div className="sk-hint">{prettyMentions(it.detail)}</div>}
                   </li>
@@ -464,6 +483,31 @@ function KpComposer({
                 </option>
               ))}
             </select>
+            {skills.length > 0 && (
+              <select
+                value=""
+                disabled={!collecting}
+                aria-label={t("skill.pick")}
+                onChange={(e) => {
+                  const s = skills[Number(e.target.value)];
+                  if (s) onUseSkill(s);
+                }}
+              >
+                <option value="">{t("skill.pick")}</option>
+                {[...new Set(skills.map((s) => s.ref))].map((ref) => (
+                  <optgroup key={ref} label={skills.find((s) => s.ref === ref)?.owner ?? ref}>
+                    {skills.map((s, i) =>
+                      s.ref === ref ? (
+                        <option key={i} value={i} disabled={s.cooldown}>
+                          {s.name}
+                          {s.cooldown ? ` (${t("skill.cooldown")})` : ""}
+                        </option>
+                      ) : null,
+                    )}
+                  </optgroup>
+                ))}
+              </select>
+            )}
             {quotes.map((q) => (
               <button key={q} className="sk-chip" onClick={() => setQuotes(quotes.filter((x) => x !== q))}>
                 {t("kp.quote_chip", { seq: String(q) })} ×

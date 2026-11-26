@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, call, withGame, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { IntelFacts } from "./intel";
@@ -8,7 +8,7 @@ import { ErrorBox, LangSwitch, formatDuration, formatGameTime } from "../ui/comp
 import { useAction, usePoll } from "../ui/hooks";
 import { ReactionPanel } from "./ReactionPanel";
 import { showNumber, withUnit } from "../ui/choices";
-import { ChatPanel, type ChannelKey, type Mentionable } from "./ChatPanel";
+import { ChatPanel, type ChannelKey, type Mentionable, type SkillItem } from "./ChatPanel";
 
 /** 地图上点选的地方：位置（经纬度和米制坐标）、点到的地物（没有是空地）、我的角色走过去要多久。 */
 type Picked = {
@@ -267,7 +267,7 @@ function ScenePanel({
 }
 
 /** 角色卡：从顶栏打开的侧栏。数值、条目、状态、改动记录。 */
-function SheetDrawer({ onClose }: { onClose: () => void }) {
+function SheetDrawer({ onClose, skills, onUse }: { onClose: () => void; skills: SkillItem[]; onUse: (s: SkillItem) => void }) {
   const { t } = useI18n();
   const sheets = usePoll(() => call(api.GET("/api/sheets")), 30_000);
   const rules = usePoll(() => call(api.GET("/api/rules")), 600_000);
@@ -288,6 +288,24 @@ function SheetDrawer({ onClose }: { onClose: () => void }) {
         return (
           <section key={s.entity_id} className="pl-sheet-card">
             <h3>{s.label || sheet.name}</h3>
+            {skills.some((x) => x.ref === s.entity_id) && (
+              <div className="pl-skills">
+                <strong>{t("skill.title")}</strong>
+                <ul>
+                  {skills
+                    .filter((x) => x.ref === s.entity_id)
+                    .map((x) => (
+                      <li key={x.name}>
+                        <button type="button" className="sk-primary" disabled={x.cooldown} onClick={() => onUse(x)}>
+                          {t("skill.use")}
+                        </button>{" "}
+                        <b>{x.name}</b> <span className="sk-hint">{x.group}{x.cooldown ? ` · ${t("skill.cooldown")}` : ""}</span>
+                        {x.description && <div className="sk-hint pl-skill-desc">{x.description}</div>}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
             <table className="sk-table">
               <tbody>
                 {Object.entries(sheet.fields ?? {}).map(([k, v]) => (
@@ -354,17 +372,28 @@ export function PlayPage() {
   const status = usePoll(() => call(api.GET("/api/status")), 10_000);
   const events = usePoll(() => call(api.GET("/api/events", { params: { query: { since: 0 } } })), 8_000);
   const scene = usePoll(() => call(api.GET("/api/scene")), 10_000);
+  const skills = usePoll(() => call(api.GET("/api/skills")), 15_000);
   const map = usePoll(async () => (await call(api.GET("/api/map"))) as unknown as DisplayMap, 3_600_000);
   const talks = usePoll(() => call(api.GET("/api/talks")), inTalk ? 2_000 : 6_000, [inTalk]);
   const [picked, setPicked] = useState<Picked | null>(null);
   const [focus, setFocus] = useState<{ lon: number; lat: number; key: number } | null>(null);
   const err = useAction();
   const evs = events.data ?? [];
+  // 来了新消息（例如 KP 的反馈、新一轮开始）：马上刷新状态和场景，不等各自的定时刷新
+  const lastSeq = evs.length ? evs[evs.length - 1]!.seq : 0;
+  useEffect(() => {
+    if (!lastSeq) return;
+    void status.refresh();
+    void scene.refresh();
+    void skills.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastSeq]);
   const refresh = () => {
     void status.refresh();
     void events.refresh();
     void scene.refresh();
     void talks.refresh();
+    void skills.refresh();
   };
   const mentionables: Mentionable[] = useMemo(() => {
     const s = scene.data;
@@ -380,6 +409,10 @@ export function PlayPage() {
     }
     return [...out.values()];
   }, [scene.data, t]);
+  const skillList = useMemo<SkillItem[]>(() => {
+    const own = new Map((scene.data?.entities ?? []).map((e) => [e.ref, e.name]));
+    return (skills.data ?? []).map((s) => ({ ref: s.entity_id, owner: own.get(s.entity_id) ?? "?", name: s.name, group: s.group_label || s.group, description: s.description ?? "", cooldown: s.cooldown ?? false }));
+  }, [skills.data, scene.data]);
   const placeViews = useMemo<PlaceView[]>(() => (scene.data?.places ?? []).map((p) => ({ id: p.id, name: p.name, lon: p.pos.lon, lat: p.pos.lat, feature: p.feature })), [scene.data]);
   const markers = useMemo<MarkerView[]>(() => {
     const s = scene.data;
@@ -471,6 +504,12 @@ export function PlayPage() {
     setPicked(null);
     setChannel("kp");
   };
+  // 用技能：在行动里写上“@角色 使用「技能」，”，接着写对谁用、怎么用，解析时 KP 按技能名对上卡上的那一条
+  const pickSkill = (s: SkillItem) => {
+    const sep = draft && !/\s$/.test(draft) ? " " : "";
+    setDraft(`${draft}${sep}@[${s.owner}](${s.ref}) ${t("skill.use_text", { name: s.name })}`);
+    setChannel("kp");
+  };
   const startTalk = (from: string, to: string) =>
     void err.run(async () => {
       const talk = await call(api.POST("/api/talks", { body: { to, from } }));
@@ -517,9 +556,20 @@ export function PlayPage() {
           onChanged={refresh}
           places={scene.data?.places ?? []}
           onPlace={(p) => void err.run(() => openPlace(p))}
+          skills={skillList}
+          onUseSkill={pickSkill}
         />
       </div>
-      {sheetOpen && <SheetDrawer onClose={() => setSheetOpen(false)} />}
+      {sheetOpen && (
+        <SheetDrawer
+          onClose={() => setSheetOpen(false)}
+          skills={skillList}
+          onUse={(s) => {
+            pickSkill(s);
+            setSheetOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

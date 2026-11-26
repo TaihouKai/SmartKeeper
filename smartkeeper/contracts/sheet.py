@@ -315,6 +315,19 @@ class SheetChange(Frozen):
     source_kind: Literal["feedback", "admin", "engine", "opening"]
 
 
+class SkillView(Frozen):
+    """玩家自己的角色能主动用的一个技能（卡上写的和规则书自动给的都算；只有常驻加成的不算）。
+
+    name 是用的时候写的名字（物品的用途是“物品名/用途名”）。"""
+
+    entity_id: str
+    group: str
+    group_label: str = ""
+    name: str
+    description: str = ""
+    cooldown: bool = False  # 正在冷却，暂时用不了
+
+
 class SheetView(Frozen):
     """给玩家看的自己实体的角色卡：隐藏字段已去掉。"""
 

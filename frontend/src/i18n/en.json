@@ -1794,6 +1794,14 @@
     "statuses": "Statuses:",
     "yes": "Yes"
   },
+  "skill": {
+    "cooldown": "cooling down",
+    "echo": "Skill: {name}",
+    "pick": "Use a skill…",
+    "title": "Skills you can use",
+    "use": "Use",
+    "use_text": "uses \"{name}\", "
+  },
   "state": {
     "apply": "Apply",
     "current": "Current state",

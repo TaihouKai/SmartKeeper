@@ -91,6 +91,7 @@ from smartkeeper.contracts import (
     SheetSubmission,
     SheetView,
     SkillConfig,
+    SkillView,
     Spatial,
     SpatialQuery,
     SpatialQueryResult,
@@ -4151,6 +4152,47 @@ class Engine:
             player_id=player_id,
         )
 
+    def skills(self, game_id: str, player_id: str) -> list[SkillView]:
+        """玩家自己控制的角色能主动用的技能：有技能设置或脚本的条目和物品的用途（卡上写的和规则书自动给的）；
+        只有常驻加成的、物品本身（要用它的用途）、隐藏分组里的不算。死了的角色没有。"""
+        state = self._state(game_id)
+        pack = self.rulepack(game_id)
+        out: list[SkillView] = []
+        for eid in self.controlled(game_id, player_id):
+            ent = self._entity(state, eid)
+            template = str(ent.get("template", ""))
+            tpl = pack.template(template)
+            if tpl is None or self._dead(state, eid):
+                continue
+            groups = {g.name: g for g in tpl.groups}
+            tags = {str(_obj(x).get("tag")) for x in _list(_obj(ent.get("sheet")).get("statuses"))}
+            sheet = _obj(
+                self._rules.full_sheet(pack, template, ent.get("sheet"), peers_of(state, eid))
+            )
+            for gname, row, _owner in entry_refs.usable(sheet):
+                g = groups.get(gname)
+                if g is None or g.hidden:
+                    continue
+                if _list(row.get("uses")) and not row.get("is_use"):
+                    continue  # 物品本身：用它的用途
+                active = (
+                    str(row.get("script") or "").strip() or str(row.get("config") or "").strip()
+                )
+                if not active and not row.get("is_use"):
+                    continue
+                name = str(row.get("name", ""))
+                out.append(
+                    SkillView(
+                        entity_id=eid,
+                        group=gname,
+                        group_label=g.label or gname,
+                        name=name,
+                        description=str(row.get("description") or ""),
+                        cooldown=COOLDOWN_TAG + name in tags,
+                    )
+                )
+        return out
+
     # ================= 位置、感知与代号 =================
 
     def map_data(self, game_id: str) -> MapData:
@@ -4654,8 +4696,10 @@ class Engine:
     def resolve_mentions(
         self, game_id: str, player_id: str, text: str
     ) -> tuple[str, list[TargetRef]]:
-        """把行动文本里的 `@[文字](ref)` 换成该玩家的代号，并给出对应的实体 ID 或地物 id。
+        """把行动文本里的 `@[文字](ref)` 换成给 KP 解析用的写法，并给出对应的实体 ID 或地物 id。
 
+        人换成该玩家的代号（@代号）；地图上点的位置和地物保留确切的引用（@[文字](point:x,y,z)、
+        @[地物名](feature:<id>)），不然 KP 只看到一个名字，远一点的地方就对不上。
         ref 不属于这个玩家时拒绝：玩家只能 @ 引擎给出的代号。
         """
         m = self._map(game_id)
@@ -4666,14 +4710,14 @@ class Engine:
                 pt = mt.point
                 if pt is None or not self._spatial.in_bounds(m, pt):
                     raise ValidationFailed("mention.bad_point", ref=mt.ref)
-                labels[mt.ref] = mt.text
+                labels[mt.ref] = f"[{mt.text}]({mt.ref})"
                 targets.append(TargetRef(kind="point", point=pt))
                 continue
             if mt.is_feature:
                 f = m.feature(mt.feature_id)
                 if f is None:
                     raise ValidationFailed("mention.unknown", ref=mt.ref)
-                labels[mt.ref] = f.name or f.id
+                labels[mt.ref] = f"[{mt.text or f.name or f.id}](feature:{f.id})"
                 targets.append(TargetRef(kind="feature", id=f.id))
                 continue
             h = self._handles.by_ref(player_id, mt.ref)

@@ -1794,6 +1794,14 @@
     "statuses": "状态：",
     "yes": "是"
   },
+  "skill": {
+    "cooldown": "冷却中",
+    "echo": "技能：{name}",
+    "pick": "使用技能……",
+    "title": "能用的技能",
+    "use": "使用",
+    "use_text": "使用「{name}」，"
+  },
   "state": {
     "apply": "提交修改",
     "current": "当前状态",

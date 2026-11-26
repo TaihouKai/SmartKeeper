@@ -27,6 +27,7 @@ from smartkeeper.contracts import (
     ReactionSkill,
     SheetSubmission,
     SheetView,
+    SkillView,
 )
 from smartkeeper.engine import split_front_matter
 from smartkeeper.mapdata import display_geojson, to_meters
@@ -378,6 +379,14 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
                 }
             )
             for v in views
+        ]
+
+    @r.get("/skills")
+    def skills(p: Annotated[Player, Depends(require_player)]) -> list[SkillView]:
+        """自己的角色能主动用的技能。entity_id 换成该玩家的 ref（和 /scene 里自己角色的 ref 一样）。"""
+        return [
+            s.model_copy(update={"entity_id": e.ref_for_entity(p.id, s.entity_id) or "?"})
+            for s in e.skills(p.game_id, p.id)
         ]
 
     @r.patch("/handles/{ref}")

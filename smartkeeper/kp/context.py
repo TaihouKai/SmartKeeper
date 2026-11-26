@@ -299,6 +299,7 @@ class Contexts:
         scene = self.e.scene(g, player_id)
         refs: dict[str, str] = {}
         own: list[JsonValue] = []
+        skills = self.e.skills(g, player_id)
         for ent in scene.entities:
             refs[ent.ref] = self.e.entity_for_ref(player_id, ent.ref)
             own.append(
@@ -306,6 +307,16 @@ class Contexts:
                     "ref": ent.ref,
                     "name": ent.name,
                     "mine": True,
+                    # 能主动用的技能：行动用到其中一个时 entry 填它的名字（原样照抄）
+                    "skills": [
+                        {
+                            "name": x.name,
+                            "description": x.description[:160],
+                            **({"cooldown": True} if x.cooldown else {}),
+                        }
+                        for x in skills
+                        if x.entity_id == refs[ent.ref]
+                    ],
                     "present": [
                         {"ref": x.ref, "label": x.label, "note": x.note} for x in ent.presence
                     ],

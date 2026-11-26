@@ -1429,6 +1429,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Skills
+         * @description 自己的角色能主动用的技能。entity_id 换成该玩家的 ref（和 /scene 里自己角色的 ref 一样）。
+         */
+        get: operations["skills_api_skills_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/status": {
         parameters: {
             query?: never;
@@ -2136,6 +2156,8 @@ export interface components {
             destination_label?: string | null;
             /** Detail */
             detail: string;
+            /** Entry */
+            entry?: string | null;
             /** Move Seconds */
             move_seconds: number;
             /** Targets */
@@ -4375,6 +4397,35 @@ export interface components {
             };
             /** Template */
             template: string;
+        };
+        /**
+         * SkillView
+         * @description 玩家自己的角色能主动用的一个技能（卡上写的和规则书自动给的都算；只有常驻加成的不算）。
+         *
+         *     name 是用的时候写的名字（物品的用途是“物品名/用途名”）。
+         */
+        SkillView: {
+            /**
+             * Cooldown
+             * @default false
+             */
+            cooldown: boolean;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Entity Id */
+            entity_id: string;
+            /** Group */
+            group: string;
+            /**
+             * Group Label
+             * @default
+             */
+            group_label: string;
+            /** Name */
+            name: string;
         };
         /** StatePatchIn */
         StatePatchIn: {
@@ -7525,6 +7576,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SheetView"][];
+                };
+            };
+        };
+    };
+    skills_api_skills_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillView"][];
                 };
             };
         };

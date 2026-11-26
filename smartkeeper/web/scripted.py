@@ -9,6 +9,7 @@ import json
 import re
 from typing import Any, cast
 
+from smartkeeper.contracts import Intent
 from smartkeeper.engine import Engine
 from smartkeeper.llm import FakeCall, FakeLLM
 
@@ -65,20 +66,60 @@ def install_scripted(llm: FakeLLM, engine: Engine) -> None:
         if not own:
             return json.dumps({"items": [], "unresolved": ["?"]})
         targets = [{"ref": ref} for ref, label in seen if label and f"@{label}" in action]
+        # 写了“使用「技能名」”：找到有这个技能的角色，填上 entry
+        actor: str = own[0][0]
+        entry: str | None = None
+        try:
+            raw: object = json.loads(
+                _section(c.prompt, "可指代的对象：玩家自己控制的实体（及各自的在场列表）")
+            )
+        except ValueError:
+            raw = []
+        mine = cast(list[dict[str, Any]], raw) if isinstance(raw, list) else []
+        for name in re.findall(r"「([^」]+)」", action):
+            for ent in mine:
+                skills = cast(list[dict[str, Any]], ent.get("skills") or [])
+                if any(x.get("name") == name for x in skills):
+                    actor, entry = str(ent["ref"]), name
+                    break
+            if entry:
+                break
+        # 文本里点了地图上的位置或地物：当作目的地
+        destination: dict[str, Any] | None = None
+        pm = re.search(r"\]\(point:([-0-9.]+),([-0-9.]+),([-0-9.]+)\)", action)
+        fm = re.search(r"\]\(feature:([A-Za-z0-9_.-]+)\)", action)
+        if pm:
+            x, y, z = (float(v) for v in pm.groups())
+            destination = {"point": {"x": x, "y": y, "z": z}}
+        elif fm and not entry:
+            destination = {"feature": fm.group(1), "z": None}
         return json.dumps(
             {
                 "items": [
                     {
-                        "actor": own[0][0],
+                        "actor": actor,
+                        "destination": destination,
                         "verb": "act",
                         "targets": targets,
                         "detail": action.strip()[:200],
-                        "seconds": 60,
+                        "seconds": 5 if entry else 60,
+                        "entry": entry,
                     }
                 ]
             },
             ensure_ascii=False,
         )
+
+    def plan(c: FakeCall) -> str:
+        # 用了技能的行动条目：照着用（对象是第一个被 @ 的人）
+        g = gid(c)
+        uses: list[dict[str, Any]] = []
+        for ev in engine.declarations(g).values():
+            for it in Intent.model_validate(ev.payload["intent"]).items:
+                if it.entry:
+                    target = next((x.id for x in it.targets if x.kind == "entity"), None)
+                    uses.append({"source": it.actor, "entry": it.entry, "target": target})
+        return json.dumps({"checks": [], "queries": [], "uses": uses}, ensure_ascii=False)
 
     def adjudicate(c: FakeCall) -> str:
         # 每个玩家都给结果：大家每轮都重新行动，浏览器测试走最简单的路径
@@ -93,7 +134,13 @@ def install_scripted(llm: FakeLLM, engine: Engine) -> None:
             outcomes.append(
                 {"player_id": p.id, "resolves": resolves, "result": "（脚本化 KP）你的行动完成了。"}
             )
-        return json.dumps({"outcomes": outcomes}, ensure_ascii=False)
+        # 本轮用的技能都算生效（范围技能只写第一条）
+        uses = [
+            {"seq": u["seq"], "hit": True}
+            for u in engine.planned_uses(g)
+            if isinstance(u, dict) and u.get("area_of") is None
+        ]
+        return json.dumps({"outcomes": outcomes, "uses": uses}, ensure_ascii=False)
 
     def copilot(c: FakeCall) -> str:
         """离线演示的建卡助手：复述问题；正在编辑某一条时，给一个把说明改掉的修改。"""
@@ -139,7 +186,7 @@ def install_scripted(llm: FakeLLM, engine: Engine) -> None:
     llm.on("chat", lambda c: "（脚本化 KP）收到你的问题。这只是离线演示的回答。")
     llm.on("parse_intent", intent)
     llm.on("claim_check", lambda c: json.dumps({"verdict": "holds", "evidence": [], "note": ""}))
-    llm.on("plan", lambda c: json.dumps({"checks": [], "queries": []}))
+    llm.on("plan", plan)
     llm.on("adjudicate", adjudicate)
     llm.on("feedback", lambda c: "（脚本化 KP）本轮你的行动完成了，时间过去了一分钟。")
     llm.on("broadcast", lambda c: "（脚本化 KP）公共消息。")

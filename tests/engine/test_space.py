@@ -271,10 +271,21 @@ def test_mentions_resolve_to_handle_table() -> None:
     ref = t.engine.scene(t.game_id, p0).entities[0].presence[0].ref
     t.engine.rename_handle(p0, ref, label="Blond man")
     text, targets = t.engine.resolve_mentions(
-        t.game_id, p0, f"I slap @[whoever]({ref}) and walk to @[x](feature:bldg_tower)"
+        t.game_id,
+        p0,
+        f"I slap @[whoever]({ref}), walk to @[the bakery](feature:bldg_tower)"
+        " and then to @[a spot](point:10,20,0)",
     )
-    assert text == "I slap @Blond man and walk to @Tower"
-    assert [(x.kind, x.id) for x in targets] == [("entity", e1), ("feature", "bldg_tower")]
+    # 人换成代号；地点保留确切的引用，KP 才对得上（远处的地物不在“附近的地物”里）
+    assert text == (
+        "I slap @Blond man, walk to @[the bakery](feature:bldg_tower)"
+        " and then to @[a spot](point:10,20,0)"
+    )
+    assert [(x.kind, x.id) for x in targets] == [
+        ("entity", e1),
+        ("feature", "bldg_tower"),
+        ("point", None),
+    ]
     assert t.engine.ref_for_entity(p0, e1) == ref
     other_ref = t.engine.scene(t.game_id, p1).entities[0].presence[0].ref
     with pytest.raises(ValidationFailed):
