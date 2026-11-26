@@ -36,6 +36,7 @@ from smartkeeper.contracts import (
 from smartkeeper.engine import MAX_TEXT, Engine
 from smartkeeper.kp.config import KPConfig
 from smartkeeper.kp.context import Contexts, Prompt
+from smartkeeper.kp.render import entity_tokens
 from smartkeeper.kp.schemas import (
     ClaimCheckOut,
     HandleOut,
@@ -487,8 +488,14 @@ class KP:
             return None
 
     def _write_outputs(self, game_id: str, adj: Adjudication) -> bool:
-        """各玩家的反馈并行撰写，各自过泄密检查；有公共事件时写广播。全部成功返回 True。"""
+        """各玩家的反馈并行撰写，各自过泄密检查；有公共事件时写广播。全部成功返回 True。
+
+        写之前先给每个玩家本轮结果里提到的人建好代号并起好外号：反馈里用的就是之后一直用的外号，
+        而不是临时的“某人”（发出去的反馈不会再改）。"""
         players = [o.player_id for o in adj.outcomes]
+        for pid in players:
+            self.engine.ensure_handles(game_id, pid, mentioned_entities(adj, pid))
+        self.name_pending_handles(game_id)
         with ThreadPoolExecutor(max_workers=max(1, self.cfg.writer_concurrency)) as pool:
 
             def one(pid: str) -> bool:
@@ -559,3 +566,15 @@ class KP:
         for g in games:
             self.run_round(g)
         return games
+
+
+def mentioned_entities(adj: Adjudication, player_id: str) -> set[str]:
+    """裁定里这个玩家会读到的部分（结果、观察、看到的别人的行为、情报）提到的实体。"""
+    texts: list[str] = []
+    for o in adj.outcomes:
+        if o.player_id == player_id:
+            texts += [o.result, *o.observations]
+    texts += [enc.observed_by[player_id] for enc in adj.encounters if player_id in enc.observed_by]
+    texts += [x.text for x in adj.intel if x.player == player_id]
+    about = {x.about for x in adj.intel if x.player == player_id}
+    return about | {eid for t in texts for eid in entity_tokens(t)}

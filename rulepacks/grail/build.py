@@ -734,11 +734,11 @@ STEALTH = code(
     )
     """
 )
-# 神秘：普通的攻击伤不到英灵；灵体化时只有魔力伤害和带神秘的物理伤害（mystic，例如礼装）碰得到；
-# 对魔力只挡魔力伤害（魔术），不挡带神秘的物理伤害
+# 神秘：普通的攻击伤不到英灵；灵体化时只有魔力伤害和带神秘的物理伤害（mystic，例如礼装）碰得到，
+# 宝具本身就是神秘，也碰得到；对魔力只挡魔力伤害（魔术），不挡带神秘的物理伤害和宝具
 SERVANT_DAMAGE = code(
     """
-    0 if kind == "mundane" or (spirit_form and kind != "magic" and kind != "mystic") else max(0, amount - 5 * servant.anti_magic.level) if kind == "magic" else amount
+    0 if kind == "mundane" or (spirit_form and kind != "magic" and kind != "mystic" and kind != "noble_phantasm") else max(0, amount - 5 * servant.anti_magic.level) if kind == "magic" else amount
     """
 )
 RANGED = """

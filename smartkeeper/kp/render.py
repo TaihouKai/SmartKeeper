@@ -36,13 +36,21 @@ def _compact(v: JsonValue) -> str:
     return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
 
 
+# 引擎写进消息里的地点链接 [名字](place:id) / [名字](feature:id)：给 KP 看时换回它自己用的写法 {{place:名字}}
+_PLACE_LINK = re.compile(r"\[([^\]\n]{1,80})\]\((?:place|feature):[A-Za-z0-9_.-]{1,80}\)")
+
+
+def place_tokens(text: str) -> str:
+    return _PLACE_LINK.sub(lambda m: "{{place:" + m.group(1) + "}}", text)
+
+
 def render_event(e: Event, names: Mapping[str, str]) -> str:
     """一条事件一行（或几行）。names：玩家 id -> 显示名。"""
     p = e.payload
     head = f"[#{e.seq} R{e.round_no}]"
     actor = e.actor
     who = names.get(actor, actor) if actor else "?"
-    text = str(p.get("text", ""))
+    text = place_tokens(str(p.get("text", "")))
     t = e.type
     if t == "broadcast":
         if actor == KP:

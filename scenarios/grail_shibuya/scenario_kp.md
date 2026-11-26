@@ -2,7 +2,7 @@
 # 开场时就有名字的地点。public: true 是谁都知道的名字（所有玩家的地图上都显示）；
 # 不写是秘密的名字，只有在消息里被告知的玩家知道
 places:
-  - {name: 教会, at: {place: bldg_155749494}, public: true}      # 宫下公园东边的矮楼
+  - {name: 教会, at: {place: bldg_138671597}, public: true}      # 地图上的美竹教会，在宫下公园东边
   - {name: 宫下公园, at: {place: lm_9855737969}, public: true}
 npcs:
   - id: npc_kurokawa

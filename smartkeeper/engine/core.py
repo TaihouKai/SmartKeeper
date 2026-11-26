@@ -7,7 +7,7 @@ import hashlib
 import json
 import secrets
 import threading
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
@@ -3408,19 +3408,6 @@ class Engine:
         before = self._space_for(m, cur, pack)
         start_space = self._space_for(m, state, pack)
         sensed = self._remote_sensing(game_id, r.no, adj, controls)
-        problems += adjv.check_intel(
-            adj,
-            players=set(players),
-            entities=entities,
-            controls=controls,
-            met=lambda pid, eid: (
-                pid in sensed
-                or self._handles.get(pid, eid) is not None
-                or eid in start_space.player_perceived(pid)
-                or eid in before.player_perceived(pid)
-            ),
-            fields_of=lambda eid: self._field_names(pack, state, eid),
-        )
         mv_ops: list[PatchOp] = []
         kp_moved = {mv.entity for mv in adj.movements}
         # 技能脚本瞬间移动过的角色停在移动到的地方，不再按进行中的行动推
@@ -3480,6 +3467,23 @@ class Engine:
             mv_ops.append(
                 PatchOp(op="replace", path=f"/entities/{mv.entity}/inside", value=mv.inside)
             )
+        # 情报只给本轮真的接触到对方的玩家：本轮开始时、结算到移动之前、移动到本轮结束的位置之后，
+        # 任何一个时刻感知得到都算（例如本轮走进教会才见到里面的人）
+        moved = self._space_for(m, self._world.apply(cur, mv_ops), pack) if mv_ops else before
+        problems += adjv.check_intel(
+            adj,
+            players=set(players),
+            entities=entities,
+            controls=controls,
+            met=lambda pid, eid: (
+                pid in sensed
+                or self._handles.get(pid, eid) is not None
+                or eid in start_space.player_perceived(pid)
+                or eid in before.player_perceived(pid)
+                or eid in moved.player_perceived(pid)
+            ),
+            fields_of=lambda eid: self._field_names(pack, state, eid),
+        )
         if problems:
             raise ValidationFailed("adjudication.invalid", problems)
         if mv_ops:
@@ -4660,6 +4664,16 @@ class Engine:
                     self._handles.ensure(pid, other)
             return self.unnamed_handles(game_id)
 
+    def ensure_handles(self, game_id: str, player_id: str, entity_ids: Iterable[str]) -> None:
+        """本轮的结果里提到了这些人：这个玩家见到了他们，先建好代号（写反馈之前起好外号，反馈里就用外号）。
+        不存在的实体和他自己的角色跳过。"""
+        with self._lock:
+            ents = _obj(self._state(game_id).get("entities"))
+            mine = set(self.controlled(game_id, player_id))
+            for eid in sorted(set(entity_ids)):
+                if eid in ents and eid not in mine:
+                    self._handles.ensure(player_id, eid)
+
     def unnamed_handles(self, game_id: str) -> list[tuple[str, str]]:
         out: list[tuple[str, str]] = []
         for p in self._active_players(game_id):
@@ -4673,7 +4687,13 @@ class Engine:
         """“外观代号”调用的上下文：对方的外观描述、该玩家已有的代号。"""
         state = self._state(game_id)
         appearance = self._appearance(state, self.rulepack(game_id), entity_id)
-        labels = [h.label for h in self._handles.list(player_id) if h.entity_id != entity_id]
+        # 已有的外号（避免重名）：还没起名的临时编号（#3 这种）和自己的角色（名字）不算
+        mine = set(self.controlled(game_id, player_id))
+        labels = [
+            h.label
+            for h in self._handles.list(player_id)
+            if h.entity_id != entity_id and h.entity_id not in mine and not (h.auto and not h.named)
+        ]
         return appearance, labels
 
     def set_handle_label(self, player_id: str, entity_id: str, label: str) -> Handle:
@@ -5206,12 +5226,18 @@ class Engine:
 
         declared：还没登记、但这次一起起的名字（例如开场时剧本和 KP 起的名字），也认得。
         """
+        return self._resolve_place(game_id, place, self.places_with(game_id, declared))[0]
+
+    def places_with(
+        self, game_id: str, declared: Sequence[PlaceNameIn] = ()
+    ) -> dict[str, NamedPlace]:
+        """起了名字的地点，加上还没登记、这次一起起的名字（有冲突的跳过）。"""
         state = self._state(game_id)
         if declared:
             ops, _problems = self._place_ops(game_id, state, declared, "places")
             if ops:
                 state = self._world.apply(state, ops)
-        return self._resolve_place(game_id, place, places.of(state))[0]
+        return places.of(state)
 
     def scenario_places(self, game_id: str) -> tuple[PlaceNameIn, ...]:
         """剧本里开场时就起好名字的地点。"""

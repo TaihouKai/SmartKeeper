@@ -252,3 +252,23 @@ def test_a_successful_untargeted_checked_use_may_learn_about_someone_never_met()
     assert u.payload["target"] is None and u.payload["hit"] is True
     publish(t, t.players, uses=[UseResult(seq=u.seq)], intel=[clue])
     assert known(t, p0, "npc_far")["notes"]
+
+
+def test_clues_about_someone_met_only_at_the_end_of_the_round() -> None:
+    """本轮走过去才见到的人（例如走进教会才见到里面的神父）：可以给关于他的情报。"""
+    from smartkeeper.contracts import ActionItem, Intent, Location, Point
+
+    t = setup_table("single", 1)
+    (pid,) = t.players
+    e, g = t.engine, t.game_id
+    ent = t.entities(pid)[0]
+    # NPC 在 (-50, 150)，玩家在 (-50, -40)：开始时看不见；这一轮走到 NPC 旁边
+    walk = ActionItem(
+        actor=ent, verb="walk", destination=Location(pos=Point(x=-50, y=146)), act_seconds=0
+    )
+    e.declare_action(pid, "walk over", Intent(items=(walk,)))
+    e.close_round(g, forced=True)
+    adj = t.simple_adjudication().model_copy(
+        update={"intel": (IntelIn(player=pid, about="npc_1", text="flour on his sleeves"),)}
+    )
+    e.apply_adjudication(g, adj)  # 不报 adj.intel_not_met

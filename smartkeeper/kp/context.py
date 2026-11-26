@@ -16,11 +16,19 @@ from smartkeeper.contracts import (
     Event,
     Intent,
     MemoryEntry,
+    Point,
 )
 from smartkeeper.engine import Engine, kp_meta, place_names_in, split_front_matter
 from smartkeeper.kp import templates
 from smartkeeper.kp.config import KPConfig
-from smartkeeper.kp.render import dumps, player_text, render_events, replace_entity_tokens, section
+from smartkeeper.kp.render import (
+    dumps,
+    entity_tokens,
+    player_text,
+    render_events,
+    replace_entity_tokens,
+    section,
+)
 
 UNKNOWN = {"zh": "某人", "en": "someone"}
 STYLE = {
@@ -214,7 +222,7 @@ class Contexts:
                         }
                     ),
                 ),
-                self._places_for_judge(game_id),
+                self._places_for_judge(game_id, opening=True),
                 section("需要初始位置的实体", dumps(need)),
             ]
         )
@@ -233,12 +241,18 @@ class Contexts:
 
     # ---------------- 起了名字的地点 ----------------
 
-    def _places_for_judge(self, game_id: str) -> str:
-        """起过的名字和它们在哪（所在地物、楼层、坐标），给要决定位置、起新名字的调用。"""
+    def _places_for_judge(self, game_id: str, opening: bool = False) -> str:
+        """起过的名字和它们在哪（所在地物、楼层、坐标），给要决定位置、起新名字的调用。
+        开场时剧本里起好的名字还没登记，也列出来（开场时就登记），不用再起一遍。"""
         m = self.e.map_data(game_id)
         known = {p.id: set(self.e.known_places(game_id, p.id)) for p in self.e.players(game_id)}
+        named = (
+            self.e.places_with(game_id, self.e.scenario_places(game_id))
+            if opening
+            else self.e.places(game_id)
+        )
         out: list[JsonValue] = []
-        for pid, p in sorted(self.e.places(game_id).items()):
+        for pid, p in sorted(named.items()):
             f = m.feature(p.feature) if p.feature else None
             out.append(
                 {
@@ -300,6 +314,23 @@ class Contexts:
         refs: dict[str, str] = {}
         own: list[JsonValue] = []
         skills = self.e.skills(g, player_id)
+        m = self.e.map_data(g)
+        known = self.e.known_places(g, player_id)
+        by_feature = {p.feature: p.name for p in known.values() if p.feature}
+
+        def where(pos: Point | None, inside: str | None) -> JsonValue:
+            """此刻在哪：所在的建筑（我知道名字的地点优先）和坐标。"""
+            if pos is None:
+                return None
+            out: dict[str, JsonValue] = {"x": round(pos.x), "y": round(pos.y), "z": round(pos.z)}
+            if inside:
+                f = m.feature(inside)
+                out["inside"] = {
+                    "feature": inside,
+                    "name": by_feature.get(inside) or (f.name if f else ""),
+                }
+            return out
+
         for ent in scene.entities:
             refs[ent.ref] = self.e.entity_for_ref(player_id, ent.ref)
             own.append(
@@ -307,6 +338,7 @@ class Contexts:
                     "ref": ent.ref,
                     "name": ent.name,
                     "mine": True,
+                    "at": where(ent.pos, ent.inside),
                     # 能主动用的技能：行动用到其中一个时 entry 填它的名字（原样照抄）
                     "skills": [
                         {
@@ -331,6 +363,19 @@ class Contexts:
                 section("可指代的对象：玩家自己控制的实体（及各自的在场列表）", dumps(own)),
                 section("可指代的对象：玩家见过的人和物（不一定在场）", dumps(seen)),
                 section("附近的地物", dumps(self.e.nearby_features(g, player_id))),
+                section(
+                    "这个玩家知道的地点名字（玩家说的“教会”之类指的就是这里；feature 是所在地物 id）",
+                    dumps(
+                        [
+                            {
+                                "name": p.name,
+                                "feature": p.feature,
+                                "point": [round(p.pos.x), round(p.pos.y), round(p.pos.z)],
+                            }
+                            for p in known.values()
+                        ]
+                    ),
+                ),
                 section("行动声明", player_text(resolved, p.display_name)),
             ]
         )
@@ -547,11 +592,25 @@ class Contexts:
         lang = self.language(game_id)
         labels = self._labels(game_id, player_id)
         unknown = UNKNOWN.get(lang, UNKNOWN["en"])
+        outcome = next((o for o in adj.outcomes if o.player_id == player_id), None)
+        # 本轮才见到、还没有外号的人（外号在发布之后才起）：临时叫“某人A”“某人B”，外观照样给，
+        # 免得反馈里一律是“某人”、分不清谁是谁
+        mentioned = [
+            *([outcome.result, *outcome.observations] if outcome else []),
+            *(enc.observed_by[player_id] for enc in adj.encounters if player_id in enc.observed_by),
+            *(x.text for x in adj.intel if x.player == player_id),
+        ]
+        strangers = sorted(
+            {eid for txt in mentioned for eid in entity_tokens(txt)}
+            - set(labels)
+            - set(self.e.controlled(game_id, player_id))
+        )
+        for i, eid in enumerate(strangers):
+            labels[eid] = f"{unknown}{chr(ord('A') + i % 26)}"
 
         def loc(t: str) -> str:
             return replace_entity_tokens(t, labels, unknown)
 
-        outcome = next((o for o in adj.outcomes if o.player_id == player_id), None)
         mine = {
             "result": loc(outcome.result) if outcome else "",
             "observations": [loc(x) for x in outcome.observations] if outcome else [],

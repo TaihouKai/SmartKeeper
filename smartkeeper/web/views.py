@@ -214,6 +214,15 @@ def echo(
     def label(eid: str) -> str:
         return labels.get(eid, "?")
 
+    # 地物的叫法：我知道名字的地点（例如教会所在的楼）优先，其次是地图上的名字；都没有是空，界面上写成“地图上的点”
+    named = {
+        p.feature: p.name for p in engine.known_places(game_id, player_id).values() if p.feature
+    }
+
+    def place_label(fid: str) -> str:
+        f = m.feature(fid)
+        return named.get(fid) or (f.name if f else "")
+
     items: list[EchoItem] = []
     for it in intent.items:
         targets: list[EchoTarget] = []
@@ -225,18 +234,14 @@ def echo(
                     )
                 )
             elif t.kind == "feature" and t.id:
-                f = m.feature(t.id)
-                targets.append(
-                    EchoTarget(kind="feature", id=t.id, label=(f.name or t.id) if f else t.id)
-                )
+                targets.append(EchoTarget(kind="feature", id=t.id, label=place_label(t.id)))
             elif t.point is not None:
                 targets.append(EchoTarget(kind="point", label="", point=lonlat(m, t.point)))
         dest = dest_label = None
         if it.destination is not None:
             dest = lonlat(m, it.destination.pos)
             if it.destination.inside:
-                f = m.feature(it.destination.inside)
-                dest_label = (f.name or f.id) if f else it.destination.inside
+                dest_label = place_label(it.destination.inside) or None
         items.append(
             EchoItem(
                 actor_label=label(it.actor),
