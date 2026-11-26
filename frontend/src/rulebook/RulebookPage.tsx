@@ -12,11 +12,17 @@ type Book = { title: string; text: string };
  */
 export function RulebookPage({ part }: { part: "handbook" | "scenario" }) {
   const { t } = useI18n();
-  const game = new URLSearchParams(window.location.search).get("game");
+  const query = new URLSearchParams(window.location.search);
+  const game = query.get("game");
+  const bookId = query.get("book"); // 规则书总览里打开的：不经过哪一局
   const [book, setBook] = useState<Book | null>(null);
   const [error, setError] = useState<unknown>(null);
   useEffect(() => {
     const load = async (): Promise<Book> => {
+      if (bookId) {
+        const b = await call(api.GET("/api/books/{book_id}", { params: { path: { book_id: bookId } } }));
+        return { title: b.name, text: part === "handbook" ? (b.handbook ?? "") : "" };
+      }
       if (game) {
         const r = await call(api.GET("/api/lobby/{game_id}/rulebook", { params: { path: { game_id: game } } }));
         return { title: r.game_name, text: r[part] };
@@ -32,7 +38,7 @@ export function RulebookPage({ part }: { part: "handbook" | "scenario" }) {
         if (hash) window.setTimeout(() => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView(), 50);
       })
       .catch(setError);
-  }, [game, part]);
+  }, [game, bookId, part]);
   if (error) {
     return (
       <main className="sk-page">

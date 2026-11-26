@@ -14,6 +14,12 @@ export function LobbyPage() {
   const list = games.data ?? [];
   return (
     <main className="sk-page">
+      <nav className="bk-nav">
+        <a href="/" className="active">
+          {t("nav.games")}
+        </a>
+        <a href="/books">{t("nav.books")}</a>
+      </nav>
       <header className="sk-top">
         <h1>{t("app.title")}</h1>
         <LangSwitch />

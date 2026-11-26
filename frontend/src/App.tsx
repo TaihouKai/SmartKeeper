@@ -2,6 +2,7 @@ import { AdminPage } from "./admin/AdminPage";
 import { JoinPage } from "./join/JoinPage";
 import { LobbyPage } from "./lobby/LobbyPage";
 import { PlayPage } from "./play/PlayPage";
+import { BooksRoute } from "./books/BooksPage";
 import { RulebookPage } from "./rulebook/RulebookPage";
 import { DocsProvider, loadDocs } from "./ui/docs";
 import "./ui/style.css";
@@ -14,6 +15,7 @@ function Page() {
   if (path.startsWith("/join")) return <JoinPage />;
   if (path.startsWith("/play")) return <PlayPage />;
   if (path.startsWith("/rulebook")) return <RulebookPage part="handbook" />;
+  if (path === "/books" || path.startsWith("/books/")) return <BooksRoute />;
   if (path.startsWith("/scenario")) return <RulebookPage part="scenario" />;
   return <LobbyPage />;
 }

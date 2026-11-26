@@ -6,7 +6,7 @@ import { useAction, usePoll } from "../ui/hooks";
 import { HandbookProvider, Markdown } from "../ui/markdown";
 import { DocsTab, useDocs } from "../ui/docs";
 import { CharacterForm } from "./CharacterForm";
-import { CharacterPicker, loadOrigin, rememberOrigin, type Origin } from "./Library";
+import { CharacterPicker, loadOrigin, normalizeSheets, rememberOrigin, type Origin } from "./Library";
 
 /** /join：阅读规则，按剧本抽取或选择身份，按模板填写并提交角色卡，查看 KP 的审核意见。 */
 export function JoinPage() {
@@ -148,10 +148,7 @@ export function JoinPage() {
                         onPick={(sheets, o) =>
                           void choose.run(async () => {
                             // 载入：当成草稿放进建卡表单，可以再改。只留这套规则书要玩家建的卡，缺的部分补齐
-                            const wanted = new Set((r.player_entities as unknown as { template: string }[]).map((x) => x.template));
-                            const clean = (Array.isArray(sheets) ? (sheets as { template: string; sheet: Record<string, unknown> }[]) : [])
-                              .filter((x) => wanted.has(x.template))
-                              .map((x) => ({ template: x.template, sheet: { name: "", fields: {}, groups: {}, preset_fields: {}, ...(x.sheet ?? {}) } }));
+                            const clean = normalizeSheets(sheets, r.player_entities as unknown as { template: string }[]);
                             await call(api.PUT("/api/character/draft", { body: { sheets: clean as never } }));
                             setOrigin(o);
                             setPicking(false);

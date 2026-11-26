@@ -45,6 +45,30 @@
     "title": "SmartKeeper",
     "to_admin": "Admin console"
   },
+  "books": {
+    "all": "← All rulebooks",
+    "characters": "Characters",
+    "delete": "Delete",
+    "delete_confirm": "Delete “{name}”? Copies already in games aren't affected.",
+    "draft_saved": "Kept in this browser ({time}); use the button to save to the library",
+    "drop_draft": "Discard and use the library version",
+    "drop_new": "Clear and start over",
+    "empty": "No rulebooks yet (the admin imports them)",
+    "intro": "Each rulebook has its scenarios and characters. Make, change and delete characters here without joining a game; pick one from the library when you join.",
+    "local_draft": "This is the version you changed in this browser and haven't saved to the library yet.",
+    "n_characters": "{n} characters",
+    "n_scenarios": "{n} scenarios",
+    "need_password": "This character is password protected.",
+    "new_character": "New character",
+    "no_characters": "No characters yet",
+    "no_scenarios": "No scenarios for this rulebook yet",
+    "read": "Read the rulebook",
+    "saved_at": "Saved to the library ({time})",
+    "scenarios": "Scenarios",
+    "starts": "starts {time}",
+    "title": "Rulebooks",
+    "unlock": "Open"
+  },
   "broadcast": {
     "anonymous": "Anonymous (to other players only)",
     "hint": "Everyone sees broadcasts; they are public in-game speech.",
@@ -920,6 +944,8 @@
     "zh": "中文"
   },
   "lib": {
+    "author": "Author",
+    "author_ph": "Your name (shown to others)",
     "box_title": "Character library",
     "by": "by {who}",
     "current_password": "This character's password",
@@ -999,6 +1025,10 @@
     "preview": "Preview public part",
     "public": "Public part scenario_public.md",
     "scenarios": "Scenarios"
+  },
+  "nav": {
+    "books": "Rulebooks",
+    "games": "Games"
   },
   "params": {
     "add": "Add a parameter",

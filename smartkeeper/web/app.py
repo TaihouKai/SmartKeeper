@@ -48,6 +48,7 @@ from smartkeeper.rules import RulesService, SqlRulePackStore
 from smartkeeper.spatial import ShapelySpatial
 from smartkeeper.web.auth import Auth, enter_seat
 from smartkeeper.web.routes_admin import build_admin_router
+from smartkeeper.web.routes_books import build_books_router
 from smartkeeper.web.routes_lobby import build_lobby_router
 from smartkeeper.web.routes_player import build_player_router
 from smartkeeper.web.schema import migrate
@@ -279,6 +280,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.include_router(build_admin_router(s, auth))
 
     app.include_router(build_lobby_router(s))
+    app.include_router(build_books_router(s))
 
     @app.get("/join/{token}", include_in_schema=False)
     def join(token: str, request: Request) -> RedirectResponse:  # pyright: ignore[reportUnusedFunction]

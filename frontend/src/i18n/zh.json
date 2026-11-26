@@ -45,6 +45,30 @@
     "title": "SmartKeeper",
     "to_admin": "管理控制台"
   },
+  "books": {
+    "all": "← 所有规则书",
+    "characters": "角色",
+    "delete": "删除",
+    "delete_confirm": "删除“{name}”？已经拿进局里的是复制的，不受影响。",
+    "draft_saved": "已暂存在这个浏览器（{time}）；点右边的按钮才存进角色库",
+    "drop_draft": "放弃这些修改，用角色库里的版本",
+    "drop_new": "清空，从头建",
+    "empty": "还没有规则书（由管理员导入）",
+    "intro": "每套规则书下面有它的剧本和角色。角色可以在这里新建、修改、删除，不用进任何一局；加入一局时再从角色库里选。",
+    "local_draft": "载入的是你在这个浏览器里改了、还没存进角色库的版本。",
+    "n_characters": "{n} 个角色",
+    "n_scenarios": "{n} 个剧本",
+    "need_password": "这个角色设了密码，输入密码才能打开。",
+    "new_character": "新建角色",
+    "no_characters": "还没有角色，点“新建角色”建一个",
+    "no_scenarios": "还没有属于这套规则书的剧本",
+    "read": "阅读规则书",
+    "saved_at": "已存进角色库（{time}）",
+    "scenarios": "剧本",
+    "starts": "开始于 {time}",
+    "title": "规则书",
+    "unlock": "打开"
+  },
   "broadcast": {
     "anonymous": "匿名（只对其他玩家匿名）",
     "hint": "广播所有人都能看到，是游戏内的公开发言。",
@@ -920,6 +944,8 @@
     "zh": "中文"
   },
   "lib": {
+    "author": "作者",
+    "author_ph": "你的名字（别人选角色时看得到）",
     "box_title": "角色库",
     "by": "{who} 建",
     "current_password": "这个角色的密码",
@@ -999,6 +1025,10 @@
     "preview": "预览公开部分",
     "public": "公开部分 scenario_public.md",
     "scenarios": "剧本"
+  },
+  "nav": {
+    "books": "规则书",
+    "games": "对局"
   },
   "params": {
     "add": "加一个参数",

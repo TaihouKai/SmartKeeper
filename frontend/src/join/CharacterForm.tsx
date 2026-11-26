@@ -5,6 +5,7 @@ import { ErrorBox } from "../ui/components";
 import { SheetWorkbench, type SheetDraft } from "./SheetWorkbench";
 import { useDocsPackNames, type PackName } from "../ui/docs";
 import { LibraryBox, initialSave, saveToLibrary, type LibrarySave, type Origin } from "./Library";
+import { FormBackendContext, gameBackend, type FormBackend } from "./formBackend";
 
 export type { SheetDraft } from "./SheetWorkbench";
 
@@ -54,10 +55,17 @@ export function CharacterForm({
   origin = null,
   onOrigin,
   onPickAnother,
+  backend = gameBackend,
+  bookMode = false,
 }: {
   templates: Template[];
   playerEntities: { template: string; min: number; max: number }[];
-  onSubmitted: () => void;
+  /** 提交给这一局以后（只在局里建卡时有） */
+  onSubmitted?: () => void;
+  /** 服务器接口：局里建卡（默认）或者在规则书下编辑角色库 */
+  backend?: FormBackend;
+  /** 在规则书下编辑角色库：没有“提交给这一局”，底下的按钮是存进角色库 */
+  bookMode?: boolean;
   /** 从角色库载入的角色（提交时可以更新它） */
   origin?: Origin | null;
   /** 存进角色库以后：现在编辑的是角色库里的这个角色（之后接着更新它） */
@@ -76,13 +84,13 @@ export function CharacterForm({
   const [missing, setMissing] = useState<Record<number, number>>({});
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
-  const [libSave, setLibSave] = useState<LibrarySave>(() => initialSave(origin));
+  const [libSave, setLibSave] = useState<LibrarySave>(() => initialSave(origin, bookMode));
   const [libError, setLibError] = useState<unknown>(null);
   const [libBusy, setLibBusy] = useState(false);
   const [libSavedAt, setLibSavedAt] = useState<string | null>(null);
   // 正在编辑的角色换了（例如刷新以后才认出来是哪个）：角色库的设置跟着换
   const originId = origin?.id;
-  useEffect(() => setLibSave(initialSave(origin)), [originId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => setLibSave(initialSave(origin, bookMode)), [originId]); // eslint-disable-line react-hooks/exhaustive-deps
   // 自动保存：打开时先取回服务器上的草稿（没有草稿但提交过的，从上次提交的内容接着改）
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -92,15 +100,12 @@ export function CharacterForm({
     let alive = true;
     void (async () => {
       try {
-        const d = await call(api.GET("/api/character/draft"));
+        const d = await backend.loadDraft();
         if (!alive) return;
-        if (Array.isArray(d.sheets) && d.sheets.length > 0) {
-          setSubs(d.sheets as unknown as Submission[]);
+        if (d.sheets && d.sheets.length > 0) {
+          setSubs(d.sheets as Submission[]);
           lastSaved.current = JSON.stringify(d.sheets);
-          setSavedAt(d.updated_at ?? null);
-        } else {
-          const prev = await call(api.GET("/api/character"));
-          if (alive && prev.length > 0) setSubs(prev.map((x) => ({ template: x.template, sheet: x.sheet as unknown as SheetDraft })));
+          setSavedAt(d.savedAt);
         }
       } catch {
         // 取不到就从空白开始
@@ -115,11 +120,11 @@ export function CharacterForm({
   const saveNow = useCallback(async (value: Submission[]) => {
     const text = JSON.stringify(value);
     if (text === lastSaved.current) return;
-    const d = await call(api.PUT("/api/character/draft", { body: { sheets: value as never } }));
+    const at = await backend.saveDraft(value);
     lastSaved.current = text;
-    setSavedAt(d.updated_at ?? null);
+    setSavedAt(at);
     setSaveError(null);
-  }, []);
+  }, [backend]);
   // 停手 2 秒后自动存
   useEffect(() => {
     if (!loaded) return;
@@ -149,11 +154,12 @@ export function CharacterForm({
   // 按角色库的设置存一次；存成新角色以后接着更新它
   const saveLib = async (clean: Submission[]) => {
     setLibError(null);
-    const saved = await saveToLibrary(clean, origin, libSave);
+    const saved = await saveToLibrary(backend, clean, origin, libSave);
     if (saved) {
       onOrigin?.(saved);
       setLibSave((v) => ({ ...v, mode: "update", name: saved.name, password: "", newPassword: "", current: "" }));
       setLibSavedAt(new Date().toISOString());
+      if (bookMode) setSavedAt(null); // 浏览器里的暂存已经存进角色库了
     }
   };
   const saveLibNow = async () => {
@@ -180,7 +186,7 @@ export function CharacterForm({
         setLibError(e);
         return;
       }
-      onSubmitted();
+      onSubmitted?.();
     } catch (e) {
       setError(e);
     } finally {
@@ -193,6 +199,7 @@ export function CharacterForm({
   const limit = (name: string) => playerEntities.find((pe) => pe.template === name);
   const totalMissing = subs.reduce((n, _s, i) => n + (missing[i] ?? 0), 0);
   return (
+    <FormBackendContext.Provider value={backend}>
     <div className="cf-wrap">
       <div className="cf-tabs" role="tablist">
         {subs.map((s, i) => {
@@ -252,16 +259,25 @@ export function CharacterForm({
           </button>
         </p>
       )}
-      <LibraryBox origin={origin} value={libSave} onChange={setLibSave} onSaveNow={() => void saveLibNow()} busy={libBusy} savedAt={libSavedAt} />
+      <LibraryBox origin={origin} value={libSave} onChange={setLibSave} onSaveNow={() => void saveLibNow()} busy={libBusy} savedAt={libSavedAt} bookMode={bookMode} />
       <ErrorBox error={libError} />
       <div className="cf-footer">
-        <span className="sk-hint">{saveError ? t("cf.save_failed") : savedAt ? t("character.autosaved", { time: new Date(savedAt).toLocaleTimeString() }) : ""}</span>
+        <span className="sk-hint">
+          {saveError ? t("cf.save_failed") : savedAt ? t(bookMode ? "books.draft_saved" : "character.autosaved", { time: new Date(savedAt).toLocaleTimeString() }) : ""}
+        </span>
         <span className={totalMissing > 0 ? "cf-footer-todo" : "cf-footer-ok"}>{totalMissing > 0 ? t("cf.missing", { n: String(totalMissing) }) : t("cf.complete")}</span>
-        <button className="sk-primary" disabled={busy} onClick={() => void submit()}>
-          {t("character.submit")}
-        </button>
+        {bookMode ? (
+          <button className="sk-primary" disabled={libBusy} onClick={() => void saveLibNow()}>
+            {t(libSave.mode === "update" ? "lib.save_now_update" : "lib.save_now")}
+          </button>
+        ) : (
+          <button className="sk-primary" disabled={busy} onClick={() => void submit()}>
+            {t("character.submit")}
+          </button>
+        )}
       </div>
       <ErrorBox error={error} />
     </div>
+    </FormBackendContext.Provider>
   );
 }

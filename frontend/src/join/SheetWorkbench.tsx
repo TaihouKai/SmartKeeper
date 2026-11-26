@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toCode } from "../ui/effectsCode";
-import { api, call, type Schemas } from "../api/client";
+import type { Schemas } from "../api/client";
+import { useFormBackend } from "./formBackend";
 import { useI18n } from "../i18n";
 import { numberOptions, withUnit } from "../ui/choices";
 import { Mover, moved } from "../ui/components";
@@ -81,17 +82,19 @@ export function SheetWorkbench({
   extra?: React.ReactNode;
 }) {
   const { t, lang } = useI18n();
+  const backend = useFormBackend();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [current, setCurrent] = useState("identity");
   const body = useMemo(() => JSON.stringify(value), [value]);
   useEffect(() => {
     const id = window.setTimeout(() => {
-      call(api.POST("/api/character/preview", { body: { template: template.name, sheet: JSON.parse(body) } }))
+      backend
+        .preview(template.name, JSON.parse(body))
         .then(setPreview)
         .catch(() => setPreview(null));
     }, 500);
     return () => window.clearTimeout(id);
-  }, [body, template.name]);
+  }, [body, template.name, backend]);
 
   const fields = (template.fields ?? []).filter(isPlayer);
   const identity = fields.filter(isIdentity);
@@ -271,10 +274,11 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
   const canAdd = g.max_count === null || g.max_count === undefined || entries.length < g.max_count;
   const cols = g.fields ?? [];
   const derived = [...(template.derived ?? []).map((d) => d.name), ...(template.fields ?? []).filter((f) => isPlayer(f) && (f.kind === "number" || f.kind === "boolean")).map((f) => f.name)];
+  const backend = useFormBackend();
   const validate = useCallback(
     (formula: string, inEntry: string, scope?: "dice" | "script" | "config" | "bonus", other?: string, names?: string[]) =>
-      call(api.POST("/api/formula/validate", { body: { formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config", bonus: scope === "bonus", other: other ?? "", names: names ?? [] } })),
-    [template.name],
+      backend.validate({ formula, template: template.name, in_entry: inEntry, dice: scope === "dice", script: scope === "script", config: scope === "config", bonus: scope === "bonus", other: other ?? "", names: names ?? [] }),
+    [template.name, backend],
   );
   const add = (e: Entry) => {
     setEntries([...entries, e]);

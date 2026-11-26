@@ -227,6 +227,10 @@ class Repo:
         with self.db.begin() as c:
             c.execute(character.update().where(character.c.id == char_id).values(**values))
 
+    def delete_character(self, char_id: str) -> None:
+        with self.db.begin() as c:
+            c.execute(character.delete().where(character.c.id == char_id))
+
     def library_rows(self, rulepack_id: str) -> list[dict[str, Any]]:
         with self.db.connect() as c:
             rows = c.execute(

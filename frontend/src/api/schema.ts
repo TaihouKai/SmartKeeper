@@ -669,6 +669,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/books": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Books */
+        get: operations["books_api_books_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/books/{book_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Book */
+        get: operations["book_api_books__book_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/books/{book_id}/characters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** New Character */
+        post: operations["new_character_api_books__book_id__characters_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/books/{book_id}/characters/{char_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Character */
+        put: operations["update_character_api_books__book_id__characters__char_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/books/{book_id}/characters/{char_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete Character */
+        post: operations["delete_character_api_books__book_id__characters__char_id__delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/books/{book_id}/characters/{char_id}/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open Character */
+        post: operations["open_character_api_books__book_id__characters__char_id__open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/books/{book_id}/form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Form */
+        get: operations["form_api_books__book_id__form_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/books/{book_id}/formula": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Formula */
+        post: operations["formula_api_books__book_id__formula_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/books/{book_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_books__book_id__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/books/{book_id}/scenarios/{scenario_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scenario */
+        get: operations["scenario_api_books__book_id__scenarios__scenario_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/broadcast": {
         parameters: {
             query?: never;
@@ -1467,6 +1637,80 @@ export interface components {
             /** Query Id */
             query_id: string;
         };
+        /** BookOut */
+        BookOut: {
+            /**
+             * Character List
+             * @default []
+             */
+            character_list: components["schemas"]["LibraryCharacter"][];
+            /**
+             * Characters
+             * @default 0
+             */
+            characters: number;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Handbook
+             * @default
+             */
+            handbook: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Scenario List
+             * @default []
+             */
+            scenario_list: components["schemas"]["ScenarioSummary"][];
+            /**
+             * Scenarios
+             * @default 0
+             */
+            scenarios: number;
+            /** World Name */
+            world_name: string;
+        };
+        /** BookScenarioOut */
+        BookScenarioOut: {
+            /** Book */
+            book: string;
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** Title */
+            title: string;
+        };
+        /** BookSummary */
+        BookSummary: {
+            /**
+             * Characters
+             * @default 0
+             */
+            characters: number;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Scenarios
+             * @default 0
+             */
+            scenarios: number;
+            /** World Name */
+            world_name: string;
+        };
         /** BroadcastIn */
         BroadcastIn: {
             /**
@@ -1883,6 +2127,28 @@ export interface components {
             vital: boolean;
         };
         /**
+         * FormRules
+         * @description 建卡表单要的规则：玩家看得到的模板、要建哪些卡、默认参数、检定名、规则书正文。
+         */
+        FormRules: {
+            /** Checks */
+            checks: string[];
+            /** Handbook */
+            handbook: string;
+            /** Params */
+            params: components["schemas"]["PackParam"][];
+            /** Player Entities */
+            player_entities: {
+                [key: string]: components["schemas"]["JsonValue"];
+            }[];
+            /** Templates */
+            templates: {
+                [key: string]: components["schemas"]["JsonValue"];
+            }[];
+            /** World Name */
+            world_name: string;
+        };
+        /**
          * Formula
          * @description 命名公式，可在其他公式里按名字引用。
          */
@@ -1896,6 +2162,27 @@ export interface components {
             label: string;
             /** Name */
             name: string;
+        };
+        /** FormulaIn */
+        FormulaIn: {
+            /** Formula */
+            formula: string;
+            /** In Entry */
+            in_entry?: string | null;
+            /**
+             * Names
+             * @default []
+             */
+            names: string[];
+            /**
+             * Other
+             * @default
+             */
+            other: string;
+            pack: components["schemas"]["RulePack"];
+            scope?: components["schemas"]["FormulaScope"] | null;
+            /** Template */
+            template?: string | null;
         };
         /** FormulaOut */
         FormulaOut: {
@@ -2512,6 +2799,11 @@ export interface components {
         };
         /** LibrarySaveIn */
         LibrarySaveIn: {
+            /**
+             * Author
+             * @default
+             */
+            author: string;
             /**
              * Name
              * @default
@@ -3374,6 +3666,23 @@ export interface components {
             /** Public */
             public: string;
         };
+        /** ScenarioSummary */
+        ScenarioSummary: {
+            /** Id */
+            id: string;
+            /**
+             * Intro
+             * @default
+             */
+            intro: string;
+            /**
+             * Start Time
+             * @default
+             */
+            start_time: string;
+            /** Title */
+            title: string;
+        };
         /** SceneOut */
         SceneOut: {
             /** Entities */
@@ -3593,6 +3902,45 @@ export interface components {
             source_kind: "feedback" | "admin" | "engine" | "opening";
             /** Source Seq */
             source_seq: number | null;
+        };
+        /** SheetFormulaIn */
+        SheetFormulaIn: {
+            /**
+             * Bonus
+             * @default false
+             */
+            bonus: boolean;
+            /**
+             * Config
+             * @default false
+             */
+            config: boolean;
+            /**
+             * Dice
+             * @default false
+             */
+            dice: boolean;
+            /** Formula */
+            formula: string;
+            /** In Entry */
+            in_entry?: string | null;
+            /**
+             * Names
+             * @default []
+             */
+            names: string[];
+            /**
+             * Other
+             * @default
+             */
+            other: string;
+            /**
+             * Script
+             * @default false
+             */
+            script: boolean;
+            /** Template */
+            template?: string | null;
         };
         /**
          * SheetSubmission
@@ -3833,66 +4181,6 @@ export interface components {
              * @default []
              */
             reference_sites: string[];
-        };
-        /** FormulaIn */
-        smartkeeper__web__routes_admin__FormulaIn: {
-            /** Formula */
-            formula: string;
-            /** In Entry */
-            in_entry?: string | null;
-            /**
-             * Names
-             * @default []
-             */
-            names: string[];
-            /**
-             * Other
-             * @default
-             */
-            other: string;
-            pack: components["schemas"]["RulePack"];
-            scope?: components["schemas"]["FormulaScope"] | null;
-            /** Template */
-            template?: string | null;
-        };
-        /** FormulaIn */
-        smartkeeper__web__routes_player__FormulaIn: {
-            /**
-             * Bonus
-             * @default false
-             */
-            bonus: boolean;
-            /**
-             * Config
-             * @default false
-             */
-            config: boolean;
-            /**
-             * Dice
-             * @default false
-             */
-            dice: boolean;
-            /** Formula */
-            formula: string;
-            /** In Entry */
-            in_entry?: string | null;
-            /**
-             * Names
-             * @default []
-             */
-            names: string[];
-            /**
-             * Other
-             * @default
-             */
-            other: string;
-            /**
-             * Script
-             * @default false
-             */
-            script: boolean;
-            /** Template */
-            template?: string | null;
         };
     };
     responses: never;
@@ -4877,7 +5165,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["smartkeeper__web__routes_admin__FormulaIn"];
+                "application/json": components["schemas"]["FormulaIn"];
             };
         };
         responses: {
@@ -5400,6 +5688,333 @@ export interface operations {
             };
         };
     };
+    books_api_books_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookSummary"][];
+                };
+            };
+        };
+    };
+    book_api_books__book_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    new_character_api_books__book_id__characters_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibrarySaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCharacter"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_character_api_books__book_id__characters__char_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+                char_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibrarySaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCharacter"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_character_api_books__book_id__characters__char_id__delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+                char_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryOpenIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_character_api_books__book_id__characters__char_id__open_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+                char_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryOpenIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryCharacterFull"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_api_books__book_id__form_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormRules"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    formula_api_books__book_id__formula_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SheetFormulaIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormulaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_books__book_id__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scenario_api_books__book_id__scenarios__scenario_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+                scenario_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookScenarioOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     broadcast_api_broadcast_post: {
         parameters: {
             query?: never;
@@ -5696,7 +6311,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["smartkeeper__web__routes_player__FormulaIn"];
+                "application/json": components["schemas"]["SheetFormulaIn"];
             };
         };
         responses: {
