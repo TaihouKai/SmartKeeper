@@ -115,6 +115,7 @@ export function EntryEditor({
   defaults = [],
   checks = [],
   spendTargets = [],
+  locked = false,
 }: {
   group: GroupDef;
   derived: string[];
@@ -131,9 +132,11 @@ export function EntryEditor({
   defaults?: readonly Param[];
   checks?: readonly string[];
   spendTargets?: readonly string[];
+  /** 改规则包给的固定条目：名字和 ID 不能改，列在条目那一行填（这里不显示） */
+  locked?: boolean;
 }) {
   const { t } = useI18n();
-  const fields = group.fields ?? [];
+  const fields = locked ? [] : (group.fields ?? []);
   const own = (entry.params ?? []).map((x) => x.name).filter(Boolean);
   const vDice = useCallback((f: string) => validate(f, group.name, "dice"), [validate, group.name]);
   const vParam = (f: string) => validate(f, group.name, undefined, undefined, own);
@@ -145,7 +148,7 @@ export function EntryEditor({
     <label>
       {t("rules.gt.id")}
       <small className="sk-field-desc">{t("rules.gt.id_hint")}</small>
-      <input value={entry.id ?? ""} placeholder={t("rules.gt.id_ph")} onChange={(e) => onChange({ ...entry, id: e.target.value.trim() })} />
+      <input value={entry.id ?? ""} placeholder={t("rules.gt.id_ph")} disabled={locked} onChange={(e) => onChange({ ...entry, id: e.target.value.trim() })} />
     </label>
   );
   const item = group.uses === true;
@@ -168,7 +171,7 @@ export function EntryEditor({
       {mover && <div className="sk-row sk-row-end">{mover}</div>}
       <label>
         {t("character.entry_name")}
-        <input value={entry.name} onChange={(e) => onChange({ ...entry, name: e.target.value })} />
+        <input value={entry.name} disabled={locked} onChange={(e) => onChange({ ...entry, name: e.target.value })} />
       </label>
       {!simple && idField}
       <label>

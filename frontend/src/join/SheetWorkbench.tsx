@@ -14,7 +14,43 @@ type Group = Schemas["GroupDef"];
 type Preview = Schemas["PreviewOut"];
 type Value = string | number | boolean;
 /** preset_fields：固定条目里规则包留空的列（分组 -> 固定条目名 -> 列 -> 值），由玩家填。 */
-export type SheetDraft = { name: string; fields: Record<string, Value>; groups: Record<string, Entry[]>; preset_fields?: Record<string, Record<string, Record<string, Value>>> };
+/** preset_edits：玩家改过的固定条目（分组 -> 固定条目名 -> 改了的部分），没写的部分照规则包。 */
+export type PresetEdit = Partial<Pick<Entry, "description" | "config" | "bonus" | "script" | "params" | "uses">>;
+export type SheetDraft = {
+  name: string;
+  fields: Record<string, Value>;
+  groups: Record<string, Entry[]>;
+  preset_fields?: Record<string, Record<string, Record<string, Value>>>;
+  preset_edits?: Record<string, Record<string, PresetEdit>>;
+};
+const EDITABLE = ["description", "config", "bonus", "script", "params", "uses"] as const;
+
+/** 固定条目在规则包里的样子（改之前），用编辑器的格式。 */
+function presetEntry(p: Schemas["GroupPreset"]): Entry {
+  return {
+    name: p.name,
+    id: p.id ?? "",
+    description: p.description ?? "",
+    fields: { ...(p.fields ?? {}) } as Entry["fields"],
+    effects: [],
+    bonus: p.bonus || toCode(p.effects ?? []),
+    config: p.config ?? "",
+    script: p.script ?? "",
+    params: (p.params ?? []) as Entry["params"],
+    uses: (p.uses ?? []) as unknown as Entry["uses"],
+  };
+}
+
+/** 编辑器里的条目和规则包原样比，只留改了的部分；一处没改是 null。 */
+function editOf(base: Entry, e: Entry): PresetEdit | null {
+  const out: Record<string, unknown> = {};
+  for (const k of EDITABLE) {
+    const a = k === "params" || k === "uses" ? (base[k] ?? []) : (base[k] ?? "");
+    const b = k === "params" || k === "uses" ? (e[k] ?? []) : (e[k] ?? "");
+    if (JSON.stringify(a) !== JSON.stringify(b)) out[k] = b;
+  }
+  return Object.keys(out).length ? (out as PresetEdit) : null;
+}
 
 type Section = { key: string; label: string; missing: number };
 
@@ -66,7 +102,7 @@ export function SheetWorkbench({
     return !g.hidden && !(fixed.length === 0 && mine.length === 0 && g.max_count === 0);
   });
   const problems = preview?.derived.length ? preview.problems : [];
-  const inGroup = (g: Group) => problems.filter((p) => (p.path ?? "").startsWith(`groups.${g.name}`)).length;
+  const inGroup = (g: Group) => problems.filter((p) => (p.path ?? "").startsWith(`groups.${g.name}`) || (p.path ?? "").startsWith(`preset_edits.${g.name}.`)).length;
 
   const sections: Section[] = [
     { key: "identity", label: t("cf.identity"), missing: (value.name.trim() ? 0 : 1) + identity.filter((f) => missingField(f, value.fields[f.name])).length },
@@ -82,7 +118,7 @@ export function SheetWorkbench({
       return { key: `group:${g.name}`, label: g.label || g.name, missing: inGroup(g) + Math.max(0, (g.min_count ?? 0) - mine.length) + openMissing };
     }),
   ];
-  const total = sections.reduce((n, s) => n + s.missing, 0) + problems.filter((p) => !(p.path ?? "").startsWith("groups.")).length;
+  const total = sections.reduce((n, s) => n + s.missing, 0) + problems.filter((p) => !(p.path ?? "").startsWith("groups.") && !(p.path ?? "").startsWith("preset_edits.")).length;
   sections.push({ key: "review", label: t("cf.review"), missing: 0 });
   useEffect(() => onStatus(total), [total, onStatus]);
 
@@ -219,6 +255,16 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
   const { t } = useI18n();
   const [editing, setEditing] = useState<number | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
+  const [modifying, setModifying] = useState<string | null>(null);
+  const edits = value.preset_edits?.[g.name] ?? {};
+  const setEdit = (pname: string, edit: PresetEdit | null) => {
+    const mine = { ...edits };
+    if (edit) mine[pname] = edit;
+    else delete mine[pname];
+    onChange({ ...value, preset_edits: { ...value.preset_edits, [g.name]: mine } });
+  };
+  const presetOf = (pname: string) => (g.presets ?? []).find((x) => x.name === pname);
+  const modified = modifying !== null ? presetOf(modifying) : undefined;
   const entries = value.groups[g.name] ?? [];
   const setEntries = (es: Entry[]) => onChange({ ...value, groups: { ...value.groups, [g.name]: es } });
   const fixed = preview?.presets?.[g.name] ?? [];
@@ -273,6 +319,7 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
                   <div className="cf-item-main">
                     <strong>{pname}</strong>
                     {p?.id && <RefTag template={template.name} id={p.id} />}
+                    {edits[pname] && <span className="cf-tag cf-tag-edited">{t("cf.modified")}</span>}
                     {p && badges(p.fields ?? {}).map((b) => (
                       <span key={b} className="cf-tag">
                         {b}
@@ -284,6 +331,16 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
                     <button type="button" onClick={() => setViewing(pname)}>
                       {t("cf.view")}
                     </button>
+                    {p && (
+                      <button type="button" onClick={() => setModifying(pname)}>
+                        {t("cf.modify")}
+                      </button>
+                    )}
+                    {edits[pname] && (
+                      <button type="button" className="sk-link wb-danger" onClick={() => setEdit(pname, null)}>
+                        {t("cf.restore")}
+                      </button>
+                    )}
                   </div>
                   {open.length > 0 && (
                     <div className="cf-item-fill">
@@ -363,6 +420,29 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
           }}
           onClose={() => setViewing(null)}
         />
+      )}
+      {modified && modifying !== null && (
+        <aside key={`preset:${modifying}`} className="sk-drawer cf-drawer" aria-label={t("cf.modify")}>
+          <div className="sk-drawer-head">
+            <h3>{t("cf.modify_title", { name: modified.name })}</h3>
+            <button type="button" className="sk-primary" onClick={() => setModifying(null)}>
+              {t("cf.done")}
+            </button>
+          </div>
+          <p className="sk-hint">{t("cf.modify_hint")}</p>
+          <EntryEditor
+            group={g}
+            derived={derived}
+            entry={{ ...presetEntry(modified), ...(edits[modified.name] ?? {}) }}
+            validate={validate}
+            simple
+            locked
+            defaults={params.filter((x) => (x.groups ?? []).includes(g.name))}
+            checks={checks}
+            spendTargets={(template.fields ?? []).filter((f) => f.kind === "number" || f.kind === "resource").map((f) => f.name)}
+            onChange={(e) => setEdit(modified.name, editOf(presetEntry(modified), e))}
+          />
+        </aside>
       )}
       {edited && editing !== null && (
         <aside key={editing} className="sk-drawer cf-drawer" aria-label={t("cf.edit")}>

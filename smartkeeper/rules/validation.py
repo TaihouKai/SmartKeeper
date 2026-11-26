@@ -1081,6 +1081,7 @@ def validate_sheet(
         if name in sheet.fields:
             problems += _check_value(ctx, fd, sheet.fields[name], f"fields.{name}")
     problems += _check_active_presets(ctx, tpl, sheet)
+    problems += _check_preset_edits(pack, ctx, tpl, sheet, derived)
     if problems:
         return problems
     for d in tpl.derived:
@@ -1127,6 +1128,28 @@ def _check_active_presets(ctx: EntityContext, tpl: EntityTemplate, sheet: Sheet)
                     problems += _check_value(ctx, fd, values[fd.name], path)
                 elif fd.required:
                     problems.append(Problem(code="sheet.missing_field", path=path))
+    return problems
+
+
+def _check_preset_edits(
+    pack: RulePack, ctx: EntityContext, tpl: EntityTemplate, sheet: Sheet, derived: set[str]
+) -> list[Problem]:
+    """玩家改过的固定条目：条目要存在；生效的按改过以后的样子和玩家写的条目一样查。"""
+    problems: list[Problem] = []
+    active = ctx.active_presets()
+    for gname, by_name in sorted(sheet.preset_edits.items()):
+        g = next((x for x in tpl.groups if x.name == gname), None)
+        for pname in sorted(by_name):
+            path = f"preset_edits.{gname}.{pname}"
+            if g is None or all(p.name != pname for p in g.presets):
+                problems.append(Problem(code="sheet.unknown_preset", path=path))
+                continue
+            entry = next((e for e in active.get(gname, ()) if e.name == pname), None)
+            if entry is None:
+                continue  # 现在不生效（例如条件不成立了），改的内容留着、不查
+            # ID 是规则包的，不按玩家起的 ID 查重名
+            plain = entry.model_copy(update={"id": ""})
+            problems += _check_entry(pack, tpl, g, plain, derived, path, required_fields=False)
     return problems
 
 

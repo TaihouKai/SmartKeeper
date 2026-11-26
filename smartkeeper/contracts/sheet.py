@@ -228,6 +228,18 @@ class Status(Frozen):
     grant: Grant | None = None
 
 
+class PresetEdit(Frozen):
+    """玩家对一个固定条目（规则包给的、自动获得的）的修改：写了的部分换掉规则包的，None 是不改。
+    名字和 ID 不能改（别处按它们引用）；规则包定了的列也不能改（留空的列在 preset_fields 里填）。"""
+
+    description: str | None = None
+    config: str | None = None
+    bonus: str | None = None  # 改了常驻加成时，规则包旧格式的 effects 一起换掉
+    script: str | None = None
+    params: tuple[ParamDef, ...] | None = None
+    uses: tuple[EntryUse, ...] | None = None
+
+
 class Item(Frozen):
     name: str
     description: str = ""
@@ -241,6 +253,8 @@ class Sheet(Frozen):
     # 固定条目里规则包留空的列，由玩家建角时填：分组名 -> 固定条目名 -> 列名 -> 值
     # （例如每个角色的同一个技能等级各不相同）。固定条目本身不存进角色卡，读卡时把这里的值合并进去
     preset_fields: dict[str, dict[str, dict[str, JsonValue]]] = {}
+    # 玩家改过的固定条目：分组名 -> 固定条目名 -> 改了什么（见 PresetEdit）
+    preset_edits: dict[str, dict[str, PresetEdit]] = {}
     # 开关类用途现在开着没有：“条目名/用途名” -> 是否开着；没有记录的按用途的 default_on
     toggles: dict[str, bool] = {}
     statuses: tuple[Status, ...] = ()

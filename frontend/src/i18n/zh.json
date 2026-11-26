@@ -59,6 +59,10 @@
     "identity": "身份",
     "less": "收起",
     "missing": "还缺 {n} 处",
+    "modified": "已修改",
+    "modify": "修改",
+    "modify_hint": "改的只是你这张卡上的这一条，规则书本身不变；名字和 ID 不能改。没改的部分照规则书，随时可以恢复默认。KP 审核时会看到你改了什么。",
+    "modify_title": "修改：{name}",
     "more": "展开",
     "none_yet": "还没有，点下面添加。",
     "numbers": "数值",
@@ -66,6 +70,7 @@
     "ref": "引用名：",
     "ref_hint": "公式和脚本里用这个名字引用这一条：写它本身是“有没有这一条”（1/0），后面加 .列名 是这一条的那一列。点一下选中，可以复制",
     "remove_sheet": "删除这张卡",
+    "restore": "恢复默认",
     "review": "检查",
     "review_lead": "{name}：还缺什么、哪里不对，点了跳过去改。",
     "save_failed": "自动保存失败",
@@ -191,6 +196,7 @@
     "bonus": {
       "no_action": "常驻加成里不能写动作（{name}）；动作写在“生效时发生什么”里",
       "no_minutes": "常驻加成一直生效，不能写 with minutes",
+      "no_param": "第 {line} 行：常驻加成里不能用参数 this.{name}。参数是每次用这一条时才选的，常驻加成一直生效、不在哪一次使用里；要按参数变化的写在“生效时发生什么”里",
       "self_only": "常驻加成只能改自己：self.名字"
     },
     "character": {
@@ -367,6 +373,7 @@
       "timing_not_allowed": "这个分组没有打开施放时间和冷却（在分组的更多设置里打开）",
       "type": "类型不对",
       "unknown_field": "没有这个字段",
+      "unknown_preset": "改的是规则书里没有的条目",
       "uses_not_allowed": "这个分组不是物品类，条目不能有用途"
     },
     "talk": {

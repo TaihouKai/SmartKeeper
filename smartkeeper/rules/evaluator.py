@@ -119,6 +119,12 @@ class EntityContext:
                 }
                 merged = {k: v for k, v in filled.items() if k in cols} | dict(p.fields)
                 data = p.model_dump(exclude={"when"}) | {"fields": merged}
+                edit = self.sheet.preset_edits.get(g.name, {}).get(p.name)
+                if edit is not None:
+                    changed = edit.model_dump(exclude_none=True)
+                    if "bonus" in changed:
+                        changed["effects"] = []
+                    data |= changed
                 hits.append(GroupEntry.model_validate(data))
             if hits:
                 out[g.name] = tuple(hits)

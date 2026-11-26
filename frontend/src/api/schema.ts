@@ -2960,6 +2960,25 @@ export interface components {
             /** Ref */
             ref: string;
         };
+        /**
+         * PresetEdit
+         * @description 玩家对一个固定条目（规则包给的、自动获得的）的修改：写了的部分换掉规则包的，None 是不改。
+         *     名字和 ID 不能改（别处按它们引用）；规则包定了的列也不能改（留空的列在 preset_fields 里填）。
+         */
+        PresetEdit: {
+            /** Bonus */
+            bonus?: string | null;
+            /** Config */
+            config?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Params */
+            params?: components["schemas"]["ParamDef"][] | null;
+            /** Script */
+            script?: string | null;
+            /** Uses */
+            uses?: components["schemas"]["EntryUse"][] | null;
+        };
         /** PreviewIn */
         PreviewIn: {
             /** Sheet */
@@ -3523,6 +3542,15 @@ export interface components {
             items: components["schemas"]["Item"][];
             /** Name */
             name: string;
+            /**
+             * Preset Edits
+             * @default {}
+             */
+            preset_edits: {
+                [key: string]: {
+                    [key: string]: components["schemas"]["PresetEdit"];
+                };
+            };
             /**
              * Preset Fields
              * @default {}

@@ -59,6 +59,10 @@
     "identity": "Identity",
     "less": "Less",
     "missing": "{n} left to fill",
+    "modified": "Modified",
+    "modify": "Modify",
+    "modify_hint": "This changes the entry on your sheet only; the rulebook stays as it is. Name and ID can't change. What you leave alone follows the rulebook, and you can restore the default any time. The KP sees what you changed when reviewing.",
+    "modify_title": "Modify: {name}",
     "more": "More",
     "none_yet": "None yet: add one below.",
     "numbers": "Numbers",
@@ -66,6 +70,7 @@
     "ref": "Reference:",
     "ref_hint": "Use this name in formulas and scripts: on its own it is whether the entry exists (1/0); add .column for one of its columns. Click to select and copy",
     "remove_sheet": "Remove this sheet",
+    "restore": "Restore default",
     "review": "Check",
     "review_lead": "{name}: what is missing or wrong; click to go there.",
     "save_failed": "Autosave failed",
@@ -191,6 +196,7 @@
     "bonus": {
       "no_action": "No actions ({name}) in always-on bonuses; put them in the script",
       "no_minutes": "Always-on bonuses can't use with minutes",
+      "no_param": "Line {line}: always-on bonuses can't use the parameter this.{name}. Parameters are chosen each time the entry is used, and a bonus is always on, outside any use; put what depends on it in the script",
       "self_only": "Always-on bonuses only change self.<name>"
     },
     "character": {
@@ -367,6 +373,7 @@
       "timing_not_allowed": "This group has no cast time or cooldown (turn it on in the group's settings)",
       "type": "Wrong type",
       "unknown_field": "Unknown field",
+      "unknown_preset": "That entry isn't in the rulebook",
       "uses_not_allowed": "This group is not for items; entries have no uses"
     },
     "talk": {

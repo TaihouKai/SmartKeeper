@@ -501,6 +501,14 @@ T: dict[str, tuple[str, str]] = {
     ),
     "cf.view": ("查看", "View"),
     "cf.ref": ("引用名：", "Reference:"),
+    "cf.modify": ("修改", "Modify"),
+    "cf.modified": ("已修改", "Modified"),
+    "cf.restore": ("恢复默认", "Restore default"),
+    "cf.modify_title": ("修改：{name}", "Modify: {name}"),
+    "cf.modify_hint": (
+        "改的只是你这张卡上的这一条，规则书本身不变；名字和 ID 不能改。没改的部分照规则书，随时可以恢复默认。KP 审核时会看到你改了什么。",
+        "This changes the entry on your sheet only; the rulebook stays as it is. Name and ID can't change. What you leave alone follows the rulebook, and you can restore the default any time. The KP sees what you changed when reviewing.",
+    ),
     "cf.ref_hint": (
         "公式和脚本里用这个名字引用这一条：写它本身是“有没有这一条”（1/0），后面加 .列名 是这一条的那一列。点一下选中，可以复制",
         "Use this name in formulas and scripts: on its own it is whether the entry exists (1/0); add .column for one of its columns. Click to select and copy",
@@ -2193,6 +2201,7 @@ T: dict[str, tuple[str, str]] = {
         "常驻加成一直生效，不能写 with minutes",
         "Always-on bonuses can't use with minutes",
     ),
+    "codes.sheet.unknown_preset": ("改的是规则书里没有的条目", "That entry isn't in the rulebook"),
     "codes.bonus.no_param": (
         "第 {line} 行：常驻加成里不能用参数 this.{name}。参数是每次用这一条时才选的，常驻加成一直生效、不在哪一次使用里；"
         "要按参数变化的写在“生效时发生什么”里",

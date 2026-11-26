@@ -93,3 +93,26 @@ def test_condition_error_means_inactive(rules: RulesService) -> None:
     pack = with_presets({"name": "p", "when": "str > 10"})
     no_str: dict[str, JsonValue] = {"name": "X", "fields": {"appearance": "a"}}
     assert entry_names(rules, pack, no_str) == []
+
+
+def test_players_can_modify_a_preset_on_their_sheet(rules: RulesService) -> None:
+    """玩家改固定条目：写了的部分换掉规则包的（常驻加成换掉旧格式的效果），名字照旧；改坏了照样报错。"""
+    pack = with_presets({"name": "eagle eye", "fields": {"level": 1}, "effects": [DOUBLE]})
+    plain = rules.derived_value(pack, "person", BASE, "perception_radius")
+    triple: JsonValue = {"skills": {"eagle eye": {"bonus": "self.perception_radius *= 3"}}}
+    sheet = rules.init_sheet(pack, "person", {**BASE, "preset_edits": triple})
+    assert rules.validate_sheet(pack, "person", sheet) == []
+    # 规则包的是 ×2；改成 ×3，不是两个都算
+    assert rules.derived_value(pack, "person", sheet, "perception_radius") == plain / 2 * 3
+    assert entry_names(rules, pack, sheet) == ["eagle eye"]
+    bad = rules.init_sheet(
+        pack,
+        "person",
+        {**BASE, "preset_edits": {"skills": {"eagle eye": {"bonus": "self.nope += 1"}}}},
+    )
+    found = rules.validate_sheet(pack, "person", bad)
+    assert found and all(p.path.startswith("preset_edits.skills.eagle eye.bonus") for p in found)
+    ghost = rules.init_sheet(
+        pack, "person", {**BASE, "preset_edits": {"skills": {"ghost": {"description": "x"}}}}
+    )
+    assert [p.code for p in rules.validate_sheet(pack, "person", ghost)] == ["sheet.unknown_preset"]

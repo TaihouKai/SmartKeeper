@@ -331,3 +331,4 @@ tr.inactive { opacity: 0.5; }
 .lib-modes label { display: flex; align-items: center; gap: 4px; }
 .lib-fields { display: grid; gap: 8px; max-width: 560px; }
 .cf-ref { font-size: 12px; padding: 0 6px; border-radius: 4px; background: var(--wb-sunken); border: 1px solid var(--line); user-select: all; cursor: text; }
+.cf-tag-edited { color: var(--accent, #b45309); border-color: currentColor; }
