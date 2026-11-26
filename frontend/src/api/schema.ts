@@ -822,6 +822,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/books/{book_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Character Pdf
+         * @description 规则书下编辑的角色导出 PDF。
+         */
+        post: operations["character_pdf_api_books__book_id__pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/books/{book_id}/preview": {
         parameters: {
             query?: never;
@@ -906,6 +926,26 @@ export interface paths {
          */
         put: operations["save_draft_api_character_draft_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/character/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Character Pdf
+         * @description 导出整套卡的 PDF（给人读的，不含代码）。
+         */
+        post: operations["character_pdf_api_character_pdf_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3388,6 +3428,25 @@ export interface components {
             /** Path */
             path: string;
             value?: components["schemas"]["JsonValue"];
+        };
+        /**
+         * PdfIn
+         * @description 导出 PDF：整套卡（和建卡页上一样，没填完的也行）、界面语言。
+         */
+        PdfIn: {
+            /**
+             * Lang
+             * @default zh
+             */
+            lang: string;
+            /** Sheets */
+            sheets: components["schemas"]["PdfSheet"][];
+        };
+        /** PdfSheet */
+        PdfSheet: {
+            sheet: components["schemas"]["JsonValue"];
+            /** Template */
+            template: string;
         };
         /** PeerOut */
         PeerOut: {
@@ -6237,6 +6296,41 @@ export interface operations {
             };
         };
     };
+    character_pdf_api_books__book_id__pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PdfIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     preview_api_books__book_id__preview_post: {
         parameters: {
             query?: never;
@@ -6430,6 +6524,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    character_pdf_api_character_pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PdfIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
                 };
             };
             /** @description Validation Error */

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from pydantic import BaseModel, JsonValue
 
 from smartkeeper.contracts import (
@@ -23,6 +23,7 @@ from smartkeeper.contracts import (
     ValidationFailed,
 )
 from smartkeeper.copilot import Copilot
+from smartkeeper.web import sheetpdf
 
 log = logging.getLogger("smartkeeper.web")
 
@@ -40,6 +41,40 @@ class PreviewOut(BaseModel):
     ranges: dict[str, list[float | None]] = {}
     # 合计上限（例如属性点）：用了多少、最多多少
     budgets: list[BudgetUse] = []
+
+
+class PdfSheet(BaseModel):
+    template: str
+    sheet: JsonValue
+
+
+class PdfIn(BaseModel):
+    """导出 PDF：整套卡（和建卡页上一样，没填完的也行）、界面语言。"""
+
+    sheets: list[PdfSheet]
+    lang: str = "zh"
+
+
+def pdf_response(
+    rules: Rules,
+    pack: RulePack,
+    body: PdfIn,
+    clock: dict[str, JsonValue | None],
+    messages: dict[str, dict[str, str]],
+) -> Response:
+    data = sheetpdf.export(
+        rules,
+        pack,
+        [(x.template, x.sheet) for x in body.sheets],
+        clock,
+        messages,
+        "en" if body.lang == "en" else "zh",
+    )
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=character.pdf"},
+    )
 
 
 class SheetFormulaIn(BaseModel):

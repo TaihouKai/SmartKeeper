@@ -376,3 +376,4 @@ tr.inactive { opacity: 0.5; }
 .cf-budget.over { border-color: var(--warn); }
 .cf-budget.over .cf-budget-left { color: var(--warn); font-weight: 600; }
 .cf-budget .cf-desc { margin-top: 4px; }
+.cf-pdf { background: transparent; }

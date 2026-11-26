@@ -105,6 +105,7 @@ export function CharacterForm({
   const [copilot, setCopilot] = useState<CopilotFocus | null>(null);
   const [turns, setTurns] = useState<CopilotTurn[]>([]);
   const [libBusy, setLibBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [libSavedAt, setLibSavedAt] = useState<string | null>(null);
   // 正在编辑的角色换了（例如刷新以后才认出来是哪个）：角色库的设置跟着换
   const originId = origin?.id;
@@ -200,6 +201,24 @@ export function CharacterForm({
       setLibError(e);
     } finally {
       setLibBusy(false);
+    }
+  };
+  // 导出 PDF：按页面上现在的样子（没填完的也行），文件名用角色名
+  const exportPdf = async () => {
+    setPdfBusy(true);
+    setError(null);
+    try {
+      const blob = await backend.pdf({ sheets: cleanSubs() as never, lang: lang === "en" ? "en" : "zh" });
+      const names = subs.map((s) => s.sheet.name.trim()).filter(Boolean);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${names.join("_") || "character"}.pdf`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setPdfBusy(false);
     }
   };
   const submit = async () => {
@@ -367,6 +386,9 @@ export function CharacterForm({
         <span className="sk-hint">
           {saveError ? t("cf.save_failed") : savedAt ? t(bookMode ? "books.draft_saved" : "character.autosaved", { time: new Date(savedAt).toLocaleTimeString() }) : ""}
         </span>
+        <button type="button" className="cf-pdf" title={t("cf.export_pdf_hint")} disabled={pdfBusy} onClick={() => void exportPdf()}>
+          {t("cf.export_pdf")}
+        </button>
         <button type="button" className="cp-button" onClick={() => setCopilot({ sheet: current })}>
           ✦ {t("cp.button")}
         </button>

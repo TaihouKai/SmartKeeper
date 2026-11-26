@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
 from smartkeeper.contracts import (
@@ -29,6 +29,7 @@ from smartkeeper.web.sheetform import (
     FormulaOut,
     LibraryOpenIn,
     LibrarySaveIn,
+    PdfIn,
     PreviewIn,
     PreviewOut,
     SheetFormulaIn,
@@ -185,6 +186,15 @@ def build_books_router(s: Services) -> APIRouter:
         return sheetform.check_formula(s.rules, e.book_pack(book_id), body)
 
     # 建卡助手：每个 IP 十分钟最多问 20 次（每次都是一次模型调用）
+    @r.post(
+        "/{book_id}/pdf",
+        response_class=Response,
+        responses={200: {"content": {"application/pdf": {}}}},
+    )
+    def character_pdf(book_id: str, body: PdfIn) -> Response:
+        """规则书下编辑的角色导出 PDF。"""
+        return sheetform.pdf_response(s.rules, e.book_pack(book_id), body, {}, s.messages)
+
     copilot_limit = RateLimiter(limit=20, window=600)
 
     @r.post("/{book_id}/copilot")

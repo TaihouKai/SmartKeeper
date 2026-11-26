@@ -16,6 +16,8 @@ export type FormBackend = {
   updateCharacter: (id: string, body: Schemas["LibrarySaveIn"]) => Promise<Schemas["LibraryCharacter"]>;
   /** 问建卡助手 */
   copilot: (body: Schemas["CopilotQuestion"]) => Promise<Schemas["CopilotAnswer"]>;
+  /** 整套卡导出成 PDF（给人读的，不含代码） */
+  pdf: (body: Schemas["PdfIn"]) => Promise<Blob>;
 };
 
 /** 在某一局里建卡：草稿存在服务器上（没有草稿但提交过的，从上次提交的内容接着改）。 */
@@ -32,6 +34,7 @@ export const gameBackend: FormBackend = {
   createCharacter: (body) => call(api.POST("/api/library", { body })),
   updateCharacter: (id, body) => call(api.PUT("/api/library/{char_id}", { params: { path: { char_id: id } }, body })),
   copilot: (body) => call(api.POST("/api/copilot", { body })),
+  pdf: (body) => call(api.POST("/api/character/pdf", { body, parseAs: "blob" })) as Promise<Blob>,
 };
 
 /** 不进局、在规则书下编辑角色库：按规则书的最新版本检查；草稿只存在这个浏览器里（key 区分是哪个角色）。 */
@@ -63,6 +66,7 @@ export function bookBackend(bookId: string, draftKey: string, initial: unknown[]
     createCharacter: (body) => call(api.POST("/api/books/{book_id}/characters", { params: { path }, body })),
     updateCharacter: (id, body) => call(api.PUT("/api/books/{book_id}/characters/{char_id}", { params: { path: { ...path, char_id: id } }, body })),
     copilot: (body) => call(api.POST("/api/books/{book_id}/copilot", { params: { path }, body })),
+    pdf: (body) => call(api.POST("/api/books/{book_id}/pdf", { params: { path }, body, parseAs: "blob" })) as Promise<Blob>,
   };
 }
 

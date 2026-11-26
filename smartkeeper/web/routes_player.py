@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel, Field, JsonValue
 
 from smartkeeper.contracts import (
@@ -38,6 +38,7 @@ from smartkeeper.web.sheetform import (
     FormulaOut,
     LibraryOpenIn,
     LibrarySaveIn,
+    PdfIn,
     PreviewIn,
     PreviewOut,
     SheetFormulaIn,
@@ -324,6 +325,17 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         return sheetform.preview(s.rules, e.rulepack(p.game_id), body, e.sheet_clock(p.game_id))
 
     # 建卡助手：每个玩家十分钟最多问 20 次（每次都是一次模型调用）
+    @r.post(
+        "/character/pdf",
+        response_class=Response,
+        responses={200: {"content": {"application/pdf": {}}}},
+    )
+    def character_pdf(p: Annotated[Player, Depends(require_player)], body: PdfIn) -> Response:
+        """导出整套卡的 PDF（给人读的，不含代码）。"""
+        return sheetform.pdf_response(
+            s.rules, e.rulepack(p.game_id), body, e.sheet_clock(p.game_id), s.messages
+        )
+
     copilot_limit = RateLimiter(limit=20, window=600)
 
     @r.post("/copilot")

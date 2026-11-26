@@ -219,6 +219,7 @@ def build_services(
         on_published=on_published,
         on_review=on_review,
     )
+    messages = load_messages()
     return Services(
         db=db,
         engine=engine,
@@ -237,8 +238,9 @@ def build_services(
             rules,
             settings.judge_model,
             lambda pack: render_rules(pack, include_hidden=False),
-            load_messages(),
+            messages,
         ),
+        messages=messages,
         scenarios_dir=settings.scenarios_dir,
         base_url=settings.base_url,
     )

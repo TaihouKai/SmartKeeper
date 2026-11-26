@@ -84,6 +84,8 @@
     "copy_this": "照着它写一条",
     "done": "完成",
     "edit": "编辑",
+    "export_pdf": "导出 PDF",
+    "export_pdf_hint": "把这套卡（全部角色）导出成方便阅读和打印的 PDF",
     "identity": "身份",
     "less": "收起",
     "missing": "还缺 {n} 处",
@@ -1123,6 +1125,14 @@
     "spends": "从哪个资源里扣",
     "spends_hint": "扣的数就是选的数（例如投入多少魔力）",
     "use_own": "只有这个用途有的参数（可选）"
+  },
+  "pdf": {
+    "auto": "规则书按卡上填的自动给的",
+    "no": "否",
+    "numbers": "数值",
+    "page": "第 {n} 页",
+    "unnamed": "（未命名）",
+    "yes": "是"
   },
   "placement": {
     "charges": "可触发次数",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import sqlalchemy as sa
 
@@ -30,5 +30,7 @@ class Services:
     chat: SqlChatStore
     dice: Dice  # 规则编辑器的试运行用；对局里的随机数只由 engine 产生
     copilot: Copilot
+    # 界面的翻译表（导出 PDF 这类后端要写成文字的地方用）
+    messages: dict[str, dict[str, str]] = field(default_factory=dict[str, dict[str, str]])
     scenarios_dir: str = "scenarios"
     base_url: str | None = None  # 没配置时邀请链接用管理员打开控制台时的地址

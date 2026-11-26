@@ -84,6 +84,8 @@
     "copy_this": "Copy this",
     "done": "Done",
     "edit": "Edit",
+    "export_pdf": "Export PDF",
+    "export_pdf_hint": "Export these sheets (every character) as a PDF to read or print",
     "identity": "Identity",
     "less": "Less",
     "missing": "{n} left to fill",
@@ -1123,6 +1125,14 @@
     "spends": "Spends from",
     "spends_hint": "Deducts the chosen number (e.g. how much mana to put in)",
     "use_own": "Parameters only this use has (optional)"
+  },
+  "pdf": {
+    "auto": "Given by the rulebook from what is on the sheet",
+    "no": "No",
+    "numbers": "Numbers",
+    "page": "Page {n}",
+    "unnamed": "(unnamed)",
+    "yes": "Yes"
   },
   "placement": {
     "charges": "Charges",
