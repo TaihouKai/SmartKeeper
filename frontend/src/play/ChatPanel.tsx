@@ -18,7 +18,8 @@ type Msg = Schemas["ChatMessageOut"];
 export type ChannelKey = string; // "kp" | "broadcast" | "talk:<id>" | "dm:<玩家 id>"
 
 const BROADCAST_TYPES = new Set(["broadcast", "round_opened"]);
-const HIDDEN_TYPES = new Set(["talk_invited", "talk_accepted", "talk_declined", "talk_message", "talk_ended", "round_closed", "character_submitted"]);
+// 对话的事件在各自的会话里；建卡审核是开局前的事，留在建卡页
+const HIDDEN_TYPES = new Set(["talk_invited", "talk_accepted", "talk_declined", "talk_message", "talk_ended", "round_closed", "character_submitted", "character_approved", "character_rejected"]);
 
 /** 一条消息（气泡）：谁说的、内容、是不是自己说的、样式。 */
 type Bubble = { id: string; who: string; body: string; md?: boolean; mine: boolean; tone: "kp" | "action" | "sys" | "plain"; quote?: number };

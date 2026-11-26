@@ -459,3 +459,4 @@ tr.inactive { opacity: 0.5; }
 .pl-quote { opacity: 0; transition: opacity 0.15s; }
 .pl-msg:hover .pl-quote, .pl-quote:focus-visible { opacity: 1; }
 @media (hover: none) { .pl-quote { opacity: 1; } }
+.pl-alliance summary:focus:not(:focus-visible) { outline: none; }

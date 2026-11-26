@@ -310,8 +310,17 @@ export function PlayPage() {
     const s = scene.data;
     if (!s) return [];
     const out = new Map<string, MarkerView>();
+    // 自己的几个角色站在同一个地方（例如御主和英灵在一起）：合成一个标记，免得叠在一起只看得到一个
+    const together = new Map<string, MarkerView>();
     for (const e of s.entities) {
-      if (e.pos) out.set(e.ref, { ref: e.ref, label: e.name, lon: e.pos.lon, lat: e.pos.lat, z: e.pos.z, own: true });
+      if (!e.pos) continue;
+      const spot = `${e.pos.lon.toFixed(5)},${e.pos.lat.toFixed(5)},${Math.round(e.pos.z)}`;
+      const here = together.get(spot);
+      if (here) here.label = `${here.label} · ${e.name}`;
+      else together.set(spot, { ref: e.ref, label: e.name, lon: e.pos.lon, lat: e.pos.lat, z: e.pos.z, own: true });
+    }
+    for (const m of together.values()) out.set(m.ref, m);
+    for (const e of s.entities) {
       for (const p of e.presence) out.set(p.ref, { ref: p.ref, label: p.label, lon: p.pos.lon, lat: p.pos.lat, z: p.pos.z, own: false });
       for (const x of e.placements ?? []) out.set(x.ref, { ref: x.ref, label: x.label || t("play.placement_unknown"), lon: x.pos.lon, lat: x.pos.lat, z: x.pos.z, own: x.mine });
     }
