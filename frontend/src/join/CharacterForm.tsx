@@ -52,6 +52,7 @@ export function CharacterForm({
   params = [],
   checks = [],
   origin = null,
+  onOrigin,
   onPickAnother,
 }: {
   templates: Template[];
@@ -59,6 +60,8 @@ export function CharacterForm({
   onSubmitted: () => void;
   /** 从角色库载入的角色（提交时可以更新它） */
   origin?: Origin | null;
+  /** 存进角色库以后：现在编辑的是角色库里的这个角色（之后接着更新它） */
+  onOrigin?: (o: Origin) => void;
   /** 回到“选角色” */
   onPickAnother?: () => void;
   /** 规则包的默认参数和检定名（自己加参数时用） */
@@ -75,6 +78,11 @@ export function CharacterForm({
   const [busy, setBusy] = useState(false);
   const [libSave, setLibSave] = useState<LibrarySave>(() => initialSave(origin));
   const [libError, setLibError] = useState<unknown>(null);
+  const [libBusy, setLibBusy] = useState(false);
+  const [libSavedAt, setLibSavedAt] = useState<string | null>(null);
+  // 正在编辑的角色换了（例如刷新以后才认出来是哪个）：角色库的设置跟着换
+  const originId = origin?.id;
+  useEffect(() => setLibSave(initialSave(origin)), [originId]); // eslint-disable-line react-hooks/exhaustive-deps
   // 自动保存：打开时先取回服务器上的草稿（没有草稿但提交过的，从上次提交的内容接着改）
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -121,12 +129,8 @@ export function CharacterForm({
     return () => window.clearTimeout(id);
   }, [subs, loaded, saveNow]);
   const statusOf = useCallback((i: number) => (n: number) => setMissing((m) => (m[i] === n ? m : { ...m, [i]: n })), []);
-  const submit = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await saveNow(subs).catch(() => undefined);
-      const clean = subs.map((s) => ({
+  const cleanSubs = (): Submission[] =>
+    subs.map((s) => ({
         template: s.template,
         sheet: {
           ...s.sheet,
@@ -142,10 +146,36 @@ export function CharacterForm({
           ),
         },
       }));
+  // 按角色库的设置存一次；存成新角色以后接着更新它
+  const saveLib = async (clean: Submission[]) => {
+    setLibError(null);
+    const saved = await saveToLibrary(clean, origin, libSave);
+    if (saved) {
+      onOrigin?.(saved);
+      setLibSave((v) => ({ ...v, mode: "update", name: saved.name, password: "", newPassword: "", current: "" }));
+      setLibSavedAt(new Date().toISOString());
+    }
+  };
+  const saveLibNow = async () => {
+    setLibBusy(true);
+    try {
+      await saveLib(cleanSubs());
+    } catch (e) {
+      setLibError(e);
+    } finally {
+      setLibBusy(false);
+    }
+  };
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await saveNow(subs).catch(() => undefined);
+      const clean = cleanSubs();
       await call(api.POST("/api/character", { body: { sheets: clean as never } }));
       // 交给这一局以后再存进角色库；存失败（例如密码不对）不影响已经提交的
       try {
-        await saveToLibrary(clean, origin, libSave);
+        await saveLib(clean);
       } catch (e) {
         setLibError(e);
         return;
@@ -222,7 +252,7 @@ export function CharacterForm({
           </button>
         </p>
       )}
-      <LibraryBox origin={origin} value={libSave} onChange={setLibSave} />
+      <LibraryBox origin={origin} value={libSave} onChange={setLibSave} onSaveNow={() => void saveLibNow()} busy={libBusy} savedAt={libSavedAt} />
       <ErrorBox error={libError} />
       <div className="cf-footer">
         <span className="sk-hint">{saveError ? t("cf.save_failed") : savedAt ? t("character.autosaved", { time: new Date(savedAt).toLocaleTimeString() }) : ""}</span>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, LangSwitch, Section } from "../ui/components";
@@ -6,7 +6,7 @@ import { useAction, usePoll } from "../ui/hooks";
 import { HandbookProvider, Markdown } from "../ui/markdown";
 import { DocsTab, useDocs } from "../ui/docs";
 import { CharacterForm } from "./CharacterForm";
-import { CharacterPicker, type Origin } from "./Library";
+import { CharacterPicker, loadOrigin, rememberOrigin, type Origin } from "./Library";
 
 /** /join：阅读规则，按剧本抽取或选择身份，按模板填写并提交角色卡，查看 KP 的审核意见。 */
 export function JoinPage() {
@@ -21,7 +21,16 @@ export function JoinPage() {
   // 选角色还是在建卡：已经有草稿或者提交过的直接建卡；载入角色库的角色时记着它（提交时可以更新）
   const draft = usePoll(() => call(api.GET("/api/character/draft")), 3_600_000);
   const [picking, setPicking] = useState<boolean | null>(null);
-  const [origin, setOrigin] = useState<Origin | null>(null);
+  const [origin, setOriginState] = useState<Origin | null>(null);
+  const pid = me.data?.player_id;
+  // 正在编辑角色库里的哪个角色：记在浏览器里，刷新以后还能存回去
+  useEffect(() => {
+    if (pid) setOriginState(loadOrigin(pid));
+  }, [pid]);
+  const setOrigin = (o: Origin | null) => {
+    setOriginState(o);
+    if (pid) rememberOrigin(pid, o);
+  };
   const [formKey, setFormKey] = useState(0);
 
   if (invalid || (me.error && !me.data)) {
@@ -130,6 +139,7 @@ export function JoinPage() {
                     </details>
                     {pick ? (
                       <CharacterPicker
+                        me={m.display_name}
                         onNew={() => {
                           setOrigin(null);
                           setPicking(false);
@@ -157,6 +167,7 @@ export function JoinPage() {
                         params={r.params}
                         checks={r.checks}
                         origin={origin}
+                        onOrigin={setOrigin}
                         onPickAnother={() => setPicking(true)}
                         onSubmitted={() => {
                           setEditing(false);

@@ -6,10 +6,11 @@ import { useAction, usePoll } from "../ui/hooks";
 
 export type LibraryChar = Schemas["LibraryCharacter"];
 /** 从角色库载入的角色：之后提交时可以更新它（要它的密码）。 */
-export type Origin = { id: string; name: string; summary: string; password: string | null; locked: boolean };
+export type Origin = { id: string; name: string; summary: string; password: string | null; locked: boolean; own?: boolean };
 
 /** 选角色：这套规则书的角色库（别人建的也能用，设了密码的要密码），或者新建一个。 */
-export function CharacterPicker({ onPick, onNew }: { onPick: (sheets: unknown, origin: Origin) => void; onNew: () => void }) {
+/** me：自己的昵称；自己建的角色载入以后默认接着更新它 */
+export function CharacterPicker({ onPick, onNew, me = "" }: { onPick: (sheets: unknown, origin: Origin) => void; onNew: () => void; me?: string }) {
   const { t } = useI18n();
   const list = usePoll(() => call(api.GET("/api/library")), 60_000);
   const [asking, setAsking] = useState<string | null>(null);
@@ -18,7 +19,7 @@ export function CharacterPicker({ onPick, onNew }: { onPick: (sheets: unknown, o
   const open = (c: LibraryChar, pw: string | null) =>
     void act.run(async () => {
       const full = await call(api.POST("/api/library/{char_id}/open", { params: { path: { char_id: c.id } }, body: { password: pw } }));
-      onPick(full.sheets, { id: c.id, name: c.name, summary: c.summary ?? "", password: pw, locked: c.locked ?? false });
+      onPick(full.sheets, { id: c.id, name: c.name, summary: c.summary ?? "", password: pw, locked: c.locked ?? false, own: Boolean(me) && c.created_by === me });
     });
   const chars = list.data ?? [];
   return (
@@ -73,19 +74,57 @@ export function CharacterPicker({ onPick, onNew }: { onPick: (sheets: unknown, o
   );
 }
 
-/** 提交时怎么处理角色库：存成新角色、更新载入的那个、或者不存。 */
-export type LibrarySave = { mode: "new" | "update" | "none"; name: string; summary: string; password: string; newPassword: string };
+/** 记住正在编辑的是角色库里的哪个角色（刷新页面以后还能存回去）。不记密码。 */
+const ORIGIN_KEY = "sk.libOrigin.";
 
-export function initialSave(origin: Origin | null): LibrarySave {
-  return origin
-    ? { mode: "none", name: origin.name, summary: origin.summary, password: "", newPassword: "" }
-    : { mode: "new", name: "", summary: "", password: "", newPassword: "" };
+export function loadOrigin(playerId: string): Origin | null {
+  try {
+    const raw = window.localStorage.getItem(ORIGIN_KEY + playerId);
+    const o = raw ? (JSON.parse(raw) as Origin) : null;
+    return o && typeof o.id === "string" ? { ...o, password: null } : null;
+  } catch {
+    return null;
+  }
 }
 
-/** 提交前的角色库设置（放在建卡页底部）。 */
-export function LibraryBox({ origin, value, onChange }: { origin: Origin | null; value: LibrarySave; onChange: (v: LibrarySave) => void }) {
+export function rememberOrigin(playerId: string, o: Origin | null): void {
+  try {
+    if (o) window.localStorage.setItem(ORIGIN_KEY + playerId, JSON.stringify({ ...o, password: null }));
+    else window.localStorage.removeItem(ORIGIN_KEY + playerId);
+  } catch {
+    // 存不了（隐私模式等）就只在这一页里记着
+  }
+}
+
+/** 角色库怎么存：存成新角色、更新正在编辑的那个、或者不存。current 是更新带锁的角色要的密码（载入时输过的不用再输）。 */
+export type LibrarySave = { mode: "new" | "update" | "none"; name: string; summary: string; password: string; newPassword: string; current: string };
+
+export function initialSave(origin: Origin | null): LibrarySave {
+  const blank = { password: "", newPassword: "", current: "" };
+  if (!origin) return { mode: "new", name: "", summary: "", ...blank };
+  // 自己存进去的默认接着更新它；从角色库载入别人的默认不动它
+  return { mode: origin.own ? "update" : "none", name: origin.name, summary: origin.summary, ...blank };
+}
+
+/** 建卡页底部的角色库：怎么存、名字、简介、密码；随时可以“现在存进角色库”，提交给这一局时也按这里的设置存。 */
+export function LibraryBox({
+  origin,
+  value,
+  onChange,
+  onSaveNow,
+  busy,
+  savedAt,
+}: {
+  origin: Origin | null;
+  value: LibrarySave;
+  onChange: (v: LibrarySave) => void;
+  onSaveNow: () => void;
+  busy: boolean;
+  savedAt: string | null;
+}) {
   const { t } = useI18n();
   const set = (patch: Partial<LibrarySave>) => onChange({ ...value, ...patch });
+  const needCurrent = value.mode === "update" && origin !== null && origin.locked && !origin.password;
   return (
     <div className="sk-card lib-box">
       <strong>{t("lib.box_title")}</strong>
@@ -118,29 +157,45 @@ export function LibraryBox({ origin, value, onChange }: { origin: Origin | null;
               <input type="password" value={value.password} placeholder={t("lib.password_ph")} onChange={(e) => set({ password: e.target.value })} />
             </label>
           ) : (
-            <label>
-              {t("lib.new_password")}
-              <input type="password" value={value.newPassword} placeholder={t("lib.new_password_ph")} onChange={(e) => set({ newPassword: e.target.value })} />
-            </label>
+            <>
+              {needCurrent && (
+                <label>
+                  {t("lib.current_password")}
+                  <input type="password" value={value.current} placeholder={t("lib.current_password_ph")} onChange={(e) => set({ current: e.target.value })} />
+                </label>
+              )}
+              <label>
+                {t("lib.new_password")}
+                <input type="password" value={value.newPassword} placeholder={t("lib.new_password_ph")} onChange={(e) => set({ newPassword: e.target.value })} />
+              </label>
+            </>
           )}
+          <div className="sk-row">
+            <button type="button" disabled={busy} onClick={onSaveNow}>
+              {t(value.mode === "update" ? "lib.save_now_update" : "lib.save_now")}
+            </button>
+            {savedAt && <span className="sk-hint">{t("lib.saved_at", { time: new Date(savedAt).toLocaleTimeString() })}</span>}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-/** 提交成功以后按设置存进角色库。 */
-export async function saveToLibrary(sheets: unknown, origin: Origin | null, v: LibrarySave): Promise<void> {
-  if (v.mode === "none") return;
+/** 按设置存进角色库；返回存好以后它在角色库里的样子（之后接着更新它），不存时是 null。 */
+export async function saveToLibrary(sheets: unknown, origin: Origin | null, v: LibrarySave): Promise<Origin | null> {
+  if (v.mode === "none") return null;
   const body = { sheets: sheets as never, name: v.name, summary: v.summary };
   if (v.mode === "update" && origin) {
-    await call(
+    const password = origin.password ?? (v.current || null);
+    const saved = await call(
       api.PUT("/api/library/{char_id}", {
         params: { path: { char_id: origin.id } },
-        body: { ...body, password: origin.password, new_password: v.newPassword ? v.newPassword : null },
+        body: { ...body, password, new_password: v.newPassword ? v.newPassword : null },
       }),
     );
-    return;
+    return { id: saved.id, name: saved.name, summary: saved.summary ?? "", password: v.newPassword || password, locked: saved.locked ?? false, own: origin.own };
   }
-  await call(api.POST("/api/library", { body: { ...body, password: v.password || null } }));
+  const saved = await call(api.POST("/api/library", { body: { ...body, password: v.password || null } }));
+  return { id: saved.id, name: saved.name, summary: saved.summary ?? "", password: v.password || null, locked: saved.locked ?? false, own: true };
 }
