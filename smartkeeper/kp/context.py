@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any, cast
 
 from pydantic import JsonValue
 
@@ -41,6 +42,22 @@ HISTORY_TYPES = (
 class Prompt:
     system: str
     user: str
+
+
+_CODE_KEYS = ("config", "script", "bonus", "effects")
+
+
+def _without_code(node: Any) -> Any:
+    """角色卡去掉技能设置、脚本、常驻加成（条目、用途、对自动条目的修改里的都去掉），其余原样。"""
+    if isinstance(node, dict):
+        return {
+            k: _without_code(v)
+            for k, v in cast(dict[str, Any], node).items()
+            if k not in _CODE_KEYS
+        }
+    if isinstance(node, list):
+        return [_without_code(v) for v in cast(list[Any], node)]
+    return node
 
 
 class Contexts:
@@ -87,7 +104,10 @@ class Contexts:
         p = self.e.player(player_id)
         g = p.game_id
         identity = [e for e in self.e.view_for(g, player_id) if e.type == "identity_assigned"]
-        subs = [s.model_dump(mode="json") for s in self.e.submitted_character(player_id)]
+        # 卡上的代码不给 KP：机制由引擎执行，KP 看引擎写成的效果说明（见 _effects_section）
+        subs = [
+            _without_code(s.model_dump(mode="json")) for s in self.e.submitted_character(player_id)
+        ]
         user = "\n".join(
             [
                 section("规则书", self.e.rulebook(g)),
@@ -132,7 +152,7 @@ class Contexts:
         ]
         return [
             section(
-                "各条技能的代码实际做什么（引擎按代码写成的句子，以此为准，不用自己解读代码）",
+                "各条技能实际做什么（引擎按代码写成的句子，以此为准）",
                 dumps(cards),
             )
         ]
