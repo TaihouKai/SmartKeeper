@@ -6,6 +6,12 @@ describe("mentionQuery", () => {
     expect(mentionQuery("去 @教", 4)).toEqual({ start: 2, query: "教" });
     expect(mentionQuery("@", 1)).toEqual({ start: 0, query: "" });
   });
+  it("works right after Chinese text, with no space", () => {
+    expect(mentionQuery("去@教", 3)).toEqual({ start: 1, query: "教" });
+    expect(mentionQuery("我和@", 3)).toEqual({ start: 2, query: "" });
+    expect(mentionQuery("（@Ri", 4)).toEqual({ start: 1, query: "Ri" });
+    expect(mentionQuery("去＠教", 3)).toEqual({ start: 1, query: "教" });
+  });
   it("ignores mail-like @ and finished mentions", () => {
     expect(mentionQuery("a@b", 3)).toBeNull();
     expect(mentionQuery("@[教会](feature:x) ", 17)).toBeNull();

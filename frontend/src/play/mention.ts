@@ -1,9 +1,12 @@
 /** 输入框里打 @ 弹出候选：找光标前正在打的 @词，选中后换成 @[名字](引用)。 */
 
-/** 光标前的 @词：@ 前面是开头或空白，@ 后面到光标之间没有空白和括号。没有在打 @词时是 null。 */
+/**
+ * 光标前的 @词：@ 后面到光标之间没有空白和括号。没有在打 @词时是 null。
+ * @ 前面可以紧挨着中文（“去@教会”），中文标点下的全角 ＠ 也算；紧挨着英文字母或数字时不算（a@b 这种是邮箱之类）。
+ */
 export function mentionQuery(text: string, caret: number): { start: number; query: string } | null {
   const before = text.slice(0, caret);
-  const m = /(^|\s)@([^\s@[\]()]{0,30})$/.exec(before);
+  const m = /(^|[^A-Za-z0-9])[@＠]([^\s@＠[\]()]{0,30})$/.exec(before);
   if (!m) return null;
   return { start: caret - m[2]!.length - 1, query: m[2]! };
 }
