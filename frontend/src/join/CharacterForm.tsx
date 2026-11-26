@@ -106,6 +106,9 @@ export function CharacterForm({
           setSubs(d.sheets as Submission[]);
           lastSaved.current = JSON.stringify(d.sheets);
           setSavedAt(d.savedAt);
+        } else if (bookMode) {
+          // 规则书下新建：什么都没改就不暂存（免得下次打开误以为有没存的修改）
+          lastSaved.current = JSON.stringify(initialSubmissions(playerEntities));
         }
       } catch {
         // 取不到就从空白开始
