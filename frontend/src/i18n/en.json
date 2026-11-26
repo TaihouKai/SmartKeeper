@@ -93,12 +93,14 @@
     "params": "Parameters chosen when used",
     "ref": "Reference:",
     "ref_hint": "Use this name in formulas and scripts: on its own it is whether the entry exists (1/0); add .column for one of its columns. Click to select and copy",
+    "reload": "Reload",
     "remove_sheet": "Remove this sheet",
     "restore": "Restore default",
     "review": "Check",
     "review_lead": "{name}: what is missing or wrong; click to go there.",
     "save_failed": "Autosave failed",
     "sections": "Parts of this sheet",
+    "stale": "This sheet was changed in another tab or device, so this page is out of date: it no longer autosaves and can't submit. Reload to get the latest.",
     "stats": "At a glance",
     "stats_empty": "Fill in the attributes to see hit points, mana and so on here.",
     "unnamed": "(unnamed)",
@@ -224,6 +226,7 @@
       "self_only": "Always-on bonuses only change self.<name>"
     },
     "character": {
+      "draft_stale": "This sheet was changed in another tab; reload the page",
       "draft_too_big": "The character sheet is too large to save",
       "invalid": "The character sheet is invalid"
     },

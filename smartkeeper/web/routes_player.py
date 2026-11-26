@@ -167,6 +167,8 @@ class NameIn(BaseModel):
 
 class DraftIn(BaseModel):
     sheets: JsonValue  # 建角表单的原样内容，不校验
+    # 这一页基于的草稿保存时间（"" 是打开时还没有草稿）：草稿在那之后被别的页面存过就拒绝。不给是不查
+    base: str | None = None
 
 
 class DraftOut(BaseModel):
@@ -304,7 +306,7 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
     @r.put("/character/draft")
     def save_draft(p: Annotated[Player, Depends(require_player)], body: DraftIn) -> DraftOut:
         """建角表单自动保存：存到服务器，换浏览器、换设备也接得上。"""
-        at = e.save_character_draft(p.id, body.sheets)
+        at = e.save_character_draft(p.id, body.sheets, body.base)
         return DraftOut(sheets=body.sheets, updated_at=at)
 
     @r.get("/character")

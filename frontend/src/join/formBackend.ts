@@ -9,7 +9,8 @@ export type FormBackend = {
   validate: (body: Schemas["SheetFormulaIn"]) => Promise<Schemas["FormulaOut"]>;
   /** 自动保存的草稿：取回（没有是 null）、存 */
   loadDraft: () => Promise<{ sheets: unknown[] | null; savedAt: string | null }>;
-  saveDraft: (sheets: unknown[]) => Promise<string | null>;
+  /** base：这一页基于的草稿保存时间（"" 是打开时还没有）；草稿被别的页面改过时拒绝 */
+  saveDraft: (sheets: unknown[], base: string) => Promise<string | null>;
   /** 存进角色库：新建、更新 */
   createCharacter: (body: Schemas["LibrarySaveIn"]) => Promise<Schemas["LibraryCharacter"]>;
   updateCharacter: (id: string, body: Schemas["LibrarySaveIn"]) => Promise<Schemas["LibraryCharacter"]>;
@@ -25,7 +26,7 @@ export const gameBackend: FormBackend = {
     const prev = await call(api.GET("/api/character"));
     return { sheets: prev.length > 0 ? prev.map((x) => ({ template: x.template, sheet: x.sheet })) : null, savedAt: null };
   },
-  saveDraft: async (sheets) => (await call(api.PUT("/api/character/draft", { body: { sheets: sheets as never } }))).updated_at ?? null,
+  saveDraft: async (sheets, base) => (await call(api.PUT("/api/character/draft", { body: { sheets: sheets as never, base } }))).updated_at ?? null,
   createCharacter: (body) => call(api.POST("/api/library", { body })),
   updateCharacter: (id, body) => call(api.PUT("/api/library/{char_id}", { params: { path: { char_id: id } }, body })),
 };

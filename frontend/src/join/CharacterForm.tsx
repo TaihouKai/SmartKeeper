@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, call, type Schemas } from "../api/client";
+import { ApiError, api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox } from "../ui/components";
 import { SheetWorkbench, type SheetDraft } from "./SheetWorkbench";
@@ -96,12 +96,18 @@ export function CharacterForm({
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<unknown>(null);
   const lastSaved = useRef("");
+  // 这一页基于的草稿保存时间（"" 是打开时还没有草稿）：存的时候带上，草稿被别的页面改过时服务器会拒绝
+  const base = useRef("");
+  // 草稿在别的页面（或设备）上改过了：这一页过时了，不再自动保存，也不能提交
+  const [stale, setStale] = useState(false);
+  const isStale = (e: unknown) => e instanceof ApiError && e.body.code === "character.draft_stale";
   useEffect(() => {
     let alive = true;
     void (async () => {
       try {
         const d = await backend.loadDraft();
         if (!alive) return;
+        base.current = d.savedAt ?? "";
         if (d.sheets && d.sheets.length > 0) {
           setSubs(d.sheets as Submission[]);
           lastSaved.current = JSON.stringify(d.sheets);
@@ -123,19 +129,20 @@ export function CharacterForm({
   const saveNow = useCallback(async (value: Submission[]) => {
     const text = JSON.stringify(value);
     if (text === lastSaved.current) return;
-    const at = await backend.saveDraft(value);
+    const at = await backend.saveDraft(value, base.current);
+    if (at) base.current = at;
     lastSaved.current = text;
     setSavedAt(at);
     setSaveError(null);
   }, [backend]);
   // 停手 2 秒后自动存
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || stale) return;
     const id = window.setTimeout(() => {
-      saveNow(subs).catch((e: unknown) => setSaveError(e));
+      saveNow(subs).catch((e: unknown) => (isStale(e) ? setStale(true) : setSaveError(e)));
     }, 2000);
     return () => window.clearTimeout(id);
-  }, [subs, loaded, saveNow]);
+  }, [subs, loaded, saveNow, stale]);
   const statusOf = useCallback((i: number) => (n: number) => setMissing((m) => (m[i] === n ? m : { ...m, [i]: n })), []);
   const cleanSubs = (): Submission[] =>
     subs.map((s) => ({
@@ -179,7 +186,15 @@ export function CharacterForm({
     setBusy(true);
     setError(null);
     try {
-      await saveNow(subs).catch(() => undefined);
+      try {
+        await saveNow(subs);
+      } catch (e) {
+        // 这一页过时了：不能拿旧内容去提交
+        if (isStale(e)) {
+          setStale(true);
+          return;
+        }
+      }
       const clean = cleanSubs();
       await call(api.POST("/api/character", { body: { sheets: clean as never } }));
       // 交给这一局以后再存进角色库；存失败（例如密码不对）不影响已经提交的
@@ -204,6 +219,14 @@ export function CharacterForm({
   return (
     <FormBackendContext.Provider value={backend}>
     <div className="cf-wrap">
+      {stale && (
+        <div className="sk-error cf-stale" role="alert">
+          {t("cf.stale")}{" "}
+          <button type="button" className="sk-primary" onClick={() => window.location.reload()}>
+            {t("cf.reload")}
+          </button>
+        </div>
+      )}
       <div className="cf-tabs" role="tablist">
         {subs.map((s, i) => {
           const tp = templates.find((x) => x.name === s.template);
@@ -269,7 +292,7 @@ export function CharacterForm({
           {saveError ? t("cf.save_failed") : savedAt ? t(bookMode ? "books.draft_saved" : "character.autosaved", { time: new Date(savedAt).toLocaleTimeString() }) : ""}
         </span>
         <span className={totalMissing > 0 ? "cf-footer-todo" : "cf-footer-ok"}>{totalMissing > 0 ? t("cf.missing", { n: String(totalMissing) }) : t("cf.complete")}</span>
-        {bookMode ? (
+        {stale ? null : bookMode ? (
           <button className="sk-primary" disabled={libBusy} onClick={() => void saveLibNow()}>
             {t(libSave.mode === "update" ? "lib.save_now_update" : "lib.save_now")}
           </button>

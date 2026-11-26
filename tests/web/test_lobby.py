@@ -121,6 +121,25 @@ def test_character_form_draft_is_kept_on_the_server(site: Site) -> None:
     assert c.put("/api/character/draft", json={"sheets": "x" * 600_000}).status_code == 422
 
 
+def test_an_old_page_cannot_overwrite_a_newer_draft(site: Site) -> None:
+    """两个页面编辑同一张卡：旧页面（基于旧的保存时间）存不进去，也就不会拿旧内容去提交。"""
+    gid = new_game(site, "stale")
+    c = site.client()
+    c.post("/api/lobby/join", json={"game_id": gid, "name": "A"})
+    v1 = [{"template": "person", "sheet": {"name": "v1", "fields": {}, "groups": {}}}]
+    v2 = [{"template": "person", "sheet": {"name": "v2", "fields": {}, "groups": {}}}]
+    first = c.put("/api/character/draft", json={"sheets": v1, "base": ""}).json()["updated_at"]
+    # 新页面基于 first 存了 v2；还停在“没有草稿”时打开的旧页面再存，被拒绝
+    second = c.put("/api/character/draft", json={"sheets": v2, "base": first}).json()["updated_at"]
+    r = c.put("/api/character/draft", json={"sheets": v1, "base": ""})
+    assert r.json()["detail"]["code"] == "character.draft_stale"
+    r = c.put("/api/character/draft", json={"sheets": v1, "base": first})
+    assert r.json()["detail"]["code"] == "character.draft_stale"
+    assert c.get("/api/character/draft").json()["sheets"] == v2
+    ok = c.put("/api/character/draft", json={"sheets": v2, "base": second})
+    assert ok.status_code == 200
+
+
 def test_rulebook_of_a_listed_game_is_public(site: Site) -> None:
     gid = new_game(site, "book")
     r = site.client().get(f"/api/lobby/{gid}/rulebook")

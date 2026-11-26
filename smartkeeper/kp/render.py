@@ -13,9 +13,13 @@ from smartkeeper.contracts import KP, Event
 _TOKEN = re.compile(r"\{\{([A-Za-z0-9_\-]{1,64})\}\}")
 
 
+_TAG_LIKE = re.compile(r"<(\s*/?\s*player_text)", re.IGNORECASE)
+
+
 def player_text(text: str, who: str) -> str:
-    """玩家写的文字一律包进标签。尖括号转义，标签里的内容无法闭合标签。"""
-    safe = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    """玩家写的文字一律包进标签。只把像这个标签的写法（<player_text、</player_text）的尖括号换成全角，
+    标签里的内容就无法闭合或伪造标签；别的 < > & 原样保留（卡上的公式 time < 13:00 要让 KP 看到原样）。"""
+    safe = _TAG_LIKE.sub(lambda m: "＜" + m.group(1), text)
     return f'<player_text from="{who}">{safe}</player_text>'
 
 

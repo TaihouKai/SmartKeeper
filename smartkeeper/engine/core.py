@@ -8,7 +8,7 @@ import json
 import secrets
 import threading
 from collections.abc import Callable, Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import sqlalchemy as sa
@@ -441,12 +441,33 @@ class Engine:
         assert isinstance(raw, list)
         return [SheetSubmission.model_validate(x) for x in raw]
 
+    def auto_entries(self, game_id: str, sheet: SheetSubmission) -> dict[str, list[str]]:
+        """一张卡按现在的填写会自动获得的条目（规则书给的固定条目）：分组 -> 条目名。审核时给 KP 看。"""
+        raw = sheet.sheet.model_dump(mode="json")
+        try:
+            full = self._rules.full_sheet(self.rulepack(game_id), sheet.template, raw)
+        except (ValidationFailed, NotFound):
+            return {}
+        own = sheet.sheet.groups
+        out: dict[str, list[str]] = {}
+        for g, entries in _obj(_obj(full).get("groups")).items():
+            listed = _list(entries)
+            n = len(listed) - len(own.get(g, ()))
+            names = [str(_obj(e).get("name", "")) for e in listed[:n]]
+            if names:
+                out[g] = names
+        return out
+
     def character_draft(self, player_id: str) -> tuple[JsonValue, str] | None:
         """建角表单自动保存的草稿（原样的 JSON）和保存时间；没有是 None。"""
         return self._repo.character_draft(player_id)
 
-    def save_character_draft(self, player_id: str, draft: JsonValue) -> str:
-        """存建角表单的草稿：只在建角阶段、角色还没通过时；不校验内容，只限大小。返回保存时间。"""
+    def save_character_draft(
+        self, player_id: str, draft: JsonValue, base: str | None = None
+    ) -> str:
+        """存建角表单的草稿：只在建角阶段、角色还没通过时；不校验内容，只限大小。返回保存时间。
+        base 是这一页打开时（或上次存时）草稿的保存时间（"" 是当时还没有草稿）：草稿在那之后被别的页面
+        存过，就拒绝（character.draft_stale），免得开着的旧页面把新内容盖掉。None 是不查。"""
         p = self.player(player_id)
         if self.game(p.game_id).status != "characters":
             raise IllegalState("game.not_in_character_phase")
@@ -454,8 +475,15 @@ class Engine:
             raise IllegalState("character.already_approved")
         if len(json.dumps(draft, ensure_ascii=False)) > 500_000:
             raise ValidationFailed("character.draft_too_big")
-        at = _now()
-        self._repo.set_character_draft(player_id, draft, at)
+        with self._lock:
+            now = self._repo.character_draft(player_id)
+            if base is not None and (now[1] if now else "") != base:
+                raise IllegalState("character.draft_stale")
+            at = _now()
+            if now and at <= now[1]:
+                # 保存时间是这一版的标记：两次存得太快时也要不一样
+                at = (datetime.fromisoformat(now[1]) + timedelta(microseconds=1)).isoformat()
+            self._repo.set_character_draft(player_id, draft, at)
         return at
 
     # ================= 角色库 =================

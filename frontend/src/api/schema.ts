@@ -1846,6 +1846,8 @@ export interface components {
         };
         /** DraftIn */
         DraftIn: {
+            /** Base */
+            base?: string | null;
             sheets: components["schemas"]["JsonValue"];
         };
         /** DraftOut */

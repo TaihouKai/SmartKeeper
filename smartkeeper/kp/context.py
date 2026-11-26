@@ -97,6 +97,19 @@ class Contexts:
                     dumps([x.payload for x in identity]) if identity else "（剧本没有身份）",
                 ),
                 section("提交的角色卡", player_text(dumps(subs), p.display_name)),
+                section(
+                    "各张卡自动获得的条目（规则书给的，玩家不用写；preset_edits 里是玩家对其中几条的修改）",
+                    dumps(
+                        [
+                            {
+                                "template": s.template,
+                                "name": s.sheet.name,
+                                "auto": self.e.auto_entries(g, s),
+                            }
+                            for s in self.e.submitted_character(player_id)
+                        ]
+                    ),
+                ),
             ]
         )
         return Prompt(self._system(g, "review_character"), user)

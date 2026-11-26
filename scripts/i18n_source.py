@@ -551,6 +551,15 @@ T: dict[str, tuple[str, str]] = {
     "cf.view": ("查看", "View"),
     "cf.ref": ("引用名：", "Reference:"),
     "cf.modify": ("修改", "Modify"),
+    "cf.stale": (
+        "这张卡在别的页面（或别的设备）上改过了，这一页的内容已经过时：不会再自动保存，也不能提交。请刷新载入最新的。",
+        "This sheet was changed in another tab or device, so this page is out of date: it no longer autosaves and can't submit. Reload to get the latest.",
+    ),
+    "cf.reload": ("刷新", "Reload"),
+    "codes.character.draft_stale": (
+        "这张卡在别的页面上改过了，请刷新页面",
+        "This sheet was changed in another tab; reload the page",
+    ),
     "cf.modified": ("已修改", "Modified"),
     "cf.restore": ("恢复默认", "Restore default"),
     "cf.modify_title": ("修改：{name}", "Modify: {name}"),
