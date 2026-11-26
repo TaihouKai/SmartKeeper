@@ -55,7 +55,8 @@ class Place(Frozen):
 class NamedPlace(Frozen):
     """KP 或剧本给地图上一个位置起的名字，世界状态 /places/<id>。
 
-    一个名字只指一个地方，起了就一直有效，所有玩家看到的都一样（地图上显示，消息里可以点）。
+    名字和地点的对应是全局的事实：一个名字只指一个地方，起了就一直有效，对谁都一样。
+    谁知道这个名字是另一回事：public 的谁都知道（地图上都显示）；不公开的，只有读到过提到它的消息的玩家知道。
     feature 是这个位置所在的地物（例如这栋楼），没有是 None。
     """
 
@@ -63,10 +64,13 @@ class NamedPlace(Frozen):
     pos: Point
     inside: str | None = None
     feature: str | None = None
+    public: bool = False
 
 
 class PlaceNameIn(Frozen):
-    """给一个位置起名字：name 是名字，at 是位置（地图上的地名、已经起过的名字，或坐标）。"""
+    """给一个位置起名字：name 是名字，at 是位置（地图上的地名、已经起过的名字，或坐标）。
+    public：谁都知道这个名字（公开的地标、集合地点）；默认只有被告知的玩家知道。"""
 
     name: str = Field(min_length=1, max_length=40)
     at: Place
+    public: bool = False

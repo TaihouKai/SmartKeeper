@@ -4027,7 +4027,7 @@ class Engine:
                 )
             evs += self._noticed_events(game_id, r.no, adj, seconds)
             space = self._space_for(self._map(game_id), final, self.rulepack(game_id))
-            evs += self._kp_intel_events(game_id, adj, space, r.no, seconds)
+            evs += self._kp_intel_events(game_id, adj, space, r.no, seconds, final)
             if isinstance(bc, str):
                 evs.append(
                     NewEvent(
@@ -4546,14 +4546,20 @@ class Engine:
         return out
 
     def _kp_intel_events(
-        self, game_id: str, adj: Adjudication, space: Space, round_no: int, seconds: int
+        self,
+        game_id: str,
+        adj: Adjudication,
+        space: Space,
+        round_no: int,
+        seconds: int,
+        state: State | None = None,
     ) -> list[NewEvent]:
         out: list[NewEvent] = []
         have = self._known_intel(game_id)
         for x in adj.intel:
             facts: list[IntelFact] = []
             if x.text.strip():
-                facts.append(intel.note(x.text.strip(), seconds))
+                facts.append(intel.note(self._link_places(game_id, x.text.strip(), state), seconds))
             facts += intel.facts_about(space, x.about, x.fields, (), "kp", seconds)
             new = intel.fresh(have.get((x.player, x.about), []), facts)
             if new:
@@ -5218,6 +5224,18 @@ class Engine:
         """起了名字的地点：id -> 地点。所有玩家看到的都一样。"""
         return places.of(self._state(game_id))
 
+    def known_places(self, game_id: str, player_id: str) -> dict[str, NamedPlace]:
+        """这个玩家知道名字的地点：公开的，加上他能看到的事件里链接到的（读到过提到它的消息）。"""
+        named = self.places(game_id)
+        if all(p.public for p in named.values()):
+            return named
+        told: set[str] = set()
+        for ev in self._events.view_for(game_id, player_id):
+            raw = json.dumps(ev.payload, ensure_ascii=False)
+            if "](place:" in raw:
+                told |= places.linked_ids(raw)
+        return {k: v for k, v in named.items() if v.public or k in told}
+
     def _place_ops(
         self, game_id: str, state: State, decls: Sequence[PlaceNameIn], path: str
     ) -> tuple[list[PatchOp], list[Problem]]:
@@ -5241,10 +5259,16 @@ class Engine:
             if loc_problems:
                 problems += loc_problems
                 continue
-            new = NamedPlace(name=name, pos=loc.pos, inside=loc.inside, feature=fid)
+            new = NamedPlace(
+                name=name, pos=loc.pos, inside=loc.inside, feature=fid, public=d.public
+            )
             pid = places.find(have, name)
             if pid is not None:
-                if not places.same_spot(have[pid], new):
+                if places.same_spot(have[pid], new) and new.public and not have[pid].public:
+                    # 原来只有一部分人知道的名字，现在公开了
+                    have[pid] = have[pid].model_copy(update={"public": True})
+                    ops.append(PatchOp(op="add", path=f"/places/{pid}/public", value=True))
+                elif not places.same_spot(have[pid], new):
                     old = have[pid]
                     f = m.feature(old.feature) if old.feature else None
                     where = (f.name or f.id) if f else f"{old.pos.x:.0f},{old.pos.y:.0f}"

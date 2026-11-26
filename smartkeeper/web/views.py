@@ -331,7 +331,7 @@ class ChangeOut(BaseModel):
 
 
 class PlaceOut(BaseModel):
-    """起了名字的地点（所有玩家看到的都一样）。feature 是所在的地物（例如这栋楼），没有是 None。"""
+    """这个玩家知道名字的地点（名字和位置的对应对谁都一样）。feature 是所在的地物（例如这栋楼），没有是 None。"""
 
     id: str
     name: str
@@ -378,6 +378,6 @@ def scene(engine: Engine, game_id: str, player_id: str) -> SceneOut:
         seen=[SeenOut(ref=x.ref, label=x.label, note=x.note, intel=list(x.intel)) for x in s.seen],
         places=[
             PlaceOut(id=pid, name=p.name, pos=lonlat(m, p.pos), inside=p.inside, feature=p.feature)
-            for pid, p in sorted(engine.places(game_id).items())
+            for pid, p in sorted(engine.known_places(game_id, player_id).items())
         ],
     )

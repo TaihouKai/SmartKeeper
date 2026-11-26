@@ -3544,15 +3544,21 @@ export interface components {
         /**
          * PlaceNameIn
          * @description 给一个位置起名字：name 是名字，at 是位置（地图上的地名、已经起过的名字，或坐标）。
+         *     public：谁都知道这个名字（公开的地标、集合地点）；默认只有被告知的玩家知道。
          */
         PlaceNameIn: {
             at: components["schemas"]["Place"];
             /** Name */
             name: string;
+            /**
+             * Public
+             * @default false
+             */
+            public: boolean;
         };
         /**
          * PlaceOut
-         * @description 起了名字的地点（所有玩家看到的都一样）。feature 是所在的地物（例如这栋楼），没有是 None。
+         * @description 这个玩家知道名字的地点（名字和位置的对应对谁都一样）。feature 是所在的地物（例如这栋楼），没有是 None。
          */
         PlaceOut: {
             /** Feature */

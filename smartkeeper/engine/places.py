@@ -9,6 +9,8 @@
 
 KP 写给玩家的文字里用 {{place:名字}} 提到地点；引擎在文字变成事件时换成可以点的链接：
 起过的名字换成 [名字](place:<id>)，地图上的地物名换成 [名字](feature:<地物 id>)，都不是就只留名字。
+
+谁知道哪个名字不另外记：公开的谁都知道；不公开的，玩家能看到的事件里有指向它的链接，就是知道了。
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from pydantic import JsonValue, ValidationError
 from smartkeeper.contracts import NamedPlace
 
 TOKEN = re.compile(r"\{\{place:([^{}]{1,60})\}\}")
+LINKED = re.compile(r"\]\(place:([A-Za-z0-9_]{1,40})\)")
 
 # 同一个名字再次声明时，离原来的位置这么近（米）就算同一个地方
 SAME_SPOT_M = 5.0
@@ -90,3 +93,8 @@ def link(
 
 def names_in(text: str) -> list[str]:
     return [clean(x) for x in TOKEN.findall(text)]
+
+
+def linked_ids(text: str) -> set[str]:
+    """文字里链接到的起了名字的地点。"""
+    return set(LINKED.findall(text))

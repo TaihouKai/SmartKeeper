@@ -17,7 +17,7 @@ from smartkeeper.contracts import (
     Intent,
     MemoryEntry,
 )
-from smartkeeper.engine import Engine, kp_meta, split_front_matter
+from smartkeeper.engine import Engine, kp_meta, place_names_in, split_front_matter
 from smartkeeper.kp import templates
 from smartkeeper.kp.config import KPConfig
 from smartkeeper.kp.render import dumps, player_text, render_events, replace_entity_tokens, section
@@ -236,8 +236,9 @@ class Contexts:
     def _places_for_judge(self, game_id: str) -> str:
         """起过的名字和它们在哪（所在地物、楼层、坐标），给要决定位置、起新名字的调用。"""
         m = self.e.map_data(game_id)
+        known = {p.id: set(self.e.known_places(game_id, p.id)) for p in self.e.players(game_id)}
         out: list[JsonValue] = []
-        for _pid, p in sorted(self.e.places(game_id).items()):
+        for pid, p in sorted(self.e.places(game_id).items()):
             f = m.feature(p.feature) if p.feature else None
             out.append(
                 {
@@ -245,19 +246,26 @@ class Contexts:
                     "feature": (f.name or f.id) if f else None,
                     "floor": int(p.pos.z // 3) + 1 if p.inside and p.pos.z > 0 else None,
                     "pos": [round(p.pos.x), round(p.pos.y), round(p.pos.z)],
+                    "public": p.public,
+                    "known_by": "all"
+                    if p.public
+                    else list[JsonValue](sorted(x for x, ids in known.items() if pid in ids)),
                 }
             )
         return section(
-            "起了名字的地点（所有玩家共用，地图上都显示；文字里的写法见上面的说明）", dumps(out)
+            "起了名字的地点（名字和位置的对应对谁都一样；known_by 是已经知道这个名字的玩家）",
+            dumps(out),
         )
 
-    def _place_names(self, game_id: str) -> str:
-        """只有名字：给写文字的调用（反馈、广播、聊天、NPC 对话）。"""
-        names = sorted(p.name for p in self.e.places(game_id).values())
+    def _place_names(self, names: set[str]) -> str:
+        """只有名字：给写文字的调用。只列读者已经知道的、和这次给他的内容里提到的，免得把名字漏给他。"""
         return section(
-            "起了名字的地点（写法见上面的说明，玩家点了能在地图上看到）",
-            "、".join(names) or "（无）",
+            "可以提到的地点名字（写法见上面的说明，玩家点了能在地图上看到）",
+            "、".join(sorted(names)) or "（无）",
         )
+
+    def _known_names(self, game_id: str, player_id: str) -> set[str]:
+        return {p.name for p in self.e.known_places(game_id, player_id).values()}
 
     # ---------------- 行动期 ----------------
 
@@ -277,7 +285,7 @@ class Contexts:
                 section(
                     "该玩家各实体此刻感知范围内的状态", dumps(self.e.state_slice(g, player_id))
                 ),
-                self._place_names(g),
+                self._place_names(self._known_names(g, player_id)),
                 "请回答上面历史里该玩家在聊天框里最后提出的问题。",
             ]
         )
@@ -576,7 +584,9 @@ class Contexts:
                     dumps(learned),
                 ),
                 section("公共事件", dumps(public)),
-                self._place_names(game_id),
+                self._place_names(
+                    self._known_names(game_id, player_id) | set(place_names_in(told))
+                ),
                 section(
                     "出场人物的外观（性别、相貌、人称以此为准）",
                     "\n".join(f"- {k}：{v}" for k, v in looks.items()) or "（无）",
@@ -602,7 +612,10 @@ class Contexts:
                     "本轮公共事件",
                     dumps([replace_entity_tokens(x, {}, unknown) for x in adj.public_events]),
                 ),
-                self._place_names(game_id),
+                self._place_names(
+                    {p.name for p in self.e.places(game_id).values() if p.public}
+                    | set(place_names_in(dumps(list(adj.public_events))))
+                ),
             ]
         )
         return Prompt(templates.render("broadcast", language=templates.language_name(lang)), user)
@@ -661,7 +674,12 @@ class Contexts:
                     "对方的外观（NPC 只知道这些）",
                     player_text(appearance or "（没有描述）", "sheet"),
                 ),
-                self._place_names(game_id),
+                # NPC 知道剧本里的一切，说出口的名字对方就知道了；已经知道的单独列出
+                self._place_names({p.name for p in self.e.places(game_id).values()}),
+                section(
+                    "对方已经知道的地点名字",
+                    "、".join(sorted(self._known_names(game_id, t.a_player))) or "（无）",
+                ),
                 section("对话原文（最近的在后）", "\n".join(lines) or "（对方刚发起对话）"),
             ]
         )
