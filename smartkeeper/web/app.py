@@ -206,6 +206,7 @@ def build_services(
             round=round_no,
         )
 
+    messages = load_messages()
     kp = KP(
         engine,
         j,
@@ -214,12 +215,12 @@ def build_services(
             judge_model=settings.judge_model,
             writer_model=settings.writer_model,
             writer_concurrency=settings.writer_concurrency,
+            messages=messages,
         ),
         call_log=log,
         on_published=on_published,
         on_review=on_review,
     )
-    messages = load_messages()
     return Services(
         db=db,
         engine=engine,

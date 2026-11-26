@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -17,3 +18,5 @@ class KPConfig:
     claim_chunk_events: int = 400  # 声明核对时玩家视图每段的事件数
     leak_check: bool = True  # 每份反馈过模型泄密检查（确定性的检查总是做）
     rolling_summary: bool = True  # 每轮发布后更新滚动摘要
+    # 界面翻译表（语言 -> 键 -> 文字）：审核角色卡时把技能代码写成句子用其中的 ex.*；空的话不给效果说明
+    messages: Mapping[str, Mapping[str, str]] = field(default_factory=dict[str, Mapping[str, str]])

@@ -360,3 +360,36 @@ def test_round_waits_for_reactions_then_goes_on_without_planning_again() -> None
     assert count(g, "adjudication") == 1
     assert e.rounds(g.game_id)[0].status == "published"
     assert len(g.llm.by_purpose("plan")) == 1
+
+
+def test_review_shows_what_the_code_does() -> None:
+    """审核时 KP 看到引擎把技能代码写成的句子，不用自己解读代码。"""
+    from smartkeeper.contracts import GameConfig, GroupEntry
+    from smartkeeper.kp.context import Contexts
+    from tests.engine.harness import SCENARIO_PUBLIC, make_engine, sheets_for
+    from tests.fixtures import load_pack
+
+    words = {
+        "ex.c.range": "射程 {x} 米",
+        "ex.s.damage": "对{who}造成 {x} 点伤害",
+        "ex.target": "对象",
+    }
+    cfg = KPConfig(judge_model="j", writer_model="w", messages={"zh": words})
+    e, packs = make_engine(seed=3)
+    pack = load_pack("single")
+    pid = packs.create_pack("x")
+    packs.save_version(pid, pack)
+    game = e.create_game(
+        GameConfig(name="t", rulepack_id=pid, rulepack_version=1, scenario_public=SCENARIO_PUBLIC)
+    )
+    p, _ = e.add_player(game.id, "甲")
+    subs = sheets_for(pack, 0)
+    zap = GroupEntry(
+        name="zap", fields={"level": 1}, config="range = 30", script="target.damage(2)"
+    )
+    sheet = subs[0].sheet.model_copy(update={"groups": {"skills": (zap,)}})
+    subs[0] = subs[0].model_copy(update={"sheet": sheet})
+    e.submit_character(p.id, subs)
+    prompt = Contexts(e, cfg).review(p.id)
+    assert "各条技能的代码实际做什么" in prompt.user
+    assert "射程 30 米" in prompt.user and "对对象造成 2 点伤害" in prompt.user

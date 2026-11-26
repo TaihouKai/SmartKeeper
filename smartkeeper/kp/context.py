@@ -97,6 +97,7 @@ class Contexts:
                     dumps([x.payload for x in identity]) if identity else "（剧本没有身份）",
                 ),
                 section("提交的角色卡", player_text(dumps(subs), p.display_name)),
+                *self._effects_section(g, player_id),
                 section(
                     "各张卡自动获得的条目（规则书给的，玩家不用写；preset_edits 里是玩家对其中几条的修改）",
                     dumps(
@@ -113,6 +114,28 @@ class Contexts:
             ]
         )
         return Prompt(self._system(g, "review_character"), user)
+
+    def _effects_section(self, game_id: str, player_id: str) -> list[str]:
+        """玩家写的（和改过的）条目，代码实际做什么：引擎写成的句子。"""
+        lang = self.language(game_id)
+        table = self.cfg.messages.get(lang) or self.cfg.messages.get("zh") or {}
+        words = {k: v for k, v in table.items() if k.startswith("ex.")}
+        if not words:
+            return []
+        cards = [
+            {
+                "template": s.template,
+                "name": s.sheet.name,
+                "entries": self.e.explain_entries(game_id, s, words),
+            }
+            for s in self.e.submitted_character(player_id)
+        ]
+        return [
+            section(
+                "各条技能的代码实际做什么（引擎按代码写成的句子，以此为准，不用自己解读代码）",
+                dumps(cards),
+            )
+        ]
 
     def opening(self, game_id: str) -> tuple[Prompt, list[str]]:
         state = self.e.world_state(game_id)

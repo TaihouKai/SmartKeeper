@@ -458,6 +458,46 @@ class Engine:
                 out[g] = names
         return out
 
+    def explain_entries(
+        self, game_id: str, sheet: SheetSubmission, words: Mapping[str, str]
+    ) -> list[dict[str, JsonValue]]:
+        """玩家自己写的条目和改过的固定条目：技能设置、脚本、常驻加成由规则写成的句子（审核时给 KP 看，
+        免得 KP 自己啃代码看错）。words 是界面翻译表里 ex.* 的字句。如果……下面的句子用缩进表示。"""
+        pack = self.rulepack(game_id)
+        raw = sheet.sheet.model_dump(mode="json")
+        try:
+            full = self._rules.full_sheet(pack, sheet.template, raw)
+        except (ValidationFailed, NotFound):
+            return []
+        edited = sheet.sheet.preset_edits
+        own = {g: {e.name for e in es} for g, es in sheet.sheet.groups.items()}
+
+        def say(group: str, entry: JsonValue) -> list[JsonValue]:
+            lines = self._rules.explain(pack, sheet.template, group, entry, words)
+            return ["  " * ln.depth + ln.text for ln in lines]
+
+        out: list[dict[str, JsonValue]] = []
+        for g, entries in _obj(_obj(full).get("groups")).items():
+            for raw_e in _list(entries):
+                e = _obj(raw_e)
+                name = str(e.get("name", ""))
+                if name not in own.get(g, set()) and name not in edited.get(g, {}):
+                    continue
+                item: dict[str, JsonValue] = {"group": g, "entry": name, "effects": say(g, e)}
+                uses: list[JsonValue] = []
+                for raw_u in _list(e.get("uses")):
+                    u = _obj(raw_u)
+                    # 物品的参数所有用途共用
+                    merged: dict[str, JsonValue] = {
+                        **u,
+                        "params": [*_list(e.get("params")), *_list(u.get("params"))],
+                    }
+                    uses.append({"use": str(u.get("name", "")), "effects": say(g, merged)})
+                if uses:
+                    item["uses"] = uses
+                out.append(item)
+        return out
+
     def character_draft(self, player_id: str) -> tuple[JsonValue, str] | None:
         """建角表单自动保存的草稿（原样的 JSON）和保存时间；没有是 None。"""
         return self._repo.character_draft(player_id)
