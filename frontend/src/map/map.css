@@ -27,10 +27,12 @@
   background: #fff;
   color: #111;
   cursor: pointer;
-  white-space: nowrap;
-  max-width: 10em;
+  /* 站在一起的几个人一行一个；单个名字太长才截断 */
+  white-space: pre;
+  max-width: 14em;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
 }
 .sk-marker-own {
   background: #1f5fbf;
