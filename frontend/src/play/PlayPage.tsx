@@ -310,7 +310,7 @@ export function PlayPage() {
     const s = scene.data;
     if (!s) return [];
     const out = new Map<string, MarkerView>();
-    // 自己的几个角色站在同一个地方（例如御主和英灵在一起）：合成一个标记，免得叠在一起只看得到一个
+    // 自己的几个角色站在同一个地方（例如主角和同伴在一起）：合成一个标记，免得叠在一起只看得到一个
     const together = new Map<string, MarkerView>();
     for (const e of s.entities) {
       if (!e.pos) continue;
