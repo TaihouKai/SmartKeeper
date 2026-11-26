@@ -1356,10 +1356,6 @@ T: dict[str, tuple[str, str]] = {
     "games.scenario": ("剧本", "Scenario"),
     "games.create": ("创建", "Create"),
     "games.settings": ("设置", "Settings"),
-    "games.review_mode": (
-        "审核模式（每一轮都停在待审核）",
-        "Review mode (every round waits for review)",
-    ),
     "games.web_search": ("允许 KP 联网查设定", "Allow the keeper to search the web"),
     "games.no_search": (
         "当前使用的模型不支持联网搜索，KP 只靠模型自身的知识。",

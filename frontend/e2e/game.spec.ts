@@ -21,7 +21,7 @@ async function setup(browser: Browser, players: number): Promise<{ gameId: strin
     await req.post(`${SERVER}/api/admin/games`, {
       data: {
         name: "e2e", rulepack_id: v.pack_id, rulepack_version: v.version, map_id: "demo_shibuya", scenario: "demo",
-        settings: { review_mode: false, web_search: false, kp_language: "zh" },
+        settings: { web_search: false, kp_language: "zh" },
       },
     })
   ).json();

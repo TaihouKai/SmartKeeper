@@ -2660,11 +2660,6 @@ export interface components {
             /** Player Webhook */
             player_webhook?: string | null;
             /**
-             * Review Mode
-             * @default false
-             */
-            review_mode: boolean;
-            /**
              * Web Search
              * @default true
              */
@@ -3356,7 +3351,6 @@ export interface components {
              *       "kp_language": "zh",
              *       "lobby": true,
              *       "min_round_seconds": 0,
-             *       "review_mode": false,
              *       "web_search": true
              *     } */
             settings: components["schemas"]["GameSettings"];

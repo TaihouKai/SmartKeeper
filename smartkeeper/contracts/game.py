@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
-from pydantic import Field, JsonValue
+from pydantic import Field, JsonValue, model_validator
 
 from smartkeeper.contracts.base import Frozen
 
@@ -31,7 +31,6 @@ class LibraryCharacterFull(LibraryCharacter):
 
 
 class GameSettings(Frozen):
-    review_mode: bool = False
     web_search: bool = True
     kp_language: str = "zh"
     player_webhook: str | None = None
@@ -40,6 +39,15 @@ class GameSettings(Frozen):
     min_round_seconds: int = Field(default=0, ge=0)
     # 在首页的房间列表里列出；建角阶段任何人填个名字就能直接加入（不用邀请链接）
     lobby: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_removed(cls, v: object) -> object:
+        """已经删掉的设置（以前的“审核模式”）：旧的局里存着，读的时候丢掉。"""
+        if not isinstance(v, dict):
+            return v
+        d = cast(dict[str, object], v)
+        return {k: x for k, x in d.items() if k != "review_mode"}
 
 
 class GameConfig(Frozen):

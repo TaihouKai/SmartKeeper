@@ -25,7 +25,8 @@ def test_raw_entity_id_in_feedback_is_rewritten() -> None:
         assert all("npc_" not in str(t) for t in texts)
 
 
-def test_persistent_leak_stops_in_review_with_sentences() -> None:
+def test_persistent_leak_is_rewritten_then_published_with_sentences_recorded() -> None:
+    """泄密检查一直命中：重写到第三次，照样发出（不停下来等人），命中的句子记在回合草稿里。"""
     g = new_game(2)
     target = g.players[0]
 
@@ -43,15 +44,13 @@ def test_persistent_leak_stops_in_review_with_sentences() -> None:
     g.llm.on("leak_check", leak)
     g.play_round()
     r = g.engine.round(g.game_id, 1)
-    assert r.status == "review"
+    assert r.status == "published"
     assert r.draft is not None
     leaks = r.draft["leaks"]
     assert isinstance(leaks, dict) and list(leaks) == [target]
-    assert (
-        len([c for c in g.llm.by_purpose("feedback") if target in c.prompt]) == 2
-    )  # 自动重写了一次
-    assert hooks == [(g.game_id, 1)]
-    assert feedback_count(g, target) == 0
+    assert len([c for c in g.llm.by_purpose("feedback") if target in c.prompt]) == 3
+    assert hooks == []
+    assert feedback_count(g, target) == 1  # 照样发出去了
 
 
 def test_rolling_summary_recorded_and_used_as_atmosphere_only() -> None:

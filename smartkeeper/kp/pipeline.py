@@ -398,7 +398,7 @@ class KP:
                 return
             ok = self._write_outputs(game_id, adj)
             round_no = self.engine.round(game_id).no
-            published = ok and not self.engine.game(game_id).settings.review_mode
+            published = ok
             if published:
                 self.engine.publish_round(game_id)
         if published:
@@ -544,18 +544,19 @@ class KP:
         return ok
 
     def _feedback_one(self, game_id: str, player_id: str, adj: Adjudication) -> bool:
-        """写一份反馈并过泄密检查。命中就自动重写一次；仍命中则把草稿和命中的句子留给审核，返回 False。"""
+        """写一份反馈并过泄密检查。命中就重写，最多写三次；还命中也照样发出（命中的句子记下来，
+        管理台看得到），不停下来等人。写不出来（模型出错）才返回 False。"""
         try:
             leaks: list[str] = []
             text = ""
-            for _attempt in range(2):
+            for _attempt in range(3):
                 text = self._text("feedback", game_id, self.ctx.feedback(game_id, player_id, adj))
                 leaks = self.leak_check(game_id, player_id, adj, text)
                 if not leaks:
                     break
             self.engine.set_feedback_draft(game_id, player_id, text)
             self.engine.set_feedback_leaks(game_id, player_id, leaks)
-            return not leaks
+            return True
         except (LLMError, SmartKeeperError):
             return False
 

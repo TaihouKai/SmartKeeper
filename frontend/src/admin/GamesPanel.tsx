@@ -119,7 +119,7 @@ function NewGame({ onCreated }: { onCreated: (id: string) => void }) {
         onClick={() =>
           void act.run(async () => {
             const [rulepack_id = "", v = "1"] = form.pack.split("@");
-            const g = await call(api.POST("/api/admin/games", { body: { name: form.name, rulepack_id, rulepack_version: Number(v), map_id: form.map || null, scenario: form.scenario, settings: { review_mode: false, web_search: true, kp_language: "zh", min_round_seconds: 0, lobby: true } } }));
+            const g = await call(api.POST("/api/admin/games", { body: { name: form.name, rulepack_id, rulepack_version: Number(v), map_id: form.map || null, scenario: form.scenario, settings: { web_search: true, kp_language: "zh", min_round_seconds: 0, lobby: true } } }));
             onCreated(g.id);
           })
         }
@@ -141,7 +141,6 @@ function Settings({ game, onSaved }: { game: Schemas["Game"]; onSaved: () => voi
   return (
     <div className="sk-card">
       <h3>{t("games.settings")}</h3>
-      <label className="sk-inline"><input type="checkbox" checked={s.review_mode ?? false} onChange={(e) => setS({ ...s, review_mode: e.target.checked })} /> {t("games.review_mode")}</label>
       <label className="sk-inline"><input type="checkbox" checked={s.lobby ?? true} onChange={(e) => setS({ ...s, lobby: e.target.checked })} /> {t("games.lobby")}</label>
       <label className="sk-inline"><input type="checkbox" checked={s.web_search ?? true} onChange={(e) => setS({ ...s, web_search: e.target.checked })} /> {t("games.web_search")}</label>
       <label>{t("games.kp_language")}
