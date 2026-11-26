@@ -108,7 +108,9 @@ export function CharacterForm({
   const [libSavedAt, setLibSavedAt] = useState<string | null>(null);
   // 正在编辑的角色换了（例如刷新以后才认出来是哪个）：角色库的设置跟着换
   const originId = origin?.id;
-  useEffect(() => setLibSave(initialSave(origin, bookMode)), [originId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setLibSave(initialSave(origin, bookMode));
+  }, [originId]); // eslint-disable-line react-hooks/exhaustive-deps
   // 自动保存：打开时先取回服务器上的草稿（没有草稿但提交过的，从上次提交的内容接着改）
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);

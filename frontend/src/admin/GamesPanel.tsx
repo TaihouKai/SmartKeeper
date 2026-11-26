@@ -135,7 +135,9 @@ function Settings({ game, onSaved }: { game: Schemas["Game"]; onSaved: () => voi
   const { t } = useI18n();
   const [s, setS] = useState(game.settings);
   const act = useAction();
-  useEffect(() => setS(game.settings), [game.settings]);
+  useEffect(() => {
+    setS(game.settings);
+  }, [game.settings]);
   return (
     <div className="sk-card">
       <h3>{t("games.settings")}</h3>

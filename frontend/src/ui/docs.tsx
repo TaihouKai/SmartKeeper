@@ -145,7 +145,9 @@ export function DocsBody({ initial = { query: "", category: "all" }, pack = [] }
   const [query, setQuery] = useState(initial.query);
   const [cat, setCat] = useState<DocCategory | "all">(initial.category);
   const box = useRef<HTMLInputElement>(null);
-  useEffect(() => box.current?.focus(), []);
+  useEffect(() => {
+    box.current?.focus();
+  }, []);
   useEffect(() => {
     setQuery(initial.query);
     setCat(initial.category);

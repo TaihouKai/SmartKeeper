@@ -124,7 +124,9 @@ export function SheetWorkbench({
   ];
   const total = sections.reduce((n, s) => n + s.missing, 0) + problems.filter((p) => !(p.path ?? "").startsWith("groups.") && !(p.path ?? "").startsWith("preset_edits.")).length;
   sections.push({ key: "review", label: t("cf.review"), missing: 0 });
-  useEffect(() => onStatus(total), [total, onStatus]);
+  useEffect(() => {
+    onStatus(total);
+  }, [total, onStatus]);
 
   const idx = Math.max(0, sections.findIndex((s) => s.key === current));
   const sec = sections[idx]!;

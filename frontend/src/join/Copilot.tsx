@@ -62,7 +62,9 @@ export function CopilotPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [turns.length, busy]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [turns.length, busy]);
   const ask = async () => {
     const q = text.trim();
     if (!q || busy) return;
