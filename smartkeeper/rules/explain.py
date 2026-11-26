@@ -310,16 +310,25 @@ class Explainer:
     def param(self, p: ParamDef) -> str:
         """参数和它能取的值：解放真名（不解放／解放）、投入魔力（1～魔力值上限）。"""
         label = p.label or p.name
+        parts: list[str] = []
         if p.choices:
             vals = [
                 c.partition("=")[0].strip() if "=" in c else c.replace("~", "～") for c in p.choices
             ]
-            return self.w("param", name=label, x=self.w("choice_sep").join(vals))
-        if p.min or p.max:
+            parts.append(self.w("choice_sep").join(vals))
+        elif p.min or p.max:
             lo = self.formula(p.min) if p.min else ""
             hi = self.formula(p.max) if p.max else ""
-            return self.w("param", name=label, x=self.w("range", lo=lo, hi=hi))
-        return label
+            parts.append(self.w("range", lo=lo, hi=hi))
+        # 选了以后起什么作用：效果倍数、从哪里扣
+        if p.multiplier.strip():
+            mult = self.formula(p.multiplier)
+            parts.append(self.w("param_mult", x=f"({mult})" if " " in mult else mult))
+        if p.spends:
+            parts.append(self.w("param_spends", x=self.field_label(p.spends)))
+        if not parts:
+            return label
+        return self.w("param", name=label, x=self.w("detail_sep").join(parts))
 
     def reaction(self, name: str) -> str:
         if self.pack.check(name) is not None:

@@ -207,6 +207,14 @@ def build_services(
         )
 
     messages = load_messages()
+    # 建卡助手：用 KP 的模型配置，但是单独的调用，不碰对局和 KP 的记事
+    copilot = Copilot(
+        j,
+        rules,
+        settings.judge_model,
+        lambda pack: render_rules(pack, include_hidden=False),
+        messages,
+    )
     kp = KP(
         engine,
         j,
@@ -220,6 +228,7 @@ def build_services(
         call_log=log,
         on_published=on_published,
         on_review=on_review,
+        syntax_reference=copilot.reference,  # 审核角色卡时 KP 和建卡助手看同一份语法手册
     )
     return Services(
         db=db,
@@ -233,14 +242,7 @@ def build_services(
         writer=w,
         chat=SqlChatStore(db),
         dice=dice,
-        # 建卡助手：用 KP 的模型配置，但是单独的调用，不碰对局和 KP 的记事
-        copilot=Copilot(
-            j,
-            rules,
-            settings.judge_model,
-            lambda pack: render_rules(pack, include_hidden=False),
-            messages,
-        ),
+        copilot=copilot,
         messages=messages,
         scenarios_dir=settings.scenarios_dir,
         base_url=settings.base_url,

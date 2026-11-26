@@ -811,6 +811,7 @@
       "visible": "对象要在你的视野里（看得见或察觉得到）"
     },
     "choice_sep": "／",
+    "detail_sep": "；",
     "entry_col": "{entry}的{col}",
     "fn": {
       "abs": "|{x}|",
@@ -838,6 +839,8 @@
     "of": "{who}的{what}",
     "or": " 或 ",
     "param": "{name}（{x}）",
+    "param_mult": "效果 ×{x}",
+    "param_spends": "从{x}里扣",
     "params": "使用时可以选：{x}",
     "params_kp": "由 KP 按局面定：{x}",
     "range": "{lo}～{hi}",

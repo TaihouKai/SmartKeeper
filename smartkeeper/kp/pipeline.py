@@ -76,12 +76,14 @@ class KP:
         call_log: LLMCallLog | None = None,
         on_published: RoundHook | None = None,
         on_review: RoundHook | None = None,
+        syntax_reference: Callable[[str], str] | None = None,
     ) -> None:
+        """syntax_reference：语言 -> 规则书代码的语法手册（审核角色卡时给 KP，好看懂玩家写的代码）。"""
         self.engine = engine
         self.judge = judge
         self.writer = writer
         self.cfg = config
-        self.ctx = Contexts(engine, config)
+        self.ctx = Contexts(engine, config, syntax_reference)
         self._log = call_log
         self._on_published = on_published
         self._on_review = on_review

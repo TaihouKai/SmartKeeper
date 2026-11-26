@@ -5,9 +5,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
 
 from pydantic import JsonValue
 
@@ -44,26 +43,16 @@ class Prompt:
     user: str
 
 
-_CODE_KEYS = ("config", "script", "bonus", "effects")
-
-
-def _without_code(node: Any) -> Any:
-    """角色卡去掉技能设置、脚本、常驻加成（条目、用途、对自动条目的修改里的都去掉），其余原样。"""
-    if isinstance(node, dict):
-        return {
-            k: _without_code(v)
-            for k, v in cast(dict[str, Any], node).items()
-            if k not in _CODE_KEYS
-        }
-    if isinstance(node, list):
-        return [_without_code(v) for v in cast(list[Any], node)]
-    return node
-
-
 class Contexts:
-    def __init__(self, engine: Engine, config: KPConfig) -> None:
+    def __init__(
+        self,
+        engine: Engine,
+        config: KPConfig,
+        syntax_reference: Callable[[str], str] | None = None,
+    ) -> None:
         self.e = engine
         self.cfg = config
+        self.syntax_reference = syntax_reference
 
     # ---------------- 公共部分 ----------------
 
@@ -104,10 +93,8 @@ class Contexts:
         p = self.e.player(player_id)
         g = p.game_id
         identity = [e for e in self.e.view_for(g, player_id) if e.type == "identity_assigned"]
-        # 卡上的代码不给 KP：机制由引擎执行，KP 看引擎写成的效果说明（见 _effects_section）
-        subs = [
-            _without_code(s.model_dump(mode="json")) for s in self.e.submitted_character(player_id)
-        ]
+        subs = [s.model_dump(mode="json") for s in self.e.submitted_character(player_id)]
+        syntax = self.syntax_reference(self.language(g)) if self.syntax_reference else ""
         user = "\n".join(
             [
                 section("规则书", self.e.rulebook(g)),
@@ -118,8 +105,10 @@ class Contexts:
                 ),
                 section("提交的角色卡", player_text(dumps(subs), p.display_name)),
                 *self._effects_section(g, player_id),
+                *([section("规则书代码的语法手册", syntax)] if syntax else []),
                 section(
-                    "各张卡自动获得的条目（规则书给的，玩家不用写；preset_edits 里是玩家对其中几条的修改）",
+                    "各张卡自动获得的条目（规则书给的，玩家不用写；改过的是改过以后的样子；"
+                    "也是规则书的标准写法，可以拿来对照玩家写的条目）",
                     dumps(
                         [
                             {
@@ -152,7 +141,7 @@ class Contexts:
         ]
         return [
             section(
-                "各条技能实际做什么（引擎按代码写成的句子，以此为准）",
+                "玩家写的（和改过的）条目，代码实际做什么（引擎按代码写成的句子，可以拿来对照代码和说明）",
                 dumps(cards),
             )
         ]

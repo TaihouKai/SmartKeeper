@@ -811,6 +811,7 @@
       "visible": "The target must be in your perception"
     },
     "choice_sep": " / ",
+    "detail_sep": "; ",
     "entry_col": "{entry} {col}",
     "fn": {
       "abs": "|{x}|",
@@ -838,6 +839,8 @@
     "of": "{who}'s {what}",
     "or": " or ",
     "param": "{name} ({x})",
+    "param_mult": "effect ×{x}",
+    "param_spends": "paid from {x}",
     "params": "Choose when using: {x}",
     "params_kp": "Set by the keeper: {x}",
     "range": "{lo}–{hi}",

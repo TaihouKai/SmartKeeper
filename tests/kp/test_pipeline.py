@@ -390,8 +390,9 @@ def test_review_shows_what_the_code_does() -> None:
     sheet = subs[0].sheet.model_copy(update={"groups": {"skills": (zap,)}})
     subs[0] = subs[0].model_copy(update={"sheet": sheet})
     e.submit_character(p.id, subs)
-    prompt = Contexts(e, cfg).review(p.id)
-    assert "各条技能实际做什么" in prompt.user
+    prompt = Contexts(e, cfg, lambda lang: f"MANUAL-{lang}").review(p.id)
+    assert "代码实际做什么" in prompt.user
+    assert "规则书代码的语法手册" in prompt.user and "MANUAL-zh" in prompt.user
     assert "射程 30 米" in prompt.user and "对对象造成 2 点伤害" in prompt.user
-    # 卡上的代码不给 KP
-    assert "range = 30" not in prompt.user and "target.damage" not in prompt.user
+    # 卡上的代码也原样给 KP，好找 bug
+    assert "range = 30" in prompt.user and "target.damage" in prompt.user

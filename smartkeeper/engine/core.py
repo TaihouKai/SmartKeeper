@@ -441,21 +441,29 @@ class Engine:
         assert isinstance(raw, list)
         return [SheetSubmission.model_validate(x) for x in raw]
 
-    def auto_entries(self, game_id: str, sheet: SheetSubmission) -> dict[str, list[str]]:
-        """一张卡按现在的填写会自动获得的条目（规则书给的固定条目）：分组 -> 条目名。审核时给 KP 看。"""
+    def auto_entries(
+        self, game_id: str, sheet: SheetSubmission
+    ) -> dict[str, list[dict[str, JsonValue]]]:
+        """一张卡按现在的填写会自动获得的条目（规则书给的固定条目，玩家改过的是改过以后的样子）：
+        分组 -> 条目的全部内容（说明、列、设置、脚本、常驻加成、用途）。审核时给 KP 看，好对照规则书的标准写法。"""
         raw = sheet.sheet.model_dump(mode="json")
         try:
             full = self._rules.full_sheet(self.rulepack(game_id), sheet.template, raw)
         except (ValidationFailed, NotFound):
             return {}
         own = sheet.sheet.groups
-        out: dict[str, list[str]] = {}
+        out: dict[str, list[dict[str, JsonValue]]] = {}
         for g, entries in _obj(_obj(full).get("groups")).items():
             listed = _list(entries)
             n = len(listed) - len(own.get(g, ()))
-            names = [str(_obj(e).get("name", "")) for e in listed[:n]]
-            if names:
-                out[g] = names
+            auto: list[dict[str, JsonValue]] = []
+            for e in listed[:n]:
+                kept: dict[str, JsonValue] = {
+                    k: v for k, v in _obj(e).items() if v not in ("", [], {}, None)
+                }
+                auto.append(kept)
+            if auto:
+                out[g] = auto
         return out
 
     def explain_entries(
