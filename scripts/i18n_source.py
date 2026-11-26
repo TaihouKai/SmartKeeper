@@ -500,6 +500,11 @@ T: dict[str, tuple[str, str]] = {
         "Runs line by line. Change values: target.hp -= 10, self.mp -= this.mp_spent; actions: target.damage(2d6); timed changes go in with minutes(10):.",
     ),
     "cf.view": ("查看", "View"),
+    "cf.ref": ("引用名：", "Reference:"),
+    "cf.ref_hint": (
+        "公式和脚本里用这个名字引用这一条：写它本身是“有没有这一条”（1/0），后面加 .列名 是这一条的那一列。点一下选中，可以复制",
+        "Use this name in formulas and scripts: on its own it is whether the entry exists (1/0); add .column for one of its columns. Click to select and copy",
+    ),
     "cf.copy_this": ("照着它写一条", "Copy this"),
     "cf.params": ("用的时候可以选的参数", "Parameters chosen when used"),
     "params.by_kp": ("由 KP 定", "KP decides"),

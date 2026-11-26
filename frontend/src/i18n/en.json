@@ -63,6 +63,8 @@
     "none_yet": "None yet: add one below.",
     "numbers": "Numbers",
     "params": "Parameters chosen when used",
+    "ref": "Reference:",
+    "ref_hint": "Use this name in formulas and scripts: on its own it is whether the entry exists (1/0); add .column for one of its columns. Click to select and copy",
     "remove_sheet": "Remove this sheet",
     "review": "Check",
     "review_lead": "{name}: what is missing or wrong; click to go there.",
@@ -787,6 +789,7 @@
   "handbook": {
     "empty": "This rule pack has no rulebook yet.",
     "missing": "The rulebook has no section “{title}”",
+    "no_scenario": "This game's scenario has no public introduction.",
     "open": "Open in the rulebook",
     "ref": "Rulebook: {title}",
     "scenario": "Scenario",

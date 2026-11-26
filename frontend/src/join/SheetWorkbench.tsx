@@ -271,6 +271,7 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
                 <li key={pname} className="cf-item">
                   <div className="cf-item-main">
                     <strong>{pname}</strong>
+                    {p?.id && <RefTag template={template.name} id={p.id} />}
                     {p && badges(p.fields ?? {}).map((b) => (
                       <span key={b} className="cf-tag">
                         {b}
@@ -308,6 +309,7 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
               <li key={i} className="cf-item">
                 <div className="cf-item-main">
                   <strong>{en.name || t("cf.unnamed")}</strong>
+                  {en.id && <RefTag template={template.name} id={en.id} />}
                   {badges(en.fields).map((b) => (
                     <span key={b} className="cf-tag">
                       {b}
@@ -349,6 +351,7 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
       )}
       {viewing !== null && (g.presets ?? []).some((x) => x.name === viewing) && (
         <PresetView
+          template={template.name}
           p={(g.presets ?? []).find((x) => x.name === viewing)!}
           g={g}
           defaults={params.filter((x) => (x.groups ?? []).includes(g.name))}
@@ -386,7 +389,17 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
 }
 
 /** 规则包写好的条目的细节（只读）：说明、列、常驻加成、怎么用、生效时发生什么、参数、用途。可以照着写一条。 */
-function PresetView({ p, g, defaults, canCopy, onCopy, onClose }: { p: Schemas["GroupPreset"]; g: Group; defaults: readonly Schemas["PackParam"][]; canCopy: boolean; onCopy: (p: Schemas["GroupPreset"]) => void; onClose: () => void }) {
+/** 条目的引用名（<模板>.<条目ID>）：公式和脚本里用它引用这一条；点一下整段选中，方便复制。 */
+function RefTag({ template, id }: { template: string; id: string }) {
+  const { t } = useI18n();
+  return (
+    <code className="cf-ref" title={t("cf.ref_hint")}>
+      {template}.{id}
+    </code>
+  );
+}
+
+function PresetView({ template, p, g, defaults, canCopy, onCopy, onClose }: { template: string; p: Schemas["GroupPreset"]; g: Group; defaults: readonly Schemas["PackParam"][]; canCopy: boolean; onCopy: (p: Schemas["GroupPreset"]) => void; onClose: () => void }) {
   const { t } = useI18n();
   const cols = (g.fields ?? []).filter((c) => (p.fields ?? {})[c.name] !== undefined);
   const params = [...defaults, ...(p.params ?? [])];
@@ -412,6 +425,11 @@ function PresetView({ p, g, defaults, canCopy, onCopy, onClose }: { p: Schemas["
           </button>
         </span>
       </div>
+      {p.id && (
+        <p className="sk-hint">
+          {t("cf.ref")} <RefTag template={template} id={p.id} />
+        </p>
+      )}
       <Described text={p.description} className="cf-lead" />
       {!p.config?.trim() && !p.script?.trim() && (p.uses ?? []).length === 0 && <p className="sk-hint">{t("rules.uses.kp_rules")}</p>}
       {cols.length > 0 && (
