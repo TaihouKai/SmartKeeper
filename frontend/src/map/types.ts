@@ -38,5 +38,5 @@ export interface MarkerView {
 
 export type Pick =
   | { kind: "entity"; ref: string; label: string }
-  | { kind: "feature"; id: string; name: string; featureKind: FeatureKind; height: number }
+  | { kind: "feature"; id: string; name: string; featureKind: FeatureKind; height: number; lon: number; lat: number }
   | { kind: "point"; lon: number; lat: number };

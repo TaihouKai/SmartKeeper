@@ -39,3 +39,20 @@
   color: #fff;
   border-color: #fff;
 }
+
+/* 点选位置的图钉 */
+.sk-pin {
+  width: 18px;
+  height: 18px;
+  border-radius: 50% 50% 50% 0;
+  background: #d93025;
+  border: 2px solid #fff;
+  transform: rotate(-45deg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  margin-bottom: 6px;
+}
+.sk-map-tip .maplibregl-popup-content {
+  padding: 3px 8px;
+  font: 12px/1.3 system-ui, sans-serif;
+  color: #111;
+}

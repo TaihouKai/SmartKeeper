@@ -1205,6 +1205,8 @@
   },
   "map": {
     "aria": "Map",
+    "building_size": "about {m} m tall, about {n} floors",
+    "floor_unit": "floor",
     "height": {
       "above": "{m} m above ground",
       "below": "{m} m below ground",
@@ -1212,6 +1214,14 @@
       "ground": "Ground level",
       "roof": "Rooftop"
     },
+    "kind": {
+      "building": "Building",
+      "landmark": "Place",
+      "park": "Park",
+      "road": "Road",
+      "water": "Water"
+    },
+    "mention_it": "Mention it in my action",
     "no_webgl": "This browser can't show the 3D map (WebGL is unavailable). Try another browser or turn on hardware acceleration; chat and actions still work."
   },
   "materials": {
@@ -1298,7 +1308,7 @@
     "handle_label": "Label",
     "handle_note": "Private note",
     "intel": "What I know ({n})",
-    "map_hint": "Tap a person or place to @ it; tap the ground to pick a destination. Describe height in words (\"the rooftop\", \"100 m up\").",
+    "map_hint": "Tap a person to @ them. Tap anywhere else to drop a pin: see what it is and how long it takes, then make it your destination (pick a floor or the roof of a building). Brown dots are named places; hover to see the name.",
     "mention_hint": "Click to @ them in your action",
     "nobody": "(nobody nearby)",
     "placement_unknown": "unknown placed object",

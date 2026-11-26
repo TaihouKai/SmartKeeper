@@ -13,6 +13,8 @@ export interface MapViewProps {
   onPick?: (pick: Pick) => void;
   selected?: string | null;
   height?: string;
+  /** 点选的位置：插一个图钉 */
+  pin?: { lon: number; lat: number } | null;
 }
 
 const COLORS = {
@@ -32,7 +34,7 @@ const BLANK_STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: "bg", type: "background", paint: { "background-color": COLORS.background } }],
 };
 
-export function MapView({ map, markers, changes, onPick, selected, height = "60vh" }: MapViewProps) {
+export function MapView({ map, markers, changes, onPick, selected, height = "60vh", pin = null }: MapViewProps) {
   const { t } = useI18n();
   const container = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -131,11 +133,27 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
           name: typeof p.name === "string" ? p.name : "",
           featureKind: String(p.kind) as FeatureKind,
           height: Number(p.height),
+          lon: ev.lngLat.lng,
+          lat: ev.lngLat.lat,
         });
       } else {
         cb({ kind: "point", lon: ev.lngLat.lng, lat: ev.lngLat.lat });
       }
     });
+    // 鼠标移到有名字的地点、建筑上：显示名字
+    const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: "sk-map-tip" });
+    for (const layer of ["landmark", "building"]) {
+      m.on("mousemove", layer, (ev) => {
+        const name = ev.features?.[0]?.properties?.name;
+        m.getCanvas().style.cursor = "pointer";
+        if (typeof name === "string" && name) tip.setLngLat(ev.lngLat).setText(name).addTo(m);
+        else tip.remove();
+      });
+      m.on("mouseleave", layer, () => {
+        m.getCanvas().style.cursor = "";
+        tip.remove();
+      });
+    }
     mapRef.current = m;
     return () => {
       markerRefs.current.forEach((mk) => mk.remove());
@@ -190,6 +208,18 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
       return new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([mv.lon, mv.lat]).addTo(m);
     });
   }, [markers, map]);
+
+  // 点选位置的图钉
+  const pinRef = useRef<maplibregl.Marker | null>(null);
+  useEffect(() => {
+    const m = mapRef.current;
+    pinRef.current?.remove();
+    pinRef.current = null;
+    if (!m || !pin) return;
+    const el = document.createElement("div");
+    el.className = "sk-pin";
+    pinRef.current = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([pin.lon, pin.lat]).addTo(m);
+  }, [pin, map]);
 
   return (
     <div className="sk-map" style={{ height }}>

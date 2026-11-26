@@ -460,3 +460,7 @@ tr.inactive { opacity: 0.5; }
 .pl-msg:hover .pl-quote, .pl-quote:focus-visible { opacity: 1; }
 @media (hover: none) { .pl-quote { opacity: 1; } }
 .pl-alliance summary:focus:not(:focus-visible) { outline: none; }
+.pl-pick-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.pl-pick-height { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0; }
+.pl-pick-height input[type="number"] { width: 4.5em; }
+.pl-map-hint { max-width: calc(100% - 200px); }

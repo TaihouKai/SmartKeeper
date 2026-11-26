@@ -2,14 +2,78 @@ import { useMemo, useState } from "react";
 import { api, call, withGame, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { IntelFacts } from "./intel";
-import { MapView, type DisplayMap, type MarkerView, type Pick } from "../map";
+import { MapView, heightCode, type DisplayMap, type MarkerView, type Pick } from "../map";
 import { ErrorBox, LangSwitch, formatDuration, formatGameTime } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { ReactionPanel } from "./ReactionPanel";
 import { showNumber, withUnit } from "../ui/choices";
 import { ChatPanel, type ChannelKey, type Mentionable } from "./ChatPanel";
 
-type Travel = { x: number; y: number; list: Schemas["TravelOut"][] };
+/** 地图上点选的地方：位置（经纬度和米制坐标）、点到的地物（没有是空地）、我的角色走过去要多久。 */
+type Picked = {
+  lon: number;
+  lat: number;
+  x: number;
+  y: number;
+  feature: { id: string; name: string; kind: string; height: number } | null;
+  list: Schemas["TravelOut"][];
+};
+
+const FLOOR_M = 3; // 一层按 3 米算（和地图的高度说明一致）
+
+/** 点选卡片：这是哪里、走过去要多久；可以设为目的地（建筑可以选地面、楼顶或第几层），有名字的可以在行动里提到它。 */
+function PickCard({ picked, onDestination, onMention, onClose }: { picked: Picked; onDestination: (label: string, z: number) => void; onMention: () => void; onClose: () => void }) {
+  const { t } = useI18n();
+  const f = picked.feature;
+  const height = f && f.kind === "building" ? Math.max(0, f.height) : 0;
+  const floors = Math.max(1, Math.floor(height / FLOOR_M));
+  const [where, setWhere] = useState<"ground" | "floor" | "roof">("ground");
+  const [floor, setFloor] = useState(1);
+  const z = where === "roof" ? height : where === "floor" ? Math.min(height, (Math.min(Math.max(floor, 1), floors) - 1) * FLOOR_M) : 0;
+  const place = f?.name || (f ? t(`map.kind.${f.kind}`) : t("kp.a_point"));
+  const h = heightCode(z, height ? { height } : null);
+  const heightText = t(h.key, Object.fromEntries(Object.entries(h.params).map(([k, v]) => [k, String(v)])));
+  const label = where === "ground" ? place : `${place} · ${heightText}`;
+  return (
+    <div className="pl-travel sk-card">
+      <div className="pl-pick-head">
+        <strong>{place}</strong>
+        {f && <span className="sk-hint">{t(`map.kind.${f.kind}`)}</span>}
+        {height > 0 && <span className="sk-hint">{t("map.building_size", { m: String(Math.round(height)), n: String(floors) })}</span>}
+      </div>
+      {height > 0 && (
+        <div className="pl-pick-height">
+          <label className="sk-inline">
+            <input type="radio" checked={where === "ground"} onChange={() => setWhere("ground")} /> {t("map.height.ground")}
+          </label>
+          <label className="sk-inline">
+            <input type="radio" checked={where === "floor"} onChange={() => setWhere("floor")} />{" "}
+            <input type="number" min={1} max={floors} value={floor} onFocus={() => setWhere("floor")} onChange={(e) => setFloor(Number(e.target.value) || 1)} /> {t("map.floor_unit")}
+          </label>
+          <label className="sk-inline">
+            <input type="radio" checked={where === "roof"} onChange={() => setWhere("roof")} /> {t("map.height.roof")}
+          </label>
+        </div>
+      )}
+      <ul>
+        {picked.list.map((x) => (
+          <li key={x.ref}>
+            {x.name}: {x.seconds === null || x.seconds === undefined ? t("play.travel_none") : t(x.fly ? "play.travel_fly" : "play.travel_walk", { time: formatDuration(t, x.seconds) })}
+          </li>
+        ))}
+      </ul>
+      <div className="sk-row">
+        <button className="sk-primary" onClick={() => onDestination(label, z)}>
+          {t("play.use_destination")}
+        </button>
+        {f?.name && <button onClick={onMention}>{t("map.mention_it")}</button>}
+        <button className="sk-link" onClick={onClose}>
+          {t("play.close")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /** 顶栏：游戏内时间、轮到谁、角色卡、规则书、剧本、语言。只显示自己的时间和状态，没有回合数和全局进度。 */
 function TopBar({ status, onSheet }: { status: Schemas["StatusOut"] | null; onSheet: () => void }) {
@@ -288,7 +352,7 @@ export function PlayPage() {
   const scene = usePoll(() => call(api.GET("/api/scene")), 10_000);
   const map = usePoll(async () => (await call(api.GET("/api/map"))) as unknown as DisplayMap, 3_600_000);
   const talks = usePoll(() => call(api.GET("/api/talks")), inTalk ? 2_000 : 6_000, [inTalk]);
-  const [travel, setTravel] = useState<Travel | null>(null);
+  const [picked, setPicked] = useState<Picked | null>(null);
   const err = useAction();
   const evs = events.data ?? [];
   const refresh = () => {
@@ -340,23 +404,30 @@ export function PlayPage() {
     );
   }
 
-  // 地图和身边的人：点人或地物就是在行动里 @ 它；点地面先看走过去要多久
+  // 点人就是在行动里 @ 他；点地图上别的地方（建筑、地点、空地）先插图钉，看看是哪里、走过去要多久，再决定
   const onPick = (p: Pick) =>
     void err.run(async () => {
-      if (p.kind === "entity") setDraft(`${draft}@[${p.label}](${p.ref}) `);
-      else if (p.kind === "feature") setDraft(`${draft}@[${p.name || p.id}](feature:${p.id}) `);
-      else {
-        const m = await call(api.GET("/api/map/project", { params: { query: { lon: p.lon, lat: p.lat } } }));
-        const list = await call(api.GET("/api/travel", { params: { query: { lon: p.lon, lat: p.lat } } }));
-        setTravel({ x: m.x, y: m.y, list });
+      if (p.kind === "entity") {
+        setDraft(`${draft}@[${p.label}](${p.ref}) `);
+        setChannel("kp");
         return;
       }
-      setChannel("kp");
+      const m = await call(api.GET("/api/map/project", { params: { query: { lon: p.lon, lat: p.lat } } }));
+      const list = await call(api.GET("/api/travel", { params: { query: { lon: p.lon, lat: p.lat } } }));
+      const feature = p.kind === "feature" ? { id: p.id, name: p.name, kind: p.featureKind, height: p.height } : null;
+      setPicked({ lon: p.lon, lat: p.lat, x: m.x, y: m.y, feature, list });
     });
-  const useDestination = () => {
-    if (!travel) return;
-    setDraft(`${draft}@[${t("kp.a_point")}](point:${travel.x},${travel.y},0) `);
-    setTravel(null);
+  const useDestination = (label: string, z: number) => {
+    if (!picked) return;
+    setDraft(`${draft}@[${label}](point:${Math.round(picked.x * 10) / 10},${Math.round(picked.y * 10) / 10},${z}) `);
+    setPicked(null);
+    setChannel("kp");
+  };
+  const mentionPicked = () => {
+    const f = picked?.feature;
+    if (!f) return;
+    setDraft(`${draft}@[${f.name || f.id}](feature:${f.id}) `);
+    setPicked(null);
     setChannel("kp");
   };
   const startTalk = (from: string, to: string) =>
@@ -374,27 +445,8 @@ export function PlayPage() {
       <div className="pl-main">
         <section className="pl-left">
           <div className="pl-map">
-            {map.data && scene.data ? <MapView map={map.data} markers={markers} changes={scene.data.map_changes} onPick={onPick} height="100%" /> : <p className="sk-hint">{t("common.loading")}</p>}
-            {travel && (
-              <div className="pl-travel sk-card">
-                <strong>{t("play.travel_title")}</strong>
-                <ul>
-                  {travel.list.map((x) => (
-                    <li key={x.ref}>
-                      {x.name}: {x.seconds === null || x.seconds === undefined ? t("play.travel_none") : t(x.fly ? "play.travel_fly" : "play.travel_walk", { time: formatDuration(t, x.seconds) })}
-                    </li>
-                  ))}
-                </ul>
-                <div className="sk-row">
-                  <button className="sk-primary" onClick={useDestination}>
-                    {t("play.use_destination")}
-                  </button>
-                  <button className="sk-link" onClick={() => setTravel(null)}>
-                    {t("play.close")}
-                  </button>
-                </div>
-              </div>
-            )}
+            {map.data && scene.data ? <MapView map={map.data} markers={markers} changes={scene.data.map_changes} onPick={onPick} height="100%" pin={picked ? { lon: picked.lon, lat: picked.lat } : null} /> : <p className="sk-hint">{t("common.loading")}</p>}
+            {picked && <PickCard key={`${picked.lon},${picked.lat}`} picked={picked} onDestination={useDestination} onMention={mentionPicked} onClose={() => setPicked(null)} />}
             <p className="pl-map-hint">{t("play.map_hint")}</p>
           </div>
           {scene.data && (
