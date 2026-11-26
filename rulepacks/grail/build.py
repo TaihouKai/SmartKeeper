@@ -494,7 +494,8 @@ MASTER = {
         derived("fly_speed", "飞行速度", "fly_multiplier * move_speed", "m/min"),
         derived("hear_multiplier", "听力系数", "1"),
         derived("hear_distance", "听力范围", "(10 + per * 4) * hear_multiplier", "m"),
-        derived("muggle", "普通人", f"0 if {NOT_MUGGLE} else 1"),
+        # 内部开关：出身是普通人时是 1（公式里判断用），不给玩家看
+        {**derived("muggle", "普通人", f"0 if {NOT_MUGGLE} else 1"), "hidden": True},
         derived("hp_max", "生命值上限", "30 + con * 4"),
         *DRAIN,
         *MULTS,

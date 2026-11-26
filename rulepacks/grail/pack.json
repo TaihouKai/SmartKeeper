@@ -693,7 +693,7 @@
             "label": "普通人",
             "formula": "0 if background != \"普通人\" else 1",
             "unit": null,
-            "hidden": false
+            "hidden": true
           },
           {
             "name": "hp_max",
