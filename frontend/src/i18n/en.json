@@ -730,7 +730,7 @@
         "4": "single target (default)"
       },
       "target": {
-        "0": "must pick one target (default)",
+        "0": "must pick one target (default); only someone your side has seen and knows by a label",
         "1": "only on yourself",
         "2": "no target (e.g. divination, a ward at your feet)"
       },
@@ -939,7 +939,7 @@
       "damage": "The target takes damage: shield first, then hp",
       "else": "After an if: another condition / when none held",
       "if": "When the target uses the monster template, run the indented lines below (conditions can't roll dice)",
-      "let": "A local variable: later lines can use heal; worked out once, no dice. Skill settings (e.g. range) can be used too",
+      "let": "A local variable: later lines can use heal; worked out once, no dice. Skill settings (e.g. range) can be used too; and top-level script variables (not inside an if) can be used in the skill settings' formulas (e.g. requires)",
       "modify": "Timed modifier: halve the target's move speed for 10 minutes",
       "sub": "Subtract 10 from the target's mp; set(field, value) sets it"
     },

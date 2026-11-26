@@ -387,7 +387,10 @@ T: dict[str, tuple[str, str]] = {
         "This scenario belongs to “{rulebook}”, not “{pack}”",
     ),
     "docs.title": ("语法手册", "Syntax guide"),
-    "docs.v.target.0": ("要选一个对象（默认）", "must pick one target (default)"),
+    "docs.v.target.0": (
+        "要选一个对象（默认）；只能选你这一方见过、有代号的人",
+        "must pick one target (default); only someone your side has seen and knows by a label",
+    ),
     "docs.v.target.1": ("只能对自己用", "only on yourself"),
     "docs.v.target.2": (
         "没有对象（例如占卜、往脚下布置结界）",
@@ -1596,7 +1599,7 @@ T: dict[str, tuple[str, str]] = {
         'One “name = value” per line tells the engine how this skill is used. Always prefix names in values: self. (you), target. (the target), this. (this entry). The common ones:\n- target: who it is used on. "single" picks one, "self" only you, "none" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. self.mp >= 5\n- check: the check to roll, e.g. "perception"\n- reactions: how the target may respond, e.g. ["dodge"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball',
     ),
     "config.c.target": (
-        "single 要选对象 / self 只能对自己 / none 没有对象",
+        "single 要选对象（只能选见过的人）/ self 只能对自己 / none 没有对象",
         "single needs a target / self only / none",
     ),
     "config.c.range": (
@@ -2803,8 +2806,10 @@ T: dict[str, tuple[str, str]] = {
         "Timed modifier: halve the target's move speed for 10 minutes",
     ),
     "fh.s.let": (
-        "局部变量：后面的句子直接用 heal；只算一次，不能掷骰。技能设置的项（例如 range）在脚本里也能直接用",
-        "A local variable: later lines can use heal; worked out once, no dice. Skill settings (e.g. range) can be used too",
+        "局部变量：后面的句子直接用 heal；只算一次，不能掷骰。技能设置的项（例如 range）在脚本里也能直接用；"
+        "反过来，脚本最外层（不在 if 里）的局部变量，技能设置的公式（例如 requires）里也能直接用",
+        "A local variable: later lines can use heal; worked out once, no dice. Skill settings (e.g. range) can be used too; "
+        "and top-level script variables (not inside an if) can be used in the skill settings' formulas (e.g. requires)",
     ),
     "fh.s.if": (
         "对象是 monster 模板时，执行下面缩进的几行（条件不能掷骰）",
