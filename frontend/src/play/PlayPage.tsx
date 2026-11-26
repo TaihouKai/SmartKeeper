@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { api, call, type Schemas } from "../api/client";
+import { api, call, withGame, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { IntelFacts } from "./intel";
 import { MapView, type DisplayMap, type MarkerView, type Pick } from "../map";
@@ -23,10 +23,10 @@ function StatusBar({ status }: { status: Schemas["StatusOut"] | null }) {
     <div className="sk-statusbar">
       <span>{formatGameTime(status.start_time, status.game_seconds, lang)}</span>
       <span>{phase}</span>
-      <a href="/rulebook" target="_blank" rel="noreferrer">
+      <a href={withGame("/rulebook")} target="_blank" rel="noreferrer">
         {t("handbook.title")}
       </a>
-      <a href="/scenario" target="_blank" rel="noreferrer">
+      <a href={withGame("/scenario")} target="_blank" rel="noreferrer">
         {t("handbook.scenario")}
       </a>
       <LangSwitch onChange={(l) => void api.POST("/api/lang", { body: { lang: l } })} />

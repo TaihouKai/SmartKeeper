@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, call, type Schemas } from "../api/client";
+import { api, call, gamePath, withGame, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, LangSwitch, Section } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
@@ -67,10 +67,10 @@ export function JoinPage() {
       <header className="sk-top cf-top">
         <h1>{m.game_name}</h1>
         <NickName name={m.display_name} onSaved={refresh} />
-        <a href="/rulebook" target="_blank" rel="noreferrer">
+        <a href={withGame("/rulebook")} target="_blank" rel="noreferrer">
           {t("handbook.title")}
         </a>
-        <a href="/scenario" target="_blank" rel="noreferrer">
+        <a href={withGame("/scenario")} target="_blank" rel="noreferrer">
           {t("handbook.scenario")}
         </a>
         {docs && (
@@ -84,7 +84,7 @@ export function JoinPage() {
 
       {m.game_status === "running" || m.game_status === "ended" ? (
         <p className="sk-card">
-          {t("join.game_started")} <a href="/play">{t("join.go_play")}</a>
+          {t("join.game_started")} <a href={gamePath(m.game_id)}>{t("join.go_play")}</a>
         </p>
       ) : null}
 
@@ -147,7 +147,7 @@ export function JoinPage() {
             </p>
           )}
           {(status === "none" || status === "rejected" || editing) && m.game_status === "characters" ? (
-            <HandbookProvider text={r.handbook} href="/rulebook">
+            <HandbookProvider text={r.handbook} href={withGame("/rulebook")}>
               {(() => {
                 const hasDraft = Array.isArray(draft.data?.sheets) && (draft.data?.sheets as unknown[]).length > 0;
                 const pick = picking ?? (status === "none" && !hasDraft);

@@ -300,10 +300,11 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
 
     @app.get("/join/{token}", include_in_schema=False)
     def join(token: str, request: Request) -> RedirectResponse:  # pyright: ignore[reportUnusedFunction]
-        """邀请链接（或个人链接）：把 token 写进 HttpOnly cookie，记进这个浏览器的座位，重定向到不带 token 的地址。"""
-        if s.engine.player_by_token(token) is None:
+        """邀请链接（或个人链接）：把 token 写进 HttpOnly cookie，记进这个浏览器的座位，重定向到这一局自己的网址。"""
+        player = s.engine.player_by_token(token)
+        if player is None:
             return RedirectResponse("/join?invalid=1", status_code=303)
-        resp = RedirectResponse("/join", status_code=303)
+        resp = RedirectResponse(f"/g/{player.game_id}", status_code=303)
         enter_seat(request, resp, token)
         return resp
 

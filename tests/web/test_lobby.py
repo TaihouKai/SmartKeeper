@@ -74,6 +74,25 @@ def test_one_browser_switches_between_its_games(site: Site) -> None:
     assert site.client().post("/api/lobby/enter", json={"game_id": g1}).status_code == 404
 
 
+def test_each_game_page_names_its_game(site: Site) -> None:
+    """每一局自己的网址：请求头带上局 id，就用这个浏览器在那一局的座位，不管“当前在玩”的是哪一局。"""
+    g1, g2 = new_game(site, "one"), new_game(site, "two")
+    c = site.client()
+    assert c.post("/api/lobby/join", json={"game_id": g1, "name": "A"}).status_code == 200
+    assert c.post("/api/lobby/join", json={"game_id": g2, "name": "B"}).status_code == 200
+    assert c.get("/api/me").json()["game_id"] == g2  # 当前在玩的是后加入的那一局
+    assert c.get("/api/me", headers={"X-SK-Game": g1}).json()["display_name"] == "A"
+    assert c.get("/api/me", headers={"X-SK-Game": g2}).json()["display_name"] == "B"
+    # 没在那一局有座位：不能冒用别的座位
+    g3 = new_game(site, "three")
+    r = c.get("/api/me", headers={"X-SK-Game": g3})
+    assert r.status_code == 401
+    # 邀请链接把人带到那一局自己的网址
+    link = c.post("/api/lobby/enter", json={"game_id": g1}).json()["link"]
+    r = site.client().get(link.replace("http://testserver", ""), follow_redirects=False)
+    assert r.headers["location"] == f"/g/{g1}"
+
+
 def test_closed_and_ended_games_are_not_listed(site: Site) -> None:
     gid = new_game(site, "closed")
     game = site.admin.get(f"/api/admin/games/{gid}").json()

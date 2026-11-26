@@ -102,7 +102,7 @@ test("three players create characters and play two rounds without the console", 
     const ctx = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: "en-US" });
     const page = await ctx.newPage();
     await page.goto(url);
-    await expect(page).toHaveURL(/\/join$/);
+    await expect(page).toHaveURL(new RegExp(`/g/${gameId}$`)); // 邀请链接带到这一局自己的网址
     await createCharacter(page, i);
     pages.push(page);
   }

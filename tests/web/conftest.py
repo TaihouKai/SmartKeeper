@@ -68,7 +68,7 @@ def setup_game(site: Site, n_players: int = 2) -> tuple[str, list[TestClient]]:
         ]
         c = site.client()
         r = c.get(url.replace("http://testserver", ""), follow_redirects=False)
-        assert r.status_code == 303 and r.headers["location"] == "/join"
+        assert r.status_code == 303 and r.headers["location"] == f"/g/{g['id']}"
         assert c.post("/api/identity", json={}).status_code == 200
         sheet = {**sample, "name": f"Hero {i}"}
         assert (

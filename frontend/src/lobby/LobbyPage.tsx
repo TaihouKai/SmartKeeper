@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, call, type Schemas } from "../api/client";
+import { api, call, gamePath, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, LangSwitch } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
@@ -10,7 +10,7 @@ type Game = Schemas["LobbyGame"];
 export function LobbyPage() {
   const { t } = useI18n();
   const games = usePoll(() => call(api.GET("/api/lobby")), 10_000);
-  const [joined, setJoined] = useState<string | null>(null);
+  const [joined, setJoined] = useState<{ link: string; game: string } | null>(null);
   const list = games.data ?? [];
   return (
     <main className="sk-page">
@@ -29,9 +29,9 @@ export function LobbyPage() {
         <div className="sk-card">
           <p>{t("lobby.joined")}</p>
           <p className="sk-hint">{t("lobby.link_hint")}</p>
-          <input readOnly value={joined} onFocus={(e) => e.target.select()} />
+          <input readOnly value={joined.link} onFocus={(e) => e.target.select()} />
           <p>
-            <button className="sk-primary" onClick={() => (window.location.href = "/join")}>
+            <button className="sk-primary" onClick={() => (window.location.href = gamePath(joined.game))}>
               {t("lobby.go")}
             </button>
           </p>
@@ -44,7 +44,7 @@ export function LobbyPage() {
           key={g.id}
           g={g}
           onJoined={(link) => {
-            setJoined(link);
+            setJoined({ link, game: g.id });
             void games.refresh();
             window.scrollTo(0, 0);
           }}
@@ -61,11 +61,10 @@ function Room({ g, onJoined }: { g: Game; onJoined: (link: string) => void }) {
   const { t } = useI18n();
   const [name, setName] = useState("");
   const act = useAction();
-  const enter = () =>
-    void act.run(async () => {
-      await call(api.POST("/api/lobby/enter", { body: { game_id: g.id } }));
-      window.location.href = g.status === "running" ? "/play" : "/join";
-    });
+  // 每一局有自己的网址：直接过去（那一页按座位认人，不用先切换）
+  const enter = () => {
+    window.location.href = gamePath(g.id);
+  };
   const join = () =>
     void act.run(async () => {
       const r = await call(api.POST("/api/lobby/join", { body: { game_id: g.id, name } }));

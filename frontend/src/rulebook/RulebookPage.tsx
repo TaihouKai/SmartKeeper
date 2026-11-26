@@ -24,8 +24,14 @@ export function RulebookPage({ part }: { part: "handbook" | "scenario" }) {
         return { title: b.name, text: part === "handbook" ? (b.handbook ?? "") : "" };
       }
       if (game) {
-        const r = await call(api.GET("/api/lobby/{game_id}/rulebook", { params: { path: { game_id: game } } }));
-        return { title: r.game_name, text: r[part] };
+        // 自己在这一局里：按座位取（不在房间列表里的局也行）；没加入的从房间列表取
+        try {
+          const [r, me] = await Promise.all([call(api.GET("/api/rules")), call(api.GET("/api/me"))]);
+          return { title: me.game_name, text: r[part] };
+        } catch {
+          const r = await call(api.GET("/api/lobby/{game_id}/rulebook", { params: { path: { game_id: game } } }));
+          return { title: r.game_name, text: r[part] };
+        }
       }
       const [r, me] = await Promise.all([call(api.GET("/api/rules")), call(api.GET("/api/me"))]);
       return { title: me.game_name, text: r[part] };
