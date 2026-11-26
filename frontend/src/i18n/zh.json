@@ -243,6 +243,10 @@
       "unknown_check": "没有叫 {name} 的检定（在“检定”里加）",
       "unknown_key": "没有 {name} 这一项设置（见 IDE 的“速查”）"
     },
+    "copilot": {
+      "failed": "助手这次没答上来（{reason}），过一会儿再试",
+      "unknown_group": "规则书里没有“{name}”这个分组"
+    },
     "formula": {
       "arity": "{name} 的参数个数不对（给了 {count} 个）",
       "bad_value": "{name} 的值不能用于计算",
@@ -337,6 +341,7 @@
       "bad_name": "昵称要 1 到 64 个字"
     },
     "rate": {
+      "copilot": "问得太快了，过一会儿再问",
       "kp_chat": "发得太快了，请稍等一分钟",
       "library": "试得太快了，过一会儿再试",
       "lobby": "操作太频繁，稍后再试",
@@ -468,6 +473,33 @@
     "hint": "每行写一项“名字 = 值”，告诉引擎这个技能怎么用。值里的名字一律写前缀：self.（你自己）、target.（对象）、this.（这一条）。最常用的几项：\n- target：对谁用。\"single\" 选一个人，\"self\" 只对自己，\"none\" 不用选\n- range：射程（米）；不写就是不限\n- cast_time：要准备多久（分钟）；不写就是瞬发\n- cooldown：用过以后多久不能再用（分钟）\n- noise：多远的人会察觉到你在用（米）\n- requires：什么时候才能用，例如 self.mp >= 5\n- check：要掷的检定，例如 \"perception\"\n- reactions：对方能怎么应对，例如 [\"dodge\"]\n- shape：范围，例如 sphere(radius=5) 是半径 5 米的球",
     "short": "每行一项“名字 = 值”，告诉引擎这个技能怎么用（对象、射程、检定、范围、光环……）。",
     "title": "技能设置"
+  },
+  "copilot": {
+    "fix_intro": "引擎按规则书检查了你给的修改，有下面这些问题。改好以后再给一遍完整的 JSON（answer 也要有）：",
+    "need_json": "请按要求只输出一个 JSON 对象。"
+  },
+  "cp": {
+    "applied": "已应用",
+    "apply": "应用",
+    "button": "问助手",
+    "clear": "清空对话",
+    "cost_hint": "每次提问都会调用一次模型",
+    "example1": "例：常驻加成里怎么写“正午时力量 +2”？",
+    "example2": "例：帮我把这个技能改成名叫“XX”的技能：对 30 米内一个人造成 2d6 伤害，冷却 10 分钟",
+    "example3": "例：帮我把某个历史人物做成这套规则下的角色",
+    "focus_entry": "正在看：{where}",
+    "focus_sheet": "正在看：{where}（整张卡）",
+    "intro": "问规则怎么用、代码怎么写，或者让它帮你写条目、改卡。它和 KP 是分开的：只看规则书和你正在写的卡，看不到对局。给出的修改会先按规则书检查，点“应用”才会写进卡里。",
+    "placeholder": "问点什么……（Ctrl+Enter 发送）",
+    "problems": "引擎按规则书检查出这些问题（可以先应用再改，或者让助手再改改）：",
+    "prop_entry": "在“{group}”里加一条：{name}",
+    "prop_fields": "改“{template}”这张卡的字段",
+    "prop_replace": "把“{group}”里的“{old}”换成：{name}",
+    "prop_this": "把正在编辑的“{old}”换成：{name}",
+    "send": "发送",
+    "show_change": "看具体改了什么",
+    "thinking": "想一想……（可能要半分钟）",
+    "title": "建卡助手"
   },
   "demo": {
     "hint": "点击实体、建筑或地面。",

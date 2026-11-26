@@ -6,6 +6,8 @@ import { SheetWorkbench, type SheetDraft } from "./SheetWorkbench";
 import { useDocsPackNames, type PackName } from "../ui/docs";
 import { LibraryBox, initialSave, saveToLibrary, type LibrarySave, type Origin } from "./Library";
 import { FormBackendContext, gameBackend, type FormBackend } from "./formBackend";
+import { CopilotContext, CopilotPanel, SheetIndexContext, entryName, type CopilotFocus, type CopilotTurn } from "./Copilot";
+import type { Entry } from "../ui/EntryEditor";
 
 export type { SheetDraft } from "./SheetWorkbench";
 
@@ -39,6 +41,19 @@ function packNames(templates: Template[], params: readonly Schemas["PackParam"][
   for (const p of params) push({ name: p.name, sig: `this.${p.name}`, text: [p.label, p.description, (p.choices ?? []).join("、")].filter(Boolean).join(" "), kind: t("docs.kind.param") });
   for (const c of checks) push({ name: c, sig: `check = "${c}"`, text: "", kind: t("docs.kind.check") });
   return out;
+}
+
+/** 条目缺的部分补齐（从角色库、示例卡、助手来的条目可能没写说明、列）。 */
+export function normalizeEntry(raw: unknown): Entry {
+  const e = (raw && typeof raw === "object" ? raw : {}) as Partial<Entry>;
+  return { ...e, name: e.name ?? "", description: e.description ?? "", fields: e.fields ?? {}, effects: e.effects ?? [] };
+}
+
+/** 一张卡缺的部分补齐：名字、字段、分组，每个条目也补齐。 */
+export function normalizeSubmission(s: Submission): Submission {
+  const sheet = (s.sheet ?? {}) as Partial<SheetDraft>;
+  const groups = Object.fromEntries(Object.entries(sheet.groups ?? {}).map(([g, es]) => [g, (Array.isArray(es) ? es : []).map(normalizeEntry)]));
+  return { template: s.template, sheet: { ...sheet, name: sheet.name ?? "", fields: sheet.fields ?? {}, groups } };
 }
 
 export function initialSubmissions(playerEntities: { template: string; min: number; max: number }[]): Submission[] {
@@ -76,7 +91,7 @@ export function CharacterForm({
   params?: readonly Schemas["PackParam"][];
   checks?: readonly string[];
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   // 语法手册里列出这套规则的名字：各角色卡的字段、推导值、分组，检定，参数
   useDocsPackNames(packNames(templates, params, checks, t));
   const [subs, setSubs] = useState<Submission[]>(() => initialSubmissions(playerEntities));
@@ -86,6 +101,9 @@ export function CharacterForm({
   const [busy, setBusy] = useState(false);
   const [libSave, setLibSave] = useState<LibrarySave>(() => initialSave(origin, bookMode));
   const [libError, setLibError] = useState<unknown>(null);
+  // 建卡助手：打开时正在看的地方（null 是关着）；问答只留在这一页
+  const [copilot, setCopilot] = useState<CopilotFocus | null>(null);
+  const [turns, setTurns] = useState<CopilotTurn[]>([]);
   const [libBusy, setLibBusy] = useState(false);
   const [libSavedAt, setLibSavedAt] = useState<string | null>(null);
   // 正在编辑的角色换了（例如刷新以后才认出来是哪个）：角色库的设置跟着换
@@ -109,7 +127,7 @@ export function CharacterForm({
         if (!alive) return;
         base.current = d.savedAt ?? "";
         if (d.sheets && d.sheets.length > 0) {
-          setSubs(d.sheets as Submission[]);
+          setSubs((d.sheets as Submission[]).map(normalizeSubmission));
           lastSaved.current = JSON.stringify(d.sheets);
           setSavedAt(d.savedAt);
         } else if (bookMode) {
@@ -213,11 +231,65 @@ export function CharacterForm({
   };
   if (!loaded) return <p>{t("common.loading")}</p>;
   const current = Math.min(tab, subs.length - 1);
+  const tplLabel = (name: string) => templates.find((x) => x.name === name)?.label || name;
+  const groupLabel = (tpl: string, g: string) => templates.find((x) => x.name === tpl)?.groups?.find((x) => x.name === g)?.label || g;
+  // 助手正在看的：哪张卡，哪个分组的哪一条
+  const focusSheet = copilot ? subs[Math.min(copilot.sheet, subs.length - 1)] : undefined;
+  const focusEntry = copilot && focusSheet && copilot.group !== undefined && copilot.index !== undefined ? focusSheet.sheet.groups[copilot.group]?.[copilot.index] : undefined;
+  const focusLabel = focusSheet
+    ? [tplLabel(focusSheet.template), focusSheet.sheet.name, copilot?.group !== undefined ? groupLabel(focusSheet.template, copilot.group) : "", focusEntry?.name ?? ""].filter(Boolean).join(" / ")
+    : "";
+  const question = (text: string): Schemas["CopilotQuestion"] => ({
+    question: text,
+    history: turns.map((x) => ({ role: x.role, text: x.text })),
+    sheets: subs as never,
+    focus: {
+      template: focusSheet?.template ?? "",
+      sheet_name: focusSheet?.sheet.name ?? "",
+      group: focusEntry && copilot?.group ? copilot.group : "",
+      entry: (focusEntry ?? null) as never,
+    },
+    lang: lang === "en" ? "en" : "zh",
+  });
+  // 修改的标题：换掉正在编辑的那一条、换掉同名的、加一条、改字段
+  const proposalTitle = (p: Schemas["CopilotProposal"]): string => {
+    if (p.kind === "fields") return t("cp.prop_fields", { template: tplLabel(p.template) });
+    const group = groupLabel(p.template, p.group ?? "");
+    const name = entryName(p);
+    if (focusEntry && copilot?.group === p.group && focusSheet?.template === p.template) return t("cp.prop_this", { name, old: focusEntry.name });
+    if (p.replace) return t("cp.prop_replace", { name, group, old: p.replace });
+    return t("cp.prop_entry", { name, group });
+  };
+  // 应用助手给的修改：条目换掉正在编辑的那一条（或同名的那一条），否则加在分组最后；字段合进卡里
+  const applyProposal = (p: Schemas["CopilotProposal"]) => {
+    const at = (() => {
+      if (copilot && subs[copilot.sheet]?.template === p.template) return copilot.sheet;
+      return subs.findIndex((x) => x.template === p.template);
+    })();
+    if (at < 0) return;
+    setSubs((all) =>
+      all.map((s, i) => {
+        if (i !== at) return s;
+        if (p.kind === "fields") {
+          return { ...s, sheet: { ...s.sheet, name: p.name || s.sheet.name, fields: { ...s.sheet.fields, ...(p.fields as SheetDraft["fields"]) } } };
+        }
+        const group = p.group ?? "";
+        const entry = normalizeEntry(p.entry);
+        const list = [...(s.sheet.groups[group] ?? [])];
+        let idx = copilot && copilot.group === group && copilot.index !== undefined && i === copilot.sheet ? copilot.index : -1;
+        if (idx < 0 && p.replace) idx = list.findIndex((e) => e.name === p.replace);
+        if (idx >= 0 && idx < list.length) list[idx] = entry;
+        else list.push(entry);
+        return { ...s, sheet: { ...s.sheet, groups: { ...s.sheet.groups, [group]: list } } };
+      }),
+    );
+  };
   const count = (name: string) => subs.filter((s) => s.template === name).length;
   const limit = (name: string) => playerEntities.find((pe) => pe.template === name);
   const totalMissing = subs.reduce((n, _s, i) => n + (missing[i] ?? 0), 0);
   return (
     <FormBackendContext.Provider value={backend}>
+    <CopilotContext.Provider value={(f) => setCopilot(f ?? { sheet: current })}>
     <div className="cf-wrap">
       {stale && (
         <div className="sk-error cf-stale" role="alert">
@@ -255,6 +327,7 @@ export function CharacterForm({
         if (!tp) return null;
         return (
           <div key={i} hidden={i !== current}>
+            <SheetIndexContext.Provider value={i}>
             <SheetWorkbench
               template={tp}
               value={s.sheet}
@@ -274,6 +347,7 @@ export function CharacterForm({
                 ) : null
               }
             />
+            </SheetIndexContext.Provider>
           </div>
         );
       })}
@@ -291,6 +365,9 @@ export function CharacterForm({
         <span className="sk-hint">
           {saveError ? t("cf.save_failed") : savedAt ? t(bookMode ? "books.draft_saved" : "character.autosaved", { time: new Date(savedAt).toLocaleTimeString() }) : ""}
         </span>
+        <button type="button" className="cp-button" onClick={() => setCopilot({ sheet: current })}>
+          ✦ {t("cp.button")}
+        </button>
         <span className={totalMissing > 0 ? "cf-footer-todo" : "cf-footer-ok"}>{totalMissing > 0 ? t("cf.missing", { n: String(totalMissing) }) : t("cf.complete")}</span>
         {stale ? null : bookMode ? (
           <button className="sk-primary" disabled={libBusy} onClick={() => void saveLibNow()}>
@@ -303,7 +380,11 @@ export function CharacterForm({
         )}
       </div>
       <ErrorBox error={error} />
+      {copilot && (
+        <CopilotPanel turns={turns} setTurns={setTurns} focus={copilot} focusLabel={focusLabel} question={question} onApply={applyProposal} title={proposalTitle} onClose={() => setCopilot(null)} />
+      )}
     </div>
+    </CopilotContext.Provider>
     </FormBackendContext.Provider>
   );
 }

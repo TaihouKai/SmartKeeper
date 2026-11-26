@@ -24,6 +24,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:lang]
 name = lang 只依赖 无
@@ -46,6 +47,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:eventlog]
 name = eventlog 只依赖 contracts
@@ -66,6 +68,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:rules]
 name = rules 只依赖 contracts
@@ -86,6 +89,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:world]
 name = world 只依赖 contracts, rules
@@ -105,6 +109,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:rounds]
 name = rounds 只依赖 contracts
@@ -125,6 +130,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:dice]
 name = dice 只依赖 contracts
@@ -145,6 +151,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:mapdata]
 name = mapdata 只依赖 contracts
@@ -165,6 +172,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:spatial]
 name = spatial 只依赖 contracts
@@ -185,6 +193,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:handles]
 name = handles 只依赖 contracts
@@ -205,6 +214,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:memory]
 name = memory 只依赖 contracts
@@ -225,6 +235,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:engine]
 name = engine 只依赖 contracts, eventlog, rules, world, rounds, dice, mapdata, spatial, handles, memory
@@ -236,6 +247,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:chat]
 name = chat 只依赖 contracts
@@ -256,6 +268,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:llm]
 name = llm 只依赖 contracts
@@ -276,6 +289,7 @@ forbidden_modules =
     smartkeeper.kp
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:kp]
 name = kp 只依赖 contracts, engine, llm
@@ -294,6 +308,7 @@ forbidden_modules =
     smartkeeper.chat
     smartkeeper.notify
     smartkeeper.web
+    smartkeeper.copilot
 
 [importlinter:contract:notify]
 name = notify 只依赖 contracts
@@ -314,6 +329,29 @@ forbidden_modules =
     smartkeeper.llm
     smartkeeper.kp
     smartkeeper.web
+    smartkeeper.copilot
+
+[importlinter:contract:copilot]
+name = copilot 只依赖 contracts
+type = forbidden
+source_modules = smartkeeper.copilot
+forbidden_modules =
+    smartkeeper.lang
+    smartkeeper.eventlog
+    smartkeeper.rules
+    smartkeeper.world
+    smartkeeper.rounds
+    smartkeeper.dice
+    smartkeeper.mapdata
+    smartkeeper.spatial
+    smartkeeper.handles
+    smartkeeper.memory
+    smartkeeper.engine
+    smartkeeper.chat
+    smartkeeper.llm
+    smartkeeper.kp
+    smartkeeper.notify
+    smartkeeper.web
 
 [importlinter:contract:pure-core]
 name = 核心模块不依赖 HTTP 框架和 LLM SDK
@@ -331,6 +369,7 @@ source_modules =
     smartkeeper.memory
     smartkeeper.engine
     smartkeeper.kp
+    smartkeeper.copilot
 forbidden_modules =
     fastapi
     starlette

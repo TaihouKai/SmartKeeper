@@ -771,6 +771,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/books/{book_id}/copilot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Copilot */
+        post: operations["copilot_api_books__book_id__copilot_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/books/{book_id}/form": {
         parameters: {
             query?: never;
@@ -941,6 +958,23 @@ export interface paths {
         get: operations["peers_api_chat_peers_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/copilot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Copilot */
+        post: operations["copilot_api_copilot_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1772,6 +1806,122 @@ export interface components {
             config: string;
             /** Name */
             name: string;
+        };
+        /** CopilotAnswer */
+        CopilotAnswer: {
+            /** Answer */
+            answer: string;
+            /**
+             * Proposals
+             * @default []
+             */
+            proposals: components["schemas"]["CopilotProposal"][];
+        };
+        /**
+         * CopilotFocus
+         * @description 玩家正在看的地方：哪张卡（模板），哪个分组里的哪一条（编辑条目时）。都可以空着。
+         */
+        CopilotFocus: {
+            entry?: components["schemas"]["JsonValue"];
+            /**
+             * Group
+             * @default
+             */
+            group: string;
+            /**
+             * Sheet Name
+             * @default
+             */
+            sheet_name: string;
+            /**
+             * Template
+             * @default
+             */
+            template: string;
+        };
+        /**
+         * CopilotProposal
+         * @description 一处可以一键应用的修改。
+         *
+         *     - entry：在 template 这张卡的 group 分组里加一条，或换掉名叫 replace 的那一条（空是新加；
+         *       正在编辑某一条时就是换掉那一条）。entry 和角色卡上的条目一个格式。
+         *     - fields：改 template 这张卡的字段（fields）和角色名（name，空是不改）。
+         *     problems 是引擎按规则书检查出来的问题（空是检查通过）。
+         */
+        CopilotProposal: {
+            entry?: components["schemas"]["JsonValue"];
+            /**
+             * Fields
+             * @default {}
+             */
+            fields: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Group
+             * @default
+             */
+            group: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "entry" | "fields";
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Problems
+             * @default []
+             */
+            problems: components["schemas"]["Problem"][];
+            /**
+             * Replace
+             * @default
+             */
+            replace: string;
+            /** Template */
+            template: string;
+        };
+        /** CopilotQuestion */
+        CopilotQuestion: {
+            /** @default {
+             *       "group": "",
+             *       "sheet_name": "",
+             *       "template": ""
+             *     } */
+            focus: components["schemas"]["CopilotFocus"];
+            /**
+             * History
+             * @default []
+             */
+            history: components["schemas"]["CopilotTurn"][];
+            /**
+             * Lang
+             * @default zh
+             * @enum {string}
+             */
+            lang: "zh" | "en";
+            /** Question */
+            question: string;
+            sheets?: components["schemas"]["JsonValue"];
+        };
+        /** CopilotTurn */
+        CopilotTurn: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Text */
+            text: string;
         };
         /** DerivedDef */
         DerivedDef: {
@@ -5884,6 +6034,41 @@ export interface operations {
             };
         };
     };
+    copilot_api_books__book_id__copilot_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopilotQuestion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotAnswer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     form_api_books__book_id__form_get: {
         parameters: {
             query?: never;
@@ -6269,6 +6454,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PeerOut"][];
+                };
+            };
+        };
+    };
+    copilot_api_copilot_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopilotQuestion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotAnswer"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

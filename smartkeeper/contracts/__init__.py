@@ -23,6 +23,13 @@ from smartkeeper.contracts.adjudication import (
 )
 from smartkeeper.contracts.base import Frozen, JsonDict, JsonValue
 from smartkeeper.contracts.chat import ChatMessage, ChatStore
+from smartkeeper.contracts.copilot import (
+    CopilotAnswer,
+    CopilotFocus,
+    CopilotProposal,
+    CopilotQuestion,
+    CopilotTurn,
+)
 from smartkeeper.contracts.errors import (
     Forbidden,
     IllegalState,
@@ -185,6 +192,11 @@ __all__ = [
     "CheckResult",
     "CheckSpec",
     "ClaimRef",
+    "CopilotAnswer",
+    "CopilotFocus",
+    "CopilotProposal",
+    "CopilotQuestion",
+    "CopilotTurn",
     "DerivedDef",
     "DerivedValue",
     "Dice",

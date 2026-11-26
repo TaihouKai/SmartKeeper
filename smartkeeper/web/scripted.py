@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, cast
 
 from smartkeeper.engine import Engine
 from smartkeeper.llm import FakeCall, FakeLLM
@@ -95,6 +95,44 @@ def install_scripted(llm: FakeLLM, engine: Engine) -> None:
             )
         return json.dumps({"outcomes": outcomes}, ensure_ascii=False)
 
+    def copilot(c: FakeCall) -> str:
+        """离线演示的建卡助手：复述问题；正在编辑某一条时，给一个把说明改掉的修改。"""
+        last = str(c.messages[-1].get("content", "")) if c.messages else ""
+        question = last.split("## 问题", 1)[-1].strip()
+        proposals: list[dict[str, Any]] = []
+        if "正在编辑的条目：" in last:
+            raw = last.split("正在编辑的条目：", 1)[1].split("\n## ", 1)[0].strip()
+            try:
+                loaded: object = json.loads(raw)
+            except ValueError:
+                loaded = None
+            entry = cast(dict[str, Any], loaded) if isinstance(loaded, dict) else None
+            where = (
+                last.split("## 玩家正在看", 1)[1].split("\n", 2)[1]
+                if "## 玩家正在看" in last
+                else ""
+            )
+            bits = [x.strip() for x in where.split("/")]
+            if entry is not None and len(bits) >= 2:
+                entry = {
+                    **entry,
+                    "description": f"{entry.get('description', '')}（助手：{question}）",
+                }
+                proposals.append(
+                    {
+                        "kind": "entry",
+                        "template": bits[0],
+                        "group": bits[-1],
+                        "entry": entry,
+                        "note": "改了说明",
+                    }
+                )
+        return json.dumps(
+            {"answer": f"（离线演示的建卡助手）收到：{question}", "proposals": proposals},
+            ensure_ascii=False,
+        )
+
+    llm.on("copilot", copilot)
     llm.on("review_character", review)
     llm.on("opening", opening)
     llm.on("name_handle", name)

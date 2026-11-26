@@ -551,6 +551,65 @@ T: dict[str, tuple[str, str]] = {
     "cf.view": ("查看", "View"),
     "cf.ref": ("引用名：", "Reference:"),
     "cf.modify": ("修改", "Modify"),
+    "cp.button": ("问助手", "Ask Copilot"),
+    "cp.title": ("建卡助手", "Copilot"),
+    "cp.clear": ("清空对话", "Clear"),
+    "cp.focus_sheet": ("正在看：{where}（整张卡）", "Looking at: {where} (whole sheet)"),
+    "cp.focus_entry": ("正在看：{where}", "Looking at: {where}"),
+    "cp.intro": (
+        "问规则怎么用、代码怎么写，或者让它帮你写条目、改卡。它和 KP 是分开的：只看规则书和你正在写的卡，看不到对局。给出的修改会先按规则书检查，点“应用”才会写进卡里。",
+        "Ask how rules work or how to write something, or have it write entries and change the sheet. It is separate from the KP: it only sees the rulebook and your sheet, never the game. Suggested changes are checked against the rulebook and only go into the sheet when you click Apply.",
+    ),
+    "cp.example1": (
+        "例：常驻加成里怎么写“正午时力量 +2”？",
+        "e.g. How do I write “+2 strength at noon” as an always-on bonus?",
+    ),
+    "cp.example2": (
+        "例：帮我把这个技能改成名叫“XX”的技能：对 30 米内一个人造成 2d6 伤害，冷却 10 分钟",
+        "e.g. Turn this skill into “XX”: 2d6 damage to one person within 30 m, 10-minute cooldown",
+    ),
+    "cp.example3": (
+        "例：帮我把某个历史人物做成这套规则下的角色",
+        "e.g. Make a historical figure into a character for these rules",
+    ),
+    "cp.placeholder": ("问点什么……（Ctrl+Enter 发送）", "Ask something… (Ctrl+Enter to send)"),
+    "cp.send": ("发送", "Send"),
+    "cp.thinking": ("想一想……（可能要半分钟）", "Thinking… (may take half a minute)"),
+    "cp.cost_hint": ("每次提问都会调用一次模型", "Each question calls the model once"),
+    "cp.apply": ("应用", "Apply"),
+    "cp.applied": ("已应用", "Applied"),
+    "cp.show_change": ("看具体改了什么", "Show the change"),
+    "cp.prop_entry": ("在“{group}”里加一条：{name}", "Add to “{group}”: {name}"),
+    "cp.prop_replace": (
+        "把“{group}”里的“{old}”换成：{name}",
+        "Replace “{old}” in “{group}” with: {name}",
+    ),
+    "cp.prop_fields": ("改“{template}”这张卡的字段", "Change the fields of “{template}”"),
+    "cp.prop_this": (
+        "把正在编辑的“{old}”换成：{name}",
+        "Replace “{old}” (being edited) with: {name}",
+    ),
+    "cp.problems": (
+        "引擎按规则书检查出这些问题（可以先应用再改，或者让助手再改改）：",
+        "The rules check found these problems (apply and fix, or ask again):",
+    ),
+    "copilot.need_json": (
+        "请按要求只输出一个 JSON 对象。",
+        "Please output only one JSON object as instructed.",
+    ),
+    "copilot.fix_intro": (
+        "引擎按规则书检查了你给的修改，有下面这些问题。改好以后再给一遍完整的 JSON（answer 也要有）：",
+        "The engine checked your changes against the rulebook and found these problems. Fix them and give the full JSON again (with answer):",
+    ),
+    "codes.copilot.unknown_group": (
+        "规则书里没有“{name}”这个分组",
+        "The rulebook has no group “{name}”",
+    ),
+    "codes.copilot.failed": (
+        "助手这次没答上来（{reason}），过一会儿再试",
+        "Copilot couldn't answer ({reason}); try again later",
+    ),
+    "codes.rate.copilot": ("问得太快了，过一会儿再问", "Too many questions; wait a bit"),
     "cf.stale": (
         "这张卡在别的页面（或别的设备）上改过了，这一页的内容已经过时：不会再自动保存，也不能提交。请刷新载入最新的。",
         "This sheet was changed in another tab or device, so this page is out of date: it no longer autosaves and can't submit. Reload to get the latest.",

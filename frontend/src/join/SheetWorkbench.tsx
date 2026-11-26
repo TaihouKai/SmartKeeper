@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { toCode } from "../ui/effectsCode";
 import type { Schemas } from "../api/client";
 import { useFormBackend } from "./formBackend";
+import { CopilotButton } from "./Copilot";
 import { useI18n } from "../i18n";
 import { numberOptions, withUnit } from "../ui/choices";
 import { Mover, moved } from "../ui/components";
@@ -452,9 +453,12 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
         <aside key={editing} className="sk-drawer cf-drawer" aria-label={t("cf.edit")}>
           <div className="sk-drawer-head">
             <h3>{edited.name || t("cf.unnamed")}</h3>
-            <button type="button" className="sk-primary" onClick={() => setEditing(null)}>
-              {t("cf.done")}
-            </button>
+            <span className="sk-row">
+              <CopilotButton group={g.name} index={editing} />
+              <button type="button" className="sk-primary" onClick={() => setEditing(null)}>
+                {t("cf.done")}
+              </button>
+            </span>
           </div>
           <EntryEditor
             group={g}
@@ -560,7 +564,8 @@ function PresetView({ template, p, g, defaults, canCopy, onCopy, onClose }: { te
 }
 
 /** 长说明先显示两行，点了展开。 */
-function Clamp({ text }: { text: string }) {
+function Clamp({ text: raw }: { text: string | undefined }) {
+  const text = raw ?? "";
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   // 真的被截掉了才给“展开”：量收起时的高度，宽度变了再量

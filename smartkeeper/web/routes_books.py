@@ -12,7 +12,14 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from smartkeeper.contracts import LibraryCharacter, LibraryCharacterFull, NotFound, RulePack
+from smartkeeper.contracts import (
+    CopilotAnswer,
+    CopilotQuestion,
+    LibraryCharacter,
+    LibraryCharacterFull,
+    NotFound,
+    RulePack,
+)
 from smartkeeper.engine import public_meta, split_front_matter
 from smartkeeper.web import sheetform
 from smartkeeper.web.auth import RateLimiter
@@ -176,6 +183,15 @@ def build_books_router(s: Services) -> APIRouter:
     @r.post("/{book_id}/formula")
     def formula(book_id: str, body: SheetFormulaIn) -> FormulaOut:
         return sheetform.check_formula(s.rules, e.book_pack(book_id), body)
+
+    # 建卡助手：每个 IP 十分钟最多问 20 次（每次都是一次模型调用）
+    copilot_limit = RateLimiter(limit=20, window=600)
+
+    @r.post("/{book_id}/copilot")
+    def copilot(book_id: str, body: CopilotQuestion, request: Request) -> CopilotAnswer:
+        if not copilot_limit.hit(ip(request)):
+            raise HTTPException(status_code=429, detail={"code": "rate.copilot"})
+        return sheetform.ask_copilot(s.copilot, e.book_pack(book_id), body, None)
 
     # ---- 角色库 ----
 

@@ -51,6 +51,21 @@ test("rulebooks: make, change and delete a character without joining a game", as
   };
   await expect.poll(mine).toEqual([["second", true]]);
 
+  // 建卡助手：从条目编辑器打开，问一句，应用它给的修改（测试用的是离线的假助手，不调用模型）
+  await page.locator(".cf-nav").getByRole("button", { name: /Skills/ }).click();
+  await page.locator(".cf-item", { hasText: "first aid" }).getByRole("button", { name: "Edit" }).click();
+  await page.locator(".cf-drawer").getByRole("button", { name: /Ask Copilot/ }).click();
+  const panel = page.locator(".cp-panel");
+  await expect(panel).toContainText("first aid");
+  await panel.locator("textarea").fill("make it better");
+  await panel.getByRole("button", { name: "Send" }).click();
+  await expect(panel.locator(".cp-a")).toContainText("make it better");
+  await panel.getByRole("button", { name: "Apply" }).click();
+  await expect(panel).toContainText("Applied");
+  await panel.getByRole("button", { name: "Close" }).click();
+  await expect(page.locator(".cf-drawer textarea").first()).toHaveValue(/make it better/);
+  await page.locator(".cf-drawer").getByRole("button", { name: "Done" }).click();
+
   // 删除要密码
   await page.goto(`${SERVER}/books/${book}`);
   const row = page.locator(".bk-list li", { hasText: "Sample hero" });

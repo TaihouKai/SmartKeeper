@@ -3,11 +3,17 @@
 
 from __future__ import annotations
 
+import logging
+
+from fastapi import HTTPException
 from pydantic import BaseModel, JsonValue
 
 from smartkeeper.contracts import (
+    CopilotAnswer,
+    CopilotQuestion,
     DerivedValue,
     FormulaScope,
+    LLMError,
     NotFound,
     PackParam,
     Problem,
@@ -15,6 +21,9 @@ from smartkeeper.contracts import (
     Rules,
     ValidationFailed,
 )
+from smartkeeper.copilot import Copilot
+
+log = logging.getLogger("smartkeeper.web")
 
 
 class PreviewIn(BaseModel):
@@ -69,6 +78,19 @@ class FormRules(BaseModel):
     checks: list[str]
     templates: list[dict[str, JsonValue]]
     player_entities: list[dict[str, JsonValue]]
+
+
+def ask_copilot(
+    copilot: Copilot, pack: RulePack, body: CopilotQuestion, game_id: str | None
+) -> CopilotAnswer:
+    """问建卡助手；模型调用失败时给一个能翻译的错误。"""
+    try:
+        return copilot.ask(pack, body, game_id)
+    except LLMError as err:
+        log.warning("copilot failed: %s", err)
+        raise HTTPException(
+            status_code=502, detail={"code": "copilot.failed", "params": {"reason": err.code}}
+        ) from err
 
 
 def form_rules(pack: RulePack) -> FormRules:

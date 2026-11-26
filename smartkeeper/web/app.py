@@ -27,6 +27,7 @@ from smartkeeper.contracts import (
     SmartKeeperError,
     ValidationFailed,
 )
+from smartkeeper.copilot import Copilot
 from smartkeeper.dice import DiceRoller, SystemRandomSource
 from smartkeeper.engine import Engine
 from smartkeeper.eventlog import SqlEventLog
@@ -45,8 +46,10 @@ from smartkeeper.memory import SqlMemoryStore
 from smartkeeper.notify import WebhookNotifier
 from smartkeeper.rounds import RoundStateMachine
 from smartkeeper.rules import RulesService, SqlRulePackStore
+from smartkeeper.rules import render as render_rules
 from smartkeeper.spatial import ShapelySpatial
 from smartkeeper.web.auth import Auth, enter_seat
+from smartkeeper.web.messages import load_messages
 from smartkeeper.web.routes_admin import build_admin_router
 from smartkeeper.web.routes_books import build_books_router
 from smartkeeper.web.routes_lobby import build_lobby_router
@@ -228,6 +231,14 @@ def build_services(
         writer=w,
         chat=SqlChatStore(db),
         dice=dice,
+        # 建卡助手：用 KP 的模型配置，但是单独的调用，不碰对局和 KP 的记事
+        copilot=Copilot(
+            j,
+            rules,
+            settings.judge_model,
+            lambda pack: render_rules(pack, include_hidden=False),
+            load_messages(),
+        ),
         scenarios_dir=settings.scenarios_dir,
         base_url=settings.base_url,
     )

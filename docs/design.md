@@ -504,7 +504,8 @@ KP 可以联网查世界观设定，目标是让它像一个熟悉该作品的�
 | `llm` | `LLMClient` 及其实现，含联网搜索的封装 | `contracts` | `FakeLLM` |
 | `kp` | 上下文构造、prompt、各种 LLM 调用和裁定管线 | `engine` 和 `llm` 的接口 | `FakeLLM` 加内存 `engine` |
 | `notify` | webhook 通知 | `contracts` | 本地假接收端 |
-| `web` 的 API 部分 | 鉴权、HTTP API、各模块的装配 | `engine`、`kp`、`chat`、`notify` 的接口 | HTTP 测试客户端 |
+| `copilot` | 建卡助手：回答建卡的问题，给出按规则书检查过、可以一键应用的修改；和 `kp` 分开，不读对局和记事 | `contracts`（`LLMClient`、`Rules` 的接口） | `FakeLLM` 加夹具规则包 |
+| `web` 的 API 部分 | 鉴权、HTTP API、各模块的装配 | `engine`、`kp`、`chat`、`notify`、`copilot` 的接口 | HTTP 测试客户端 |
 | `web` 的前端部分 | 页面和地图组件 | 只依赖 HTTP API | 静态演示页加假数据 |
 
 以后的 QQ / Discord adapter 与 `web` 的 API 部分同级，只调用 `engine` 和 `kp` 的接口。
@@ -1181,3 +1182,11 @@ tests/
 - 建卡表单背后的接口可替换（前端 `join/formBackend.ts`）：局里建卡用玩家接口，规则书下用规则书接口；后端的预览、公式检查在 `web/sheetform.py` 里共用。
 - 局里的角色库（`/api/library`，加入一局后选角色、提交时存）照旧，存到这一局的规则书下。
 - 规则书和剧本本身还是只能由管理员改。
+
+## 30. 建卡助手（copilot，2026-11-26）
+
+- 建卡页（局里，或者规则书下的角色编辑页）有“问助手”：底栏一个（看整张卡），编辑条目的侧栏里一个（看正在编辑的那一条）。
+- 助手是单独的模块 `copilot`，和 `kp` 分开：不读对局内容、不读 KP 的记事，只看规则书正文、规则书结构（`rules.render`）、语法手册（`rules.docs()` 按界面翻译表写成文字）和玩家正在写的整套卡。用 KP 的模型配置（判定用的那个模型），调用的 purpose 是 `copilot`，记进 `llm_call`。
+- 回答是 Markdown；要写或改条目、字段时另给“修改”（`CopilotProposal`：加一条 / 换掉某一条 / 改字段）。每处修改放进玩家现在的卡里按规则书检查，只留这处修改自己的问题；有问题时把问题告诉模型改一次，还不行就带着问题给玩家看。玩家点“应用”才写进卡里。
+- 问答历史只在这一页里（最近 12 轮随问题一起发），不存。每个玩家（规则书页按 IP）十分钟最多问 20 次。
+- 接口：`POST /api/copilot`（局里），`POST /api/books/<id>/copilot`（规则书下）。离线演示和端到端测试用脚本化的假助手。

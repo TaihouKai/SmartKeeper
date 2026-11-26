@@ -243,6 +243,10 @@
       "unknown_check": "No check named {name} (add it under Checks)",
       "unknown_key": "There is no setting {name} (see Reference in the IDE)"
     },
+    "copilot": {
+      "failed": "Copilot couldn't answer ({reason}); try again later",
+      "unknown_group": "The rulebook has no group “{name}”"
+    },
     "formula": {
       "arity": "{name} got the wrong number of arguments ({count})",
       "bad_value": "{name} has a value that can't be used here",
@@ -337,6 +341,7 @@
       "bad_name": "A nickname needs 1 to 64 characters"
     },
     "rate": {
+      "copilot": "Too many questions; wait a bit",
       "kp_chat": "Too fast; wait a minute",
       "library": "Too many tries; wait a moment",
       "lobby": "Too many attempts; try again later",
@@ -468,6 +473,33 @@
     "hint": "One “name = value” per line tells the engine how this skill is used. Always prefix names in values: self. (you), target. (the target), this. (this entry). The common ones:\n- target: who it is used on. \"single\" picks one, \"self\" only you, \"none\" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. self.mp >= 5\n- check: the check to roll, e.g. \"perception\"\n- reactions: how the target may respond, e.g. [\"dodge\"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball",
     "short": "One 'name = value' per line: who it targets, range, check, area, aura…",
     "title": "Skill settings"
+  },
+  "copilot": {
+    "fix_intro": "The engine checked your changes against the rulebook and found these problems. Fix them and give the full JSON again (with answer):",
+    "need_json": "Please output only one JSON object as instructed."
+  },
+  "cp": {
+    "applied": "Applied",
+    "apply": "Apply",
+    "button": "Ask Copilot",
+    "clear": "Clear",
+    "cost_hint": "Each question calls the model once",
+    "example1": "e.g. How do I write “+2 strength at noon” as an always-on bonus?",
+    "example2": "e.g. Turn this skill into “XX”: 2d6 damage to one person within 30 m, 10-minute cooldown",
+    "example3": "e.g. Make a historical figure into a character for these rules",
+    "focus_entry": "Looking at: {where}",
+    "focus_sheet": "Looking at: {where} (whole sheet)",
+    "intro": "Ask how rules work or how to write something, or have it write entries and change the sheet. It is separate from the KP: it only sees the rulebook and your sheet, never the game. Suggested changes are checked against the rulebook and only go into the sheet when you click Apply.",
+    "placeholder": "Ask something… (Ctrl+Enter to send)",
+    "problems": "The rules check found these problems (apply and fix, or ask again):",
+    "prop_entry": "Add to “{group}”: {name}",
+    "prop_fields": "Change the fields of “{template}”",
+    "prop_replace": "Replace “{old}” in “{group}” with: {name}",
+    "prop_this": "Replace “{old}” (being edited) with: {name}",
+    "send": "Send",
+    "show_change": "Show the change",
+    "thinking": "Thinking… (may take half a minute)",
+    "title": "Copilot"
   },
   "demo": {
     "hint": "Click an entity, a building or the ground.",

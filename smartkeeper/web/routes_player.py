@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field, JsonValue
 
 from smartkeeper.contracts import (
     AllianceView,
+    CopilotAnswer,
+    CopilotQuestion,
     IdentityRules,
     Intent,
     LibraryCharacter,
@@ -320,6 +322,17 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
     def preview(p: Annotated[Player, Depends(require_player)], body: PreviewIn) -> PreviewOut:
         # 按开局时刻算（例如只在某个时段生效的加成）
         return sheetform.preview(s.rules, e.rulepack(p.game_id), body, e.sheet_clock(p.game_id))
+
+    # 建卡助手：每个玩家十分钟最多问 20 次（每次都是一次模型调用）
+    copilot_limit = RateLimiter(limit=20, window=600)
+
+    @r.post("/copilot")
+    def copilot(
+        p: Annotated[Player, Depends(require_player)], body: CopilotQuestion
+    ) -> CopilotAnswer:
+        if not copilot_limit.hit(p.id):
+            raise HTTPException(status_code=429, detail={"code": "rate.copilot"})
+        return sheetform.ask_copilot(s.copilot, e.rulepack(p.game_id), body, p.game_id)
 
     @r.post("/formula/validate")
     def formula(p: Annotated[Player, Depends(require_player)], body: SheetFormulaIn) -> FormulaOut:

@@ -350,3 +350,21 @@ tr.inactive { opacity: 0.5; }
 .bk-confirm { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex-basis: 100%; }
 .bk-local { font-size: 14px; }
 .sk-primary-link { display: inline-block; padding: 6px 12px; border-radius: 6px; background: var(--accent); color: #fff; text-decoration: none; }
+
+/* 建卡助手 */
+.cp-button { border-color: var(--accent); color: var(--accent); background: transparent; }
+.cp-panel { z-index: 30; width: min(480px, 100vw); display: flex; flex-direction: column; padding-bottom: 0; }
+.cp-focus { margin: 4px 0 8px; }
+.cp-intro ul { margin: 4px 0; padding-left: 18px; }
+.cp-turns { flex: 1; }
+.cp-q { margin: 10px 0 6px auto; max-width: 85%; padding: 8px 10px; border-radius: 8px; background: var(--wb-sunken); white-space: pre-wrap; width: fit-content; }
+.cp-a { margin: 6px 0 12px; }
+.cp-a .sk-md > :first-child { margin-top: 0; }
+.cp-prop { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; background: var(--card); }
+.cp-prop-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cp-prop pre { max-height: 240px; overflow: auto; font-size: 12px; }
+.cp-problems { color: var(--warn); font-size: 13px; }
+.cp-problems p { margin: 6px 0 2px; }
+.cp-input { position: sticky; bottom: 0; background: var(--bg); padding: 8px 0 12px; border-top: 1px solid var(--line); }
+.cp-input textarea { width: 100%; box-sizing: border-box; }
+.cp-input .sk-row { justify-content: space-between; margin-top: 6px; }
