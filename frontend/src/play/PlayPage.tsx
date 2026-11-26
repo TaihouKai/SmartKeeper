@@ -370,11 +370,16 @@ export function PlayPage() {
     const s = scene.data;
     if (!s) return [];
     const out = new Map<string, Mentionable>();
-    s.entities.forEach((e) => out.set(e.ref, { ref: e.ref, label: e.name }));
-    s.entities.forEach((e) => e.presence.forEach((p) => out.set(p.ref, { ref: p.ref, label: p.label })));
-    s.seen.forEach((p) => out.set(p.ref, { ref: p.ref, label: p.label }));
+    s.entities.forEach((e) => out.set(e.ref, { ref: e.ref, label: e.name, kind: t("at.own") }));
+    s.seen.forEach((p) => out.set(p.ref, { ref: p.ref, label: p.label, kind: t("at.seen") }));
+    s.entities.forEach((e) => e.presence.forEach((p) => out.set(p.ref, { ref: p.ref, label: p.label, kind: t("at.near") })));
+    // 我知道名字的地点：在楼里地面上的写成这栋楼，其余写成坐标（带高度）
+    for (const p of s.places ?? []) {
+      const ref = p.feature && p.pos.z < 0.5 ? `feature:${p.feature}` : `point:${Math.round(p.pos.x * 10) / 10},${Math.round(p.pos.y * 10) / 10},${Math.round(p.pos.z * 10) / 10}`;
+      out.set(`place:${p.id}`, { ref, label: p.name, kind: t("at.place") });
+    }
     return [...out.values()];
-  }, [scene.data]);
+  }, [scene.data, t]);
   const placeViews = useMemo<PlaceView[]>(() => (scene.data?.places ?? []).map((p) => ({ id: p.id, name: p.name, lon: p.pos.lon, lat: p.pos.lat, feature: p.feature })), [scene.data]);
   const markers = useMemo<MarkerView[]>(() => {
     const s = scene.data;

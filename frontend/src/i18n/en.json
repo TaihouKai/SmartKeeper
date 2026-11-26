@@ -45,6 +45,12 @@
     "title": "SmartKeeper",
     "to_admin": "Admin console"
   },
+  "at": {
+    "near": "nearby",
+    "own": "my character",
+    "place": "place",
+    "seen": "seen before"
+  },
   "books": {
     "all": "← All rulebooks",
     "characters": "Characters",

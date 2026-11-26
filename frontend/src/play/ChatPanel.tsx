@@ -5,11 +5,13 @@ import { ErrorBox, formatDuration } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { Markdown } from "../ui/markdown";
 import { PlaceText, type PlaceTarget } from "./PlaceText";
+import { filterMentions, insertMention, mentionQuery } from "./mention";
 import { describeEvent, prettyMentions, type Ev } from "./events";
 
 export interface Mentionable {
   ref: string;
   label: string;
+  kind?: string; // 候选列表里的小字：我的角色、身边的人、见过的人、地点
 }
 
 type Talk = Schemas["TalkOut"];
@@ -228,23 +230,110 @@ export function ChatPanel({
   );
 }
 
-/** 输入框：Enter 发送，Shift+Enter 换行（行动用 Ctrl+Enter 解析，免得一不小心交上去）。 */
-function Composer({ value, onChange, onSend, disabled, placeholder, rows = 2, sendOnEnter = true }: { value: string; onChange: (v: string) => void; onSend: () => void; disabled?: boolean; placeholder?: string; rows?: number; sendOnEnter?: boolean }) {
+/**
+ * 输入框：Enter 发送，Shift+Enter 换行（行动用 Ctrl+Enter 解析，免得一不小心交上去）。
+ * 给了 mentions 时，打 @ 弹出候选（继续打字筛选，↑↓ 选，Enter/Tab 确定，Esc 关）；
+ * plain 时插入 @名字，否则插入 @[名字](引用)（行动解析用）。
+ */
+function Composer({
+  value,
+  onChange,
+  onSend,
+  disabled,
+  placeholder,
+  rows = 2,
+  sendOnEnter = true,
+  mentions,
+  plain = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSend: () => void;
+  disabled?: boolean;
+  placeholder?: string;
+  rows?: number;
+  sendOnEnter?: boolean;
+  mentions?: Mentionable[];
+  plain?: boolean;
+}) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  const [at, setAt] = useState<{ start: number; query: string; caret: number } | null>(null);
+  const [sel, setSel] = useState(0);
+  const options = at && mentions ? filterMentions(mentions, at.query) : [];
+  const look = (text: string, caret: number) => {
+    const q = mentions?.length ? mentionQuery(text, caret) : null;
+    setAt(q ? { ...q, caret } : null);
+    setSel(0);
+  };
+  const choose = (m: Mentionable) => {
+    if (!at) return;
+    const r = insertMention(value, at.start, at.caret, plain ? `@${m.label}` : `@[${m.label}](${m.ref})`);
+    onChange(r.text);
+    setAt(null);
+    requestAnimationFrame(() => {
+      box.current?.focus();
+      box.current?.setSelectionRange(r.caret, r.caret);
+    });
+  };
   return (
-    <textarea
-      rows={rows}
-      value={value}
-      disabled={disabled}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key !== "Enter" || !value.trim()) return;
-        if ((sendOnEnter && !e.shiftKey) || e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-          onSend();
-        }
-      }}
-    />
+    <div className="pl-input">
+      <textarea
+        ref={box}
+        rows={rows}
+        value={value}
+        disabled={disabled}
+        placeholder={placeholder}
+        onChange={(e) => {
+          onChange(e.target.value);
+          look(e.target.value, e.target.selectionStart);
+        }}
+        onClick={(e) => look(value, e.currentTarget.selectionStart)}
+        onBlur={() => setTimeout(() => setAt(null), 150)}
+        onKeyDown={(e) => {
+          if (options.length > 0) {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+              e.preventDefault();
+              setSel((sel + (e.key === "ArrowDown" ? 1 : options.length - 1)) % options.length);
+              return;
+            }
+            if ((e.key === "Enter" || e.key === "Tab") && !e.ctrlKey && !e.metaKey) {
+              e.preventDefault();
+              choose(options[sel] ?? options[0]!);
+              return;
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              setAt(null);
+              return;
+            }
+          }
+          if (e.key !== "Enter" || !value.trim()) return;
+          if ((sendOnEnter && !e.shiftKey) || e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            onSend();
+          }
+        }}
+      />
+      {options.length > 0 && (
+        <ul className="pl-at" role="listbox">
+          {options.map((m, i) => (
+            <li key={`${m.ref}|${m.label}`} role="option" aria-selected={i === sel}>
+              <button
+                type="button"
+                className={i === sel ? "active" : ""}
+                onMouseDown={(e) => {
+                  e.preventDefault(); // 不让输入框先失去焦点
+                  choose(m);
+                }}
+              >
+                @{m.label}
+                {m.kind && <span className="sk-hint"> · {m.kind}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -351,6 +440,7 @@ function KpComposer({
             value={draft}
             disabled={!collecting}
             sendOnEnter={false}
+            mentions={mentionables}
             placeholder={t("kp.action_placeholder")}
             onChange={(v) => {
               setDraft(v);
@@ -369,7 +459,7 @@ function KpComposer({
             >
               <option value="">{t("kp.insert_mention")}</option>
               {mentionables.map((m) => (
-                <option key={m.ref} value={m.ref}>
+                <option key={`${m.ref}|${m.label}`} value={m.ref}>
                   @{m.label}
                 </option>
               ))}
@@ -387,7 +477,7 @@ function KpComposer({
         </>
       ) : (
         <>
-          <Composer value={question} onChange={setQuestion} onSend={doAsk} placeholder={t("kp.ask_placeholder")} />
+          <Composer value={question} onChange={setQuestion} onSend={doAsk} placeholder={t("kp.ask_placeholder")} mentions={mentionables} plain />
           <div className="sk-row pl-tools">
             <button className="sk-primary pl-send" disabled={!question.trim() || ask.busy} onClick={doAsk}>
               {t("kp.ask")}

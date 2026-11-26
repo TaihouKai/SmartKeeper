@@ -465,3 +465,7 @@ tr.inactive { opacity: 0.5; }
 .pl-pick-height input[type="number"] { width: 4.5em; }
 .pl-map-hint { max-width: calc(100% - 200px); }
 .pl-place-link { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; font: inherit; }
+.pl-input { position: relative; }
+.pl-at { position: absolute; left: 0; bottom: calc(100% + 4px); z-index: 20; list-style: none; margin: 0; padding: 4px 0; min-width: 14em; max-width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+.pl-at button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 5px 10px; color: inherit; font: inherit; cursor: pointer; }
+.pl-at button.active, .pl-at button:hover { background: var(--wb-sunken); color: var(--accent); }

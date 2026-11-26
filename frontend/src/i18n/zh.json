@@ -45,6 +45,12 @@
     "title": "SmartKeeper",
     "to_admin": "管理控制台"
   },
+  "at": {
+    "near": "就在身边",
+    "own": "我的角色",
+    "place": "地点",
+    "seen": "见过"
+  },
   "books": {
     "all": "← 所有规则书",
     "characters": "角色",
