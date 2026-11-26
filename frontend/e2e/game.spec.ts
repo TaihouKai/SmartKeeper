@@ -84,7 +84,8 @@ async function createCharacter(page: Page, i: number) {
 }
 
 async function act(page: Page, text: string) {
-  const box = page.locator(".sk-box").first();
+  // 聊天面板的 KP 会话，“行动”模式
+  const box = page.locator(".pl-composer");
   await box.locator("textarea").fill(text);
   await box.getByRole("button", { name: "Parse" }).click();
   await expect(page.locator(".sk-echo")).toBeVisible({ timeout: 20_000 });
@@ -122,7 +123,7 @@ test("three players create characters and play two rounds without the console", 
     for (const page of pages) {
       await expect(async () => {
         await page.reload();
-        await expect(page.locator(".sk-event.feedback")).toHaveCount(round, { timeout: 2_000 });
+        await expect(page.locator(".pl-msg.kp")).toHaveCount(round, { timeout: 2_000 });
       }).toPass({ timeout: 60_000 });
       // 玩家看不到回合数，只看到自己的时间和状态
       await expect(page.locator(".sk-statusbar")).toContainText("Your move");
@@ -135,19 +136,19 @@ test("three players create characters and play two rounds without the console", 
   await placePlayers(browser, gameId, { Player1: [20, -34], Player2: [-90, -90], Player3: [-90, -80] });
   const a = pages[0]!;
   await a.reload();
-  await a.getByRole("button", { name: "Map", exact: true }).click();
-  await a.locator(".sk-card li").first().getByRole("button", { name: "Talk", exact: true }).click();
-  await expect(a.locator(".sk-talk textarea")).toBeVisible({ timeout: 10_000 });
-  await a.locator(".sk-talk textarea").fill("Did you see the package?");
+  // 地图下面“身边的人”里点“交谈”：聊天面板切到这场对话
+  await a.locator(".pl-people li").first().getByRole("button", { name: "Talk", exact: true }).click();
+  // 等聊天面板换到这场对话（换之前看到的还是 KP 会话的输入框）
+  await expect(a.locator(".pl-conv-head")).toContainText("Talk ·", { timeout: 10_000 });
+  await a.locator(".pl-composer textarea").fill("Did you see the package?");
   await a.getByRole("button", { name: "Say", exact: true }).click();
-  await expect(a.locator(".sk-talk")).toContainText("Did you see the package?");
+  await expect(a.locator(".pl-msgs")).toContainText("Did you see the package?");
   // NPC 的回话按长度延迟出现（模拟打字）
-  await expect(a.locator(".sk-talk .sk-event:not(.mine)")).toHaveCount(1, { timeout: 30_000 });
+  await expect(a.locator(".pl-msgs .pl-msg:not(.mine)")).toHaveCount(1, { timeout: 30_000 });
   await shot(a, "play-talk");
   await a.getByRole("button", { name: "End conversation" }).click();
-  await expect(a.locator(".sk-talk").first()).toContainText("The conversation is over.", { timeout: 10_000 });
-  // 地图页：3D 地图和在场列表
-  await pages[0]!.getByRole("button", { name: "Map" }).click();
+  await expect(a.locator(".pl-composer")).toContainText("The conversation is over.", { timeout: 10_000 });
+  // 地图和聊天在同一屏
   await expect(pages[0]!.locator(".maplibregl-canvas")).toBeVisible();
   await pages[0]!.waitForTimeout(2500);
   // 整页截图会改变视口，WebGL 画布在那一刻是空的；只截地图元素
@@ -156,29 +157,26 @@ test("three players create characters and play two rounds without the console", 
   await placePlayers(browser, gameId, { Player1: [20, -34], Player2: [22, -34], Player3: [-90, -90] });
   for (const p of [pages[0]!, pages[1]!]) {
     await p.reload();
-    await p.getByRole("button", { name: "Map", exact: true }).click();
   }
   // 身边是玩家 2 和卖花老人（NPC），代号看不出谁是谁：都提一次。对着 NPC 的提议一直挂着，没人回应
-  const near = a.locator(".sk-card li", { has: a.getByRole("button", { name: "Talk", exact: true }) });
+  const near = a.locator(".pl-people li", { has: a.getByRole("button", { name: "Talk", exact: true }) });
   for (let i = 0; i < (await near.count()); i++) {
     await near.nth(i).getByRole("button", { name: "Propose alliance" }).click();
     await a.waitForTimeout(300);
   }
-  await expect(a.locator(".sk-card", { hasText: "Alliances" })).toContainText("Waiting for", { timeout: 10_000 });
+  await expect(a.locator(".pl-alliance")).toContainText("Waiting for", { timeout: 10_000 });
   const b = pages[1]!;
   await expect(async () => {
     await b.reload();
-    await b.getByRole("button", { name: "Map", exact: true }).click();
-    await expect(b.locator(".sk-card", { hasText: "Alliances" })).toContainText("proposes an alliance", { timeout: 2_000 });
+    await expect(b.locator(".pl-alliance")).toContainText("proposes an alliance", { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
-  await b.getByRole("button", { name: "Accept" }).click();
-  await expect(b.locator(".sk-card", { hasText: "Alliances" })).toContainText("Ally:", { timeout: 10_000 });
+  await b.locator(".pl-alliance").getByRole("button", { name: "Accept" }).click();
+  await expect(b.locator(".pl-alliance")).toContainText("Ally:", { timeout: 10_000 });
   await a.reload();
-  await a.getByRole("button", { name: "Map", exact: true }).click();
-  await expect(a.locator(".sk-card", { hasText: "Alliances" })).toContainText("Ally:", { timeout: 10_000 });
+  await expect(a.locator(".pl-alliance")).toContainText("Ally:", { timeout: 10_000 });
   await shot(a, "play-alliance");
   await pages[1]!.getByRole("button", { name: "Sheet" }).click();
-  await expect(pages[1]!.locator(".sk-card h3")).toContainText("Hero 1");
+  await expect(pages[1]!.locator(".pl-sheet-card h3")).toContainText("Hero 1");
   await shot(pages[1]!, "play-sheet");
 });
 

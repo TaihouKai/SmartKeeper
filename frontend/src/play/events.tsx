@@ -17,9 +17,10 @@ export function eventText(e: Ev): string {
   return typeof text === "string" ? prettyMentions(text) : "";
 }
 
-/** 一条事件的显示：系统事件用消息代码渲染，其余显示原文。可选“引用”按钮。 */
-export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => void }) {
-  const { t } = useI18n();
+/** 一条事件写成什么：谁说的、内容、内容是不是 Markdown、样式（反馈、行动、系统消息……）。 */
+export type Described = { who: string; body: string; md: boolean; cls: string };
+
+export function describeEvent(e: Ev, t: (k: string, p?: Record<string, string>) => string): Described {
   let who = "";
   if (e.actor === "kp") who = t("event.kp");
   else if (e.actor === "me") who = t("event.me");
@@ -96,6 +97,13 @@ export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => voi
       body = eventText(e);
   }
   if (e.type === "pm_kp" && e.payload.kind === "opening") who = t("event.opening");
+  return { who, body, md, cls };
+}
+
+/** 一条事件的显示：系统事件用消息代码渲染，其余显示原文。可选“引用”按钮。 */
+export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => void }) {
+  const { t } = useI18n();
+  const { who, body, md, cls } = describeEvent(e, t);
   return (
     <div className={cls}>
       {who && <span className="who">{who}</span>}

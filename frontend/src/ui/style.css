@@ -381,3 +381,81 @@ tr.inactive { opacity: 0.5; }
 .cf-fixing, .cf-fixed { margin-bottom: 10px; }
 .cf-fixed { border-left: 4px solid var(--accent); }
 .cf-fix-row { margin: 8px 0 0; }
+
+/* ===== 游戏页：一屏。左边地图 + 身边的人，右边聊天（会话列表 + 消息 + 输入框） ===== */
+.pl-shell { height: 100vh; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+.pl-top { padding: 6px 14px; border-bottom: 1px solid var(--line); flex: none; }
+.pl-top .pl-time { font-weight: 600; color: var(--fg); }
+.pl-top .pl-phase.go { color: var(--accent); font-weight: 600; }
+.pl-spacer { flex: 1; }
+.pl-shell > .sk-react, .pl-shell > .sk-error { margin: 6px 14px; flex: none; max-height: 40vh; overflow: auto; }
+.pl-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(380px, 38%); }
+.pl-left { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+.pl-map { position: relative; flex: 1 1 62%; min-height: 220px; }
+.pl-map .sk-map { height: 100% !important; border-radius: 0; }
+.pl-map-hint { position: absolute; left: 8px; bottom: 4px; margin: 0; font-size: 11px; color: #555; background: rgba(255, 255, 255, 0.75); padding: 1px 6px; border-radius: 4px; pointer-events: none; }
+.pl-travel { position: absolute; top: 10px; left: 10px; max-width: 320px; z-index: 3; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); }
+.pl-scene { flex: 0 1 38%; overflow-y: auto; padding: 8px 12px; border-top: 1px solid var(--line); }
+.pl-scene-block { margin-bottom: 10px; }
+.pl-scene-block h4 { margin: 4px 0; font-size: 14px; }
+.pl-people { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.pl-people li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.pl-person { border: none; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border-radius: 12px; padding: 1px 9px; }
+.pl-person-actions { margin-left: auto; display: inline-flex; gap: 8px; font-size: 12px; }
+.pl-rename { display: grid; gap: 6px; }
+.pl-alliance summary { cursor: pointer; }
+.pl-badge { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--warn); color: #fff; font-size: 11px; line-height: 18px; text-align: center; margin-left: 6px; }
+
+.pl-chat { display: grid; grid-template-columns: 132px minmax(0, 1fr); min-height: 0; }
+.pl-channels { display: flex; flex-direction: column; gap: 2px; padding: 6px 4px; border-right: 1px solid var(--line); overflow-y: auto; background: color-mix(in srgb, var(--card) 60%, var(--bg)); }
+.pl-channels button { display: flex; align-items: center; gap: 4px; border: none; background: none; text-align: left; padding: 7px 8px; border-radius: 6px; color: var(--fg); }
+.pl-channels button.active { background: var(--card); color: var(--accent); font-weight: 600; }
+.pl-channels button.alert .pl-ch-name { color: var(--warn); }
+.pl-ch-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.pl-channels select { margin: 6px 2px 0; font-size: 12px; }
+.pl-conv { display: flex; flex-direction: column; min-height: 0; }
+.pl-conv-head { display: flex; flex-direction: column; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.pl-conv-head .sk-hint { font-size: 12px; }
+.pl-msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.pl-empty { text-align: center; margin-top: 30px; }
+.pl-msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 88%; }
+.pl-msg.mine { align-self: flex-end; align-items: flex-end; }
+.pl-who { font-size: 12px; color: var(--muted); margin: 0 4px 2px; }
+.pl-bubble { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 7px 11px; white-space: pre-wrap; word-break: break-word; }
+.pl-bubble .sk-md { white-space: normal; }
+.pl-msg.mine .pl-bubble { background: color-mix(in srgb, var(--accent) 18%, var(--card)); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.pl-msg.kp .pl-bubble { border-left: 3px solid var(--accent); }
+.pl-msg.action .pl-bubble { border-left: 3px solid var(--ok); }
+.pl-msg.sys { align-self: center; max-width: 95%; }
+.pl-msg.sys .pl-bubble { background: none; border: none; color: var(--muted); font-size: 12px; text-align: center; padding: 2px 6px; }
+.pl-quote { font-size: 11px; margin: 2px 4px 0; }
+.pl-composer { border-top: 1px solid var(--line); padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; flex: none; }
+.pl-composer textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.pl-modes { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pl-modes button { border: 1px solid var(--line); background: none; border-radius: 14px; padding: 2px 12px; font-size: 13px; }
+.pl-modes button.active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.pl-modes .sk-hint { font-size: 11px; flex-basis: 100%; }
+.pl-tools { justify-content: flex-start; }
+.pl-send { margin-left: auto; }
+.pl-note { margin: 0; padding: 6px 10px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 8%, var(--card)); font-size: 13px; }
+.pl-echo { max-height: 35vh; overflow-y: auto; }
+.pl-sheet { width: min(520px, 100vw); }
+.pl-sheet-card { margin-bottom: 16px; }
+
+/* 窄屏：地图在上，聊天在下，整页可以滚动；会话列表变成一排可横向滚动的标签 */
+@media (max-width: 900px) {
+  .pl-shell { height: auto; min-height: 100vh; overflow: visible; }
+  .pl-main { display: flex; flex-direction: column; }
+  .pl-left { border-right: none; }
+  .pl-map { flex: none; height: 42vh; }
+  .pl-scene { max-height: 30vh; }
+  .pl-chat { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 85vh; }
+  .pl-channels { flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--line); }
+  .pl-channels button { flex: none; }
+  .pl-ch-name { max-width: 9em; }
+}
+.sk-map-failed { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center; color: var(--muted); z-index: 1; }
+/* “引用”只在鼠标移到消息上时出现；触屏上一直显示 */
+.pl-quote { opacity: 0; transition: opacity 0.15s; }
+.pl-msg:hover .pl-quote, .pl-quote:focus-visible { opacity: 1; }
+@media (hover: none) { .pl-quote { opacity: 1; } }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useI18n } from "../i18n";
@@ -42,22 +42,31 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
 
   const data = useMemo(() => applyChanges(map, changes), [map, changes]);
 
+  // 浏览器开不了 WebGL（显卡驱动、远程桌面、一些手机浏览器）：地图的位置显示一句提示，页面其余部分照常能用
+  const [failed, setFailed] = useState(false);
+
   // 创建地图（只在地图本身变化时重建）
   useEffect(() => {
     if (!container.current) return;
     const [w, s, e, n] = map.bounds_lonlat;
-    const m = new maplibregl.Map({
-      container: container.current,
-      style: BLANK_STYLE,
-      bounds: [
-        [w, s],
-        [e, n],
-      ],
-      pitch: 50,
-      bearing: -15,
-      attributionControl: false,
-      maxPitch: 75,
-    });
+    let m: maplibregl.Map;
+    try {
+      m = new maplibregl.Map({
+        container: container.current,
+        style: BLANK_STYLE,
+        bounds: [
+          [w, s],
+          [e, n],
+        ],
+        pitch: 50,
+        bearing: -15,
+        attributionControl: false,
+        maxPitch: 75,
+      });
+    } catch {
+      setFailed(true);
+      return;
+    }
     m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     m.on("load", () => {
       m.addSource("features", { type: "geojson", data, promoteId: "id" });
@@ -184,6 +193,7 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
 
   return (
     <div className="sk-map" style={{ height }}>
+      {failed && <p className="sk-map-failed">{t("map.no_webgl")}</p>}
       <div ref={container} className="sk-map-canvas" aria-label={t("map.aria")} />
       <div className="sk-map-attribution">{map.attribution}</div>
     </div>

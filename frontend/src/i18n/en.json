@@ -114,6 +114,19 @@
     "view": "View",
     "yours": "Your own"
   },
+  "ch": {
+    "broadcast": "Broadcast",
+    "broadcast_hint": "Everyone sees this.",
+    "dm": "DM · {name}",
+    "dm_hint": "Out-of-character messages between players; characters don't know.",
+    "empty": "No messages yet.",
+    "kp": "Keeper",
+    "kp_hint": "Your actions, questions, the keeper's feedback and notices.",
+    "list": "Conversations",
+    "new_dm": "+ Message…",
+    "talk": "Talk · @{label}",
+    "talk_hint": "A face-to-face conversation (you can't tell a player from an NPC)."
+  },
   "character": {
     "action_rules": "What it does when used: target, range, cost, damage, parameters… (optional; open to write)",
     "action_rules_filled": "What it does when used (filled in; open to see or change)",
@@ -1101,7 +1114,9 @@
     "a_point": "a point on the map",
     "action_box": "Action",
     "action_hint": "Write what your character does next (\"I …\"). It is parsed for you to confirm, with an estimate of how long it takes; you can resubmit until it starts. Once under way it can't be changed until it finishes or something interrupts it. Only confirmed actions change the world.",
+    "action_placeholder": "What do you do this round? Click people or places on the map to @ them (Ctrl+Enter to parse)",
     "ask": "Send",
+    "ask_placeholder": "Ask the keeper about rules or the situation (Enter to send)",
     "busy": "Your action is still under way. You'll be told when it finishes or something affects you; until then it can't be changed.",
     "chat_box": "Ask the keeper",
     "chat_hint": "Ask questions and clarify. The keeper answers only what your character could know; nothing here counts as an action.",
@@ -1111,6 +1126,8 @@
     "estimate": "Estimated time {total}",
     "insert_mention": "Insert @…",
     "item_time": "travel {move} + action {act}",
+    "mode_act": "Act",
+    "mode_ask": "Ask",
     "parse": "Parse",
     "quote_chip": "Quote #{seq}",
     "submitted_already": "Submitted:",
@@ -1192,7 +1209,8 @@
       "floor": "Floor {floor}",
       "ground": "Ground level",
       "roof": "Rooftop"
-    }
+    },
+    "no_webgl": "This browser can't show the 3D map (WebGL is unavailable). Try another browser or turn on hardware acceleration; chat and actions still work."
   },
   "materials": {
     "kp": "Keeper part scenario_kp.md",
@@ -1278,6 +1296,7 @@
     "handle_note": "Private note",
     "intel": "What I know ({n})",
     "map_hint": "Tap a person or place to @ it; tap the ground to pick a destination. Describe height in words (\"the rooftop\", \"100 m up\").",
+    "mention_hint": "Click to @ them in your action",
     "nobody": "(nobody nearby)",
     "placement_unknown": "unknown placed object",
     "placements": "Placed objects you notice:",
@@ -1784,6 +1803,7 @@
     "invited_me": "@{label} wants to talk to you. If you accept, what you were doing stops and you'll act again after the talk.",
     "me": "You",
     "none": "No conversation. Use Talk next to someone in the map tab's “Currently perceived” list.",
+    "placeholder": "Say something (Enter to send, Shift+Enter for a new line)",
     "send": "Say",
     "waiting": "Waiting for an answer…",
     "with": "Talking with @{label}"

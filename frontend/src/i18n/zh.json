@@ -114,6 +114,19 @@
     "view": "查看",
     "yours": "自己写的"
   },
+  "ch": {
+    "broadcast": "广播",
+    "broadcast_hint": "所有人都看得到。",
+    "dm": "私聊 · {name}",
+    "dm_hint": "玩家之间的场外私聊，不进游戏、角色不知道。",
+    "empty": "还没有消息。",
+    "kp": "KP",
+    "kp_hint": "行动、提问、KP 的反馈和各种通知都在这里。",
+    "list": "会话",
+    "new_dm": "＋ 私聊……",
+    "talk": "对话 · @{label}",
+    "talk_hint": "角色之间的面对面交谈（对方是玩家还是 NPC 看不出来）。"
+  },
   "character": {
     "action_rules": "用的时候的效果：对象、射程、耗魔、伤害、参数……（可选，点开写）",
     "action_rules_filled": "用的时候的效果（已写好，点开看或改）",
@@ -1101,7 +1114,9 @@
     "a_point": "地图上的点",
     "action_box": "行动框",
     "action_hint": "在这里写你的角色接下来要做什么（“我要……”）。提交前会解析给你确认，并告诉你大概要花多久；确认之后、结算开始之前还可以重新提交。行动开始后，直到做完或者有人打断都不能改。只有这里确认过的行动会改变世界。",
+    "action_placeholder": "写下这一轮要做什么，点地图上的人或地点可以 @ 它（Ctrl+Enter 解析）",
     "ask": "发送",
+    "ask_placeholder": "问 KP 规则或者情况（Enter 发送）",
     "busy": "你的行动还在进行。行动做完、或者发生了和你有关的事时会通知你；在那之前不能改变行动。",
     "chat_box": "聊天框",
     "chat_hint": "向 KP 提问和澄清。KP 只回答你的角色此刻能知道的事；这里写的话不算行动。",
@@ -1111,6 +1126,8 @@
     "estimate": "预计耗时 {total}",
     "insert_mention": "插入 @……",
     "item_time": "移动 {move} + 动作 {act}",
+    "mode_act": "行动",
+    "mode_ask": "提问",
     "parse": "解析",
     "quote_chip": "引用 #{seq}",
     "submitted_already": "已提交：",
@@ -1192,7 +1209,8 @@
       "floor": "{floor} 层",
       "ground": "地面",
       "roof": "楼顶"
-    }
+    },
+    "no_webgl": "这个浏览器开不了 3D 地图（WebGL 不可用）。换个浏览器，或者打开浏览器的硬件加速再试；聊天和行动照常能用。"
   },
   "materials": {
     "kp": "KP 专属部分 scenario_kp.md",
@@ -1278,6 +1296,7 @@
     "handle_note": "私人备注",
     "intel": "我知道的（{n}）",
     "map_hint": "点人或地物就是 @ 它；点地面选一个坐标作为目的地。高度用文字写在行动里（例如“楼顶”“上空 100 米”）。",
+    "mention_hint": "点一下在行动里 @ 他",
     "nobody": "（附近没有人）",
     "placement_unknown": "不明的设置物",
     "placements": "察觉到的设置物：",
@@ -1784,6 +1803,7 @@
     "invited_me": "@{label} 想和你说话。接受的话，你正在做的事就此停下，对话结束后要重新行动。",
     "me": "你",
     "none": "没有进行中的对话。在地图页“此刻能感知到的”列表里点“对话”可以和对方当面说话。",
+    "placeholder": "说点什么（Enter 发送，Shift+Enter 换行）",
     "send": "说",
     "waiting": "等待对方回应……",
     "with": "和 @{label} 的对话"
