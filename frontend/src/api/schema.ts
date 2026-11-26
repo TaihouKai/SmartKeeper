@@ -21,6 +21,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/action/compose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Action Compose
+         * @description 界面上点出来的行动（加上补充说明）：不耗时、只对自己、没人看见的当场生效；
+         *     其余算好耗时给玩家确认，补充说明交给 KP 和点好的行动一起解析（矛盾时 KP 驳回）。
+         */
+        post: operations["action_compose_api_action_compose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/action/parse": {
         parameters: {
             query?: never;
@@ -1566,6 +1587,11 @@ export interface components {
          *     确认时只发回 parse_id：解析结果（包括 KP 估的耗时）留在服务器上，玩家改不了。
          */
         ActionEcho: {
+            /**
+             * Conflict
+             * @default
+             */
+            conflict: string;
             /** Items */
             items: components["schemas"]["EchoItem"][];
             /** Parse Id */
@@ -1946,6 +1972,60 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** ComposeIn */
+        ComposeIn: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: components["schemas"]["ComposeItemIn"][];
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /**
+         * ComposeItemIn
+         * @description 界面上点出来的一条行动：actor 去 to（companions 和他一起走），和/或者用 entry（对 target，参数 params）。
+         */
+        ComposeItemIn: {
+            /** Actor */
+            actor: string;
+            /**
+             * Companions
+             * @default []
+             */
+            companions: string[];
+            /** Entry */
+            entry?: string | null;
+            /**
+             * Params
+             * @default {}
+             */
+            params: {
+                [key: string]: number;
+            };
+            target?: components["schemas"]["TargetIn"] | null;
+            to?: components["schemas"]["SpotIn"] | null;
+        };
+        /**
+         * ComposeOut
+         * @description 要确认的行动（echo），或者全部当场生效了（instant）。
+         */
+        ComposeOut: {
+            echo?: components["schemas"]["ActionEcho"] | null;
+            /**
+             * Instant
+             * @default false
+             */
+            instant: boolean;
+        };
         /** CopilotAnswer */
         CopilotAnswer: {
             /** Answer */
@@ -2235,6 +2315,11 @@ export interface components {
              * @default appearance
              */
             appearance_field: string;
+            /**
+             * Appearance Hidden
+             * @default
+             */
+            appearance_hidden: string;
             /**
              * Budgets
              * @default []
@@ -3577,6 +3662,8 @@ export interface components {
              * @default false
              */
             public: boolean;
+            /** Radius */
+            radius?: number | null;
         };
         /**
          * PlaceOut
@@ -3592,6 +3679,8 @@ export interface components {
             /** Name */
             name: string;
             pos: components["schemas"]["LonLatPoint"];
+            /** Radius */
+            radius?: number | null;
         };
         /** PlacementOut */
         PlacementOut: {
@@ -4399,12 +4488,46 @@ export interface components {
             template: string;
         };
         /**
+         * SkillParam
+         * @description 用的时候要选的一个参数（例如投入多少魔力）：有可选值就从中选，否则在 min～max 之间填一个数。
+         */
+        SkillParam: {
+            /**
+             * Choices
+             * @default []
+             */
+            choices: string[];
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Max */
+            max?: number | null;
+            /** Min */
+            min?: number | null;
+            /** Name */
+            name: string;
+        };
+        /**
          * SkillView
-         * @description 玩家自己的角色能主动用的一个技能（卡上写的和规则书自动给的都算；只有常驻加成的不算）。
+         * @description 玩家自己的角色能主动用的一个技能或动作（卡上写的和规则书自动给的都算；只有常驻加成的、
+         *     只能用来应对攻击的不算）。
          *
-         *     name 是用的时候写的名字（物品的用途是“物品名/用途名”）。
+         *     name 是用的时候写的名字（物品的用途是“物品名/用途名”）。target 是对谁用：single 选一个，self 自己，none 不选。
+         *     toggle_on 不是 None 时这是一个开关，值是此刻开没开。cast_minutes 是施放时间（分钟，不到 1 算瞬发）。
          */
         SkillView: {
+            /**
+             * Cast Minutes
+             * @default 0
+             */
+            cast_minutes: number;
             /**
              * Cooldown
              * @default false
@@ -4426,6 +4549,31 @@ export interface components {
             group_label: string;
             /** Name */
             name: string;
+            /**
+             * Params
+             * @default []
+             */
+            params: components["schemas"]["SkillParam"][];
+            /**
+             * Target
+             * @default single
+             */
+            target: string;
+            /** Toggle On */
+            toggle_on?: boolean | null;
+        };
+        /**
+         * SpotIn
+         * @description 地图上的一个地方：起了名字的地点（我知道的）、地物（建筑可以给离地高度）、或坐标（米）。
+         */
+        SpotIn: {
+            /** Feature */
+            feature?: string | null;
+            /** Place */
+            place?: string | null;
+            point?: components["schemas"]["Point"] | null;
+            /** Z */
+            z?: number | null;
         };
         /** StatePatchIn */
         StatePatchIn: {
@@ -4535,6 +4683,14 @@ export interface components {
             from?: string | null;
             /** To */
             to: string;
+        };
+        /** TargetIn */
+        TargetIn: {
+            /** Feature */
+            feature?: string | null;
+            point?: components["schemas"]["Point"] | null;
+            /** Ref */
+            ref?: string | null;
         };
         /**
          * TellIn
@@ -4684,6 +4840,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    action_compose_api_action_compose_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComposeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComposeOut"];
                 };
             };
             /** @description Validation Error */

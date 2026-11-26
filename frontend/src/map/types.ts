@@ -43,6 +43,7 @@ export interface PlaceView {
   lon: number;
   lat: number;
   feature?: string | null; // 所在的地物（例如这栋楼）：鼠标移到这栋楼上显示这个名字
+  radius?: number | null; // 一片范围（米）：地图上画一个圈
 }
 
 export type Pick =

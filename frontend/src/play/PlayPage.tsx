@@ -8,7 +8,8 @@ import { ErrorBox, LangSwitch, formatDuration, formatGameTime } from "../ui/comp
 import { useAction, usePoll } from "../ui/hooks";
 import { ReactionPanel } from "./ReactionPanel";
 import { showNumber, withUnit } from "../ui/choices";
-import { ChatPanel, type ChannelKey, type Mentionable, type SkillItem } from "./ChatPanel";
+import { ChatPanel, type ChannelKey, type Mentionable } from "./ChatPanel";
+import { ActionPlanProvider, usePlanState, useActionPlan, type Skill } from "./actionPlan";
 
 /** 地图上点选的地方：位置（经纬度和米制坐标）、点到的地物（没有是空地）、我的角色走过去要多久。 */
 type Picked = {
@@ -267,8 +268,9 @@ function ScenePanel({
 }
 
 /** 角色卡：从顶栏打开的侧栏。数值、条目、状态、改动记录。 */
-function SheetDrawer({ onClose, skills, onUse }: { onClose: () => void; skills: SkillItem[]; onUse: (s: SkillItem) => void }) {
+function SheetDrawer({ onClose, onUse }: { onClose: () => void; onUse: (s: Skill) => void }) {
   const { t } = useI18n();
+  const { skills } = useActionPlan();
   const sheets = usePoll(() => call(api.GET("/api/sheets")), 30_000);
   const rules = usePoll(() => call(api.GET("/api/rules")), 600_000);
   const [hist, setHist] = useState<string | null>(null);
@@ -288,18 +290,18 @@ function SheetDrawer({ onClose, skills, onUse }: { onClose: () => void; skills: 
         return (
           <section key={s.entity_id} className="pl-sheet-card">
             <h3>{s.label || sheet.name}</h3>
-            {skills.some((x) => x.ref === s.entity_id) && (
+            {skills.some((x) => x.entity_id === s.entity_id) && (
               <div className="pl-skills">
                 <strong>{t("skill.title")}</strong>
                 <ul>
                   {skills
-                    .filter((x) => x.ref === s.entity_id)
+                    .filter((x) => x.entity_id === s.entity_id)
                     .map((x) => (
                       <li key={x.name}>
                         <button type="button" className="sk-primary" disabled={x.cooldown} onClick={() => onUse(x)}>
                           {t("skill.use")}
                         </button>{" "}
-                        <b>{x.name}</b> <span className="sk-hint">{x.group}{x.cooldown ? ` · ${t("skill.cooldown")}` : ""}</span>
+                        <b>{x.name}</b> <span className="sk-hint">{x.group_label || x.group}{x.toggle_on !== null && x.toggle_on !== undefined ? ` · ${t(x.toggle_on ? "plan.on" : "plan.off")}` : ""}{x.cooldown ? ` · ${t("skill.cooldown")}` : ""}</span>
                         {x.description && <div className="sk-hint pl-skill-desc">{x.description}</div>}
                       </li>
                     ))}
@@ -409,11 +411,14 @@ export function PlayPage() {
     }
     return [...out.values()];
   }, [scene.data, t]);
-  const skillList = useMemo<SkillItem[]>(() => {
-    const own = new Map((scene.data?.entities ?? []).map((e) => [e.ref, e.name]));
-    return (skills.data ?? []).map((s) => ({ ref: s.entity_id, owner: own.get(s.entity_id) ?? "?", name: s.name, group: s.group_label || s.group, description: s.description ?? "", cooldown: s.cooldown ?? false }));
-  }, [skills.data, scene.data]);
-  const placeViews = useMemo<PlaceView[]>(() => (scene.data?.places ?? []).map((p) => ({ id: p.id, name: p.name, lon: p.pos.lon, lat: p.pos.lat, feature: p.feature })), [scene.data]);
+  // 本回合行动：自己的角色、能用的技能和动作；行动列表（地图上设目的地、角色卡上点“使用”也往里加）
+  const own = useMemo(() => (scene.data?.entities ?? []).map((e) => ({ ref: e.ref, name: e.name })), [scene.data]);
+  const skillList = useMemo<Skill[]>(() => {
+    const names = new Map(own.map((o) => [o.ref, o.name]));
+    return (skills.data ?? []).map((s) => ({ ...s, owner: names.get(s.entity_id) ?? "?" }));
+  }, [skills.data, own]);
+  const planState = usePlanState(own, skillList);
+  const placeViews = useMemo<PlaceView[]>(() => (scene.data?.places ?? []).map((p) => ({ id: p.id, name: p.name, lon: p.pos.lon, lat: p.pos.lat, feature: p.feature, radius: p.radius })), [scene.data]);
   const markers = useMemo<MarkerView[]>(() => {
     const s = scene.data;
     if (!s) return [];
@@ -489,9 +494,12 @@ export function PlayPage() {
     if (!c) return;
     await openAt(c[0], c[1], featureInfo(target.id), target.name, undefined, true);
   };
+  // 设为目的地：给选中的角色加一条移动（可以勾选和谁一起走）
   const useDestination = (label: string, z: number) => {
-    if (!picked) return;
-    setDraft(`${draft}@[${label}](point:${Math.round(picked.x * 10) / 10},${Math.round(picked.y * 10) / 10},${z}) `);
+    if (!picked || !planState.actor) return;
+    const f = picked.feature;
+    const to = f ? { feature: f.id, z: f.kind === "building" ? z : null } : { point: { x: Math.round(picked.x * 10) / 10, y: Math.round(picked.y * 10) / 10, z } };
+    planState.add({ actor: planState.actor, to: { to, label }, companions: [], params: {} });
     setPicked(null);
     setChannel("kp");
   };
@@ -504,10 +512,11 @@ export function PlayPage() {
     setPicked(null);
     setChannel("kp");
   };
-  // 用技能：在行动里写上“@角色 使用「技能」，”，接着写对谁用、怎么用，解析时 KP 按技能名对上卡上的那一条
-  const pickSkill = (s: SkillItem) => {
-    const sep = draft && !/\s$/.test(draft) ? " " : "";
-    setDraft(`${draft}${sep}@[${s.owner}](${s.ref}) ${t("skill.use_text", { name: s.name })}`);
+  // 角色卡上点“使用”：在行动面板里选对象和参数（不用的直接加进行动列表）
+  const pickSkill = (s: Skill) => {
+    planState.setActor(s.entity_id);
+    if (s.target === "single" || s.params.length > 0) planState.setConfiguring(s);
+    else planState.add({ actor: s.entity_id, entry: s.name, companions: [], params: {} });
     setChannel("kp");
   };
   const startTalk = (from: string, to: string) =>
@@ -518,6 +527,7 @@ export function PlayPage() {
     });
 
   return (
+    <ActionPlanProvider value={planState}>
     <div className="pl-shell">
       <TopBar status={status.data} onSheet={() => setSheetOpen(true)} />
       <ReactionPanel onDone={refresh} />
@@ -556,14 +566,11 @@ export function PlayPage() {
           onChanged={refresh}
           places={scene.data?.places ?? []}
           onPlace={(p) => void err.run(() => openPlace(p))}
-          skills={skillList}
-          onUseSkill={pickSkill}
         />
       </div>
       {sheetOpen && (
         <SheetDrawer
           onClose={() => setSheetOpen(false)}
-          skills={skillList}
           onUse={(s) => {
             pickSkill(s);
             setSheetOpen(false);
@@ -571,5 +578,6 @@ export function PlayPage() {
         />
       )}
     </div>
+    </ActionPlanProvider>
   );
 }

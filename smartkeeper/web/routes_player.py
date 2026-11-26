@@ -14,12 +14,14 @@ from pydantic import BaseModel, Field, JsonValue
 
 from smartkeeper.contracts import (
     AllianceView,
+    ComposedAction,
     CopilotAnswer,
     CopilotQuestion,
     IdentityRules,
     Intent,
     LibraryCharacter,
     LibraryCharacterFull,
+    Location,
     PackParam,
     Player,
     Point,
@@ -28,6 +30,7 @@ from smartkeeper.contracts import (
     SheetSubmission,
     SheetView,
     SkillView,
+    TargetRef,
 )
 from smartkeeper.engine import split_front_matter
 from smartkeeper.mapdata import display_geojson, to_meters
@@ -124,6 +127,45 @@ class AnswerIn(BaseModel):
 class ActionIn(BaseModel):
     parse_id: str
     quotes: list[int] = []
+
+
+class SpotIn(BaseModel):
+    """地图上的一个地方：起了名字的地点（我知道的）、地物（建筑可以给离地高度）、或坐标（米）。"""
+
+    place: str | None = None
+    feature: str | None = None
+    z: float | None = None
+    point: Point | None = None
+
+
+class TargetIn(BaseModel):
+    ref: str | None = None  # 人：我对他的引用
+    feature: str | None = None
+    point: Point | None = None
+
+
+class ComposeItemIn(BaseModel):
+    """界面上点出来的一条行动：actor 去 to（companions 和他一起走），和/或者用 entry（对 target，参数 params）。"""
+
+    actor: str
+    to: SpotIn | None = None
+    companions: list[str] = []
+    entry: str | None = None
+    target: TargetIn | None = None
+    params: dict[str, float] = {}
+
+
+class ComposeIn(BaseModel):
+    actions: list[ComposeItemIn] = []
+    text: str = ""  # 补充说明：有的话交给 KP 和点好的行动一起解析
+    summary: str = ""  # 界面上点的行动写成的一句话（记在“我的行动”里给自己看）
+
+
+class ComposeOut(BaseModel):
+    """要确认的行动（echo），或者全部当场生效了（instant）。"""
+
+    echo: ActionEcho | None = None
+    instant: bool = False
 
 
 class TravelOut(BaseModel):
@@ -480,6 +522,71 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         parsed[p.id] = (parse_id, body.text, intent)
         return echo(e, p.game_id, p.id, body.text, intent, parse_id)
 
+    @r.post("/action/compose")
+    def action_compose(
+        p: Annotated[Player, Depends(require_player)], body: ComposeIn
+    ) -> ComposeOut:
+        """界面上点出来的行动（加上补充说明）：不耗时、只对自己、没人看见的当场生效；
+        其余算好耗时给玩家确认，补充说明交给 KP 和点好的行动一起解析（矛盾时 KP 驳回）。"""
+        g = p.game_id
+
+        def spot(x: SpotIn) -> Location:
+            if x.place is not None:
+                named = e.known_places(g, p.id).get(x.place)
+                if named is None:
+                    raise HTTPException(status_code=404, detail={"code": "place.not_found"})
+                return Location(pos=named.pos, inside=named.inside)
+            if x.feature is not None:
+                return e.feature_location(g, x.feature, x.z)
+            if x.point is not None:
+                return Location(pos=x.point)
+            raise HTTPException(status_code=422, detail={"code": "compose.no_destination"})
+
+        def target(x: TargetIn) -> TargetRef:
+            if x.ref is not None:
+                return TargetRef(kind="entity", id=e.entity_for_ref(p.id, x.ref))
+            if x.feature is not None:
+                return TargetRef(kind="feature", id=x.feature)
+            return TargetRef(kind="point", point=x.point)
+
+        actions = [
+            ComposedAction(
+                actor=e.entity_for_ref(p.id, a.actor),
+                destination=spot(a.to) if a.to is not None else None,
+                companions=tuple(e.entity_for_ref(p.id, c) for c in a.companions),
+                entry=a.entry or None,
+                target=target(a.target) if a.target is not None else None,
+                params=a.params,
+            )
+            for a in body.actions
+        ]
+        text = body.text.strip()
+        if (
+            actions
+            and not text
+            and all(
+                a.entry and a.destination is None and not a.companions and a.target is None
+                for a in actions
+            )
+            and all(e.instant_ok(g, p.id, a.actor, str(a.entry)) for a in actions)
+        ):
+            for a in actions:
+                e.instant_use(g, p.id, a.actor, str(a.entry), a.params)
+            return ComposeOut(instant=True)
+        fixed = e.compose_intent(g, p.id, actions) if actions else None
+        if text:
+            if not chat_limit.hit(p.id):
+                raise HTTPException(status_code=429, detail={"code": "rate.kp_chat"})
+            intent = e.plan_intent(g, s.kp.parse_intent(p.id, text, fixed))
+        elif fixed is not None:
+            intent = fixed
+        else:
+            raise HTTPException(status_code=422, detail={"code": "action.empty"})
+        shown = "\n".join(x for x in (body.summary.strip(), text) if x)
+        parse_id = secrets.token_hex(8)
+        parsed[p.id] = (parse_id, shown, intent)
+        return ComposeOut(echo=echo(e, g, p.id, shown, intent, parse_id))
+
     @r.post("/action")
     def action(
         p: Annotated[Player, Depends(require_player)], body: ActionIn, bg: BackgroundTasks
@@ -488,6 +595,8 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         if hit is None or hit[0] != body.parse_id:
             raise HTTPException(status_code=409, detail={"code": "action.parse_expired"})
         _, text, intent = hit
+        if intent.conflict:
+            raise HTTPException(status_code=409, detail={"code": "action.conflict"})
         intent = intent.model_copy(update={"quotes": tuple(sorted(set(body.quotes)))})
         ev = e.declare_action(p.id, text, intent)
         parsed.pop(p.id, None)

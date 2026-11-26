@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useI18n } from "../i18n";
-import { applyChanges } from "./layers";
+import { applyChanges, circle } from "./layers";
 import type { DisplayMap, FeatureKind, MapChangeView, MarkerView, Pick, PlaceView } from "./types";
 import "./map.css";
 
@@ -100,6 +100,10 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
         filter: ["==", ["get", "kind"], "road"],
         paint: { "line-color": COLORS.road, "line-width": 4 },
       });
+      // 起了名字的一片范围（例如中立区）：半透明的圈
+      m.addSource("areas", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      m.addLayer({ id: "area-fill", type: "fill", source: "areas", paint: { "fill-color": "#7a5c2e", "fill-opacity": 0.12 } });
+      m.addLayer({ id: "area-line", type: "line", source: "areas", paint: { "line-color": "#7a5c2e", "line-width": 2, "line-dasharray": [2, 2] } });
       m.addLayer({
         id: "landmark",
         type: "circle",
@@ -237,6 +241,21 @@ export function MapView({ map, markers, changes, onPick, selected, height = "60v
       // 名字挂在位置的下方：点它时插的图钉在上方，不会挡住名字
       return new maplibregl.Marker({ element: el, anchor: "top", offset: [0, 4] }).setLngLat([p.lon, p.lat]).addTo(m);
     });
+  }, [places, map]);
+
+  // 起了名字的一片范围：画圈
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    const data: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: places
+        .filter((p) => p.radius)
+        .map((p) => ({ type: "Feature", properties: { name: p.name }, geometry: { type: "Polygon", coordinates: [circle(p.lon, p.lat, p.radius ?? 0)] } })),
+    };
+    const apply = () => (m.getSource("areas") as maplibregl.GeoJSONSource | undefined)?.setData(data);
+    if (m.isStyleLoaded()) apply();
+    else m.once("load", apply);
   }, [places, map]);
 
   // 移到指定的地方（例如点了消息里的地名）

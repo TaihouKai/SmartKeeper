@@ -41,6 +41,7 @@ export function blankTemplate(name: string, t: T): Template {
     label: "",
     description: "",
     appearance_field: "appearance",
+    appearance_hidden: "",
     name_label: "",
     name_secret: false,
     alias_label: "",

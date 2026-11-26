@@ -681,6 +681,8 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
         problems += check_formula(
             pack, tpl, tpl.damage_taken, f"{path}.damage_taken", extra=DAMAGE_VARS
         )
+    if tpl.appearance_hidden.strip():
+        problems += check_formula(pack, tpl, tpl.appearance_hidden, f"{path}.appearance_hidden")
     if tpl.alias_from and tpl.alias_from not in {x.name for x in tpl.fields}:
         problems.append(
             Problem(

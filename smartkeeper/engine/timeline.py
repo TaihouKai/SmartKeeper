@@ -50,31 +50,14 @@ def travel_seconds(space: Space, entity_id: str, start: Point, to: Point) -> tup
     return math.ceil(dist / speed * 60 - 1e-9), fly
 
 
-def plan_items(space: Space, items: Sequence[ActionItem]) -> list[ActionItem]:
-    """给每个带目的地的条目算出移动耗时。同一实体的条目按顺序衔接：下一条从上一条的终点出发。"""
-    here: dict[str, Point | None] = {}
-    out: list[ActionItem] = []
-    for it in items:
-        if it.actor not in here:
-            here[it.actor] = point_of(_obj(space.entities.get(it.actor)).get("pos"))
-        start = here[it.actor]
-        move = 0
-        if it.destination is not None and start is not None:
-            move, _ = travel_seconds(space, it.actor, start, it.destination.pos)
-        if it.destination is not None:
-            here[it.actor] = it.destination.pos
-        out.append(it.model_copy(update={"move_seconds": move}))
-    return out
+def _moves(space: Space, items: Sequence[ActionItem]) -> list[tuple[Point | None, int, bool]]:
+    """每一条的起点、移动耗时、飞不飞。同一实体的条目按顺序衔接：下一条从上一条的终点出发。
 
-
-def build_activities(
-    space: Space, player: str, now: int, items: Sequence[ActionItem]
-) -> dict[str, Activity]:
-    """把一份确认过的行动声明变成各实体进行中的行动。"""
-    steps: dict[str, list[Step]] = {}
+    一起走的（同一个 group）一起到：到达时刻 = 组里最晚能出发的人（前面还有别的事要做）+ 最慢的路程；
+    先能出发的人走得慢一些，同一时刻到。"""
     here: dict[str, Point | None] = {}
+    alone: list[tuple[Point | None, int, bool]] = []
     for it in items:
-        assert it.id is not None
         if it.actor not in here:
             here[it.actor] = point_of(_obj(space.entities.get(it.actor)).get("pos"))
         start = here[it.actor]
@@ -83,6 +66,42 @@ def build_activities(
             move, fly = travel_seconds(space, it.actor, start, it.destination.pos)
         if it.destination is not None:
             here[it.actor] = it.destination.pos
+        alone.append((start, move, fly))
+    members: dict[str, list[int]] = {}
+    for k, it in enumerate(items):
+        if it.group is not None:
+            members.setdefault(it.group, []).append(k)
+    ready: dict[str, int] = {}  # 每个人前面的事做完的时刻
+    moves = [m for _, m, _ in alone]
+    done: set[str] = set()
+    for k, it in enumerate(items):
+        g = it.group
+        if g is not None and g not in done:
+            done.add(g)
+            idx = members[g]
+            leave = max(ready.get(items[x].actor, 0) for x in idx)
+            slowest = max(alone[x][1] for x in idx)
+            for x in idx:
+                moves[x] = leave + slowest - ready.get(items[x].actor, 0)
+        ready[it.actor] = ready.get(it.actor, 0) + moves[k] + it.act_seconds
+    return [(start, moves[k], fly) for k, (start, _, fly) in enumerate(alone)]
+
+
+def plan_items(space: Space, items: Sequence[ActionItem]) -> list[ActionItem]:
+    """给每个带目的地的条目算出移动耗时（一起走的取组里最慢的）。"""
+    return [
+        it.model_copy(update={"move_seconds": move})
+        for it, (_, move, _) in zip(items, _moves(space, items), strict=True)
+    ]
+
+
+def build_activities(
+    space: Space, player: str, now: int, items: Sequence[ActionItem]
+) -> dict[str, Activity]:
+    """把一份确认过的行动声明变成各实体进行中的行动。"""
+    steps: dict[str, list[Step]] = {}
+    for it, (start, move, fly) in zip(items, _moves(space, items), strict=True):
+        assert it.id is not None
         targets = tuple(t.id for t in it.targets if t.kind == "entity" and t.id)
         steps.setdefault(it.actor, []).append(
             Step(
@@ -93,6 +112,8 @@ def build_activities(
                 move=move,
                 act=it.act_seconds,
                 fly=fly,
+                entry=it.entry,
+                params=dict(it.params),
             )
         )
     return {

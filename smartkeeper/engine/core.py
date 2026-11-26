@@ -24,6 +24,7 @@ from smartkeeper.contracts import (
     KP,
     NAME_FIELD,
     USE_SEP,
+    ActionItem,
     Activity,
     AdHocCheck,
     Adjudication,
@@ -32,6 +33,7 @@ from smartkeeper.contracts import (
     Audience,
     BudgetUse,
     CheckResult,
+    ComposedAction,
     Dice,
     DiceResult,
     Effect,
@@ -91,6 +93,7 @@ from smartkeeper.contracts import (
     SheetSubmission,
     SheetView,
     SkillConfig,
+    SkillParam,
     SkillView,
     Spatial,
     SpatialQuery,
@@ -1070,6 +1073,209 @@ class Engine:
             )
             return self._events.append(g.id, r.no, [ev])[0]
 
+    def compose_intent(
+        self, game_id: str, player_id: str, actions: Sequence[ComposedAction]
+    ) -> Intent:
+        """玩家在界面上点出来的行动直接变成意图，不经过 KP：移动（和他一起走的人同一组，耗时取最慢的）、
+        用技能（耗时是施放时间，参数是玩家选的）。只能指挥自己的角色。"""
+        own = set(self.controlled(game_id, player_id))
+        state = self._state(game_id)
+        pack = self.rulepack(game_id)
+        m = self._map(game_id)
+        items: list[ActionItem] = []
+        for i, a in enumerate(actions):
+            for who in (a.actor, *a.companions):
+                if who not in own:
+                    raise ValidationFailed("compose.not_yours", entity=who)
+            if a.destination is not None:
+                problems = self._check_location(m, a.actor, a.destination, f"actions[{i}]")
+                if problems:
+                    raise ValidationFailed("compose.bad_destination", problems)
+                group = f"g{i}" if a.companions else None
+                for who in dict.fromkeys((a.actor, *a.companions)):
+                    items.append(
+                        ActionItem(actor=who, verb="", destination=a.destination, group=group)
+                    )
+            if a.entry:
+                ent = self._entity(state, a.actor)
+                template = str(ent.get("template", ""))
+                sheet = _obj(
+                    self._rules.full_sheet(
+                        pack, template, ent.get("sheet"), peers_of(state, a.actor)
+                    )
+                )
+                found = entry_refs.find(sheet, a.entry)
+                if found is None:
+                    raise NotFound("compose.unknown_entry", entity=a.actor, entry=a.entry)
+                cfg = self._cfg(found[1])
+                if cfg.reaction_only:
+                    raise ValidationFailed("compose.reaction_only", entry=a.entry)
+                if cfg.target == "single" and a.target is None:
+                    raise ValidationFailed("use.needs_target", entity=a.actor, entry=a.entry)
+                targets = (a.target,) if a.target is not None and cfg.target == "single" else ()
+                items.append(
+                    ActionItem(
+                        actor=a.actor,
+                        verb=a.entry,
+                        targets=targets,
+                        act_seconds=self.cast_seconds(game_id, a.actor, a.entry),
+                        entry=a.entry,
+                        params=dict(a.params),
+                    )
+                )
+        if not items:
+            raise ValidationFailed("action.empty")
+        return self.plan_intent(game_id, Intent(items=tuple(items)))
+
+    def _kp_sets_params(self, game_id: str, entity_id: str, entry: str) -> bool:
+        """这个技能有没有要 KP 按局面定的参数（这种由 KP 规划时自己用，引擎不自动用）。"""
+        pack = self.rulepack(game_id)
+        state = self._state(game_id)
+        ent = self._entity(state, entity_id)
+        template = str(ent.get("template", ""))
+        sheet = _obj(
+            self._rules.full_sheet(pack, template, ent.get("sheet"), peers_of(state, entity_id))
+        )
+        found = entry_refs.find(sheet, entry)
+        if found is None:
+            return False
+        return any(p.by_kp for p in self._params_of(pack, found[0], found[1]))
+
+    def auto_uses(self, game_id: str) -> list[dict[str, JsonValue]]:
+        """结算开始时：本轮之内做完的、用了技能的行动步骤，由引擎执行这次使用（对象是这一步的第一个对象，
+        参数是玩家选的），不用 KP 再声明。有要 KP 定的参数的技能留给 KP。用不了的（冷却、条件不满足、
+        射程不够……）返回原因，给 KP 看。"""
+        r = self.round(game_id)
+        now, end = self.round_window(game_id)
+        done = {
+            str(e.payload.get("item"))
+            for e in self.current_attempt(game_id, r.no)
+            if e.type == "entry_used" and e.payload.get("item")
+        }
+        refused: list[dict[str, JsonValue]] = []
+        for eid, act in sorted(self.activities(game_id).items()):
+            t = act.start
+            for st in act.steps:
+                t += st.move + st.act
+                # 这一步在本轮里做完：结束时刻在本轮之内（本轮才开始的零耗时动作也算）
+                in_round = now < t <= end or (t == now and act.start == now)
+                if not st.entry or not in_round or st.item in done:
+                    continue
+                if self._kp_sets_params(game_id, eid, st.entry):
+                    continue
+                target = st.targets[0] if st.targets else None
+                try:
+                    self.use_entry(
+                        game_id, eid, st.entry, target, st.params, "玩家的行动", item=st.item
+                    )
+                except (ValidationFailed, NotFound, IllegalState) as e:
+                    refused.append(
+                        {
+                            "source": eid,
+                            "entry": st.entry,
+                            "item": st.item,
+                            "code": e.code,
+                            "params": cast(JsonValue, dict(e.params)),
+                        }
+                    )
+        if refused:
+            ev = NewEvent(
+                type="use_refused",
+                actor=ENGINE,
+                visibility=Visibility.kp_only(),
+                payload={"refused": cast(JsonValue, refused)},
+            )
+            self._events.append(game_id, r.no, [ev])
+        return refused
+
+    def instant_ok(self, game_id: str, player_id: str, entity_id: str, entry: str) -> bool:
+        """这个技能能不能当场生效：不耗时、只对自己、不掷骰、没有动静，此刻没有别的玩家察觉得到你。"""
+        if entity_id not in self.controlled(game_id, player_id):
+            return False
+        if self.round(game_id).status != "collecting":
+            return False
+        pack = self.rulepack(game_id)
+        state = self._state(game_id)
+        ent = self._entity(state, entity_id)
+        template = str(ent.get("template", ""))
+        sheet = _obj(
+            self._rules.full_sheet(pack, template, ent.get("sheet"), peers_of(state, entity_id))
+        )
+        found = entry_refs.find(sheet, entry)
+        if found is None:
+            return False
+        cfg = self._cfg(found[1])
+        if (
+            cfg.target != "self"
+            or cfg.rolls
+            or cfg.noise.strip()
+            or cfg.reaction_only
+            or self.cast_seconds(game_id, entity_id, entry) > 0
+        ):
+            return False
+        space = self._space(game_id)
+        return not any(
+            p.id != player_id and entity_id in space.player_perceived(p.id)
+            for p in self._active_players(game_id)
+        )
+
+    def instant_use(
+        self, game_id: str, player_id: str, entity_id: str, entry: str, params: dict[str, float]
+    ) -> Event | None:
+        """能当场生效的技能（见 instant_ok，例如开关灵体化）：现在就生效，不等本轮结算。
+        不符合条件返回 None（照常作为行动交上去）。"""
+        with self._lock:
+            if not self.instant_ok(game_id, player_id, entity_id, entry):
+                return None
+            r = self.round(game_id)
+            pack = self.rulepack(game_id)
+            state = self._state(game_id)
+            ent = self._entity(state, entity_id)
+            template = str(ent.get("template", ""))
+            sheet = _obj(
+                self._rules.full_sheet(pack, template, ent.get("sheet"), peers_of(state, entity_id))
+            )
+            found = entry_refs.find(sheet, entry)
+            if found is None:
+                return None
+            cfg = self._cfg(found[1])
+            now = int(cast(int, state["game_seconds"]))
+            used = self.use_entry(
+                game_id, entity_id, entry, entity_id, params, "当场", instant=True
+            )
+            adj = Adjudication(outcomes=(), uses=(UseResult(seq=used.seq),))
+            cur, ops, problems, _killers = self._use_ops(game_id, r.no, state, adj, now)
+            if problems:
+                raise ValidationFailed("use.instant_failed", problems)
+            self._validated(game_id, state, ops)
+            after = self._entity(cur, entity_id)
+            sheet_after = _obj(
+                self._rules.full_sheet(pack, template, after.get("sheet"), peers_of(cur, entity_id))
+            )
+            on: bool | None = None
+            hit = entry_refs.find(sheet_after, entry)
+            if hit is not None and cfg.toggle.strip():
+                v = self._value_on(
+                    pack, cfg.toggle, template, sheet_after, hit[1], peers_of(cur, entity_id)
+                )
+                on = bool(v)
+            evs: list[NewEvent] = []
+            if ops:
+                evs.append(self._patch_event(ops, cause="instant", actor=ENGINE))
+            evs.append(
+                NewEvent(
+                    type="instant_used",
+                    actor=ENGINE,
+                    visibility=Visibility.to(player_id),
+                    payload={
+                        "name": self._entity_name(state, entity_id, pack),
+                        "entry": entry,
+                        "on": on,
+                    },
+                )
+            )
+            return self._events.append(game_id, r.no, evs)[-1]
+
     def plan_intent(self, game_id: str, intent: Intent) -> Intent:
         """给解析出的意图算上移动耗时（确认框显示用）。"""
         items = plan_items(self._space(game_id), intent.items)
@@ -1907,12 +2113,22 @@ class Engine:
         target: str | None,
         params: dict[str, float] | None,
         reason: str,
+        item: str | None = None,
+        instant: bool = False,
     ) -> Event:
         """KP 规划时声明“谁对谁用了哪个技能”：引擎现在就把数值算好（掷骰、冻结施法者的值），
-        记一条 entry_used 事件。裁定时 KP 在 uses 里写它生效了没有，发布时才改世界状态。"""
+        记一条 entry_used 事件。裁定时 KP 在 uses 里写它生效了没有，发布时才改世界状态。
+
+        item：这是哪个行动条目的使用（行动里用了技能，引擎在结算时自动用的）。
+        instant：当场生效的使用（见 instant_use），在收集行动的时候用，不在结算里。"""
         params = params or {}
         with self._lock:
-            r = self._require(game_id, "roll")
+            if instant:
+                r = self.round(game_id)
+                if r.status != "collecting":
+                    raise IllegalState("use.not_now")
+            else:
+                r = self._require(game_id, "roll")
             pack = self.rulepack(game_id)
             state = self._state(game_id)
             ent = self._entity(state, source)
@@ -2148,6 +2364,7 @@ class Engine:
                         "waiting_for": waiting,
                         **strike.dump(),
                         "reason": reason,
+                        "item": item,
                     },
                 )
                 used = self._events.append(game_id, r.no, [ev])[0]
@@ -2170,7 +2387,7 @@ class Engine:
                                     "use_seq": used.seq,
                                     "entry": str(parsed.name) if revealed else "",
                                     "defender": victim,
-                                    "who": self._appearance(state, pack, source) if seen else None,
+                                    "who": self._who(state, pack, source) if seen else None,
                                 },
                             )
                         ],
@@ -3098,6 +3315,10 @@ class Engine:
         }
         out: list[JsonValue] = []
         for e in attempt:
+            if e.type == "use_refused":
+                # 行动里点了技能、引擎没用成的：没发生，KP 按原因描写（例如还在冷却）
+                out += [{"refused": True, **_obj(x)} for x in _list(e.payload.get("refused"))]
+                continue
             if e.type != "entry_used":
                 continue
             item: dict[str, JsonValue] = {"seq": e.seq, **e.payload}
@@ -3963,7 +4184,7 @@ class Engine:
                         visibility=Visibility.to(pid),
                         payload={
                             "entry": entry,
-                            "who": self._appearance(space.state, space.pack, src) if seen else None,
+                            "who": self._who(space.state, space.pack, src) if seen else None,
                             "round": round_no,
                             "game_seconds": seconds,
                         },
@@ -4156,9 +4377,29 @@ class Engine:
             player_id=player_id,
         )
 
+    def _value_on(
+        self,
+        pack: RulePack,
+        text: str,
+        template: str,
+        sheet: dict[str, JsonValue],
+        row: dict[str, JsonValue],
+        peers: dict[str, JsonValue | None],
+    ) -> float | None:
+        """一条公式在这张卡、这一条上的值；空或算不出来是 None。"""
+        if not text.strip():
+            return None
+        try:
+            return self._rules.roll(
+                pack, text, self._dice.faces, template, sheet, _obj(row.get("fields")), peers
+            ).total
+        except ValidationFailed:
+            return None
+
     def skills(self, game_id: str, player_id: str) -> list[SkillView]:
-        """玩家自己控制的角色能主动用的技能：有技能设置或脚本的条目和物品的用途（卡上写的和规则书自动给的）；
-        只有常驻加成的、物品本身（要用它的用途）、隐藏分组里的不算。死了的角色没有。"""
+        """玩家自己控制的角色能主动用的技能和动作，行动栏里列这些：有技能设置或脚本的条目和物品的用途
+        （卡上写的和规则书自动给的，包括不在角色卡上显示的分组）；只有常驻加成的、物品本身（要用它的用途）、
+        只能用来应对攻击的不算。死了的角色没有。开关带着此刻开没开；要选的参数带着可选值或上下限。"""
         state = self._state(game_id)
         pack = self.rulepack(game_id)
         out: list[SkillView] = []
@@ -4170,21 +4411,48 @@ class Engine:
                 continue
             groups = {g.name: g for g in tpl.groups}
             tags = {str(_obj(x).get("tag")) for x in _list(_obj(ent.get("sheet")).get("statuses"))}
-            sheet = _obj(
-                self._rules.full_sheet(pack, template, ent.get("sheet"), peers_of(state, eid))
-            )
-            for gname, row, _owner in entry_refs.usable(sheet):
+            peers = peers_of(state, eid)
+            sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
+            toggles = _obj(sheet.get("toggles"))
+
+            for gname, row, owner in entry_refs.usable(sheet):
                 g = groups.get(gname)
-                if g is None or g.hidden:
+                if g is None:
                     continue
                 if _list(row.get("uses")) and not row.get("is_use"):
                     continue  # 物品本身：用它的用途
+
                 active = (
                     str(row.get("script") or "").strip() or str(row.get("config") or "").strip()
                 )
                 if not active and not row.get("is_use"):
                     continue
+                try:
+                    cfg = self._cfg(row)
+                except ValidationFailed:
+                    continue
+                if cfg.reaction_only:
+                    continue
                 name = str(row.get("name", ""))
+                on: bool | None = None
+                if row.get("is_use") and row.get("toggle"):
+                    key = f"{owner}{USE_SEP}{row.get('use_name')}"
+                    on = bool(toggles.get(key, row.get("default_on")))
+                elif cfg.toggle.strip():
+                    v = self._value_on(pack, cfg.toggle, template, sheet, row, peers)
+                    on = bool(v) if v is not None else False
+                params = tuple(
+                    SkillParam(
+                        name=p.name,
+                        label=p.label,
+                        description=p.description,
+                        choices=p.choices,
+                        min=self._value_on(pack, p.min or "", template, sheet, row, peers),
+                        max=self._value_on(pack, p.max or "", template, sheet, row, peers),
+                    )
+                    for p in self._params_of(pack, gname, row)
+                    if not p.by_kp and p.name not in cfg.fixed
+                )
                 out.append(
                     SkillView(
                         entity_id=eid,
@@ -4193,6 +4461,13 @@ class Engine:
                         name=name,
                         description=str(row.get("description") or ""),
                         cooldown=COOLDOWN_TAG + name in tags,
+                        target=cfg.target,
+                        toggle_on=on,
+                        cast_minutes=self._value_on(
+                            pack, cfg.cast_time, template, sheet, row, peers
+                        )
+                        or 0.0,
+                        params=params,
                     )
                 )
         return out
@@ -4623,16 +4898,39 @@ class Engine:
     def _space(self, game_id: str) -> Space:
         return self._space_for(self._map(game_id), self._state(game_id), self.rulepack(game_id))
 
-    def _appearance(self, state: State, pack: RulePack, entity_id: str) -> str:
+    def _looks_hidden(self, state: State, pack: RulePack, entity_id: str) -> bool:
+        """规则书说此刻看不清这个角色的样子（模板的 appearance_hidden 成立）。"""
+        ent = _obj(_obj(state.get("entities")).get(entity_id))
+        template = str(ent.get("template", ""))
+        tpl = pack.template(template)
+        if tpl is None or not tpl.appearance_hidden.strip():
+            return False
+        peers = peers_of(state, entity_id)
+        sheet = _obj(self._rules.full_sheet(pack, template, ent.get("sheet"), peers))
+        v = self._value_on(pack, tpl.appearance_hidden, template, sheet, {}, peers)
+        return bool(v)
+
+    def _appearance(
+        self, state: State, pack: RulePack, entity_id: str, by_others: bool = True
+    ) -> str:
+        """外观描述。别人看的时候（by_others），看不清样子的只给一句“看不清样子”。"""
         ent = _obj(_obj(state.get("entities")).get(entity_id))
         tpl = pack.template(str(ent.get("template", "")))
         if tpl is None:
             return ""
+        if by_others and self._looks_hidden(state, pack, entity_id):
+            return LOOKS_HIDDEN
         v = _obj(_obj(ent.get("sheet")).get("fields")).get(tpl.appearance_field)
         return v if isinstance(v, str) else ""
 
-    def appearance_of(self, game_id: str, entity_id: str) -> str:
-        return self._appearance(self._state(game_id), self.rulepack(game_id), entity_id)
+    def _who(self, state: State, pack: RulePack, entity_id: str) -> str | None:
+        """给玩家看的“是谁干的”：外观；看不清样子的不给（只知道有人）。"""
+        if self._looks_hidden(state, pack, entity_id):
+            return None
+        return self._appearance(state, pack, entity_id)
+
+    def appearance_of(self, game_id: str, entity_id: str, by_others: bool = True) -> str:
+        return self._appearance(self._state(game_id), self.rulepack(game_id), entity_id, by_others)
 
     def _entity_name(self, state: State, entity_id: str, pack: RulePack | None = None) -> str:
         """自己的角色在游戏页上叫什么：名字保密的（例如真名）显示代号，否则是名字。"""
@@ -5330,7 +5628,12 @@ class Engine:
                 problems += loc_problems
                 continue
             new = NamedPlace(
-                name=name, pos=loc.pos, inside=loc.inside, feature=fid, public=d.public
+                name=name,
+                pos=loc.pos,
+                inside=loc.inside,
+                feature=fid,
+                public=d.public,
+                radius=d.radius,
             )
             pid = places.find(have, name)
             if pid is not None:
@@ -5432,6 +5735,10 @@ class Engine:
                 seq = e.seq
             self._state_cache[game_id] = (seq, state)
             return state
+
+
+# 别人看不清样子时给 KP 的外观描述（起外号、写反馈时用；只察觉得到有人在）
+LOOKS_HIDDEN = "（看不清样子，只察觉得到有人在）"
 
 
 def _affects(affects: str, source: str, other: str, ally: bool) -> bool:

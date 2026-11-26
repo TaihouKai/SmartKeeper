@@ -39,6 +39,8 @@ KEYS: dict[str, Kind] = {
     "aura": "shape",
     "guard": "bool",
     "placement": "placement",
+    "toggle": "formula",
+    "reaction_only": "bool",
 }
 AFFECTS = ("all", "allies", "other_allies", "enemies")
 # 范围形状 -> 要写的参数（米、度）

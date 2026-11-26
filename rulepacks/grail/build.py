@@ -218,6 +218,134 @@ def is_class(*names: str) -> str:
     return " or ".join(f'klass == "{n}"' for n in names)
 
 
+# ======================= 通用动作 =======================
+# 跑团里谁都能做的动作：行动栏里直接点。只掷检定、不写脚本的，结果由 KP 按检定等级裁定。
+
+
+def common_actions(servant: bool) -> dict[str, Any]:
+    acts = [
+        preset(
+            "侦查",
+            "scout",
+            "仔细观察周围：发现藏起来的人、异常的痕迹、不对劲的地方。检定等级越高看到的越多。",
+            """
+            target = "none"
+            check = "scout"
+            cast_time = 1
+            """,
+        ),
+        preset(
+            "聆听",
+            "listen",
+            "竖起耳朵听周围的动静：谈话、脚步、远处的打斗。检定等级越高听得越清楚、越远。",
+            """
+            target = "none"
+            check = "scout"
+            cast_time = 1
+            """,
+        ),
+        preset(
+            "搜索",
+            "search_area",
+            "仔细搜查所在的房间或一小片地方：藏起来的东西、机关、线索。",
+            """
+            target = "none"
+            check = "scout"
+            cast_time = 5
+            """,
+        ),
+        preset(
+            "潜行",
+            "sneak",
+            "放轻动作、藏住身形，不让别人察觉（和移动一起用就是悄悄过去）。检定等级越高越难被发现。",
+            """
+            target = "self"
+            check = "agility"
+            """,
+        ),
+        preset(
+            "追踪",
+            "track",
+            "跟上一个看得见的人或顺着痕迹追下去，不被对方甩掉、也不被发现。",
+            """
+            target = "single"
+            visible = True
+            check = "scout"
+            cast_time = 1
+            """,
+        ),
+        preset(
+            "交涉",
+            "persuade",
+            "说服、讨价还价、套话：让对方按你说的做或者说出你想知道的。对方的立场和你开的条件由 KP 一起考虑。",
+            """
+            target = "single"
+            visible = True
+            range = 10
+            check = "social"
+            cast_time = 1
+            """,
+        ),
+        preset(
+            "威吓",
+            "intimidate",
+            "用气势或威胁压住对方，让他退缩、屈服或者说实话。",
+            """
+            target = "single"
+            visible = True
+            range = 10
+            check = "social"
+            noise = 20
+            """,
+        ),
+        preset(
+            "欺瞒",
+            "deceive",
+            "撒谎、伪装、演戏，让对方相信不是真的事。",
+            """
+            target = "single"
+            visible = True
+            range = 10
+            check = "social"
+            """,
+        ),
+        preset(
+            "攀爬 / 跳跃",
+            "athletics",
+            "爬墙、翻越、跳过缝隙、从高处跳下。",
+            """
+            target = "none"
+            check = best("strength", "agility")
+            """,
+        ),
+    ]
+    if not servant:
+        acts += [
+            preset(
+                "急救",
+                "first_aid",
+                "给伤者止血包扎，稳住伤势（不是魔术治疗）。检定等级越高处理得越好，具体恢复多少由 KP 裁定。",
+                """
+                target = "single"
+                range = 2
+                check = "intelligence"
+                cast_time = 5
+                """,
+            ),
+            preset(
+                "查资料",
+                "research",
+                "查书、上网、翻档案、打听：找某个人、地方或传说的资料。",
+                """
+                target = "none"
+                check = "intelligence"
+                cast_time = 30
+                """,
+            ),
+        ]
+    return group("common_action", "通用动作", acts, hidden=True, effects=False)
+
+
 # ======================= 共用的战斗动作 =======================
 
 MELEE_CONFIG = """
@@ -238,6 +366,7 @@ DODGE = preset(
     """
     target = "self"
     check = "agility"
+    reaction_only = True
     """,
     """
     if reacting and level >= 1 and level >= opp_level:
@@ -254,6 +383,7 @@ def counter(damage: str) -> dict[str, Any]:
         """
         target = "self"
         check = "strength"
+        reaction_only = True
         """,
         f"""
         if reacting and level >= 1 and level > opp_level:
@@ -520,6 +650,7 @@ MASTER = {
         """
     ),
     "groups": [
+        common_actions(False),
         group(
             "magic",
             "魔术",
@@ -923,6 +1054,8 @@ SERVANT = {
     "alias_label": "代号",
     "alias_hint": "（可不填）你和御主平时怎么称呼他，当众也这么喊，例如 Saber、骑士大人；不填就是职阶。只有你们和 KP 看得到",
     "alias_from": "klass",
+    # 灵体化时别人看不清样子（英灵、魔术师照样察觉得到有人在）
+    "appearance_hidden": "spirit_form",
     "fields": [
         field("appearance", "外观", "text", description="别人看到的样子（不要写出真名）"),
         # 英灵是谁（只有自己和 KP 看得到）：分几栏写，免得漏掉。KP 据此判断别人能从样子、战法、言行里认出什么
@@ -1073,16 +1206,34 @@ SERVANT = {
     "search": "1d20 + int + agi",
     "on_death": "",
     "groups": [
+        common_actions(True),
         group(
             "servant_action",
             "英灵动作",
             [
                 preset(
-                    "灵体化",
-                    "spirit",
-                    "进入或解除灵体化：普通人看不见，物理攻击碰不到你，你也不能攻击，速度提升 30%；英灵和魔术师照样感觉得到你。不消耗魔力。",
+                    "骑上 / 跳下坐骑",
+                    "mount",
+                    "骑上坐骑或者跳下来：骑在坐骑上时速度按“骑乘”等级提升；骑上时按骑乘等级消耗魔力。灵体化时不能骑。",
                     """
                     target = "self"
+                    requires = not self.spirit_form
+                    toggle = self.riding
+                    """,
+                    """
+                    if not self.riding:
+                        self.mp -= lookup(skill_cost, self.ride.level)
+                    self.riding = 0 if self.riding else 1
+                    """,
+                    when=is_class("Rider", "Saber"),
+                ),
+                preset(
+                    "灵体化",
+                    "spirit",
+                    "进入或解除灵体化：普通人看不见，普通的物理攻击碰不到你，你也不能攻击，速度提升 30%；英灵和魔术师照样感觉得到你，但看不清你的样子。不消耗魔力。",
+                    """
+                    target = "self"
+                    toggle = self.spirit_form
                     """,
                     """
                     self.spirit_form = 0 if self.spirit_form else 1
@@ -1134,17 +1285,8 @@ SERVANT = {
                 klass_skill(
                     "骑乘",
                     "ride",
-                    "骑上或跳下坐骑：骑乘时速度 + 骑乘等级 × 5 米/秒。灵体化时不能骑乘。骑上时按技能等级消耗魔力。参考：Rider 上升 3 级、Saber 上升 1 级。",
+                    "驾驭坐骑的本事：骑在坐骑上时速度 + 骑乘等级 × 5 米/秒（骑上、跳下坐骑是动作“骑上 / 跳下坐骑”）。参考：Rider 上升 3 级、Saber 上升 1 级。",
                     is_class("Rider", "Saber"),
-                    config="""
-                    target = "self"
-                    requires = not spirit_form
-                    """,
-                    script="""
-                    if not self.riding:
-                        self.mp -= lookup(skill_cost, this.level)
-                    self.riding = 0 if self.riding else 1
-                    """,
                     bonus="""
                     if self.riding:
                         self.move_speed += this.level * 300  # 骑乘时速度 + 骑乘等级 × 5 米/秒
@@ -1507,6 +1649,10 @@ CHECKS = [
     check("charisma", "魅力", "1d20 + cha"),
     check("luck", "幸运", "1d20 + luk"),
     check("magecraft", "魔术", "1d20 + ap"),
+    # 侦查：御主用感知；英灵没有感知，用魔力 + 敏捷
+    check("scout", "侦查", '1d20 + (int + agi if self.template == "servant" else per)'),
+    # 交涉、威吓、欺瞒：御主用魅力；英灵没有魅力，用幸运
+    check("social", "交涉", '1d20 + (luk if self.template == "servant" else cha)'),
     # 宝具特效的豁免：对 10 + 宝具等级（技能设置里 difficulty 写宝具等级）
     check(
         "magic_save",

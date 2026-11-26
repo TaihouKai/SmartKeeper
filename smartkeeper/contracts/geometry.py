@@ -65,6 +65,7 @@ class NamedPlace(Frozen):
     inside: str | None = None
     feature: str | None = None
     public: bool = False
+    radius: float | None = None  # 一片范围（米）：地图上画一个圈，例如“这一片是中立区”
 
 
 class PlaceNameIn(Frozen):
@@ -74,3 +75,4 @@ class PlaceNameIn(Frozen):
     name: str = Field(min_length=1, max_length=40)
     at: Place
     public: bool = False
+    radius: float | None = Field(default=None, gt=0, le=5000)  # 一片范围（米），地图上画圈

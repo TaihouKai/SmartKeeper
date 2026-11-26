@@ -500,12 +500,14 @@
       "noise": "noise radius in metres; None = silent",
       "placement": "placement, e.g. placement(radius=3, charges=1)",
       "range": "range in metres; None = unlimited; for a placement, how far from the user it may be put",
+      "reaction_only": "Only usable as a response when attacked (e.g. dodge); not shown in the action bar",
       "reactions": "if set the target may react: list checks and reaction skills (ID or name), or True for any reaction skill; players choose, NPCs get the best; a target who hasn't noticed the user can't react",
       "requires": "condition to use, e.g. not silenced",
       "save": "a save the target makes after a hit (a check name, against difficulty); saved in the script",
       "seen_within": "minutes within which you must have known where the target was (seen, told or located); None = not needed",
       "shape": "area shape, e.g. sphere(radius=5)",
       "target": "single needs a target / self only / none",
+      "toggle": "Switch: this entry is an on/off switch (e.g. a stance); write when it is on. Shown as a switch; pressing it uses the entry (the script flips it)",
       "visible": "the target must be perceived; a placement must be put within line of sight"
     },
     "hint": "One “name = value” per line tells the engine how this skill is used. Always prefix names in values: self. (you), target. (the target), this. (this entry). The common ones:\n- target: who it is used on. \"single\" picks one, \"self\" only you, \"none\" nobody\n- range: metres; leave out for unlimited\n- cast_time: minutes to prepare; leave out for instant\n- cooldown: minutes before it can be used again\n- noise: metres within which others notice the use\n- requires: when it can be used, e.g. self.mp >= 5\n- check: the check to roll, e.g. \"perception\"\n- reactions: how the target may respond, e.g. [\"dodge\"]\n- shape: an area, e.g. sphere(radius=5) is a 5 m ball",
@@ -735,6 +737,10 @@
         "0": "range in metres, e.g. 30 + this.level * 5",
         "1": "unlimited (default)"
       },
+      "reaction_only": {
+        "0": "only usable as a response when attacked; hidden from the action bar",
+        "1": "usable any time (default)"
+      },
       "reactions": {
         "0": "the target picks one of these to respond (check names, reaction skill names or IDs)",
         "1": "any reaction skill",
@@ -763,6 +769,10 @@
         "1": "only on yourself",
         "2": "no target (e.g. divination, a ward at your feet)"
       },
+      "toggle": {
+        "0": "this entry is a switch, shown as on while the formula holds, e.g. self.stance",
+        "1": "not a switch (default)"
+      },
       "visible": {
         "0": "the target must be in your perception right now",
         "1": "not needed (default)"
@@ -781,6 +791,9 @@
     "approved": "Character approved",
     "feedback": "Result",
     "identity": "Identity",
+    "instant": "{who}: {entry}",
+    "instant_off": "{who}: {entry} (off)",
+    "instant_on": "{who}: {entry} (on)",
     "intel": "Intel",
     "kp": "Keeper",
     "me": "Me",
@@ -826,6 +839,7 @@
       "placement_notify": "tells you when triggered",
       "placement_perceive": "spotted at ×{x} distance",
       "range": "Range {x} m",
+      "reaction_only": "Only as a response when attacked",
       "reactions": "The target may respond with {x}",
       "reactions_any": "The target may respond with any reaction",
       "requires": "Usable when: {x}",
@@ -837,6 +851,7 @@
       "shape_sphere": "Area: {radius} m radius",
       "target_none": "No target",
       "target_self": "Only on yourself",
+      "toggle": "Switch: on while {x}",
       "visible": "The target must be in your perception"
     },
     "choice_sep": " / ",
@@ -1309,6 +1324,28 @@
     "radius": "Trigger radius (m)",
     "tag": "placed"
   },
+  "plan": {
+    "add": "Add",
+    "conflict": "The KP rejected it: {why}",
+    "empty": "Pick a character below and tap actions, skills or switches; tap a spot on the map and “Use as destination” to move. You can also just write and let the KP read it.",
+    "move": "{who} → {where}",
+    "move_hint": "Move: tap a spot on the map, then “Use as destination” (for the selected character)",
+    "off": "off",
+    "on": "on",
+    "pick_target": "Pick one…",
+    "range": "({min}–{max})",
+    "remove": "Remove",
+    "seen_wait": "Someone can see you, so this switch takes effect when the round resolves; it was added to your actions.",
+    "send": "Check time & submit",
+    "switches": "Switches",
+    "target": "Target",
+    "text_placeholder": "Extra notes (optional): lines, how you do it, things the buttons don't cover… the KP reads them with the actions above",
+    "together": "{who} (with {with})",
+    "use": "{who}: {skill}",
+    "use_on": "{who}: {skill} → {target}",
+    "with": "with {who}",
+    "with_params": "{action} ({params})"
+  },
   "play": {
     "close": "Close",
     "handle_label": "Label",
@@ -1703,6 +1740,9 @@
       "alias_hint_help": "The alias is what your side calls this character, seen only by you and the KP; empty uses the defaults",
       "alias_label": "Label of the alias box",
       "appearance": "Appearance field",
+      "appearance_hidden": "Looks hidden when",
+      "appearance_hidden_hint": "Formula on this character: while true, others only sense someone is there and never get the appearance (nicknames, attack prompts, KP feedback); the owner still sees it. Empty = always visible",
+      "appearance_hidden_ph": "e.g. invisible",
       "damage_taken": "Damage taken",
       "damage_taken_hint": "Each time a character of this template takes skill damage, the engine uses this to work out how much (never below 0). amount is the raw damage, kind its type (from the skill's group, or damage(amount, \"type\")). Resistances written here apply to every attack.",
       "description": "Character-making notes",

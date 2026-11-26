@@ -216,6 +216,11 @@ class SkillConfig(Frozen):
     reactions: tuple[str, ...] = ()
     reactions_any: bool = False
     save: str = ""
+    # 开关：这一条是一个开关（例如灵体化），toggle 是它此刻开没开（条件公式，在使用者身上算）。
+    # 界面上显示成开关，按一下就是用一次这一条（脚本负责切换）
+    toggle: str = ""
+    # 只能在被攻击时用来应对（例如闪避），不出现在行动栏里
+    reaction_only: bool = False
 
     @property
     def reactable(self) -> bool:
@@ -315,10 +320,23 @@ class SheetChange(Frozen):
     source_kind: Literal["feedback", "admin", "engine", "opening"]
 
 
-class SkillView(Frozen):
-    """玩家自己的角色能主动用的一个技能（卡上写的和规则书自动给的都算；只有常驻加成的不算）。
+class SkillParam(Frozen):
+    """用的时候要选的一个参数（例如投入多少魔力）：有可选值就从中选，否则在 min～max 之间填一个数。"""
 
-    name 是用的时候写的名字（物品的用途是“物品名/用途名”）。"""
+    name: str
+    label: str = ""
+    description: str = ""
+    choices: tuple[str, ...] = ()
+    min: float | None = None
+    max: float | None = None
+
+
+class SkillView(Frozen):
+    """玩家自己的角色能主动用的一个技能或动作（卡上写的和规则书自动给的都算；只有常驻加成的、
+    只能用来应对攻击的不算）。
+
+    name 是用的时候写的名字（物品的用途是“物品名/用途名”）。target 是对谁用：single 选一个，self 自己，none 不选。
+    toggle_on 不是 None 时这是一个开关，值是此刻开没开。cast_minutes 是施放时间（分钟，不到 1 算瞬发）。"""
 
     entity_id: str
     group: str
@@ -326,6 +344,10 @@ class SkillView(Frozen):
     name: str
     description: str = ""
     cooldown: bool = False  # 正在冷却，暂时用不了
+    target: str = "single"
+    toggle_on: bool | None = None
+    cast_minutes: float = 0.0
+    params: tuple[SkillParam, ...] = ()
 
 
 class SheetView(Frozen):

@@ -1,6 +1,14 @@
 """跨模块的数据类型（事件、实体、坐标、形状、裁定）和各模块的接口定义，不含逻辑。"""
 
-from smartkeeper.contracts.actions import ActionItem, Activity, ClaimRef, Intent, Step, TargetRef
+from smartkeeper.contracts.actions import (
+    ActionItem,
+    Activity,
+    ClaimRef,
+    ComposedAction,
+    Intent,
+    Step,
+    TargetRef,
+)
 from smartkeeper.contracts.adjudication import (
     AdHocCheck,
     Adjudication,
@@ -147,6 +155,7 @@ from smartkeeper.contracts.sheet import (
     SheetSubmission,
     SheetView,
     SkillConfig,
+    SkillParam,
     SkillView,
     Status,
 )
@@ -208,6 +217,7 @@ __all__ = [
     "CheckResult",
     "CheckSpec",
     "ClaimRef",
+    "ComposedAction",
     "CopilotAnswer",
     "CopilotFocus",
     "CopilotProposal",
@@ -322,6 +332,7 @@ __all__ = [
     "SheetSubmission",
     "SheetView",
     "SkillConfig",
+    "SkillParam",
     "SkillView",
     "SmartKeeperError",
     "Spatial",

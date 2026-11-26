@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import cast
 
 from pydantic import JsonValue
 
@@ -305,8 +306,11 @@ class Contexts:
         )
         return Prompt(self._system(g, "chat"), user)
 
-    def intent(self, player_id: str, text: str) -> tuple[Prompt, dict[str, str]]:
-        """返回 prompt 和 ref -> 实体 id 的对照（只在本地用，不进 prompt）。"""
+    def intent(
+        self, player_id: str, text: str, fixed: Intent | None = None
+    ) -> tuple[Prompt, dict[str, str]]:
+        """返回 prompt 和 ref -> 实体 id 的对照（只在本地用，不进 prompt）。
+        fixed 是玩家在界面上已经点好的行动：列给 KP，只解析文字补充的部分。"""
         p = self.e.player(player_id)
         g = p.game_id
         resolved, _targets = self.e.resolve_mentions(g, player_id, text)
@@ -376,10 +380,51 @@ class Contexts:
                         ]
                     ),
                 ),
+                section(
+                    "玩家在界面上已经点好的行动（已经算数，不要重复，不要改；文字只是补充）",
+                    dumps(self._fixed_items(g, player_id, fixed)) if fixed else "（无）",
+                ),
                 section("行动声明", player_text(resolved, p.display_name)),
             ]
         )
         return Prompt(templates.render("parse_intent"), user), refs
+
+    def _fixed_items(self, game_id: str, player_id: str, fixed: Intent) -> list[JsonValue]:
+        """界面上点好的行动，按玩家的叫法写给 KP。"""
+
+        def ref(eid: str) -> str:
+            return self.e.ref_for_entity(player_id, eid) or eid
+
+        out: list[JsonValue] = []
+        for it in fixed.items:
+            row: dict[str, JsonValue] = {"actor": ref(it.actor)}
+            if it.destination is not None:
+                d = it.destination
+                row["move_to"] = {
+                    "x": round(d.pos.x),
+                    "y": round(d.pos.y),
+                    "z": round(d.pos.z),
+                    "inside": d.inside,
+                }
+                if it.group:
+                    row["together"] = it.group
+            if it.entry:
+                row["skill"] = it.entry
+                row["params"] = cast(JsonValue, dict(it.params))
+            targets: list[JsonValue] = []
+            for t in it.targets:
+                if t.kind == "entity" and t.id:
+                    targets.append(ref(t.id))
+                elif t.kind == "feature" and t.id:
+                    targets.append({"feature": t.id})
+                elif t.point is not None:
+                    targets.append(
+                        {"point": [round(t.point.x), round(t.point.y), round(t.point.z)]}
+                    )
+            if targets:
+                row["targets"] = targets
+            out.append(row)
+        return out
 
     # ---------------- 回合 ----------------
 
@@ -570,9 +615,12 @@ class Contexts:
         return "\n".join(lines)
 
     def plan(self, game_id: str) -> Prompt:
-        return Prompt(
-            self._system(game_id, "plan"), self._round_body(game_id, include_results=False)
+        body = self._round_body(game_id, include_results=False)
+        auto = section(
+            "引擎已经替玩家用了的技能（行动条目里写明了技能的；不要再声明）",
+            dumps(self.e.planned_uses(game_id)),
         )
+        return Prompt(self._system(game_id, "plan"), "\n".join([body, auto]))
 
     def adjudicate(self, game_id: str) -> Prompt:
         return Prompt(
@@ -630,7 +678,10 @@ class Contexts:
         told = dumps([mine, seen, learned, public])
         own = set(self.e.controlled(game_id, player_id))
         looks = {
-            label: player_text(self.e.appearance_of(game_id, eid) or "（没有描述）", "sheet")
+            label: player_text(
+                self.e.appearance_of(game_id, eid, by_others=eid not in own) or "（没有描述）",
+                "sheet",
+            )
             for eid, label in sorted(labels.items(), key=lambda kv: kv[1])
             if eid in own or label in told
         }

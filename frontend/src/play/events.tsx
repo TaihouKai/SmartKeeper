@@ -72,6 +72,13 @@ export function describeEvent(e: Ev, t: (k: string, p?: Record<string, string>) 
       cls += " feedback";
       break;
     }
+    case "instant_used": {
+      const on = e.payload.on;
+      const key = on === true ? "event.instant_on" : on === false ? "event.instant_off" : "event.instant";
+      body = t(key, { who: String(e.payload.name ?? ""), entry: String(e.payload.entry ?? "") });
+      cls += " sys";
+      break;
+    }
     case "entry_noticed": {
       const entry = typeof e.payload.entry === "string" ? e.payload.entry : "";
       const by = e.payload.who;

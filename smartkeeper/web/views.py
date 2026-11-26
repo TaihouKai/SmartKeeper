@@ -203,6 +203,7 @@ class ActionEcho(BaseModel):
     items: list[EchoItem]
     unresolved: list[str]
     total_seconds: int  # 各实体按顺序做完自己的条目，取最长的那个
+    conflict: str = ""  # 补充文字和界面上点的行动矛盾（KP 写的原因）：不能提交
 
 
 def echo(
@@ -263,6 +264,7 @@ def echo(
         text=text,
         items=items,
         unresolved=list(intent.unresolved),
+        conflict=intent.conflict,
         total_seconds=max(per_actor.values(), default=0),
     )
 
@@ -354,6 +356,7 @@ class PlaceOut(BaseModel):
     pos: LonLatPoint
     inside: str | None
     feature: str | None
+    radius: float | None = None  # 一片范围（米）：地图上画圈
 
 
 class SceneOut(BaseModel):
@@ -393,7 +396,14 @@ def scene(engine: Engine, game_id: str, player_id: str) -> SceneOut:
         ],
         seen=[SeenOut(ref=x.ref, label=x.label, note=x.note, intel=list(x.intel)) for x in s.seen],
         places=[
-            PlaceOut(id=pid, name=p.name, pos=lonlat(m, p.pos), inside=p.inside, feature=p.feature)
+            PlaceOut(
+                id=pid,
+                name=p.name,
+                pos=lonlat(m, p.pos),
+                inside=p.inside,
+                feature=p.feature,
+                radius=p.radius,
+            )
             for pid, p in sorted(engine.known_places(game_id, player_id).items())
         ],
     )

@@ -47,6 +47,18 @@ export function heightCode(
   return { key: "map.height.above", params: { m: Math.round(z) } };
 }
 
+/** 以一点为圆心、半径若干米的圆（经纬度多边形），用来在地图上画一片范围。 */
+export function circle(lon: number, lat: number, meters: number, steps = 48): [number, number][] {
+  const dLat = meters / 110540;
+  const dLon = meters / (111320 * Math.cos((lat * Math.PI) / 180));
+  const out: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const a = (2 * Math.PI * i) / steps;
+    out.push([lon + dLon * Math.cos(a), lat + dLat * Math.sin(a)]);
+  }
+  return out;
+}
+
 /** 地物的代表点（经纬度）：点就是它自己，面取外圈的平均，线取中间的一个点。 */
 export function featureCenter(g: GeoJSON.Geometry): [number, number] | null {
   const avg = (ring: GeoJSON.Position[]): [number, number] | null => {

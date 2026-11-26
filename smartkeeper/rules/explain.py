@@ -254,7 +254,9 @@ class Explainer:
             p = self.param_defs.get(k)
             shown = self.choice_name(p.choices, v) if p else None
             return self.w("c.fixed", name=self.column_label(k), x=shown or self.formula(v))
-        if k in ("visible", "guard"):
+        if k == "toggle":
+            return self.w("c.toggle", x=self.formula(v)) if v else None
+        if k in ("visible", "guard", "reaction_only"):
             return self.w(f"c.{k}") if v not in ("", "0", "False") else None
         if k == "check":
             if s.items:

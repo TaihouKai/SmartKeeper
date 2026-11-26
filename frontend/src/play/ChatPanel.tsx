@@ -1,22 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, call, currentGame, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { ErrorBox, formatDuration } from "../ui/components";
+import { ErrorBox } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { Markdown } from "../ui/markdown";
+import { ActionPanel } from "./ActionPanel";
 import { PlaceText, type PlaceTarget } from "./PlaceText";
 import { filterMentions, insertMention, mentionQuery } from "./mention";
 import { describeEvent, prettyMentions, type Ev } from "./events";
-
-/** 自己的角色能主动用的一个技能。ref 是角色的 ref，owner 是角色的名字。 */
-export interface SkillItem {
-  ref: string;
-  owner: string;
-  name: string;
-  group: string;
-  description: string;
-  cooldown: boolean;
-}
 
 export interface Mentionable {
   ref: string;
@@ -83,13 +74,9 @@ export function ChatPanel({
   onChanged,
   places,
   onPlace,
-  skills,
-  onUseSkill,
 }: {
   places: { id: string; name: string }[];
   onPlace: (p: PlaceTarget) => void;
-  skills: SkillItem[];
-  onUseSkill: (s: SkillItem) => void;
   events: Ev[];
   status: Schemas["StatusOut"] | null;
   talks: Talk[];
@@ -233,7 +220,7 @@ export function ChatPanel({
           ))}
           <div ref={end} />
         </div>
-        {active.key === "kp" && <KpComposer status={status} events={events} draft={draft} setDraft={setDraft} quotes={quotes} setQuotes={setQuotes} mentionables={mentionables} onChanged={onChanged} skills={skills} onUseSkill={onUseSkill} />}
+        {active.key === "kp" && <KpComposer status={status} events={events} draft={draft} setDraft={setDraft} quotes={quotes} setQuotes={setQuotes} mentionables={mentionables} onChanged={onChanged} />}
         {active.key === "broadcast" && <BroadcastComposer onChanged={onChanged} />}
         {active.key.startsWith("talk:") && (
           <TalkComposer talk={talks.find((x) => `talk:${x.id}` === active.key)} onChanged={onChanged} />
@@ -361,11 +348,7 @@ function KpComposer({
   setQuotes,
   mentionables,
   onChanged,
-  skills,
-  onUseSkill,
 }: {
-  skills: SkillItem[];
-  onUseSkill: (s: SkillItem) => void;
   status: Schemas["StatusOut"] | null;
   events: Ev[];
   draft: string;
@@ -379,31 +362,17 @@ function KpComposer({
   const collecting = status?.game_status === "running" && (status.me === "act" || status.me === "submitted");
   const busy = status?.game_status === "running" && status.me === "busy";
   const [mode, setMode] = useState<"act" | "ask">("act");
-  const [echo, setEcho] = useState<Schemas["ActionEcho"] | null>(null);
   const [question, setQuestion] = useState("");
-  const parse = useAction();
-  const confirm = useAction();
   const ask = useAction();
   const myDecl = [...events].reverse().find((e) => e.type === "action_declared");
-  const doParse = () =>
-    void parse.run(async () => {
-      setEcho(await call(api.POST("/api/action/parse", { body: { text: draft } })));
-    });
-  const doConfirm = () =>
-    void confirm.run(async () => {
-      if (!echo) return;
-      await call(api.POST("/api/action", { body: { parse_id: echo.parse_id, quotes } }));
-      setEcho(null);
-      setDraft("");
-      setQuotes([]);
-      onChanged();
-    });
   const doAsk = () =>
     void ask.run(async () => {
       await call(api.POST("/api/kp/chat", { body: { text: question } }));
       setQuestion("");
       onChanged();
     });
+  // 技能的对象：看得见的人（不含地点）和自己的角色
+  const targets = mentionables.filter((m) => !m.ref.startsWith("feature:") && !m.ref.startsWith("point:")).map((m) => ({ ref: m.ref, label: m.label }));
   return (
     <div className="pl-composer">
       <div className="pl-modes" role="tablist">
@@ -422,102 +391,31 @@ function KpComposer({
               {t("kp.submitted_already")} {prettyMentions(String(myDecl.payload.text ?? ""))}
             </p>
           )}
-          {echo && (
-            <div className="sk-echo pl-echo">
-              <strong>{t("kp.understood_as")}</strong>
-              <ul>
-                {echo.items.map((it, i) => (
-                  <li key={i}>
-                    <b>{it.actor_label}</b> · {it.verb}
-                    {it.targets.length > 0 && <> → {it.targets.map((x) => (x.kind === "entity" ? `@${x.label}` : x.label || t("kp.a_point"))).join(", ")}</>}
-                    {it.destination && <> ⇒ {it.destination_label || t("kp.a_point")}</>}
-                    {it.entry && <div className="pl-echo-skill">{t("skill.echo", { name: it.entry })}</div>}
-                    <div className="sk-hint">{t("kp.item_time", { move: formatDuration(t, it.move_seconds), act: formatDuration(t, it.act_seconds) })}</div>
-                    {it.detail && <div className="sk-hint">{prettyMentions(it.detail)}</div>}
-                  </li>
-                ))}
-              </ul>
-              <p>
-                <strong>{t("kp.estimate", { total: formatDuration(t, echo.total_seconds) })}</strong> <span className="sk-hint">{t("kp.confirm_hint")}</span>
-              </p>
-              {echo.unresolved.length > 0 && (
-                <div className="sk-warn">
-                  {t("kp.unresolved")} {echo.unresolved.join(", ")}
-                </div>
-              )}
-              <div className="sk-row">
-                <button className="sk-primary" disabled={confirm.busy || echo.unresolved.length > 0 || echo.items.length === 0} onClick={doConfirm}>
-                  {t("kp.confirm")}
-                </button>
-                <button onClick={() => setEcho(null)}>{t("kp.edit")}</button>
-              </div>
-              <ErrorBox error={confirm.error} />
-            </div>
-          )}
-          <Composer
-            rows={3}
-            value={draft}
-            disabled={!collecting}
-            sendOnEnter={false}
-            mentions={mentionables}
-            placeholder={t("kp.action_placeholder")}
-            onChange={(v) => {
-              setDraft(v);
-              setEcho(null);
+          <ActionPanel
+            collecting={collecting}
+            targets={targets}
+            text={draft}
+            setText={setDraft}
+            quotes={quotes}
+            onChanged={() => {
+              setQuotes([]);
+              onChanged();
             }}
-            onSend={doParse}
+            textBox={
+              <>
+                <Composer rows={2} value={draft} disabled={!collecting} sendOnEnter={false} placeholder={t("plan.text_placeholder")} onChange={setDraft} onSend={() => undefined} mentions={mentionables} />
+                {quotes.length > 0 && (
+                  <div className="sk-row pl-tools">
+                    {quotes.map((q) => (
+                      <button key={q} className="sk-chip" onClick={() => setQuotes(quotes.filter((x) => x !== q))}>
+                        {t("kp.quote_chip", { seq: String(q) })} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            }
           />
-          <div className="sk-row pl-tools">
-            <select
-              value=""
-              disabled={!collecting}
-              onChange={(e) => {
-                const m = mentionables.find((x) => x.ref === e.target.value);
-                if (m) setDraft(`${draft}@[${m.label}](${m.ref}) `);
-              }}
-            >
-              <option value="">{t("kp.insert_mention")}</option>
-              {mentionables.map((m) => (
-                <option key={`${m.ref}|${m.label}`} value={m.ref}>
-                  @{m.label}
-                </option>
-              ))}
-            </select>
-            {skills.length > 0 && (
-              <select
-                value=""
-                disabled={!collecting}
-                aria-label={t("skill.pick")}
-                onChange={(e) => {
-                  const s = skills[Number(e.target.value)];
-                  if (s) onUseSkill(s);
-                }}
-              >
-                <option value="">{t("skill.pick")}</option>
-                {[...new Set(skills.map((s) => s.ref))].map((ref) => (
-                  <optgroup key={ref} label={skills.find((s) => s.ref === ref)?.owner ?? ref}>
-                    {skills.map((s, i) =>
-                      s.ref === ref ? (
-                        <option key={i} value={i} disabled={s.cooldown}>
-                          {s.name}
-                          {s.cooldown ? ` (${t("skill.cooldown")})` : ""}
-                        </option>
-                      ) : null,
-                    )}
-                  </optgroup>
-                ))}
-              </select>
-            )}
-            {quotes.map((q) => (
-              <button key={q} className="sk-chip" onClick={() => setQuotes(quotes.filter((x) => x !== q))}>
-                {t("kp.quote_chip", { seq: String(q) })} ×
-              </button>
-            ))}
-            <button className="sk-primary pl-send" disabled={!collecting || !draft.trim() || parse.busy} onClick={doParse}>
-              {parse.busy ? t("common.working") : t("kp.parse")}
-            </button>
-          </div>
-          <ErrorBox error={parse.error} />
         </>
       ) : (
         <>

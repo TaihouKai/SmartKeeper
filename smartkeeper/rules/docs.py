@@ -233,6 +233,14 @@ _CONFIG_VALUES: dict[str, tuple[tuple[str, str], ...]] = {
         ("placement(radius=…, …)", "docs.v.placement.0"),
         ("None", "docs.v.placement.1"),
     ),
+    "toggle": (
+        ("条件公式", "docs.v.toggle.0"),
+        ("None", "docs.v.toggle.1"),
+    ),
+    "reaction_only": (
+        ("True", "docs.v.reaction_only.0"),
+        ("False", "docs.v.reaction_only.1"),
+    ),
 }
 _CONFIG_EXAMPLES: dict[str, str] = {
     "target": 'target = "single"',
@@ -254,6 +262,8 @@ _CONFIG_EXAMPLES: dict[str, str] = {
     "aura": "aura = sphere(radius=50)",
     "guard": "guard = True",
     "placement": "placement = placement(radius=3, charges=1)",
+    "toggle": "toggle = self.spirit_form",
+    "reaction_only": "reaction_only = True",
 }
 
 # 检定代码每一项能填什么。和 checkconfig.KEYS 一一对应

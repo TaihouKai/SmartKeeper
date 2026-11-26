@@ -68,6 +68,7 @@ class IntentOut(_Out):
     items: list[ItemOut]
     claims: list[ClaimOut] = []
     unresolved: list[str] = []
+    conflict: str = ""  # 补充文字和界面上点的行动矛盾时写原因
 
 
 class ClaimCheckOut(_Out):

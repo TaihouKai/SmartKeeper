@@ -113,6 +113,10 @@ export function FieldsSection({ tpl, onChange, onRemove, validate, mover, base }
             {t("rules.t.alias_hint")}
             <input value={tpl.alias_hint ?? ""} placeholder={t("character.alias_hint")} onChange={(e) => onChange({ ...tpl, alias_hint: e.target.value })} />
           </label>
+          <label title={t("rules.t.appearance_hidden_hint")}>
+            {t("rules.t.appearance_hidden")}
+            <input value={tpl.appearance_hidden ?? ""} placeholder={t("rules.t.appearance_hidden_ph")} onChange={(e) => onChange({ ...tpl, appearance_hidden: e.target.value })} />
+          </label>
           <label title={t("rules.t.alias_from_hint")}>
             {t("rules.t.alias_from")}
             <select value={tpl.alias_from ?? ""} onChange={(e) => onChange({ ...tpl, alias_from: e.target.value })}>

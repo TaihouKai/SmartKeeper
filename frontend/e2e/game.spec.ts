@@ -84,10 +84,10 @@ async function createCharacter(page: Page, i: number) {
 }
 
 async function act(page: Page, text: string) {
-  // 聊天面板的 KP 会话，“行动”模式
+  // 聊天面板的 KP 会话，“行动”模式：这里只写补充说明（交给 KP 解析），不点技能
   const box = page.locator(".pl-composer");
   await box.locator("textarea").fill(text);
-  await box.getByRole("button", { name: "Parse" }).click();
+  await box.getByRole("button", { name: "Check time & submit" }).click();
   await expect(page.locator(".sk-echo")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".sk-echo")).toContainText("Estimated time 1m 0s");
   await shot(page, "play-echo");

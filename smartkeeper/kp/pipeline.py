@@ -237,10 +237,13 @@ class KP:
         self.engine.post_kp_chat(player_id, reply, from_kp=True)
         return reply
 
-    def parse_intent(self, player_id: str, text: str) -> Intent:
-        """意图解析：不写入。玩家确认后才由调用方调用 engine.declare_action。"""
+    def parse_intent(self, player_id: str, text: str, fixed: Intent | None = None) -> Intent:
+        """意图解析：不写入。玩家确认后才由调用方调用 engine.declare_action。
+
+        fixed：玩家在界面上已经点好的行动（不经过 KP）。这时只解析文字补充的部分，和点好的合在一起；
+        文字和点好的行动矛盾时 conflict 写原因（不能提交）。"""
         game_id = self.engine.player(player_id).game_id
-        prompt, refs = self.ctx.intent(player_id, text)
+        prompt, refs = self.ctx.intent(player_id, text, fixed)
         own = set(self.engine.controlled(game_id, player_id))
         m = self.engine.map_data(game_id)
 
@@ -303,7 +306,10 @@ class KP:
                 for c in out.claims
             )
             return Intent(
-                items=tuple(items), claims=claims, unresolved=tuple(dict.fromkeys(unresolved))
+                items=(*(fixed.items if fixed else ()), *items),
+                claims=claims,
+                unresolved=tuple(dict.fromkeys(unresolved)),
+                conflict=out.conflict.strip(),
             )
 
         return self._structured("parse_intent", game_id, prompt, IntentOut, convert, judge=False)
@@ -432,8 +438,19 @@ class KP:
 
     def _run_plan(self, game_id: str) -> None:
         self.engine.begin_plan(game_id)  # 重跑时，之前那次的掷骰和查询作废
+        # 行动里点了技能的：引擎先替玩家用掉（KP 不用再声明，也不会漏）
+        self.engine.auto_uses(game_id)
+        auto = {
+            (str(u.get("source")), str(u.get("entry")))
+            for u in self.engine.planned_uses(game_id)
+            if isinstance(u, dict) and u.get("item")
+        }
         plan = self._structured(
             "plan", game_id, self.ctx.plan(game_id), PlanOut, lambda o: o, judge=True
+        )
+        # KP 又声明了一遍引擎已经用过的：跳过
+        plan = plan.model_copy(
+            update={"uses": [u for u in plan.uses if (u.source, u.entry) not in auto]}
         )
         for c in plan.checks:
             try:

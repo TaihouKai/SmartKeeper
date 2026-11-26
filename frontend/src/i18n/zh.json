@@ -500,12 +500,14 @@
       "noise": "动静范围（米），None 表示悄无声息",
       "placement": "设置物，例如 placement(radius=3, charges=1)",
       "range": "射程（米），None 表示不限；设置物是放置点离施法者的距离",
+      "reaction_only": "只能在被攻击时拿来应对（例如闪避），不出现在行动栏里",
       "reactions": "写了就可以被应对：列检定和应对技能（ID 或名字），True 是任何应对技能都行；玩家自己选，NPC 由引擎挑最有利的；没发现使用者的不能应对",
       "requires": "使用条件，例如 not silenced",
       "save": "命中后对象做的豁免检定（检定名，对 difficulty）；脚本里 saved 是结果",
       "seen_within": "对象的位置要在多少分钟之内掌握过（自己这一方察觉到、别人转告、用技能找到都算），None 表示不要求",
       "shape": "范围形状，例如 sphere(radius=5)",
       "target": "single 要选对象（只能选见过的人）/ self 只能对自己 / none 没有对象",
+      "toggle": "开关：这一条是一个开关（例如灵体化），写它此刻开没开的条件；界面上显示成开关，按一下就用一次这一条（脚本负责切换）",
       "visible": "对象必须在施法者的感知里；设置物要放在施法者看得见的地方"
     },
     "hint": "每行写一项“名字 = 值”，告诉引擎这个技能怎么用。值里的名字一律写前缀：self.（你自己）、target.（对象）、this.（这一条）。最常用的几项：\n- target：对谁用。\"single\" 选一个人，\"self\" 只对自己，\"none\" 不用选\n- range：射程（米）；不写就是不限\n- cast_time：要准备多久（分钟）；不写就是瞬发\n- cooldown：用过以后多久不能再用（分钟）\n- noise：多远的人会察觉到你在用（米）\n- requires：什么时候才能用，例如 self.mp >= 5\n- check：要掷的检定，例如 \"perception\"\n- reactions：对方能怎么应对，例如 [\"dodge\"]\n- shape：范围，例如 sphere(radius=5) 是半径 5 米的球",
@@ -735,6 +737,10 @@
         "0": "射程，算出米数，例如 30 + this.level * 5",
         "1": "不限射程（默认）"
       },
+      "reaction_only": {
+        "0": "只能在被攻击时用来应对，不出现在行动栏里",
+        "1": "平时也能用（默认）"
+      },
       "reactions": {
         "0": "对方可以从这些里选一个应对（检定名、应对技能的名字或 ID）",
         "1": "对方可以用任何应对技能",
@@ -763,6 +769,10 @@
         "1": "只能对自己用",
         "2": "没有对象（例如占卜、往脚下布置结界）"
       },
+      "toggle": {
+        "0": "这一条是开关，公式成立时显示为开着，例如 self.spirit_form",
+        "1": "不是开关（默认）"
+      },
       "visible": {
         "0": "对象必须在你此刻的感知里（看得见或察觉得到）",
         "1": "不用（默认）"
@@ -781,6 +791,9 @@
     "approved": "角色卡审核通过",
     "feedback": "KP 反馈",
     "identity": "身份",
+    "instant": "{who}：{entry}",
+    "instant_off": "{who}：{entry}（关）",
+    "instant_on": "{who}：{entry}（开）",
     "intel": "情报",
     "kp": "KP",
     "me": "我",
@@ -826,6 +839,7 @@
       "placement_notify": "有人触发时通知你",
       "placement_perceive": "别人发现它的距离 ×{x}",
       "range": "射程 {x} 米",
+      "reaction_only": "只能在被攻击时用来应对",
       "reactions": "对方可以用{x}应对",
       "reactions_any": "对方可以用任何应对技能",
       "requires": "能用的条件：{x}",
@@ -837,6 +851,7 @@
       "shape_sphere": "范围：半径 {radius} 米",
       "target_none": "不用选对象",
       "target_self": "只能对自己用",
+      "toggle": "开关：{x} 时开着",
       "visible": "对象要在你的视野里（看得见或察觉得到）"
     },
     "choice_sep": "／",
@@ -1309,6 +1324,28 @@
     "radius": "触发范围半径（米）",
     "tag": "设置物"
   },
+  "plan": {
+    "add": "加入行动",
+    "conflict": "KP 驳回：{why}",
+    "empty": "在下面选角色，点动作、技能或开关；在地图上点一个地方、“设为目的地”就是移动。也可以只在框里写字交给 KP。",
+    "move": "{who} → {where}",
+    "move_hint": "移动：在地图上点目的地，卡片上点“设为目的地”（给上面选中的角色）",
+    "off": "关着",
+    "on": "开着",
+    "pick_target": "选一个……",
+    "range": "（{min}～{max}）",
+    "remove": "去掉这一条",
+    "seen_wait": "有人看得见你，这个开关要等本回合结算才生效，已经加进行动列表。",
+    "send": "看耗时并提交",
+    "switches": "开关",
+    "target": "对象",
+    "text_placeholder": "补充说明（可以不写）：对白、怎么做、按钮没有的动作……写了会交给 KP 和上面的行动一起看",
+    "together": "{who}（和 {with} 一起）",
+    "use": "{who}：{skill}",
+    "use_on": "{who}：{skill} → {target}",
+    "with": "和{who}一起",
+    "with_params": "{action}（{params}）"
+  },
   "play": {
     "close": "关闭",
     "handle_label": "外号",
@@ -1703,6 +1740,9 @@
       "alias_hint_help": "代号是自己这一方平时怎么称呼这个角色，只有自己和 KP 看得到；空着用默认的“代号”和说明",
       "alias_label": "代号一栏叫什么",
       "appearance": "外观描述字段",
+      "appearance_hidden": "看不清样子的条件",
+      "appearance_hidden_hint": "公式，在这个角色身上算：成立时别人只察觉得到有人在，拿不到他的外观（起外号、被攻击时的提示、KP 写的反馈都一样）；自己照样看得到。空着是总看得清",
+      "appearance_hidden_ph": "例如 invisible",
       "damage_taken": "受到伤害的公式",
       "damage_taken_hint": "这个模板的角色每次受到技能伤害时，引擎用这条公式算实际受到多少（不会小于 0）。amount 是原始伤害，kind 是伤害类型（技能所在分组设的，或 damage(数量, \"类型\") 写的）。对魔力、护甲、各种抗性写在这里，就对所有攻击生效，不用每个技能各写一遍。",
       "description": "建卡说明",
