@@ -316,8 +316,7 @@ export function PlayPage() {
       if (!e.pos) continue;
       const spot = `${e.pos.lon.toFixed(5)},${e.pos.lat.toFixed(5)},${Math.round(e.pos.z)}`;
       const here = together.get(spot);
-      if (here) here.label = `${here.label}
-${e.name}`; // 一人一行，不挤在一行里被截断
+      if (here) here.label = [here.label, e.name].join("\n"); // 一人一行，不挤在一行里被截断
       else together.set(spot, { ref: e.ref, label: e.name, lon: e.pos.lon, lat: e.pos.lat, z: e.pos.z, own: true });
     }
     for (const m of together.values()) out.set(m.ref, m);
