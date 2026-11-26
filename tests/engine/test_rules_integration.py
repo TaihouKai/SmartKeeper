@@ -197,3 +197,11 @@ def test_approved_character_can_be_revised_before_the_game_starts() -> None:
     e.save_character_draft(p.id, [])
     e.submit_character(p.id, sheets_for(pack, 1))
     assert e.character_status(p.id) == "submitted"
+    first = e.controlled(g.id, p.id)
+    e.approve_character(p.id)
+    # 重新通过：换掉上次的实体，不留下没人控制的旧角色
+    state = e.world_state(g.id)
+    ents = state["entities"]
+    assert isinstance(ents, dict)
+    now = e.controlled(g.id, p.id)
+    assert len(now) == len(first) and set(ents) == set(now)

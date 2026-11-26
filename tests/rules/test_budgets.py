@@ -48,9 +48,11 @@ def test_sum_of_fields_and_columns(rules: RulesService) -> None:
 def test_over_the_cap_is_a_problem_and_the_cap_follows_the_sheet(rules: RulesService) -> None:
     pack = with_budgets(POINTS)
     over = rules.init_sheet(pack, "person", sheet("reporter", 30, [3, 4]))
-    problems = rules.validate_sheet(pack, "person", over)
+    problems = rules.validate_sheet(pack, "person", over, creation=True)
     assert [(p.code, p.path) for p in problems] == [("sheet.budget_over", "budgets.points")]
     assert problems[0].params["used"] == 57 and problems[0].params["total"] == 50
+    # 合计上限只管建角：剧本的 NPC、游戏中的状态不查
+    assert rules.validate_sheet(pack, "person", over) == []
     # 医生多 10 点：同样的填写就不超了
     doctor = rules.init_sheet(pack, "person", sheet("doctor", 30, [3, 4]))
     assert rules.validate_sheet(pack, "person", doctor) == []
@@ -67,7 +69,9 @@ def test_condition_and_no_cap(rules: RulesService) -> None:
     assert uses["shown"].used == 20 and uses["shown"].total is None
     assert rules.validate_sheet(pack, "person", s) == []
     doc = rules.init_sheet(pack, "person", sheet("doctor", 30, []))
-    assert [p.code for p in rules.validate_sheet(pack, "person", doc)] == ["sheet.budget_over"]
+    assert [p.code for p in rules.validate_sheet(pack, "person", doc, creation=True)] == [
+        "sheet.budget_over"
+    ]
 
 
 def test_bad_definitions(rules: RulesService) -> None:

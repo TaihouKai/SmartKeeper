@@ -223,7 +223,14 @@ export function GamesPanel({ selected, onSelect }: { selected: string | null; on
             <h3>{t("games.lifecycle")}</h3>
             <p>{t(`games.status.${d.game.status}`)} · {d.round ? t("status.round", { round: String(d.round.no) }) + " · " + t(`status.phase.${d.round.status}`) : ""}</p>
             {d.game.status === "characters" && (
-              <button className="sk-primary" onClick={() => void act.run(async () => { await call(api.PATCH("/api/admin/games/{game_id}", { params: { path: { game_id: gid } }, body: { action: "start" } })); refresh(); })}>{t("games.start")}</button>
+              <button className="sk-primary" disabled={d.opening?.state === "running"} onClick={() => void act.run(async () => { await call(api.PATCH("/api/admin/games/{game_id}", { params: { path: { game_id: gid } }, body: { action: "start" } })); refresh(); })}>{t("games.start")}</button>
+            )}
+            {d.opening?.state === "running" && <p className="sk-hint">{t("games.opening_running")}</p>}
+            {d.opening?.state === "failed" && (
+              <div className="sk-error">
+                <p>{t("games.opening_failed")}</p>
+                <pre className="sk-code">{d.opening.error}</pre>
+              </div>
             )}
             {d.game.status === "running" && d.round?.status === "collecting" && (
               <button onClick={() => void act.run(async () => { await call(api.POST("/api/admin/games/{game_id}/round/close", { params: { path: { game_id: gid } } })); refresh(); })}>{t("games.force_close")}</button>

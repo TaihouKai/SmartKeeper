@@ -276,12 +276,18 @@ class RulesService:
         return tpl
 
     def validate_sheet(
-        self, pack: RulePack, template: str, sheet: JsonValue, peers: Peers | None = None
+        self,
+        pack: RulePack,
+        template: str,
+        sheet: JsonValue,
+        peers: Peers | None = None,
+        *,
+        creation: bool = False,
     ) -> list[Problem]:
         tpl = pack.template(template)
         if tpl is None:
             return [Problem(code="rules.unknown_template", params={"name": template})]
-        return validation.validate_sheet(pack, tpl, sheet, peers)
+        return validation.validate_sheet(pack, tpl, sheet, peers, creation=creation)
 
     def init_sheet(
         self, pack: RulePack, template: str, sheet: JsonValue, peers: Peers | None = None

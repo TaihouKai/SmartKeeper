@@ -2494,6 +2494,7 @@ export interface components {
         /** GameDetail */
         GameDetail: {
             game: components["schemas"]["Game"];
+            opening?: components["schemas"]["OpeningState"] | null;
             /** Players */
             players: components["schemas"]["PlayerRow"][];
             round: components["schemas"]["Round"] | null;
@@ -3235,6 +3236,22 @@ export interface components {
              * @default true
              */
             ok: boolean;
+        };
+        /**
+         * OpeningState
+         * @description 点了“开始这一局”以后：KP 正在写开场（running），或者写失败了（failed，带原因，可以再点一次）。
+         */
+        OpeningState: {
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "running" | "failed";
         };
         /** Outcome */
         Outcome: {

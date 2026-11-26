@@ -173,7 +173,7 @@ def preview(
             ranges=_ranges(rules, pack, body.template, body.sheet),
             budgets=rules.budgets(pack, body.template, body.sheet),
         )
-    problems = rules.validate_sheet(pack, body.template, sheet)
+    problems = rules.validate_sheet(pack, body.template, sheet, creation=True)
     # 别处还没填完也照样算：算得出来的数值都给（例如第二个物品没填完，力量、生命值照样看得到）
     derived: list[DerivedValue] = []
     try:

@@ -131,9 +131,16 @@ class Rules(Protocol):
         ...
 
     def validate_sheet(
-        self, pack: RulePack, template: str, sheet: JsonValue, peers: Peers | None = None
+        self,
+        pack: RulePack,
+        template: str,
+        sheet: JsonValue,
+        peers: Peers | None = None,
+        *,
+        creation: bool = False,
     ) -> list[Problem]:
-        """按模板校验角色卡：字段存在、类型与单位、资源不越界、推导值不可直接写。"""
+        """按模板校验角色卡：字段存在、类型与单位、资源不越界、推导值不可直接写。
+        creation：玩家建角（提交、预览）时另外检查合计上限（属性点等）；剧本的 NPC、游戏中的状态不查。"""
         ...
 
     def init_sheet(

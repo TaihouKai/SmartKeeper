@@ -289,6 +289,7 @@
     },
     "game": {
       "characters_pending": "还有玩家的角色卡没有通过审核",
+      "opening_running": "开场正在进行，请稍候",
       "scenario_other_rulebook": "这个剧本属于“{rulebook}”，不能用“{pack}”开局"
     },
     "identity": {
@@ -972,6 +973,8 @@
     "name": "名称",
     "new": "新建一局",
     "no_search": "当前使用的模型不支持联网搜索，KP 只靠模型自身的知识。",
+    "opening_failed": "上次开场没有成功（下面是原因），可以再点一次“开始这一局”。",
+    "opening_running": "KP 正在写开场（通常半分钟到一分钟），写好以后状态会变成“进行中”。",
     "player_name": "玩家显示名",
     "player_webhook": "玩家 webhook URL",
     "players": "玩家",

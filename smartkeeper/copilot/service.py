@@ -205,7 +205,9 @@ class Copilot:
             prefix = f"groups.{p.group}[{idx}]"
             found = [
                 x
-                for x in self._rules.validate_sheet(pack, p.template, cast(JsonValue, sheet))
+                for x in self._rules.validate_sheet(
+                    pack, p.template, cast(JsonValue, sheet), creation=True
+                )
                 if x.path == prefix or x.path.startswith(prefix + ".")
             ]
         else:
@@ -216,7 +218,9 @@ class Copilot:
             names = {f"fields.{k}" for k in p.fields}
             found = [
                 x
-                for x in self._rules.validate_sheet(pack, p.template, cast(JsonValue, sheet))
+                for x in self._rules.validate_sheet(
+                    pack, p.template, cast(JsonValue, sheet), creation=True
+                )
                 if x.path in names or any(x.path.startswith(n + ".") for n in names)
             ]
         return p.model_copy(update={"problems": tuple(found)})

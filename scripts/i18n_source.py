@@ -1251,6 +1251,15 @@ T: dict[str, tuple[str, str]] = {
         "Invite links are shown only once — send them now.",
     ),
     "games.revoke": ("作废", "Revoke"),
+    "games.opening_running": (
+        "KP 正在写开场（通常半分钟到一分钟），写好以后状态会变成“进行中”。",
+        "The keeper is writing the opening (usually under a minute); the status turns to running when it's done.",
+    ),
+    "games.opening_failed": (
+        "上次开场没有成功（下面是原因），可以再点一次“开始这一局”。",
+        "The last opening attempt failed (reason below); you can press start again.",
+    ),
+    "codes.game.opening_running": ("开场正在进行，请稍候", "The opening is already being written"),
     "games.rereview": ("重新审核", "Review again"),
     "games.submitted": ("已提交", "Submitted"),
     "games.waiting": ("未提交", "Waiting"),

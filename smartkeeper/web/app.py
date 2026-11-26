@@ -260,8 +260,20 @@ def _error_body(err: SmartKeeperError) -> dict[str, Any]:
 STATUS = {ValidationFailed: 422, NotFound: 404, IllegalState: 409, Forbidden: 403}
 
 
+def _setup_logging() -> None:
+    """smartkeeper 自己的日志（后台任务失败的原因等）写到标准错误，和 uvicorn 的日志在一起。"""
+    logger = logging.getLogger("smartkeeper")
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s: %(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+
+
 def create_app(settings: Settings | None = None, services: Services | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
+    _setup_logging()
     s = services or build_services(settings)
     auth = Auth(s.engine, settings.admin_password_hash, settings.session_secret)
 

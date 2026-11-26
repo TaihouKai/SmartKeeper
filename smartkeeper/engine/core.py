@@ -711,7 +711,9 @@ class Engine:
                 except ValidationFailed as e:
                     problems.append(Problem(code=e.code, path=f"sheets[{i}]", params=e.params))
                     continue
-                for prob in self._rules.validate_sheet(pack, s.template, init, peers_at(i)):
+                for prob in self._rules.validate_sheet(
+                    pack, s.template, init, peers_at(i), creation=True
+                ):
                     problems.append(prob.model_copy(update={"path": f"sheets[{i}].{prob.path}"}))
                 filled.append({"template": s.template, "sheet": init})
             if problems:
@@ -746,8 +748,18 @@ class Engine:
                 raise IllegalState("character.not_pending")
             subs = self.submitted_character(player_id)
             state = self._state(g.id)
-            ids = self._new_entity_ids(state, len(subs))
-            ops: list[PatchOp] = []
+            # 开局前改了卡重新通过的：换掉上次通过时建的那几个实体，不留下没人控制的旧角色
+            old = [str(x) for x in _list(_obj(state.get("controls")).get(player_id))]
+            ops: list[PatchOp] = [
+                PatchOp(op="remove", path=f"/entities/{eid}")
+                for eid in old
+                if eid in _obj(state.get("entities"))
+            ]
+            kept: dict[str, JsonValue] = {
+                k: v for k, v in _obj(state.get("entities")).items() if k not in old
+            }
+            remaining: State = {**state, "entities": kept}
+            ids = self._new_entity_ids(remaining, len(subs))
             for eid, s in zip(ids, subs, strict=True):
                 ops.append(
                     PatchOp(

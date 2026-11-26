@@ -967,7 +967,7 @@ def _check_sample(pack: RulePack, i: int) -> list[Problem]:
         filled = init_sheet(pack, tpl, sample.sheet)
     except f.FormulaError as e:
         return [Problem(code=e.code, path=path, params=dict(e.params))]
-    problems = validate_sheet(pack, tpl, filled)
+    problems = validate_sheet(pack, tpl, filled, creation=True)
     if problems:
         return [p.model_copy(update={"path": f"{path}.{p.path}"}) for p in problems]
     ctx = EntityContext(pack, tpl, Sheet.model_validate(filled))
@@ -1050,7 +1050,12 @@ def _check_value(
 
 
 def validate_sheet(
-    pack: RulePack, tpl: EntityTemplate, raw: JsonValue, peers: Peers | None = None
+    pack: RulePack,
+    tpl: EntityTemplate,
+    raw: JsonValue,
+    peers: Peers | None = None,
+    *,
+    creation: bool = False,
 ) -> list[Problem]:
     try:
         sheet = Sheet.model_validate(raw)
@@ -1107,7 +1112,9 @@ def validate_sheet(
             problems += _check_value(ctx, fd, sheet.fields[name], f"fields.{name}")
     problems += _check_active_presets(ctx, tpl, sheet)
     problems += _check_preset_edits(pack, ctx, tpl, sheet, derived)
-    problems += budgets.check_sheet(ctx)
+    if creation:
+        # 合计上限（属性点等）是建角的规则：玩家提交、表单预览时查；剧本的 NPC、召唤物、游戏中的状态不受它限制
+        problems += budgets.check_sheet(ctx)
     if problems:
         return problems
     for d in tpl.derived:

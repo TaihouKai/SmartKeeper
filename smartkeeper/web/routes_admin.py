@@ -162,11 +162,19 @@ class PlayerRow(BaseModel):
     submitted: bool
 
 
+class OpeningState(BaseModel):
+    """点了“开始这一局”以后：KP 正在写开场（running），或者写失败了（failed，带原因，可以再点一次）。"""
+
+    state: Literal["running", "failed"]
+    error: str = ""
+
+
 class GameDetail(BaseModel):
     game: Game
     players: list[PlayerRow]
     round: Round | None
     searchable: bool
+    opening: OpeningState | None = None
 
 
 class PatchGameIn(BaseModel):
@@ -216,6 +224,14 @@ class StatePatchIn(BaseModel):
     note: str = ""
 
 
+def _describe(err: Exception) -> str:
+    """开场失败的原因，给管理员看：校验不过的列出前几个问题。"""
+    if isinstance(err, ValidationFailed) and err.problems:
+        shown = "; ".join(f"{p.code} {p.path} {p.params}".strip() for p in err.problems[:5])
+        return f"{err.code}: {shown}"[:1500]
+    return f"{type(err).__name__}: {err}"[:1500]
+
+
 def _admin_event(e: Event) -> AdminEvent:
     return AdminEvent(
         seq=e.seq,
@@ -233,6 +249,18 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
     guarded = APIRouter(dependencies=[Depends(auth.require_admin)])
     e, kp = s.engine, s.kp
     scen_dir = Path(s.scenarios_dir)
+
+    # 开场在后台跑（要调模型，几十秒）：记着进行到哪、失败的原因，管理台上显示（只在内存里，重启就清空）
+    openings: dict[str, OpeningState] = {}
+
+    def open_game(game_id: str) -> None:
+        try:
+            kp.open_game(game_id)
+        except Exception as err:
+            log.exception("opening failed for %s", game_id)
+            openings[game_id] = OpeningState(state="failed", error=_describe(err))
+        else:
+            openings.pop(game_id, None)
 
     def background(fn: Callable[..., Any], *args: Any) -> Callable[[], None]:
         def run() -> None:
@@ -374,7 +402,7 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
             sheet = s.rules.init_sheet(body.pack, body.template, body.sheet)
         except ValidationFailed as err:
             return TryOut(derived=[], problems=[Problem(code=err.code, params=err.params)])
-        problems = s.rules.validate_sheet(body.pack, body.template, sheet)
+        problems = s.rules.validate_sheet(body.pack, body.template, sheet, creation=True)
         derived = [] if problems else s.rules.derive(body.pack, body.template, sheet)
         return TryOut(derived=derived, problems=problems, sheet=sheet)
 
@@ -475,7 +503,13 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
             for p in e.players(game_id)
         ]
         rnd = e.round(game_id) if g.current_round else None
-        return GameDetail(game=g, players=rows, round=rnd, searchable=s.judge.supports_search)
+        return GameDetail(
+            game=g,
+            players=rows,
+            round=rnd,
+            searchable=s.judge.supports_search,
+            opening=openings.get(game_id) if g.status == "characters" else None,
+        )
 
     @guarded.patch("/games/{game_id}")
     def patch_game(game_id: str, body: PatchGameIn, bg: BackgroundTasks) -> Game:
@@ -492,7 +526,11 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
             ]
             if pending or not any(p.active for p in e.players(game_id)):
                 raise IllegalState("game.characters_pending", players=list[JsonValue](pending))
-            bg.add_task(background(kp.open_game, game_id))
+            current = openings.get(game_id)
+            if current is not None and current.state == "running":
+                raise IllegalState("game.opening_running")
+            openings[game_id] = OpeningState(state="running")
+            bg.add_task(open_game, game_id)
         elif body.action == "end":
             e.end_game(game_id)
         return e.game(game_id)

@@ -289,6 +289,7 @@
     },
     "game": {
       "characters_pending": "Some characters aren't approved yet",
+      "opening_running": "The opening is already being written",
       "scenario_other_rulebook": "This scenario belongs to “{rulebook}”, not “{pack}”"
     },
     "identity": {
@@ -972,6 +973,8 @@
     "name": "Name",
     "new": "New game",
     "no_search": "The configured model can't search the web; the keeper relies on its own knowledge.",
+    "opening_failed": "The last opening attempt failed (reason below); you can press start again.",
+    "opening_running": "The keeper is writing the opening (usually under a minute); the status turns to running when it's done.",
     "player_name": "Player display name",
     "player_webhook": "Player webhook URL",
     "players": "Players",
