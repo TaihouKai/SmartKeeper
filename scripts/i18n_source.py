@@ -2193,6 +2193,12 @@ T: dict[str, tuple[str, str]] = {
         "常驻加成一直生效，不能写 with minutes",
         "Always-on bonuses can't use with minutes",
     ),
+    "codes.bonus.no_param": (
+        "第 {line} 行：常驻加成里不能用参数 this.{name}。参数是每次用这一条时才选的，常驻加成一直生效、不在哪一次使用里；"
+        "要按参数变化的写在“生效时发生什么”里",
+        "Line {line}: always-on bonuses can't use the parameter this.{name}. Parameters are chosen each time the entry is used, "
+        "and a bonus is always on, outside any use; put what depends on it in the script",
+    ),
     "codes.bonus.self_only": (
         "常驻加成只能改自己：self.名字",
         "Always-on bonuses only change self.<name>",

@@ -82,7 +82,10 @@ class RulesService:
             if tpl is None:
                 return []
             grp = next((g for g in tpl.groups if g.name == in_entry), None)
-            return validation.check_bonus(pack, tpl, formula, "bonus", cols(grp))
+            own = [x.name for x in grp.fields] if grp is not None else []
+            return validation.check_bonus(
+                pack, tpl, formula, "bonus", own, params=[x for x in cols(grp) if x not in own]
+            )
         if scope in ("stealth", "search"):
             return validation.check_stealth(
                 pack, pack.template(template) if template else None, formula, "formula", scope

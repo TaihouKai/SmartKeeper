@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import keyword
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 from pydantic import JsonValue
 from pydantic import ValidationError as PydanticError
@@ -552,7 +552,7 @@ def _check_use(
     all_derived = derived if derived is not None else {d.name for d in tpl.derived}
     for j, eff in enumerate(u.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, all_derived, f"{path}.effects[{j}]")
-    problems += check_bonus(pack, tpl, u.bonus, f"{path}.bonus", list(fdefs), all_derived)
+    problems += check_bonus(pack, tpl, u.bonus, f"{path}.bonus", list(fdefs), all_derived, names)
     return problems
 
 
@@ -1246,7 +1246,7 @@ def _check_entry(
         problems += check_script(pack, tpl, entry.script, f"{ep}.script", names, entry.config)
     for j, eff in enumerate(entry.effects):
         problems += _check_effect(pack, tpl, eff, fdefs, derived, f"{ep}.effects[{j}]")
-    problems += check_bonus(pack, tpl, entry.bonus, f"{ep}.bonus", list(fdefs), derived)
+    problems += check_bonus(pack, tpl, entry.bonus, f"{ep}.bonus", list(fdefs), derived, names)
     if entry.config.strip():
         problems += check_config(pack, tpl, g, entry.config, f"{ep}.config", names, entry.script)
     for name in sorted(_dupes(u.name for u in entry.uses)):
@@ -1265,8 +1265,10 @@ def check_bonus(
     path: str,
     entry_fields: list[str],
     derived: set[str] | None = None,
+    params: Sequence[str] = (),
 ) -> list[Problem]:
-    """常驻加成的代码：语法，每条改的是不是能加成的数值（推导值或数值字段），公式里的名字。问题带 line。"""
+    """常驻加成的代码：语法，每条改的是不是能加成的数值（推导值或数值字段），公式里的名字。问题带 line。
+    params：这一条的参数。参数是每次用的时候才定的，常驻加成一直生效、不在哪次使用里，所以不能用。"""
     if not text.strip():
         return []
     try:
@@ -1278,6 +1280,16 @@ def check_bonus(
     problems: list[Problem] = []
     for b in lines:
         if b.target is None:
+            continue
+        try:
+            used = f.names(f.parse(b.formula)) if b.formula else set[str]()
+        except f.FormulaError:
+            used = set[str]()  # 语法错由下面的公式检查报
+        bad = sorted(p for p in params if f"this.{p}" in used and p not in entry_fields)
+        if bad:
+            problems.append(
+                Problem(code="bonus.no_param", path=path, params={"line": b.line, "name": bad[0]})
+            )
             continue
         eff = Effect(description=b.description, target=b.target, formula=b.formula)
         found = _check_effect(pack, tpl, eff, fdefs, names, path)

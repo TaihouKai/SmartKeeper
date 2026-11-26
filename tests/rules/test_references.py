@@ -146,3 +146,26 @@ def test_count_and_sum(rules: RulesService) -> None:
     assert rules.validate_formula(pack, "leader", "count(talents.rank, 1)") == []
     for bad in ["count(nothing.rank)", "count(talents.nope)", "count(1 + 2)"]:
         assert rules.validate_formula(pack, "leader", bad) != [], bad
+
+
+def test_bonus_cannot_use_parameters(rules: RulesService) -> None:
+    """参数是每次用的时候才选的；常驻加成一直生效，不在哪一次使用里，所以引用参数是错（编辑时和提交时一样）。"""
+    pack = load_pack("multi")
+    groups = tuple(g.model_copy(update={"effects": True}) for g in pack.template("leader").groups)  # type: ignore[union-attr]
+    tpls = tuple(
+        t.model_copy(update={"groups": groups}) if t.name == "leader" else t for t in pack.templates
+    )
+    pack = pack.model_copy(update={"templates": tpls})
+    code = "self.move_speed += this.foe_kind\nself.move_speed += this.rank"
+    live = rules.validate_formula(pack, "leader", code, "talents", "bonus", names=["foe_kind"])
+    assert [(p.code, p.params.get("name")) for p in live] == [("bonus.no_param", "foe_kind")]
+    entry: dict[str, JsonValue] = {
+        "name": "t",
+        "fields": {"rank": 1},
+        "bonus": code,
+        "params": [{"name": "foe_kind", "label": "x", "choices": ["no=0", "yes=1"]}],
+    }
+    sheet = {**LEADER, "groups": {"talents": [entry]}}
+    got = [p.code for p in rules.validate_sheet(pack, "leader", sheet)]
+    assert "bonus.no_param" in got
+    assert "formula.unknown_name" not in got
