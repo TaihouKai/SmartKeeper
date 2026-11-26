@@ -37,6 +37,7 @@ class Explainer:
         self.tpl = tpl
         self.group = next((g for g in tpl.groups if g.name == group), None)
         self.params = {p.name: p.label or p.name for p in params}
+        self.param_defs = {p.name: p for p in params}
         self.words = words
         self.local: dict[str, f.Node] = {}
 
@@ -247,8 +248,12 @@ class Explainer:
         if k == "target":
             kind = v.strip("\"'")
             return None if kind in ("", "single") else self.w(f"c.target_{kind}")
-        if k not in skillconfig.KEYS:  # 写定的参数
-            return self.w("c.fixed", name=self.column_label(k), x=self.formula(v)) if v else None
+        if k not in skillconfig.KEYS:  # 写定的参数：可选值有名字的写名字（解放真名固定为 不解放）
+            if not v:
+                return None
+            p = self.param_defs.get(k)
+            shown = self.choice_name(p.choices, v) if p else None
+            return self.w("c.fixed", name=self.column_label(k), x=shown or self.formula(v))
         if k in ("visible", "guard"):
             return self.w(f"c.{k}") if v not in ("", "0", "False") else None
         if k == "check":
@@ -286,6 +291,35 @@ class Explainer:
         if not v:
             return None
         return self.w(f"c.{k}", x=self.formula(v))
+
+    @staticmethod
+    def choice_name(choices: Sequence[str], value: str) -> str | None:
+        try:
+            v = float(value)
+        except ValueError:
+            return None
+        for c in choices:
+            name, sep, num = c.partition("=")
+            try:
+                if sep and abs(float(num) - v) < 1e-9:
+                    return name.strip()
+            except ValueError:
+                continue
+        return None
+
+    def param(self, p: ParamDef) -> str:
+        """参数和它能取的值：解放真名（不解放／解放）、投入魔力（1～魔力值上限）。"""
+        label = p.label or p.name
+        if p.choices:
+            vals = [
+                c.partition("=")[0].strip() if "=" in c else c.replace("~", "～") for c in p.choices
+            ]
+            return self.w("param", name=label, x=self.w("choice_sep").join(vals))
+        if p.min or p.max:
+            lo = self.formula(p.min) if p.min else ""
+            hi = self.formula(p.max) if p.max else ""
+            return self.w("param", name=label, x=self.w("range", lo=lo, hi=hi))
+        return label
 
     def reaction(self, name: str) -> str:
         if self.pack.check(name) is not None:
@@ -403,9 +437,19 @@ def explain(
     merged |= {p.name: p for p in params}
     ex = Explainer(pack, tpl, group, list(merged.values()), words)
     out = [ExplainLine(depth=0, text=x) for x in ex.config(config, script)]
-    chosen = [p.label or p.name for p in merged.values() if not p.by_kp]
+    # 设置里写定了的参数不用再选
+    try:
+        fixed = {s.name for s in f.parse_config(config) if s.name not in skillconfig.KEYS}
+    except f.FormulaError:
+        fixed = set[str]()
+    free = [p for p in merged.values() if p.name not in fixed]
+    sep = ex.w("list_sep")
+    chosen = [ex.param(p) for p in free if not p.by_kp]
     if chosen:
-        out.append(ExplainLine(depth=0, text=ex.w("params", x=ex.w("list_sep").join(chosen))))
+        out.append(ExplainLine(depth=0, text=ex.w("params", x=sep.join(chosen))))
+    by_kp = [ex.param(p) for p in free if p.by_kp]
+    if by_kp:
+        out.append(ExplainLine(depth=0, text=ex.w("params_kp", x=sep.join(by_kp))))
     ex.local = {}
     out += ex.script(script)
     out += [ExplainLine(depth=0, text=x) for x in ex.bonus(effects)]

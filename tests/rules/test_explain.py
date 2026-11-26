@@ -61,3 +61,29 @@ def test_broken_code_is_skipped(rules: RulesService) -> None:
         rules.explain(pack, "person", "skills", {"config": "range = (", "script": "x("}, WORDS)
         == []
     )
+
+
+def test_params_show_their_values_and_fixed_ones_their_names(rules: RulesService) -> None:
+    pack = load_pack("single")
+    words = {
+        **WORDS,
+        "ex.param": "{name}（{x}）",
+        "ex.choice_sep": "／",
+        "ex.range": "{lo}～{hi}",
+        "ex.params_kp": "由 KP 按局面定：{x}",
+        "ex.c.fixed": "{name}固定为 {x}",
+    }
+    entry: JsonValue = {
+        "config": "power = 1",
+        "script": "target.damage(this.boost_kind + this.foe)",
+        "params": [
+            {"name": "power", "label": "全力", "choices": ["不用=0", "用=1"]},
+            {"name": "boost_kind", "label": "加强", "choices": ["弱=1", "强=2"]},
+            {"name": "foe", "label": "宿敌", "choices": ["否=0", "是=1"], "by_kp": True},
+        ],
+    }
+    text = [x.text for x in rules.explain(pack, "person", "skills", entry, words)]
+    assert "全力固定为 用" in text
+    assert "使用时可以选：加强（弱／强）" in text  # 写定了的“全力”不再列出
+    assert "由 KP 按局面定：宿敌（否／是）" in text
+    assert any("加强 + 宿敌" in t for t in text)

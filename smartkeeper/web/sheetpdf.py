@@ -239,7 +239,16 @@ def build_cards(
                     Use(
                         name=str(_obj(u).get("name")),
                         text=plain(str(_obj(u).get("description") or "")),
-                        effects=_explain(rules, pack, template, g.name, u, words, explained),
+                        # 物品的参数所有用途共用：用途自己的接在后面
+                        effects=_explain(
+                            rules,
+                            pack,
+                            template,
+                            g.name,
+                            {**u, "params": [*_list(e.get("params")), *_list(u.get("params"))]},
+                            words,
+                            explained,
+                        ),
                     )
                     for u in _list(e.get("uses"))
                     if str(_obj(u).get("name") or "")

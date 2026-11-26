@@ -810,6 +810,7 @@
       "target_self": "只能对自己用",
       "visible": "对象要在你的视野里（看得见或察觉得到）"
     },
+    "choice_sep": "／",
     "entry_col": "{entry}的{col}",
     "fn": {
       "abs": "|{x}|",
@@ -836,7 +837,10 @@
     "not": "非{x}",
     "of": "{who}的{what}",
     "or": " 或 ",
+    "param": "{name}（{x}）",
     "params": "使用时可以选：{x}",
+    "params_kp": "由 KP 按局面定：{x}",
+    "range": "{lo}～{hi}",
     "s": {
       "add": "{what}增加 {x}",
       "damage": "对{who}造成 {x} 点伤害",

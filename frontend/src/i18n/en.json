@@ -810,6 +810,7 @@
       "target_self": "Only on yourself",
       "visible": "The target must be in your perception"
     },
+    "choice_sep": " / ",
     "entry_col": "{entry} {col}",
     "fn": {
       "abs": "|{x}|",
@@ -836,7 +837,10 @@
     "not": "not {x}",
     "of": "{who}'s {what}",
     "or": " or ",
+    "param": "{name} ({x})",
     "params": "Choose when using: {x}",
+    "params_kp": "Set by the keeper: {x}",
+    "range": "{lo}–{hi}",
     "s": {
       "add": "{what} +{x}",
       "damage": "Deals {x} damage to {who}",
