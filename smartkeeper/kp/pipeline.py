@@ -80,8 +80,11 @@ class KP:
         on_published: RoundHook | None = None,
         on_review: RoundHook | None = None,
         syntax_reference: Callable[[str], str] | None = None,
+        schedule: Callable[[float, Callable[[], None]], None] | None = None,
     ) -> None:
-        """syntax_reference：语言 -> 规则书代码的语法手册（审核角色卡时给 KP，好看懂玩家写的代码）。"""
+        """syntax_reference：语言 -> 规则书代码的语法手册（审核角色卡时给 KP，好看懂玩家写的代码）。
+        on_review：回合出错（KP 重试用尽）时通知一声，只是告知，引擎自己会接着重试。
+        schedule：过多少秒以后执行一件事（自动重试用；测试里换成立刻执行或记下来）。"""
         self.engine = engine
         self.judge = judge
         self.writer = writer
@@ -90,6 +93,8 @@ class KP:
         self._log = call_log
         self._on_published = on_published
         self._on_review = on_review
+        self._schedule = schedule or _later
+        self._failures: dict[str, int] = {}  # 每一局连续出错的次数（发布了就清零）
         self._locks: dict[str, threading.Lock] = {}
         self._locks_guard = threading.Lock()
 
@@ -185,9 +190,32 @@ class KP:
                 self.engine.reject_character(player_id, out.comments or "-")
             return out
 
-        return self._structured(
-            "review_character", game_id, self.ctx.review(player_id), ReviewOut, apply, judge=False
-        )
+        try:
+            out = self._structured(
+                "review_character",
+                game_id,
+                self.ctx.review(player_id),
+                ReviewOut,
+                apply,
+                judge=False,
+            )
+        except (LLMError, OutputError, ValidationFailed):
+            # 审核写不出来（模型出错）：过一会儿自动再审几次；还不行就停下，管理员看日志后在管理台重新审核
+            key = f"review:{player_id}"
+            n = self._failures.get(key, 0)
+            self._failures[key] = n + 1
+            if n < len(RETRY_DELAYS):
+                self._schedule(RETRY_DELAYS[n], lambda: self._review_again(player_id))
+            raise
+        self._failures.pop(f"review:{player_id}", None)
+        return out
+
+    def _review_again(self, player_id: str) -> None:
+        """自动重审：还在等审核（没有撤回、没有重新提交过）才审。"""
+        if self.engine.character_status(player_id) != "submitted":
+            return
+        with contextlib.suppress(LLMError, OutputError, SmartKeeperError):
+            self.review_character(player_id)
 
     def open_game(self, game_id: str) -> Round:
         """开场：广播起始剧情、私发开场信息、给出剧本没有指定的初始位置，开启第 1 轮。"""
@@ -363,12 +391,6 @@ class KP:
         if not self.engine.pending_reactions(game_id):
             self.run_round(game_id)
 
-    def force_close(self, game_id: str) -> None:
-        """管理员强制结算：未提交的玩家本轮视为没有行动。"""
-        with self._lock(game_id):
-            self.engine.close_round(game_id, forced=True)
-        self.run_round(game_id)
-
     # ================= 回合裁定管线 =================
 
     def run_round(self, game_id: str) -> None:
@@ -391,21 +413,65 @@ class KP:
                 adj = self._adjudicate(game_id)
             except (LLMError, OutputError, SmartKeeperError) as e:
                 self._fail(game_id, e)
-                self._hook(self._on_review, game_id, self.engine.round(game_id).no)
+                self._retry_later(game_id)
                 return
             if adj is None:
-                self._hook(self._on_review, game_id, self.engine.round(game_id).no)
+                self._retry_later(game_id)
                 return
             ok = self._write_outputs(game_id, adj)
             round_no = self.engine.round(game_id).no
-            published = ok
-            if published:
+            if ok:
                 self.engine.publish_round(game_id)
-        if published:
+        if ok:
+            self._failures.pop(game_id, None)
             self.after_publish(game_id, round_no, adj)
         else:
-            self._hook(self._on_review, game_id, round_no)
+            self._retry_later(game_id)
         self.name_pending_handles(game_id)
+
+    # ================= 出错时自动重试 =================
+
+    def _retry_later(self, game_id: str) -> None:
+        """这一轮出错了（调模型失败、输出用不了、裁定重试用尽、反馈写不出来）：过一会儿自动重试，
+        一共几次；还不行就停下（游戏照样等着，不需要游戏里的谁做什么），通知管理员看日志，
+        修好代码后重启服务或在管理台点“重跑”就接着跑。"""
+        n = self._failures.get(game_id, 0)
+        self._failures[game_id] = n + 1
+        if n < len(RETRY_DELAYS):
+            self._schedule(RETRY_DELAYS[n], lambda: self.retry(game_id))
+        else:
+            self._hook(self._on_review, game_id, self.engine.round(game_id).no)
+
+    def resume(self, game_id: str) -> None:
+        """管理员修好代码后让停下的一轮接着跑：重新给几次自动重试，马上试一次。"""
+        self._failures.pop(game_id, None)
+        self.retry(game_id)
+
+    def retry(self, game_id: str) -> None:
+        """重试出错停下的一轮：裁定已经有了（只是反馈没写出来）就只重写反馈再发布；
+        裁定都没有就整轮重跑。"""
+        try:
+            r = self.engine.round(game_id)
+        except SmartKeeperError:
+            return
+        if r.status != "review":
+            self._failures.pop(game_id, None)
+            return
+        raw = (r.draft or {}).get("adjudication")
+        if raw is None:
+            self.rerun(game_id)
+            return
+        adj = Adjudication.model_validate(raw)
+        with self._lock(game_id):
+            ok = self._write_outputs(game_id, adj)
+            if ok:
+                self.engine.publish_round(game_id)
+        if ok:
+            self._failures.pop(game_id, None)
+            self.after_publish(game_id, r.no, adj)
+            self.name_pending_handles(game_id)
+        else:
+            self._retry_later(game_id)
 
     def after_publish(self, game_id: str, round_no: int, adj: Adjudication | None = None) -> None:
         """发布之后：更新滚动摘要，通知（webhook）。失败都不影响游戏。"""
@@ -580,25 +646,31 @@ class KP:
             return ["leak check failed to produce a verdict"]
         return [f"{x.sentence} — {x.reason}" for x in out.leaks]
 
-    def rewrite_feedback(self, game_id: str, player_id: str) -> None:
-        draft = self.engine.draft(game_id)
-        if draft is None or draft.get("adjudication") is None:
-            raise IllegalState("round.no_adjudication")
-        adj = Adjudication.model_validate(draft["adjudication"])
-        if not self._feedback_one(game_id, player_id, adj):
-            raise IllegalState("feedback.rewrite_failed")
-
     def rerun(self, game_id: str) -> None:
-        """管理员整轮重跑。"""
+        """整轮重跑（裁定出错停下的一轮；自动重试和管理员修好代码后点“重跑”都走这里）。"""
         self.engine.rerun_round(game_id)
         self.run_round(game_id)
 
     def recover(self) -> list[str]:
-        """进程启动时：停在“裁定中”的回合自动重跑一次。"""
+        """进程启动时：停在“裁定中”的回合自动重跑；出错停下的回合排上自动重试。"""
         games = self.engine.recover()
         for g in games:
             self.run_round(g)
+        for g in self.engine.failed_rounds():
+            # 重启（多半是修好了代码）：出错停下的回合从头再给几次自动重试
+            self._failures.pop(g, None)
+            self._schedule(RETRY_DELAYS[0], lambda g=g: self.retry(g))
         return games
+
+
+# 出错后自动重试的间隔（秒）：1 分钟、5 分钟、15 分钟，一共三次；还不行就停下，等管理员看日志
+RETRY_DELAYS = (60, 300, 900)
+
+
+def _later(delay: float, fn: Callable[[], None]) -> None:
+    t = threading.Timer(delay, fn)
+    t.daemon = True
+    t.start()
 
 
 def mentioned_entities(adj: Adjudication, player_id: str) -> set[str]:

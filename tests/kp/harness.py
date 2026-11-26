@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,10 @@ class Game:
     game_id: str
     players: list[str]
     round_hooks: dict[int, dict[str, Any]] = field(default_factory=dict[int, dict[str, Any]])
+    # KP 出错后排上的自动重试（不真的等）：(多少秒以后, 要做的事)
+    scheduled: list[tuple[float, Callable[[], None]]] = field(
+        default_factory=list[tuple[float, Callable[[], None]]]
+    )
 
     def ents(self, pid: str) -> list[str]:
         return self.engine.controlled(self.game_id, pid)
@@ -140,6 +145,7 @@ def new_game(
     llm: FakeLLM | None = None,
     engine: Engine | None = None,
     pack: RulePack | None = None,
+    start: bool = True,
 ) -> Game:
     from smartkeeper.contracts import GameConfig
 
@@ -151,8 +157,14 @@ def new_game(
     else:
         pack_id = engine.list_games()[0].rulepack_id if engine.list_games() else ""
     llm = llm or FakeLLM()
+    scheduled: list[tuple[float, Callable[[], None]]] = []
     kp = KP(
-        engine, llm, llm, config or KPConfig(judge_model="fake-judge", writer_model="fake-writer")
+        engine,
+        llm,
+        llm,
+        config or KPConfig(judge_model="fake-judge", writer_model="fake-writer"),
+        # 出错后的自动重试：测试里不真的等，记下来由测试自己决定要不要执行
+        schedule=lambda delay, fn: scheduled.append((delay, fn)),
     )
     game = engine.create_game(
         GameConfig(
@@ -165,7 +177,7 @@ def new_game(
             + scenario_kp_extra,
         )
     )
-    g = Game(engine, kp, llm, game.id, [])
+    g = Game(engine, kp, llm, game.id, [], scheduled=scheduled)
     install_handlers(g)
     for i in range(n_players):
         p, _ = engine.add_player(game.id, f"玩家{i}")
@@ -174,5 +186,6 @@ def new_game(
         subs: list[SheetSubmission] = sheets_for(pack, i)
         engine.submit_character(p.id, subs)
         kp.review_character(p.id)
-    kp.open_game(game.id)
+    if start:
+        kp.open_game(game.id)
     return g

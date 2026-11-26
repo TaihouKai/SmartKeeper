@@ -231,11 +231,11 @@ export function GamesPanel({ selected, onSelect }: { selected: string | null; on
                 <pre className="sk-code">{d.opening.error}</pre>
               </div>
             )}
-            {d.game.status === "running" && d.round?.status === "collecting" && (
-              <button onClick={() => void act.run(async () => { await call(api.POST("/api/admin/games/{game_id}/round/close", { params: { path: { game_id: gid } } })); refresh(); })}>{t("games.force_close")}</button>
-            )}
             {d.round?.status === "review" && (
-              <button onClick={() => void act.run(async () => { await call(api.POST("/api/admin/games/{game_id}/round/rerun", { params: { path: { game_id: gid } } })); refresh(); })}>{t("games.rerun")}</button>
+              <>
+                <p className="sk-error">{t("games.round_stopped")}</p>
+                <button onClick={() => void act.run(async () => { await call(api.POST("/api/admin/games/{game_id}/round/rerun", { params: { path: { game_id: gid } } })); refresh(); })}>{t("games.rerun")}</button>
+              </>
             )}
             {d.game.status !== "ended" && (
               <button className="sk-link" onClick={() => void act.run(async () => { await call(api.PATCH("/api/admin/games/{game_id}", { params: { path: { game_id: gid } }, body: { action: "end" } })); refresh(); })}>{t("games.end")}</button>

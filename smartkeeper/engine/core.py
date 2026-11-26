@@ -4163,6 +4163,10 @@ class Engine:
             self._repo.update_round(game_id, r.no, status=nxt)
             return self.round(game_id)
 
+    def failed_rounds(self) -> list[str]:
+        """出错停下的回合（KP 重试用尽）所在的局：进程启动时排上自动重试。"""
+        return sorted({r.game_id for r in self._repo.rounds_in("review")})
+
     def recover(self) -> list[str]:
         """进程启动时调用：停在“裁定中”的回合需要重跑，返回这些局的 id。"""
         out: list[str] = []

@@ -197,80 +197,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/games/{game_id}/reactions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Waiting Reactions
-         * @description 本轮还在等应对的玩家。
-         */
-        get: operations["waiting_reactions_api_admin_games__game_id__reactions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/games/{game_id}/reactions/{player_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * React For
-         * @description 管理员替一直没上线的玩家选应对（不是规则，只是不让整局停住的后门）。
-         */
-        post: operations["react_for_api_admin_games__game_id__reactions__player_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/games/{game_id}/round/close": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Force Close */
-        post: operations["force_close_api_admin_games__game_id__round_close_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/games/{game_id}/round/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Publish */
-        post: operations["publish_api_admin_games__game_id__round_publish_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/admin/games/{game_id}/round/rerun": {
         parameters: {
             query?: never;
@@ -280,43 +206,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Rerun */
+        /**
+         * Rerun
+         * @description KP 出错、自动重试用尽停下的一轮：管理员看了日志、修好代码后让它重跑（维护，不是替 KP 做事）。
+         */
         post: operations["rerun_api_admin_games__game_id__round_rerun_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/games/{game_id}/round/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Review */
-        get: operations["review_api_admin_games__game_id__round_review_get"];
-        /** Save Review */
-        put: operations["save_review_api_admin_games__game_id__round_review_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/games/{game_id}/round/rewrite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Rewrite */
-        post: operations["rewrite_api_admin_games__game_id__round_rewrite_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1618,81 +1512,6 @@ export interface components {
              */
             quotes: number[];
         };
-        /**
-         * Adjudication
-         * @description 一回合的裁定。推进多久由引擎决定（最早结束的行动），KP 只裁定这段时间里发生的事。
-         */
-        Adjudication: {
-            /**
-             * Area Effects
-             * @default []
-             */
-            area_effects: components["schemas"]["AreaEffect"][];
-            /**
-             * Encounters
-             * @default []
-             */
-            encounters: components["schemas"]["Encounter"][];
-            /**
-             * Game Over
-             * @default false
-             */
-            game_over: boolean;
-            /**
-             * Intel
-             * @default []
-             */
-            intel: components["schemas"]["IntelIn"][];
-            /** Kp Notes */
-            kp_notes?: string | null;
-            /**
-             * Memory Entries
-             * @default []
-             */
-            memory_entries: components["schemas"]["MemoryEntryIn"][];
-            /**
-             * Movements
-             * @default []
-             */
-            movements: components["schemas"]["Movement"][];
-            /** Outcomes */
-            outcomes: components["schemas"]["Outcome"][];
-            /**
-             * Placements
-             * @default []
-             */
-            placements: components["schemas"]["PlaceIn"][];
-            /**
-             * Places
-             * @default []
-             */
-            places: components["schemas"]["PlaceNameIn"][];
-            /**
-             * Public Events
-             * @default []
-             */
-            public_events: string[];
-            /**
-             * Remove Placements
-             * @default []
-             */
-            remove_placements: string[];
-            /**
-             * State Patch
-             * @default []
-             */
-            state_patch: components["schemas"]["PatchOp"][];
-            /**
-             * Tells
-             * @default []
-             */
-            tells: components["schemas"]["TellIn"][];
-            /**
-             * Uses
-             * @default []
-             */
-            uses: components["schemas"]["UseResult"][];
-        };
         /** AdminEvent */
         AdminEvent: {
             /** Actor */
@@ -1718,11 +1537,6 @@ export interface components {
         AdminMe: {
             /** Enabled */
             enabled: boolean;
-        };
-        /** AdminReactIn */
-        AdminReactIn: {
-            /** Choices */
-            choices: components["schemas"]["ReactionChoice"][];
         };
         /** AllianceIn */
         AllianceIn: {
@@ -1764,13 +1578,6 @@ export interface components {
         AnswerIn: {
             /** Accept */
             accept: boolean;
-        };
-        /** AreaEffect */
-        AreaEffect: {
-            /** Affected */
-            affected: string[];
-            /** Query Id */
-            query_id: string;
         };
         /** BookOut */
         BookOut: {
@@ -2283,15 +2090,6 @@ export interface components {
             priority?: number | null;
             /** Target */
             target?: string | null;
-        };
-        /** Encounter */
-        Encounter: {
-            /** Observed By */
-            observed_by: {
-                [key: string]: string;
-            };
-            /** Players */
-            players: string[];
         };
         /** EnterIn */
         EnterIn: {
@@ -3005,28 +2803,6 @@ export interface components {
             text: string;
         };
         /**
-         * IntelIn
-         * @description 裁定里给一个玩家的情报：他从本轮看到、听到、查到的东西里推断出了某个实体的什么。
-         *
-         *     text 是线索（提到实体时写 {{实体 id}}）；fields 是对方卡上的字段名，值由引擎从卡上取（例如认出了真实身份）。
-         */
-        IntelIn: {
-            /** About */
-            about: string;
-            /**
-             * Fields
-             * @default []
-             */
-            fields: string[];
-            /** Player */
-            player: string;
-            /**
-             * Text
-             * @default
-             */
-            text: string;
-        };
-        /**
          * IntelValue
          * @description 情报里的一个值：字段名、显示名、值（带名字的可选值另给名字，例如 4 -> B）。
          */
@@ -3300,35 +3076,8 @@ export interface components {
             /** Ui Language */
             ui_language: string;
         };
-        /** MemoryEntryIn */
-        MemoryEntryIn: {
-            /**
-             * Entities
-             * @default []
-             */
-            entities: string[];
-            /**
-             * Features
-             * @default []
-             */
-            features: string[];
-            /** Text */
-            text: string;
-        };
         Message: {
             [key: string]: components["schemas"]["JsonValue"];
-        };
-        /** Movement */
-        Movement: {
-            /** Ability */
-            ability?: string | null;
-            /** Because */
-            because: string;
-            /** Entity */
-            entity: string;
-            /** Inside */
-            inside?: string | null;
-            to: components["schemas"]["Point"];
         };
         /** NameIn */
         NameIn: {
@@ -3383,23 +3132,6 @@ export interface components {
              * @enum {string}
              */
             state: "running" | "failed";
-        };
-        /** Outcome */
-        Outcome: {
-            /**
-             * Observations
-             * @default []
-             */
-            observations: string[];
-            /** Player Id */
-            player_id: string;
-            /**
-             * Resolves
-             * @default []
-             */
-            resolves: string[];
-            /** Result */
-            result: string;
         };
         /** OwnOut */
         OwnOut: {
@@ -3602,67 +3334,6 @@ export interface components {
             display_name: string;
             /** Player Id */
             player_id: string;
-        };
-        /**
-         * Place
-         * @description 写剧本和开场时用的位置：可以直接给坐标，也可以给地图上的地名（引擎解析成坐标）。
-         *
-         *     - place：地物的名字或 id，例如 "新宿駅"；在建筑里时实体就在这栋楼内
-         *     - floor：楼层（1 是地面层，负数是地下）；roof=true 表示楼顶
-         *     - pos / inside：直接给坐标（米）
-         */
-        Place: {
-            /** Floor */
-            floor?: number | null;
-            /** Inside */
-            inside?: string | null;
-            /** Place */
-            place?: string | null;
-            pos?: components["schemas"]["Point"] | null;
-            /**
-             * Roof
-             * @default false
-             */
-            roof: boolean;
-        };
-        /**
-         * PlaceIn
-         * @description 裁定里放下一个设置物：参数取自设置者角色卡上那个条目的设置物参数。
-         */
-        PlaceIn: {
-            at: components["schemas"]["Point"];
-            /** Because */
-            because: string;
-            /** Entry */
-            entry: string;
-            /** Inside */
-            inside?: string | null;
-            /** Owner */
-            owner: string;
-            /**
-             * Params
-             * @default {}
-             */
-            params: {
-                [key: string]: number;
-            };
-        };
-        /**
-         * PlaceNameIn
-         * @description 给一个位置起名字：name 是名字，at 是位置（地图上的地名、已经起过的名字，或坐标）。
-         *     public：谁都知道这个名字（公开的地标、集合地点）；默认只有被告知的玩家知道。
-         */
-        PlaceNameIn: {
-            at: components["schemas"]["Place"];
-            /** Name */
-            name: string;
-            /**
-             * Public
-             * @default false
-             */
-            public: boolean;
-            /** Radius */
-            radius?: number | null;
         };
         /**
          * PlaceOut
@@ -3904,37 +3575,6 @@ export interface components {
             /** Name */
             name: string;
         };
-        /**
-         * ReactionPrompt
-         * @description 给被攻击的玩家：一次等他应对的攻击，和他能选的应对。
-         */
-        ReactionPrompt: {
-            /**
-             * Checks
-             * @default []
-             */
-            checks: string[];
-            /** Defender */
-            defender: string;
-            /** Entry */
-            entry: string;
-            /**
-             * Labels
-             * @default {}
-             */
-            labels: {
-                [key: string]: string;
-            };
-            /** Seq */
-            seq: number;
-            /**
-             * Skills
-             * @default []
-             */
-            skills: components["schemas"]["ReactionSkill"][];
-            /** Who */
-            who?: string | null;
-        };
         /** ReactionSkill */
         ReactionSkill: {
             /**
@@ -3949,44 +3589,6 @@ export interface components {
              * @default []
              */
             params: components["schemas"]["ReactionParam"][];
-        };
-        /** ReviewIn */
-        ReviewIn: {
-            adjudication?: components["schemas"]["Adjudication"] | null;
-            /** Broadcast */
-            broadcast?: string | null;
-            /**
-             * Feedback
-             * @default {}
-             */
-            feedback: {
-                [key: string]: string;
-            };
-        };
-        /** ReviewOut */
-        ReviewOut: {
-            /** Claims */
-            claims: {
-                [key: string]: components["schemas"]["JsonValue"];
-            }[];
-            /** Declarations */
-            declarations: {
-                [key: string]: components["schemas"]["JsonValue"];
-            };
-            /** Dice */
-            dice: {
-                [key: string]: components["schemas"]["JsonValue"];
-            }[];
-            /** Queries */
-            queries: {
-                [key: string]: components["schemas"]["JsonValue"];
-            }[];
-            round: components["schemas"]["Round"];
-        };
-        /** RewriteIn */
-        RewriteIn: {
-            /** Player Id */
-            player_id: string;
         };
         /** Round */
         Round: {
@@ -4691,21 +4293,6 @@ export interface components {
             /** Ref */
             ref?: string | null;
         };
-        /**
-         * TellIn
-         * @description 裁定里的转告：source 这一方（玩家 id，或者 NPC 的实体 id）把 about 在哪告诉了 player（玩家 id）。
-         *
-         *     引擎把 source 关于 about 最近一次的目击复制给 player（时间还是当初目击的时间），source 没有就没有效果。
-         *     两边此刻能不能说上话（在一起、打电话、念话……）由 KP 判，判了能才写。
-         */
-        TellIn: {
-            /** About */
-            about: string;
-            /** Player */
-            player: string;
-            /** Source */
-            source: string;
-        };
         /** TextBody */
         TextBody: {
             /** Text */
@@ -4745,21 +4332,6 @@ export interface components {
             problems: components["schemas"]["Problem"][];
             sheet?: components["schemas"]["JsonValue"];
         };
-        /**
-         * UseResult
-         * @description 裁定里列出本轮实际发生了的“使用”（规划时引擎已经算好的 entry_used 事件）。没列出的当作没发生。
-         *
-         *     打没打中由引擎按技能设置判（检定、对象的应对），hit 只为兼容旧数据保留，不起作用。
-         */
-        UseResult: {
-            /**
-             * Hit
-             * @default true
-             */
-            hit: boolean;
-            /** Seq */
-            seq: number;
-        };
         /** ValidateOut */
         ValidateOut: {
             /** Problems */
@@ -4777,18 +4349,6 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
-        };
-        /**
-         * WaitingOut
-         * @description 一个还没交应对的玩家和他要应对的攻击。
-         */
-        WaitingOut: {
-            /** Player */
-            player: string;
-            /** Player Id */
-            player_id: string;
-            /** Prompts */
-            prompts: components["schemas"]["ReactionPrompt"][];
         };
         /** WorldInfo */
         WorldInfo: {
@@ -5223,135 +4783,6 @@ export interface operations {
             };
         };
     };
-    waiting_reactions_api_admin_games__game_id__reactions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WaitingOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    react_for_api_admin_games__game_id__reactions__player_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-                player_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminReactIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    force_close_api_admin_games__game_id__round_close_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    publish_api_admin_games__game_id__round_publish_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Round"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     rerun_api_admin_games__game_id__round_rerun_post: {
         parameters: {
             query?: never;
@@ -5362,107 +4793,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    review_api_admin_games__game_id__round_review_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReviewOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_review_api_admin_games__game_id__round_review_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReviewIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rewrite_api_admin_games__game_id__round_rewrite_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                game_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RewriteIn"];
-            };
-        };
         responses: {
             /** @description Successful Response */
             200: {

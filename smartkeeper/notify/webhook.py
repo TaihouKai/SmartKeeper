@@ -21,8 +21,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "[{game}] Round {round} has started. You can submit your actions.",
     },
     "round.review": {
-        "zh": "【{game}】第 {round} 轮停在待审核，请到控制台处理。",
-        "en": "[{game}] Round {round} is waiting for review in the admin console.",
+        "zh": "【{game}】第 {round} 轮 KP 出错，自动重试了几次还是不行，停下了。请看日志；修好后重启服务或在管理台点“重跑”就会接着跑。",
+        "en": "[{game}] Round {round}: the KP kept failing after automatic retries and stopped. Check the logs; after fixing, restart the service or press Rerun in the console.",
     },
     "game.ended": {
         "zh": "【{game}】这一局结束了。",

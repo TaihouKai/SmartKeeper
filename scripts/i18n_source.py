@@ -1387,6 +1387,10 @@ T: dict[str, tuple[str, str]] = {
     "games.lifecycle": ("进行状态", "Progress"),
     "games.start": ("开始这一局（KP 开场）", "Start the game (keeper opening)"),
     "games.force_close": ("强制结算本轮", "Force-resolve this round"),
+    "games.round_stopped": (
+        "这一轮 KP 出错，自动重试几次后停下了（详细原因看日志）。修好代码后重启服务会自动接着跑，或者点下面的“重跑”。",
+        "The KP kept failing on this round and stopped after automatic retries (see the log). After fixing, restarting the service resumes it, or press Rerun.",
+    ),
     "games.rerun": ("整轮重跑", "Re-run the round"),
     "games.end": ("结束这一局", "End the game"),
     "games.status.setup": ("准备中", "Setup"),

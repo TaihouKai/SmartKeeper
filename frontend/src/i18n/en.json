@@ -1017,6 +1017,7 @@
     "rereview": "Review again",
     "rerun": "Re-run the round",
     "revoke": "Revoke",
+    "round_stopped": "The KP kept failing on this round and stopped after automatic retries (see the log). After fixing, restarting the service resumes it, or press Rerun.",
     "rulepack": "Rule pack version",
     "scenario": "Scenario",
     "settings": "Settings",

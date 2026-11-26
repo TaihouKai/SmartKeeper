@@ -4,11 +4,11 @@ import { useI18n } from "../i18n";
 import { ErrorBox, LangSwitch, Tabs } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { GamesPanel, MaterialsPanel } from "./GamesPanel";
-import { LogPanel, ReviewPanel } from "./ReviewPanel";
+import { LogPanel } from "./LogPanel";
 import { RulesPanel } from "./RulesPanel";
 import { LlmPanel, StatePanel } from "./StatePanel";
 
-type Panel = "rules" | "materials" | "games" | "review" | "log" | "state" | "llm";
+type Panel = "rules" | "materials" | "games" | "log" | "state" | "llm";
 
 function Login({ onDone }: { onDone: () => void }) {
   const { t } = useI18n();
@@ -69,7 +69,6 @@ export function AdminPage() {
       <Tabs
         tabs={[
           { key: "games", label: t("admin.panel.games") },
-          { key: "review", label: t("admin.panel.review") },
           { key: "log", label: t("admin.panel.log") },
           { key: "state", label: t("admin.panel.state") },
           { key: "llm", label: t("admin.panel.llm") },
@@ -82,10 +81,9 @@ export function AdminPage() {
       {panel === "rules" && <RulesPanel />}
       {panel === "materials" && <MaterialsPanel />}
       {panel === "games" && <GamesPanel selected={game} onSelect={setGame} />}
-      {(panel === "review" || panel === "log" || panel === "state" || panel === "llm") && !game && <p>{t("admin.pick_game")}</p>}
+      {(panel === "log" || panel === "state" || panel === "llm") && !game && <p>{t("admin.pick_game")}</p>}
       {panel === "state" && game && <StatePanel gameId={game} />}
       {panel === "llm" && game && <LlmPanel gameId={game} />}
-      {panel === "review" && game && <ReviewPanel gameId={game} />}
       {panel === "log" && game && <LogPanel gameId={game} />}
     </main>
   );
