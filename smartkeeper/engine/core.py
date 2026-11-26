@@ -29,6 +29,7 @@ from smartkeeper.contracts import (
     AllianceItem,
     AllianceView,
     Audience,
+    BudgetUse,
     CheckResult,
     Dice,
     DiceResult,
@@ -465,6 +466,12 @@ class Engine:
             if auto:
                 out[g] = auto
         return out
+
+    def sheet_budgets(self, game_id: str, sheet: SheetSubmission) -> list[BudgetUse]:
+        """一张卡在各项合计上限（例如属性点）上用了多少、最多多少：引擎算的，审核时给 KP，免得它自己算错。"""
+        return self._rules.budgets(
+            self.rulepack(game_id), sheet.template, sheet.sheet.model_dump(mode="json")
+        )
 
     def explain_entries(
         self, game_id: str, sheet: SheetSubmission, words: Mapping[str, str]

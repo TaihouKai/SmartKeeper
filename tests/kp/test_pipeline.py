@@ -394,5 +394,6 @@ def test_review_shows_what_the_code_does() -> None:
     assert "代码实际做什么" in prompt.user
     assert "规则书代码的语法手册" in prompt.user and "MANUAL-zh" in prompt.user
     assert "射程 30 米" in prompt.user and "对对象造成 2 点伤害" in prompt.user
+    assert "引擎算好的合计" in prompt.user
     # 卡上的代码也原样给 KP，好找 bug
     assert "range = 30" in prompt.user and "target.damage" in prompt.user

@@ -105,6 +105,23 @@ class Contexts:
                 ),
                 section("提交的角色卡", player_text(dumps(subs), p.display_name)),
                 *self._effects_section(g, player_id),
+                section(
+                    "引擎算好的合计（属性点这类：提交时已经检查过，都没有超；以此为准，不要自己重算）",
+                    dumps(
+                        [
+                            {
+                                "template": s.template,
+                                "name": s.sheet.name,
+                                "budgets": [
+                                    b.model_dump(mode="json")
+                                    for b in self.e.sheet_budgets(g, s)
+                                    if b.active
+                                ],
+                            }
+                            for s in self.e.submitted_character(player_id)
+                        ]
+                    ),
+                ),
                 *([section("规则书代码的语法手册", syntax)] if syntax else []),
                 section(
                     "各张卡自动获得的条目（规则书给的，玩家不用写；改过的是改过以后的样子；"
