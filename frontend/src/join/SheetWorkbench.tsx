@@ -20,6 +20,8 @@ type Value = string | number | boolean;
 export type PresetEdit = Partial<Pick<Entry, "description" | "config" | "bonus" | "script" | "params" | "uses">>;
 export type SheetDraft = {
   name: string;
+  /** 代号：自己这一方平时怎么称呼他；空的话按模板的 alias_from（例如职业） */
+  alias?: string;
   fields: Record<string, Value>;
   groups: Record<string, Entry[]>;
   preset_fields?: Record<string, Record<string, Record<string, Value>>>;
@@ -171,6 +173,12 @@ export function SheetWorkbench({
             <Described text={template.description} className="cf-lead" />
             <FieldRow label={template.name_label || t("character.name")} required missing={!value.name.trim()} desc={template.name_hint || t("character.name_hint")}>
               {(id) => <input id={id} value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} />}
+            </FieldRow>
+            <FieldRow label={template.alias_label || t("character.alias")} desc={template.alias_hint || t("character.alias_hint")}>
+              {(id) => {
+                const from = template.alias_from ? value.fields[template.alias_from] : undefined;
+                return <input id={id} value={value.alias ?? ""} placeholder={typeof from === "string" && from ? from : ""} onChange={(e) => onChange({ ...value, alias: e.target.value })} />;
+              }}
             </FieldRow>
             {identity.map((f) =>
               f.kind === "boolean" ? (

@@ -162,6 +162,9 @@ def build_cards(
         card = Card(
             name=str(full.get("name") or "") or words["pdf.unnamed"], kind=tpl.label or tpl.name
         )
+        alias = tpl.alias_of(full)
+        if alias:
+            card.facts.append((tpl.alias_label or words["pdf.alias"], alias))
         for f in tpl.fields:
             raw_v = fields.get(f.name)
             # 选填、没填（或是 0、否）的不印
@@ -512,6 +515,7 @@ def words_for(messages: Mapping[str, Mapping[str, str]], lang: str) -> dict[str,
         "pdf.page",
         "pdf.unnamed",
         "pdf.effects",
+        "pdf.alias",
     )
     # 技能效果的字句（ex.*）也在里面，一起交给 rules.explain
     return {k: table.get(k, k) for k in keys} | {

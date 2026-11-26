@@ -169,7 +169,7 @@ def main() -> int:
     place(t, s0, -70, -40)
     k = known(t, p0, s1)
     ok(
-        k.get("klass") == "Saber" and "str" in k and "true_name" not in k,
+        k.get("klass") == "Saber" and "str" in k and "name" not in k,
         f"御主的透视：p0 看见了 p1 的英灵，知道职阶和参数、不知道真名 {k}",
     )
     ok("klass" not in known(t, p0, m1), "御主看别的御主看不出参数")
@@ -270,7 +270,7 @@ def main() -> int:
     ok(f"{EXCALIBUR}/真名解放·对城" in heard, f"p1 听到了宝具的名字：{heard}")
     k = known(t, p1, s0)
     ok(
-        k.get(EXCALIBUR) is True and k.get("true_name") == "（示例）亚瑟王",
+        k.get(EXCALIBUR) is True and bool(k.get("name")),
         f"解放真名：p1 的情报里有了宝具的名字和英灵的真名 {k}",
     )
     m1_dead = "dead" in tags(t, m1)
@@ -422,7 +422,7 @@ def main() -> int:
         update={
             "intel": (
                 IntelIn(player=p0, about=s1, text="{{" + s1 + "}} 的剑路是西洋骑士的打法"),
-                IntelIn(player=p0, about=s1, fields=("true_name",)),
+                IntelIn(player=p0, about=s1, fields=("name",)),
             )
         }
     )
@@ -435,7 +435,7 @@ def main() -> int:
         bool(k["notes"]) and "西洋骑士" in k["notes"][0] and "{{" not in k["notes"][0],
         f"p0 得到了线索（实体换成了他的叫法）：{k['notes']}",
     )
-    ok("true_name" in k, f"KP 判定证据确凿时给出字段：{k.get('true_name')}")
+    ok("name" in k, f"KP 判定证据确凿时给出真名：{k.get('name')}")
     stranger = "npc_nobody"
     patch(
         t,

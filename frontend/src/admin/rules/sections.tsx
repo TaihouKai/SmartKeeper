@@ -102,6 +102,28 @@ export function FieldsSection({ tpl, onChange, onRemove, validate, mover, base }
             {t("rules.t.name_hint")}
             <input value={tpl.name_hint ?? ""} placeholder={t("character.name_hint")} onChange={(e) => onChange({ ...tpl, name_hint: e.target.value })} />
           </label>
+          <label className="sk-inline" title={t("rules.t.name_secret_hint")}>
+            <input type="checkbox" checked={tpl.name_secret ?? false} onChange={(e) => onChange({ ...tpl, name_secret: e.target.checked })} /> {t("rules.t.name_secret")}
+          </label>
+          <label title={t("rules.t.alias_hint_help")}>
+            {t("rules.t.alias_label")}
+            <input value={tpl.alias_label ?? ""} placeholder={t("character.alias")} onChange={(e) => onChange({ ...tpl, alias_label: e.target.value })} />
+          </label>
+          <label title={t("rules.t.alias_hint_help")}>
+            {t("rules.t.alias_hint")}
+            <input value={tpl.alias_hint ?? ""} placeholder={t("character.alias_hint")} onChange={(e) => onChange({ ...tpl, alias_hint: e.target.value })} />
+          </label>
+          <label title={t("rules.t.alias_from_hint")}>
+            {t("rules.t.alias_from")}
+            <select value={tpl.alias_from ?? ""} onChange={(e) => onChange({ ...tpl, alias_from: e.target.value })}>
+              <option value="">{t("rules.t.alias_from_none")}</option>
+              {(tpl.fields ?? []).map((f) => (
+                <option key={f.name} value={f.name}>
+                  {f.label || f.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <label title={t("rules.t.description_hint")}>
           {t("rules.t.description")}

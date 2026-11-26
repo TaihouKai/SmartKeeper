@@ -388,7 +388,7 @@ T: dict[str, tuple[str, str]] = {
     ),
     "docs.title": ("语法手册", "Syntax guide"),
     "docs.v.target.0": (
-        "要选一个对象（默认）；只能选你这一方见过、有代号的人",
+        "要选一个对象（默认）；只能选你这一方见过、有外号的人",
         "must pick one target (default); only someone your side has seen and knows by a label",
     ),
     "docs.v.target.1": ("只能对自己用", "only on yourself"),
@@ -812,6 +812,7 @@ T: dict[str, tuple[str, str]] = {
     "ex.s.minutes": ("，持续 {x} 分钟", ", for {x} min"),
     "ex.b.line": ("常驻：{what}变为 {x}", "Always: {what} becomes {x}"),
     "pdf.effects": ("效果", "Effects"),
+    "pdf.alias": ("代号", "Alias"),
     "pdf.yes": ("是", "Yes"),
     "pdf.no": ("否", "No"),
     "pdf.numbers": ("数值", "Numbers"),
@@ -908,17 +909,39 @@ T: dict[str, tuple[str, str]] = {
     ),
     "character.name": ("角色名", "Name"),
     "character.name_hint": (
-        "只有你和 KP 看得到；别人看到的是按外观起的代号，要打听或你自我介绍了才知道",
-        "Only you and the KP see it; others see a code name from your looks until they learn your name",
+        "只有你和 KP 看得到；别人看到的是按外观起的外号，要打听或你自我介绍了才知道",
+        "Only you and the KP see it; others see a nickname from your looks until they learn your name",
+    ),
+    "character.alias": ("代号", "Alias"),
+    "character.alias_hint": (
+        "（可不填）你这一方平时怎么称呼这个角色，当众也这么喊；只有你和 KP 看得到",
+        "(optional) What your side calls this character, also out loud; only you and the KP see it",
     ),
     "rules.t.name_label": ("名字一栏叫什么", "Label of the name box"),
+    "rules.t.name_secret": ("名字保密", "Name is secret"),
+    "rules.t.name_secret_hint": (
+        "勾上以后，游戏页上自己的这个角色不显示名字，显示代号（例如名字填的是要保密的真名）",
+        "When ticked, the game screen shows this character's alias instead of its name (e.g. the name is a secret true name)",
+    ),
+    "rules.t.alias_label": ("代号一栏叫什么", "Label of the alias box"),
+    "rules.t.alias_hint": ("代号一栏的说明", "Hint under the alias box"),
+    "rules.t.alias_hint_help": (
+        "代号是自己这一方平时怎么称呼这个角色，只有自己和 KP 看得到；空着用默认的“代号”和说明",
+        "The alias is what your side calls this character, seen only by you and the KP; empty uses the defaults",
+    ),
+    "rules.t.alias_from": ("没填代号时用", "If no alias, use"),
+    "rules.t.alias_from_hint": (
+        "玩家没填代号时，拿这个字段的值当代号（例如职业）",
+        "When the player leaves the alias empty, this field's value is used (e.g. a class)",
+    ),
+    "rules.t.alias_from_none": ("（名字）", "(the name)"),
     "rules.t.name_hint": ("名字一栏的说明", "Hint under the name box"),
     "rules.t.name_label_hint": (
         "建角页上名字那一栏的标题和说明，例如“称呼：自己人怎么叫他”；空着用默认的“角色名”",
         "Title and hint of the name box on the character page, e.g. 'What you call them'; empty uses the default",
     ),
     "character.appearance_hint": (
-        "（别人会根据外观描述给你起代号）",
+        "（别人会根据外观描述给你起外号）",
         "(others will refer to you by this description)",
     ),
     "character.entry_name": ("名称", "Name"),
@@ -1066,7 +1089,7 @@ T: dict[str, tuple[str, str]] = {
     "play.nobody": ("（附近没有人）", "(nobody nearby)"),
     "play.seen": ("见过的人", "People you've seen"),
     "play.rename": ("改名 / 备注", "Rename / note"),
-    "play.handle_label": ("代号", "Label"),
+    "play.handle_label": ("外号", "Label"),
     "play.handle_note": ("私人备注", "Private note"),
     "event.kp": ("KP", "Keeper"),
     "event.me": ("我", "Me"),
@@ -1482,12 +1505,12 @@ T: dict[str, tuple[str, str]] = {
         "A template is the format of one kind of character sheet, not a specific character: players fill a sheet from it. One template is enough if every player has the same kind of sheet; add a second if each player also controls, say, a companion. The ID is an internal code (lowercase letters, digits, underscores, e.g. hero); the label is what players see. The default character works as is.",
     ),
     "rules.fields_hint": (
-        "玩家在角色卡上填写或游戏中会变化的数值和文字。appearance（外观描述）是必需的：别人看到这个角色时，系统会根据它起代号。",
+        "玩家在角色卡上填写或游戏中会变化的数值和文字。appearance（外观描述）是必需的：别人看到这个角色时，系统会根据它起外号。",
         "Values and text on the sheet. The appearance field is required: other players' handles for this character are generated from it.",
     ),
     "rules.appearance_badge": ("外观描述（必需）", "appearance (required)"),
     "rules.help.appearance": (
-        "外观描述：玩家建角时用文字描述自己角色的样子。别人第一次看到这个角色时，系统根据它起代号（例如“红围巾的女人”）。这个字段不能删除，名字和类型也不能改。",
+        "外观描述：玩家建角时用文字描述自己角色的样子。别人第一次看到这个角色时，系统根据它起外号（例如“红围巾的女人”）。这个字段不能删除，名字和类型也不能改。",
         'Appearance: the player describes how the character looks. When others first see the character, its handle (e.g. "woman in a red scarf") is generated from this. It can\'t be removed or retyped.',
     ),
     "rules.kind_help.number": (

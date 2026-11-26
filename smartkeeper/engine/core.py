@@ -22,6 +22,7 @@ from smartkeeper.contracts import (
     DEAD_TAG,
     ENGINE,
     KP,
+    NAME_FIELD,
     USE_SEP,
     Activity,
     AdHocCheck,
@@ -1127,7 +1128,7 @@ class Engine:
         return out
 
     def entity_name(self, game_id: str, entity_id: str) -> str:
-        return self._entity_name(self._state(game_id), entity_id)
+        return self._entity_name(self._state(game_id), entity_id, self.rulepack(game_id))
 
     def idle_entities(self, game_id: str, player_id: str) -> list[str]:
         """该玩家控制的、没有进行中行动的实体。"""
@@ -4112,7 +4113,12 @@ class Engine:
     @staticmethod
     def _field_names(pack: RulePack, state: State, entity: str) -> set[str]:
         tpl = pack.template(str(_obj(_obj(state.get("entities")).get(entity)).get("template", "")))
-        return {x.name for x in tpl.fields} | {d.name for d in tpl.derived} if tpl else set()
+        # 卡上的名字（例如真名）也能作为情报给出去
+        return (
+            {x.name for x in tpl.fields} | {d.name for d in tpl.derived} | {NAME_FIELD}
+            if tpl
+            else set()
+        )
 
     @staticmethod
     def _group(pack: RulePack, template: str, group: str) -> GroupDef | None:
@@ -4438,10 +4444,10 @@ class Engine:
                 values[name] = float(v) if isinstance(v, int | float) else v
         return f.to_text(node, values)
 
-    def _intel_labels(self, player_id: str, state: State) -> dict[str, str]:
+    def _intel_labels(self, player_id: str, state: State, pack: RulePack) -> dict[str, str]:
         out = {h.entity_id: f"@{h.label}" for h in self._handles.list(player_id)}
         for e in _list(_obj(state.get("controls")).get(player_id)):
-            out[str(e)] = self._entity_name(state, str(e))
+            out[str(e)] = self._entity_name(state, str(e), pack)
         return out
 
     def _unknown_word(self, game_id: str) -> str:
@@ -4450,7 +4456,7 @@ class Engine:
     def player_intel(self, game_id: str, player_id: str) -> dict[str, tuple[IntelFact, ...]]:
         """这个玩家知道的关于别人的事：实体 id -> 情报（线索里提到的实体换成他的叫法）。"""
         evs = self._events.view_for(game_id, player_id, types=["intel_gained"])
-        labels = self._intel_labels(player_id, self._state(game_id))
+        labels = self._intel_labels(player_id, self._state(game_id), self.rulepack(game_id))
         unknown = self._unknown_word(game_id)
         out: dict[str, tuple[IntelFact, ...]] = {}
         for (pid, about), facts in intel.known(evs).items():
@@ -4468,7 +4474,7 @@ class Engine:
         """intel_gained 事件给玩家看的样子：实体 id 换成他的代号引用和叫法，线索里的实体换成他的叫法。"""
         about = str(payload.get("about"))
         h = self._handles.get(player_id, about)
-        labels = self._intel_labels(player_id, self._state(game_id))
+        labels = self._intel_labels(player_id, self._state(game_id), self.rulepack(game_id))
         unknown = self._unknown_word(game_id)
         facts: list[JsonValue] = []
         raw = payload.get("facts")
@@ -4528,8 +4534,13 @@ class Engine:
     def appearance_of(self, game_id: str, entity_id: str) -> str:
         return self._appearance(self._state(game_id), self.rulepack(game_id), entity_id)
 
-    def _entity_name(self, state: State, entity_id: str) -> str:
-        sheet = _obj(_obj(_obj(state.get("entities")).get(entity_id)).get("sheet"))
+    def _entity_name(self, state: State, entity_id: str, pack: RulePack | None = None) -> str:
+        """自己的角色在游戏页上叫什么：名字保密的（例如真名）显示代号，否则是名字。"""
+        ent = _obj(_obj(state.get("entities")).get(entity_id))
+        sheet = _obj(ent.get("sheet"))
+        tpl = pack.template(str(ent.get("template", ""))) if pack else None
+        if tpl is not None:
+            return tpl.display_name(sheet) or entity_id
         name = sheet.get("name")
         return name if isinstance(name, str) else entity_id
 
@@ -4541,9 +4552,10 @@ class Engine:
             for pid, ents in space.controls.items():
                 for e in ents:
                     h = self._handles.get(pid, e)
-                    if h is None or h.auto:
+                    # 自己的角色：标签跟着角色卡上显示的名字走（改了代号就跟着变）
+                    name = self._entity_name(state, e, self.rulepack(game_id))
+                    if h is None or h.auto or not h.label.startswith(name):
                         self._handles.ensure(pid, e)
-                        name = self._entity_name(state, e)
                         try:
                             self._handles.set_label(pid, e, name, by_player=True)
                         except ValidationFailed:
@@ -4708,7 +4720,7 @@ class Engine:
             own.append(
                 OwnEntity(
                     ref=h_own.ref,
-                    name=self._entity_name(state, e),
+                    name=self._entity_name(state, e, self.rulepack(game_id)),
                     pos=point_of(ent.get("pos")),
                     inside=inside if isinstance(inside, str) else None,
                     presence=tuple(presence),
@@ -4758,7 +4770,7 @@ class Engine:
             inside = ent.get("inside")
             own.append(
                 {
-                    "name": self._entity_name(state, e),
+                    "name": self._entity_name(state, e, self.rulepack(game_id)),
                     "template": str(ent.get("template", "")),
                     "pos": ent.get("pos"),
                     "inside": inside if isinstance(inside, str) else None,

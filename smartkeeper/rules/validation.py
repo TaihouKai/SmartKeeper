@@ -13,6 +13,7 @@ from smartkeeper import lang as f
 from smartkeeper.contracts import (
     FLY_FIELD,
     HP_FIELD,
+    NAME_FIELD,
     REQUIRED_DERIVED,
     USE_SEP,
     Effect,
@@ -527,7 +528,7 @@ def _check_group(pack: RulePack, tpl: EntityTemplate, g: GroupDef, path: str) ->
             ],
         )
     own = {x.name for x in tpl.fields} | derived
-    for name in g.reveal_fields:
+    for name in [x for x in g.reveal_fields if x != NAME_FIELD]:
         if name not in own:
             problems.append(
                 Problem(
@@ -679,6 +680,14 @@ def _check_template(pack: RulePack, tpl: EntityTemplate, path: str) -> list[Prob
     if tpl.damage_taken.strip():
         problems += check_formula(
             pack, tpl, tpl.damage_taken, f"{path}.damage_taken", extra=DAMAGE_VARS
+        )
+    if tpl.alias_from and tpl.alias_from not in {x.name for x in tpl.fields}:
+        problems.append(
+            Problem(
+                code="pack.unknown_field",
+                path=f"{path}.alias_from",
+                params={"name": tpl.alias_from},
+            )
         )
     problems += budgets.check_pack(tpl, path)
     for i, b in enumerate(tpl.budgets):
@@ -883,7 +892,7 @@ def _check_insight(pack: RulePack, rule: InsightRule, path: str) -> list[Problem
                     )
                 )
     subjects = [t for t in pack.templates if not rule.subjects or t.name in rule.subjects]
-    for name in rule.fields:
+    for name in [x for x in rule.fields if x != NAME_FIELD]:
         if any(
             name not in {x.name for x in t.fields} | {d.name for d in t.derived} for t in subjects
         ):

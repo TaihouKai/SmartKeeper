@@ -138,6 +138,7 @@ def build_sheet_views(
                 sheet=visible_sheet(tpl, rules.full_sheet(pack, tpl.name, ent.get("sheet"), peers)),
                 derived=derived,
                 history=tuple(history.get(eid, [])),
+                label=tpl.display_name(_obj(ent.get("sheet"))),
             )
         )
     return views

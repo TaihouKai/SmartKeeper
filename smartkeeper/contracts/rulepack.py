@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Literal, cast
 
 from pydantic import Field, JsonValue, model_validator
@@ -150,6 +151,10 @@ class DerivedDef(Frozen):
     hidden: bool = False
 
 
+# 情报、暴露条件里写的这个名字指卡上的名字（不是字段）
+NAME_FIELD = "name"
+
+
 class EntityTemplate(Frozen):
     name: str
     label: str = ""
@@ -159,6 +164,13 @@ class EntityTemplate(Frozen):
     # 别人看到的是按外观起的代号。空表示用默认的“角色名”
     name_label: str = ""
     name_hint: str = ""
+    # 名字要保密（例如真名）：游戏页上自己的角色不显示名字，显示代号
+    name_secret: bool = False
+    # 代号：自己这一方平时怎么称呼这个角色。label / hint 是建角页上的叫法和说明（空用默认的“代号”）；
+    # alias_from 是没填代号时用哪个字段的值（例如职业、类别），空表示没填就用名字
+    alias_label: str = ""
+    alias_hint: str = ""
+    alias_from: str = ""
     fields: tuple[FieldDef, ...] = ()
     groups: tuple[GroupDef, ...] = ()
     derived: tuple[DerivedDef, ...] = ()
@@ -174,6 +186,29 @@ class EntityTemplate(Frozen):
     # 死亡时：这个模板的角色死掉的那一刻执行的脚本（语法同技能脚本）。self 是死者，target 是最后伤到它的角色
     # （知道时），同伴用模板名（例如主角死了让同伴开始消散：companion.set(fading, 1)）
     on_death: str = ""
+
+    def alias_of(self, sheet: Mapping[str, Any]) -> str:
+        """这张卡的代号：填了的用填的；没填按 alias_from 那个字段的值；都没有是空。"""
+        alias = sheet.get("alias")
+        if isinstance(alias, str) and alias.strip():
+            return alias.strip()
+        if self.alias_from:
+            raw = sheet.get("fields")
+            fields: Mapping[str, Any] = (
+                cast(Mapping[str, Any], raw) if isinstance(raw, dict) else {}
+            )
+            v: Any = fields.get(self.alias_from)
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+        return ""
+
+    def display_name(self, sheet: Mapping[str, Any]) -> str:
+        """游戏页上自己的角色显示什么：名字保密的显示代号（没有代号时用模板的显示名），否则显示名字。"""
+        name = sheet.get("name")
+        shown = name if isinstance(name, str) else ""
+        if self.name_secret:
+            return self.alias_of(sheet) or self.label or self.name
+        return shown
 
 
 class PlayerEntities(Frozen):

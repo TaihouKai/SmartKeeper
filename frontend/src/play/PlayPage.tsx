@@ -219,7 +219,7 @@ function SheetDrawer({ onClose }: { onClose: () => void }) {
         const sheet = s.sheet as { name?: string; fields?: Record<string, unknown>; groups?: Record<string, { name: string; description?: string }[]>; statuses?: { tag: string }[] };
         return (
           <section key={s.entity_id} className="pl-sheet-card">
-            <h3>{sheet.name}</h3>
+            <h3>{s.label || sheet.name}</h3>
             <table className="sk-table">
               <tbody>
                 {Object.entries(sheet.fields ?? {}).map(([k, v]) => (

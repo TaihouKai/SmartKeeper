@@ -9,6 +9,7 @@ from pydantic import ValidationError as PydanticError
 
 from smartkeeper import lang as f
 from smartkeeper.contracts import (
+    NAME_FIELD,
     AdHocCheck,
     BudgetUse,
     CheckResult,
@@ -405,6 +406,10 @@ class RulesService:
         ddefs = {d.name: d for d in tpl.derived}
         out: list[IntelValue] = []
         for n in names:
+            if n == NAME_FIELD and n not in fdefs:
+                # 卡上的名字（例如名字保密的角色的真名）也能作为情报给出去
+                out.append(IntelValue(name=n, label=tpl.name_label or n, value=ctx.sheet.name))
+                continue
             fd, dd = fdefs.get(n), ddefs.get(n)
             if fd is None and dd is None:
                 continue

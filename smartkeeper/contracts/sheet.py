@@ -257,6 +257,8 @@ class Item(Frozen):
 
 class Sheet(Frozen):
     name: str
+    # 代号：自己这一方平时怎么称呼这个角色（当众也这么喊）。空的话按模板的 alias_from（例如职业、类别）
+    alias: str = ""
     fields: dict[str, JsonValue] = {}
     groups: dict[str, tuple[GroupEntry, ...]] = {}
     # 固定条目里规则包留空的列，由玩家建角时填：分组名 -> 固定条目名 -> 列名 -> 值
@@ -321,3 +323,5 @@ class SheetView(Frozen):
     sheet: dict[str, JsonValue]
     derived: tuple[DerivedValue, ...]
     history: tuple[SheetChange, ...]
+    # 游戏页上叫什么：名字保密的（例如真名）是代号，否则是名字
+    label: str = ""

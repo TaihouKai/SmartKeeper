@@ -42,6 +42,10 @@ export function blankTemplate(name: string, t: T): Template {
     description: "",
     appearance_field: "appearance",
     name_label: "",
+    name_secret: false,
+    alias_label: "",
+    alias_hint: "",
+    alias_from: "",
     name_hint: "",
     fields: [
       { name: "appearance", label: defaultLabel(t, "appearance"), description: "", kind: "text", cls: "player", required: true, hidden: false, choices: [], vital: false },

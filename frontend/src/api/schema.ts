@@ -2189,6 +2189,21 @@ export interface components {
         /** EntityTemplate */
         EntityTemplate: {
             /**
+             * Alias From
+             * @default
+             */
+            alias_from: string;
+            /**
+             * Alias Hint
+             * @default
+             */
+            alias_hint: string;
+            /**
+             * Alias Label
+             * @default
+             */
+            alias_label: string;
+            /**
              * Appearance Field
              * @default appearance
              */
@@ -2240,6 +2255,11 @@ export interface components {
              * @default
              */
             name_label: string;
+            /**
+             * Name Secret
+             * @default false
+             */
+            name_secret: boolean;
             /**
              * On Death
              * @default
@@ -4146,6 +4166,11 @@ export interface components {
         /** Sheet */
         Sheet: {
             /**
+             * Alias
+             * @default
+             */
+            alias: string;
+            /**
              * Fields
              * @default {}
              */
@@ -4277,6 +4302,11 @@ export interface components {
             entity_id: string;
             /** History */
             history: components["schemas"]["SheetChange"][];
+            /**
+             * Label
+             * @default
+             */
+            label: string;
             /** Sheet */
             sheet: {
                 [key: string]: components["schemas"]["JsonValue"];
