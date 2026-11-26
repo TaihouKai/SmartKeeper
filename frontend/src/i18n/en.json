@@ -966,7 +966,7 @@
     "review": "Keeper's review",
     "rules": "Rules and scenario",
     "status": {
-      "approved": "Approved",
+      "approved": "Approved. Once every player is approved, the admin starts the game from the console; the opening will appear here.",
       "none": "No character submitted yet",
       "rejected": "Changes requested",
       "submitted": "Submitted, under review"

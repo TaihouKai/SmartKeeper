@@ -741,7 +741,10 @@ T: dict[str, tuple[str, str]] = {
     ),
     "join.status.none": ("还没有提交角色卡", "No character submitted yet"),
     "join.status.submitted": ("已提交，待审核", "Submitted, under review"),
-    "join.status.approved": ("审核通过", "Approved"),
+    "join.status.approved": (
+        "审核通过。所有玩家都通过以后，由管理员在管理台点“开始这一局”开场；开场后这里会显示开场信息。",
+        "Approved. Once every player is approved, the admin starts the game from the console; the opening will appear here.",
+    ),
     "join.status.rejected": ("需要修改", "Changes requested"),
     "character.name": ("角色名", "Name"),
     "character.name_hint": (
