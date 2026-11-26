@@ -503,6 +503,12 @@
     "example1": "e.g. How do I write “+2 strength at noon” as an always-on bonus?",
     "example2": "e.g. Turn this skill into “XX”: 2d6 damage to one person within 30 m, 10-minute cooldown",
     "example3": "e.g. Make a historical figure into a character for these rules",
+    "fix_button": "Let the copilot apply this review",
+    "fix_hint": "Hands the review and your sheets to the copilot; its changes go straight into the form for you to check before submitting.",
+    "fix_review": "Please change my sheets according to the keeper's review below: handle each item under what to change and possible problems, and the reminders that need it; leave alone anything you judge shouldn't change or is a false alarm, and say why. Give every change as a proposal.\n\nThe keeper's review:\n{comments}",
+    "fixed": "The copilot made {n} changes from the review, already in the sheets below (its notes are on the right). Check them before submitting.",
+    "fixed_none": "The copilot went through the review and changed nothing (its notes are on the right).",
+    "fixing": "The copilot is working through the review; its changes will go straight into the sheets below…",
     "focus_entry": "Looking at: {where}",
     "focus_sheet": "Looking at: {where} (whole sheet)",
     "intro": "Ask how rules work or how to write something, or have it write entries and change the sheet. It is separate from the KP: it only sees the rulebook and your sheet, never the game. Suggested changes are checked against the rulebook and only go into the sheet when you click Apply.",
@@ -515,7 +521,8 @@
     "send": "Send",
     "show_change": "Show the change",
     "thinking": "Thinking… (may take half a minute)",
-    "title": "Copilot"
+    "title": "Copilot",
+    "undo_fix": "Undo these changes"
   },
   "demo": {
     "hint": "Click an entity, a building or the ground.",

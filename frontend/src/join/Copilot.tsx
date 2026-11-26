@@ -44,6 +44,8 @@ export function CopilotPanel({
   onApply,
   title,
   onClose,
+  auto,
+  onAuto,
 }: {
   turns: CopilotTurn[];
   setTurns: (f: (t: CopilotTurn[]) => CopilotTurn[]) => void;
@@ -55,6 +57,10 @@ export function CopilotPanel({
   /** 这处修改的标题（例如“把正在编辑的这一条换成 XX”） */
   title: (p: Proposal) => string;
   onClose: () => void;
+  /** 打开就自动问这一句，回答里的修改全部应用（例如按审核意见改卡）；key 变了再问一次 */
+  auto?: { text: string; key: number } | null;
+  /** 自动问的回答到了、修改都应用了以后（参数是应用了的修改） */
+  onAuto?: (applied: Proposal[]) => void;
 }) {
   const { t, lang } = useI18n();
   const backend = useFormBackend();
@@ -65,23 +71,33 @@ export function CopilotPanel({
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [turns.length, busy]);
-  const ask = async () => {
-    const q = text.trim();
+  const ask = async (given?: string, applyAll = false) => {
+    const q = (given ?? text).trim();
     if (!q || busy) return;
     setBusy(true);
     setError(null);
     const body = question(q);
     setTurns((ts) => [...ts, { role: "user", text: q }]);
-    setText("");
+    if (given === undefined) setText("");
     try {
       const a = await backend.copilot(body);
-      setTurns((ts) => [...ts, { role: "assistant", text: a.answer, proposals: [...(a.proposals ?? [])], applied: [] }]);
+      const proposals = [...(a.proposals ?? [])];
+      if (applyAll) proposals.forEach((p) => onApply(p));
+      setTurns((ts) => [...ts, { role: "assistant", text: a.answer, proposals, applied: applyAll ? proposals.map((_, i) => i) : [] }]);
+      if (applyAll) onAuto?.(proposals);
     } catch (e) {
       setError(e);
     } finally {
       setBusy(false);
     }
   };
+  // 自动问：每个 key 只问一次（开发模式下 effect 会跑两遍）
+  const asked = useRef<number | null>(null);
+  useEffect(() => {
+    if (!auto || asked.current === auto.key) return;
+    asked.current = auto.key;
+    void ask(auto.text, true);
+  }, [auto?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const apply = (turn: number, i: number, p: Proposal) => {
     onApply(p);
     setTurns((ts) => ts.map((x, j) => (j === turn ? { ...x, applied: [...(x.applied ?? []), i] } : x)));

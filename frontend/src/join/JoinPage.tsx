@@ -18,6 +18,8 @@ export function JoinPage() {
   const events = usePoll(() => call(api.GET("/api/events")), 10_000);
   const choose = useAction();
   const [editing, setEditing] = useState(false);
+  // 让建卡助手按审核意见改卡：交给建卡表单（key 每点一次加一）
+  const [autoFix, setAutoFix] = useState<{ comments: string; key: number } | null>(null);
   // 选角色还是在建卡：已经有草稿或者提交过的直接建卡；载入角色库的角色时记着它（提交时可以更新）
   const draft = usePoll(() => call(api.GET("/api/character/draft")), 3_600_000);
   const [picking, setPicking] = useState<boolean | null>(null);
@@ -123,6 +125,17 @@ export function JoinPage() {
             <div className={lastReview.type === "character_rejected" ? "sk-card sk-warn" : "sk-card"}>
               <strong>{t("join.review")}</strong>
               <Markdown text={String(lastReview.payload.comments ?? "")} />
+              {m.game_status === "characters" && String(lastReview.payload.comments ?? "").trim() && (
+                <p className="cf-fix-row">
+                  <button type="button" className="cp-button" onClick={() => {
+                    setEditing(true);
+                    setAutoFix((x) => ({ comments: String(lastReview.payload.comments ?? ""), key: (x?.key ?? 0) + 1 }));
+                  }}>
+                    ✦ {t("cp.fix_button")}
+                  </button>{" "}
+                  <span className="sk-hint">{t("cp.fix_hint")}</span>
+                </p>
+              )}
             </div>
           )}
           {status === "approved" && !editing && m.game_status === "characters" && (
@@ -174,6 +187,7 @@ export function JoinPage() {
                         origin={origin}
                         onOrigin={setOrigin}
                         onPickAnother={() => setPicking(true)}
+                        autoFix={autoFix}
                         onSubmitted={() => {
                           setEditing(false);
                           refresh();

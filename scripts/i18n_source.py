@@ -559,6 +559,31 @@ T: dict[str, tuple[str, str]] = {
     "cf.view": ("查看", "View"),
     "cf.ref": ("引用名：", "Reference:"),
     "cf.modify": ("修改", "Modify"),
+    "cp.fix_button": ("让助手按审核意见改", "Let the copilot apply this review"),
+    "cp.fix_hint": (
+        "把审核意见和你的卡交给建卡助手，它改完直接写进卡里，你看过再决定提不提交。",
+        "Hands the review and your sheets to the copilot; its changes go straight into the form for you to check before submitting.",
+    ),
+    "cp.fix_review": (
+        "请按下面 KP 的审核意见修改我的卡：“要改的”和“可能的问题”逐条处理，“提醒”里该改的也改；"
+        "你判断不该改、或者是误报的，不要改，在回答里说明理由。每一处修改都作为修改给出来。\n\nKP 的审核意见：\n{comments}",
+        "Please change my sheets according to the keeper's review below: handle each item under what to change and possible problems, "
+        "and the reminders that need it; leave alone anything you judge shouldn't change or is a false alarm, and say why. "
+        "Give every change as a proposal.\n\nThe keeper's review:\n{comments}",
+    ),
+    "cp.fixing": (
+        "建卡助手正在按审核意见改卡，改好以后会直接写进下面的卡里……",
+        "The copilot is working through the review; its changes will go straight into the sheets below…",
+    ),
+    "cp.fixed": (
+        "建卡助手按审核意见改了 {n} 处，已经写进下面的卡里（右边是它的说明）。看过没问题再提交。",
+        "The copilot made {n} changes from the review, already in the sheets below (its notes are on the right). Check them before submitting.",
+    ),
+    "cp.fixed_none": (
+        "建卡助手看过审核意见，没有要改的地方（右边是它的说明）。",
+        "The copilot went through the review and changed nothing (its notes are on the right).",
+    ),
+    "cp.undo_fix": ("撤销这些修改", "Undo these changes"),
     "cp.button": ("问助手", "Ask Copilot"),
     "cp.title": ("建卡助手", "Copilot"),
     "cp.clear": ("清空对话", "Clear"),

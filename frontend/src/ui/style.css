@@ -378,3 +378,6 @@ tr.inactive { opacity: 0.5; }
 .cf-budget .cf-desc { margin-top: 4px; }
 .cf-pdf { background: transparent; }
 .sk-event .text.md { white-space: normal; }
+.cf-fixing, .cf-fixed { margin-bottom: 10px; }
+.cf-fixed { border-left: 4px solid var(--accent); }
+.cf-fix-row { margin: 8px 0 0; }

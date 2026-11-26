@@ -72,6 +72,7 @@ export function CharacterForm({
   onPickAnother,
   backend = gameBackend,
   bookMode = false,
+  autoFix = null,
 }: {
   templates: Template[];
   playerEntities: { template: string; min: number; max: number }[];
@@ -90,6 +91,8 @@ export function CharacterForm({
   /** 规则包的默认参数和检定名（自己加参数时用） */
   params?: readonly Schemas["PackParam"][];
   checks?: readonly string[];
+  /** 让建卡助手按这份审核意见自动改卡（key 变了再改一次） */
+  autoFix?: { comments: string; key: number } | null;
 }) {
   const { t, lang } = useI18n();
   // 语法手册里列出这套规则的名字：各角色卡的字段、推导值、分组，检定，参数
@@ -104,6 +107,10 @@ export function CharacterForm({
   // 建卡助手：打开时正在看的地方（null 是关着）；问答只留在这一页
   const [copilot, setCopilot] = useState<CopilotFocus | null>(null);
   const [turns, setTurns] = useState<CopilotTurn[]>([]);
+  // 按审核意见自动改：正在改（auto 交给助手面板）、改完了几处（可以撤销回 before）
+  const [auto, setAuto] = useState<{ text: string; key: number } | null>(null);
+  const [fixed, setFixed] = useState<{ count: number; before: Submission[] } | null>(null);
+  const beforeFix = useRef<Submission[] | null>(null);
   const [libBusy, setLibBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [libSavedAt, setLibSavedAt] = useState<string | null>(null);
@@ -250,6 +257,14 @@ export function CharacterForm({
       setBusy(false);
     }
   };
+  // 审核意见交给助手：打开面板、自动问，回答里的修改全部应用；改之前的卡留着，可以撤销
+  useEffect(() => {
+    if (!loaded || !autoFix || auto?.key === autoFix.key) return;
+    beforeFix.current = subs;
+    setFixed(null);
+    setCopilot({ sheet: Math.min(tab, subs.length - 1) });
+    setAuto({ text: t("cp.fix_review", { comments: autoFix.comments }), key: autoFix.key });
+  }, [loaded, autoFix?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!loaded) return <p>{t("common.loading")}</p>;
   const current = Math.min(tab, subs.length - 1);
   const tplLabel = (name: string) => templates.find((x) => x.name === name)?.label || name;
@@ -317,6 +332,23 @@ export function CharacterForm({
           {t("cf.stale")}{" "}
           <button type="button" className="sk-primary" onClick={() => window.location.reload()}>
             {t("cf.reload")}
+          </button>
+        </div>
+      )}
+      {auto && !fixed && copilot && <div className="sk-card cf-fixing">{t("cp.fixing")}</div>}
+      {fixed && (
+        <div className="sk-card cf-fixed" role="status">
+          {t(fixed.count > 0 ? "cp.fixed" : "cp.fixed_none", { n: String(fixed.count) })}{" "}
+          {fixed.count > 0 && (
+            <button type="button" className="sk-link" onClick={() => {
+              setSubs(fixed.before);
+              setFixed(null);
+            }}>
+              {t("cp.undo_fix")}
+            </button>
+          )}
+          <button type="button" className="sk-link" onClick={() => setFixed(null)}>
+            {t("play.close")}
           </button>
         </div>
       )}
@@ -405,7 +437,7 @@ export function CharacterForm({
       </div>
       <ErrorBox error={error} />
       {copilot && (
-        <CopilotPanel turns={turns} setTurns={setTurns} focus={copilot} focusLabel={focusLabel} question={question} onApply={applyProposal} title={proposalTitle} onClose={() => setCopilot(null)} />
+        <CopilotPanel turns={turns} setTurns={setTurns} focus={copilot} focusLabel={focusLabel} question={question} onApply={applyProposal} title={proposalTitle} onClose={() => setCopilot(null)} auto={auto} onAuto={(applied) => setFixed({ count: applied.length, before: beforeFix.current ?? subs })} />
       )}
     </div>
     </CopilotContext.Provider>
