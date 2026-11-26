@@ -179,3 +179,21 @@ def test_token_is_hashed() -> None:
     assert e.player_by_token(token + "x") is None
     e.revoke_player(p.id)
     assert e.player_by_token(token) is None
+
+
+def test_approved_character_can_be_revised_before_the_game_starts() -> None:
+    e, packs = make_engine(seed=3)
+    pack = load_pack("single")
+    pid = packs.create_pack("x")
+    packs.save_version(pid, pack)
+    g = e.create_game(
+        GameConfig(name="t", rulepack_id=pid, rulepack_version=1, scenario_public=SCENARIO_PUBLIC)
+    )
+    p, _ = e.add_player(g.id, "one")
+    e.submit_character(p.id, sheets_for(pack, 0))
+    e.approve_character(p.id)
+    assert e.character_status(p.id) == "approved"
+    # 开局前：还能存草稿、重新提交，回到待审核
+    e.save_character_draft(p.id, [])
+    e.submit_character(p.id, sheets_for(pack, 1))
+    assert e.character_status(p.id) == "submitted"

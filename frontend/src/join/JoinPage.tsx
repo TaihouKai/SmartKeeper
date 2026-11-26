@@ -125,6 +125,14 @@ export function JoinPage() {
               <p>{String(lastReview.payload.comments ?? "")}</p>
             </div>
           )}
+          {status === "approved" && !editing && m.game_status === "characters" && (
+            <p>
+              <button type="button" onClick={() => setEditing(true)}>
+                {t("join.revise")}
+              </button>{" "}
+              <span className="sk-hint">{t("join.revise_hint")}</span>
+            </p>
+          )}
           {(status === "none" || status === "rejected" || editing) && m.game_status === "characters" ? (
             <HandbookProvider text={r.handbook} href="/rulebook">
               {(() => {

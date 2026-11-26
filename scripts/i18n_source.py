@@ -866,6 +866,11 @@ T: dict[str, tuple[str, str]] = {
         "Approved. Once every player is approved, the admin starts the game from the console; the opening will appear here.",
     ),
     "join.status.rejected": ("需要修改", "Changes requested"),
+    "join.revise": ("修改角色卡", "Change my character"),
+    "join.revise_hint": (
+        "开局前还能改；改完重新提交，要再审核一次。",
+        "You can still change it before the game starts; resubmitting sends it for review again.",
+    ),
     "character.name": ("角色名", "Name"),
     "character.name_hint": (
         "只有你和 KP 看得到；别人看到的是按外观起的代号，要打听或你自我介绍了才知道",
