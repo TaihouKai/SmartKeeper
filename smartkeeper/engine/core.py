@@ -782,7 +782,27 @@ class Engine:
                 visibility=Visibility.to(player_id),
                 payload={"sheets": filled},
             )
-            return self._events.append(g.id, 0, [ev])[0]
+            submitted = self._events.append(g.id, 0, [ev])[0]
+            # 一模一样的卡之前审核通过过（同一版规则书、同样的剧本公开部分和身份）：直接通过，不再让 KP 审
+            comments = self._repo.approval(self._review_checksum(g, player_id, filled))
+            if comments is not None:
+                self._approve(player_id, comments, reused=True)
+            return submitted
+
+    def _review_checksum(self, g: Game, player_id: str, sheets: JsonValue) -> str:
+        """审核结果取决于的全部东西的校验和：规则书版本、剧本公开部分（KP 审核时看的就是它）、身份、整套卡。"""
+        body = {
+            "rulepack": [g.rulepack_id, g.rulepack_version],
+            "scenario": g.scenario_public,
+            "identity": self._identity_of(player_id, g.id),
+            "sheets": sheets,
+        }
+        raw = json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def character_review_needed(self, player_id: str) -> bool:
+        """交上来的卡还在等 KP 审（之前通过过的一模一样的卡已经直接通过了）。"""
+        return self.character_status(player_id) == "submitted"
 
     def reject_character(self, player_id: str, comments: str) -> Event:
         with self._lock:
@@ -798,7 +818,10 @@ class Engine:
             return self._events.append(p.game_id, 0, [ev])[0]
 
     def approve_character(self, player_id: str, comments: str = "") -> Event:
-        """审核通过后实体进入世界状态（还没有位置，开场时确定）。"""
+        """审核通过后实体进入世界状态（还没有位置，开场时确定）。这套卡记下来，以后原样再交就直接通过。"""
+        return self._approve(player_id, comments)
+
+    def _approve(self, player_id: str, comments: str, reused: bool = False) -> Event:
         with self._lock:
             p = self.player(player_id)
             g = self.game(p.game_id)
@@ -835,10 +858,19 @@ class Engine:
                     type="character_approved",
                     actor=KP,
                     visibility=Visibility.to(player_id),
-                    payload={"entities": list(ids), "comments": comments},
+                    payload={
+                        "entities": list(ids),
+                        "comments": comments,
+                        **({"reused": True} if reused else {}),
+                    },
                 ),
             ]
-            return self._events.append(g.id, 0, evs)[-1]
+            out = self._events.append(g.id, 0, evs)[-1]
+            if not reused:
+                sheets = self._events.view_for(g.id, player_id, types=["character_submitted"])
+                checksum = self._review_checksum(g, player_id, sheets[-1].payload.get("sheets"))
+                self._repo.remember_approval(checksum, comments, _now())
+            return out
 
     def _new_entity_ids(self, game_id: str, state: State, n: int, prefix: str = "ent") -> list[str]:
         """新实体的编号：这一局从来没用过的（删掉的实体的编号也不复用，玩家手里它的代号不会安到新实体上）。"""

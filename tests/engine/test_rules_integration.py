@@ -181,6 +181,45 @@ def test_token_is_hashed() -> None:
     assert e.player_by_token(token) is None
 
 
+def test_sheets_approved_once_pass_straight_away_in_a_new_game() -> None:
+    """KP 审核通过过的一套卡（同一版规则书、同样的剧本公开部分和身份）在新开的局里原样再交就直接通过，
+    带着当时的审核意见；卡改了一点、换了规则书版本，都要重新审。"""
+    e, packs = make_engine(seed=3)
+    pack = load_pack("single")
+    pid = packs.create_pack("x")
+    packs.save_version(pid, pack)
+
+    def new_game(version: int = 1) -> str:
+        g = e.create_game(
+            GameConfig(
+                name="t", rulepack_id=pid, rulepack_version=version, scenario_public=SCENARIO_PUBLIC
+            )
+        )
+        return g.id
+
+    first, _ = e.add_player(new_game(), "one")
+    e.submit_character(first.id, sheets_for(pack, 0))
+    assert e.character_review_needed(first.id)
+    e.approve_character(first.id, "两张卡都通过了。")
+
+    again, _ = e.add_player(new_game(), "one")
+    e.submit_character(again.id, sheets_for(pack, 0))
+    assert not e.character_review_needed(again.id)
+    assert e.character_status(again.id) == "approved"
+    ev = [x for x in e.view_for(again.game_id, again.id) if x.type == "character_approved"][-1]
+    assert ev.payload["comments"] == "两张卡都通过了。" and ev.payload["reused"] is True
+    assert len(e.controlled(again.game_id, again.id)) == len(sheets_for(pack, 0))
+
+    changed, _ = e.add_player(new_game(), "two")
+    e.submit_character(changed.id, sheets_for(pack, 1))
+    assert e.character_review_needed(changed.id)
+
+    packs.save_version(pid, pack)
+    other_rules, _ = e.add_player(new_game(version=2), "three")
+    e.submit_character(other_rules.id, sheets_for(pack, 0))
+    assert e.character_review_needed(other_rules.id)
+
+
 def test_approved_character_can_be_revised_before_the_game_starts() -> None:
     e, packs = make_engine(seed=3)
     pack = load_pack("single")

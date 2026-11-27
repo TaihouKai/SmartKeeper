@@ -71,6 +71,8 @@ def run_demo(
                 raw["name"] = f"{p.display_name}-{pe.template}-{k + 1}"
                 subs.append(SheetSubmission(template=pe.template, sheet=Sheet.model_validate(raw)))
         e.submit_character(p.id, subs)
+        if not e.character_review_needed(p.id):
+            continue
         review = kp.review_character(p.id)
         _print(f"{p.display_name} 建角审核", json.dumps(review.model_dump(), ensure_ascii=False))
         if not review.approved:

@@ -1134,6 +1134,7 @@
     "no_session": "This browser is not in a game yet. Pick a game in the room list to join, or press Continue on one you joined.",
     "rename": "Change nickname",
     "review": "Keeper's review",
+    "review_reused": "These sheets are identical to ones approved before, so they passed straight away. Below is the review from then.",
     "revise": "Change my character",
     "revise_hint": "You can still change it before the game starts; resubmitting sends it for review again.",
     "rules": "Rules and scenario",

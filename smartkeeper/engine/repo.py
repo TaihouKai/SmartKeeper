@@ -58,6 +58,16 @@ character = sa.Table(
     sa.Column("updated_at", sa.String, nullable=False),
 )
 
+# 审核通过过的角色：校验和（规则书版本、剧本公开部分、身份、整套卡）-> 当时的审核意见。
+# 不分局：重开一局交一模一样的卡就直接通过，不再让 KP 审一遍
+approved_character = sa.Table(
+    "approved_character",
+    metadata,
+    sa.Column("checksum", sa.String, primary_key=True),
+    sa.Column("comments", sa.Text, nullable=False, default=""),
+    sa.Column("created_at", sa.String, nullable=False),
+)
+
 round_ = sa.Table(
     "round",
     metadata,
@@ -227,6 +237,32 @@ class Repo:
     def set_character_draft(self, player_id: str, draft: JsonValue | None, at: str | None) -> None:
         body = None if draft is None else json.dumps(draft, ensure_ascii=False)
         self.update_player(player_id, character_draft=body, character_draft_at=at)
+
+    # ---- 审核通过过的角色 ----
+
+    def approval(self, checksum: str) -> str | None:
+        """这套卡通过时的审核意见；没通过过是 None。"""
+        with self.db.connect() as c:
+            row = c.execute(
+                sa.select(approved_character.c.comments).where(
+                    approved_character.c.checksum == checksum
+                )
+            ).first()
+        return None if row is None else str(row[0])
+
+    def remember_approval(self, checksum: str, comments: str, at: str) -> None:
+        with self.db.begin() as c:
+            hit = c.execute(
+                sa.select(approved_character.c.checksum).where(
+                    approved_character.c.checksum == checksum
+                )
+            ).first()
+            if hit is None:
+                c.execute(
+                    approved_character.insert().values(
+                        checksum=checksum, comments=comments, created_at=at
+                    )
+                )
 
     # ---- 角色库 ----
 

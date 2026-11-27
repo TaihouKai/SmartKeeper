@@ -349,7 +349,8 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         p: Annotated[Player, Depends(require_player)], body: CharacterIn, bg: BackgroundTasks
     ) -> OkOut:
         e.submit_character(p.id, body.sheets)
-        bg.add_task(background(s.kp.review_character, p.id))
+        if e.character_review_needed(p.id):
+            bg.add_task(background(s.kp.review_character, p.id))
         return OkOut()
 
     @r.get("/character/draft")

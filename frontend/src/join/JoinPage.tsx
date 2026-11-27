@@ -124,6 +124,7 @@ export function JoinPage() {
           {lastReview && (
             <div className={lastReview.type === "character_rejected" ? "sk-card sk-warn" : "sk-card"}>
               <strong>{t("join.review")}</strong>
+              {lastReview.payload.reused === true && <p className="sk-hint">{t("join.review_reused")}</p>}
               <Markdown text={String(lastReview.payload.comments ?? "")} />
               {m.game_status === "characters" && String(lastReview.payload.comments ?? "").trim() && (
                 <p className="cf-fix-row">

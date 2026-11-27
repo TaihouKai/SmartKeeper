@@ -898,6 +898,10 @@ T: dict[str, tuple[str, str]] = {
     "join.draw": ("抽取身份", "Draw an identity"),
     "join.character": ("角色卡", "Character"),
     "join.review": ("KP 的审核意见", "Keeper's review"),
+    "join.review_reused": (
+        "这套卡和之前审核通过过的一模一样，直接通过了；下面是当时的审核意见。",
+        "These sheets are identical to ones approved before, so they passed straight away. Below is the review from then.",
+    ),
     "join.waiting_review": (
         "已提交，等待 KP 审核……",
         "Submitted. Waiting for the keeper's review…",
