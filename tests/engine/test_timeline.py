@@ -1260,3 +1260,23 @@ def test_before_and_while_moving_items() -> None:
     assert [s.move for s in act.steps] == [0, 50, 0, 0]
     assert [s.act for s in act.steps] == [3, 0, 10, 5]
     assert act.end - act.start == 68
+
+
+def test_a_character_finishing_does_not_cut_off_the_players_other_characters() -> None:
+    """回合结算只是一个时间点：一个角色做完了就空出来等新指令，同一个玩家别的角色没受干扰，照样做下去。"""
+    t = setup_table("multi", 2)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    first, second = t.entities(p0)[:2]
+    items = (
+        ActionItem(actor=first, verb="wait", act_seconds=10),
+        ActionItem(actor=second, verb="ask", act_seconds=13),
+    )
+    e.declare_action(p0, "x", Intent(items=items))
+    wait(t, p1, 600)
+    e.close_round(g)
+    assert e.round_window(g) == (0, 10)
+    publish(t, only=[p0, p1])  # p1 的第二个角色没安排行动，也要有结果
+    acts = e.activities(g)
+    assert first not in acts and second in acts  # 第二个角色的话照样说完
+    assert p0 in e.required_players(g)
