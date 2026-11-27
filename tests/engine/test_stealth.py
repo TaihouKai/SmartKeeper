@@ -2,7 +2,7 @@
 
 from typing import Any, cast
 
-from smartkeeper.contracts import RulePack, UseResult
+from smartkeeper.contracts import PatchOp, RulePack, UseResult
 from tests.engine.harness import Table, setup_table
 from tests.engine.test_timeline import magic_pack, publish, wait
 
@@ -60,4 +60,24 @@ def test_search_that_beats_the_difficulty_finds_at_once() -> None:
     p0, p1 = t.players
     a, b = t.entities(p0)[0], t.entities(p1)[0]
     assert detected_by(t, a) == [b] and detected_by(t, b) == [a]
+    assert perceives(t, a, b) and perceives(t, b, a)
+
+
+def test_one_players_own_characters_never_hide_from_each_other() -> None:
+    pack = magic_pack()
+    tpl = pack.templates[0].model_copy(update={"stealth": "999", "search": "1d20"})
+    t = setup_table(
+        "single", 2, pack=pack.model_copy(update={"templates": (tpl, *pack.templates[1:])})
+    )
+    p0, p1 = t.players
+    a, b = t.entities(p0)[0], t.entities(p1)[0]
+    assert not perceives(t, a, b)  # 别人的角色照样藏得住
+    # 同一个玩家的两个角色（例如主人和他隐身的召唤物）：不管隐匿公式怎么写，彼此都察觉得到
+    t.engine.admin_patch(
+        t.game_id,
+        [
+            PatchOp(op="replace", path=f"/controls/{p0}", value=[a, b]),
+            PatchOp(op="replace", path=f"/controls/{p1}", value=[]),
+        ],
+    )
     assert perceives(t, a, b) and perceives(t, b, a)

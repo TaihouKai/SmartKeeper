@@ -864,7 +864,7 @@ STEALTH = code(
     """
     max(
         (10 + min(servant.presence_concealment.level, 6) * ceil(max(distance, 1) / 40) if distance <= 200 else 999) if servant.presence_concealment.level > 0 else 0,
-        999 if spirit_form and observer.template == "master" and observer.muggle else 0,
+        999 if spirit_form and observer.template != "servant" else 0,  # 灵体化：只有英灵察觉得到（自己的御主不受影响，引擎处理）
     )
     """
 )
@@ -1058,7 +1058,7 @@ SERVANT = {
     "alias_label": "代号",
     "alias_hint": "（可不填）你和御主平时怎么称呼他，当众也这么喊，例如 Saber、骑士大人；不填就是职阶。只有你们和 KP 看得到",
     "alias_from": "klass",
-    # 灵体化时别人看不清样子（英灵、魔术师照样察觉得到有人在）
+    # 灵体化时别人看不清样子（只有英灵察觉得到有人在）
     "appearance_hidden": "spirit_form",
     "fields": [
         field("appearance", "外观", "text", description="别人看到的样子（不要写出真名）"),
@@ -1234,7 +1234,7 @@ SERVANT = {
                 preset(
                     "灵体化",
                     "spirit",
-                    "进入或解除灵体化：普通人看不见，人的普通物理攻击碰不到你（英灵的攻击和宝具照样打得到），你也不能攻击，速度提升 30%；英灵和魔术师照样感觉得到你，但看不清你的样子。不消耗魔力。",
+                    "进入或解除灵体化：只有别的英灵察觉得到你（看不清样子），人（包括魔术师）察觉不到，你自己的御主当然知道你在哪；人的普通物理攻击碰不到你（英灵的攻击和宝具照样打得到），你也不能攻击，速度提升 30%。不消耗魔力。",
                     """
                     target = "self"
                     toggle = self.spirit_form

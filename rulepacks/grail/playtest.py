@@ -461,6 +461,16 @@ def main() -> int:
         )
 
     print(
+        "\n13. 灵体化：只有别的英灵察觉得到；自己的御主照样知道；别的御主（会魔术的也一样）察觉不到"
+    )
+    patch(t, [PatchOp(op="replace", path=f"/entities/{s0}/sheet/fields/spirit_form", value=True)])
+    space = e._space(g)  # pyright: ignore[reportPrivateUsage]
+    ok(s0 in space.perceived_by(s1), "别的英灵察觉得到灵体化的英灵")
+    ok(s0 in space.perceived_by(m0), "自己的御主察觉得到")
+    ok(s0 not in space.perceived_by(m1), "别的御主察觉不到")
+    patch(t, [PatchOp(op="replace", path=f"/entities/{s0}/sheet/fields/spirit_form", value=False)])
+
+    print(
         "\n结果：",
         "全部通过"
         if not FAILED

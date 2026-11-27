@@ -3589,9 +3589,10 @@ class Engine:
                     cur = self._flip_toggle(
                         cur, source, str(tog.get("key")), bool(tog.get("on")), ops
                     )
-            # 对别人用了技能：隐匿的使用者暴露给对象
+            # 对别人用了技能：对方当时没发现的使用者暴露给对象（本来就看得见的不用记，
+            # 不然他之后再隐匿起来，对方也一直“发现”着他）
             target = p.get("target")
-            if isinstance(target, str) and target != source:
+            if isinstance(target, str) and target != source and p.get("unseen") is True:
                 ent = _obj(_obj(cur.get("entities")).get(source))
                 seen_by = [str(x) for x in _list(ent.get("detected_by"))]
                 if ent and target not in seen_by:
@@ -4332,7 +4333,7 @@ class Engine:
 
     def _detect(self, game_id: str, round_no: int) -> None:
         """一轮开始时：看得见隐匿者、但还没发现它的观察者，各掷一次侦查（观察者模板的 search）对隐匿难度，
-        不小于难度就发现了。离开视野（距离、视线）的就忘掉。掷骰和结果都记日志。"""
+        不小于难度就发现了。离开视野（距离、视线）的就忘掉；对他没在隐匿的观察者也不记。掷骰和结果都记日志。"""
         pack = self.rulepack(game_id)
         if not any(t.stealth.strip() for t in pack.templates):
             return
@@ -4346,11 +4347,13 @@ class Engine:
             for observer in sorted(space.bodies):
                 if observer == hider or hider not in space.sees(observer):
                     continue  # 看不见就谈不上发现；之前发现过的也忘掉
+                need = space.hiding(hider, observer)
+                if need <= 0:
+                    continue  # 没在隐匿：谈不上发现，以前的也不留（他之后隐匿起来要重新找）
                 if observer in before:
                     after.add(observer)
                     continue
-                need = space.hiding(hider, observer)
-                if need <= 0 or self._dead(state, observer):
+                if self._dead(state, observer):
                     continue
                 ent = _obj(space.entities.get(observer))
                 tpl = pack.template(str(ent.get("template", "")))

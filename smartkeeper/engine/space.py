@@ -181,8 +181,15 @@ class Space:
         return hit
 
     def hiding(self, hider: str, observer: str) -> float:
-        """观察者此刻发现隐匿者的难度（隐匿者模板的 stealth）；0 及以下是没在隐匿。公式出错当作不隐匿。"""
+        """观察者此刻发现隐匿者的难度（隐匿者模板的 stealth）；0 及以下是没在隐匿。公式出错当作不隐匿。
+        同一个玩家的角色之间不隐匿：玩家本来就知道自己每个角色在哪。"""
         key = (hider, observer)
+        if (
+            key not in self._hide
+            and hider in self.owner
+            and self.owner.get(observer) == self.owner[hider]
+        ):
+            self._hide[key] = 0.0
         if key not in self._hide:
             h, o = _obj(self.entities.get(hider)), _obj(self.entities.get(observer))
             hb, ob = self.bodies.get(hider), self.bodies.get(observer)
