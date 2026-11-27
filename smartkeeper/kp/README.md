@@ -16,3 +16,4 @@
 - 回放出题（`evaluation.py`，`scripts/memory_eval.py`）：从事件日志生成正例和反例的往事引用，统计按实体检索的召回率，以及声明核对的召回率和特异度。
 - 钩子：`on_published(game_id, round_no)`、`on_review(game_id, round_no)`，由 web 接到 webhook 通知上。
 - 真模型泄密测试：`scripts/live_leak_test.py`（`uv run pytest -m live tests/e2e`）。
+- 上下文（`context.py`）：带规则书的调用拼成同一个顺序，不变的在前、任务说明在最后，好吃提示缓存；条目去掉引擎执行的代码；JSON 紧凑。资料库（`lore.py`）按关键词挑背景设定，见设计文档第 30 节。

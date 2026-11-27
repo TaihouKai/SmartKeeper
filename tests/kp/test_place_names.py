@@ -25,7 +25,7 @@ def test_writers_only_see_names_their_reader_knows() -> None:
     assert "秘密据点" in g.kp.ctx.chat(p0).user
     assert "秘密据点" not in g.kp.ctx.chat(p1).user
     judge = g.kp.ctx.adjudicate(g.game_id).user
-    assert '"name": "秘密据点"' in judge and f'"{p0}"' in judge.split("秘密据点", 1)[1][:400]
+    assert '"name":"秘密据点"' in judge and f'"{p0}"' in judge.split("秘密据点", 1)[1][:400]
 
 
 def test_someone_first_seen_this_round_is_named_before_the_feedback_is_written() -> None:

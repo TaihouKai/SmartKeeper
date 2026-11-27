@@ -285,6 +285,24 @@ class InsightRule(Frozen):
     groups: tuple[str, ...] = ()
 
 
+class LoreEntry(Frozen):
+    """资料库的一条：背景设定，按关键词由引擎挑进 KP 的上下文（不常驻，规则书、剧本、角色卡优先）。
+
+    keys 任一出现在扫描的文字里就算命中；secondary 不空时再按 logic 看次关键词
+    （any 任一出现、all 全部出现、not_any 一个都不出现、not_all 不全出现）。
+    关键词写成 /正则/ 就按正则；英文和数字的关键词只按整词匹配；case_sensitive 才区分大小写。
+    """
+
+    title: str
+    keys: tuple[str, ...]
+    content: str
+    secondary: tuple[str, ...] = ()
+    logic: Literal["any", "all", "not_any", "not_all"] = "any"
+    case_sensitive: bool = False
+    order: int = 100  # 同样命中时大的优先
+    disabled: bool = False
+
+
 class PackParam(ParamDef):
     """规则包的默认参数：适用于 groups 里这些分组（分组名，哪个模板的都算）的每个条目。"""
 
@@ -305,6 +323,7 @@ class RulePack(Frozen):
     samples: tuple[SampleSheet, ...] = ()
     insights: tuple[InsightRule, ...] = ()  # 看见就知道的情报
     params: tuple[PackParam, ...] = ()  # 默认参数
+    lore: tuple[LoreEntry, ...] = ()  # 资料库：背景设定，按关键词挑进 KP 的上下文
 
     @model_validator(mode="before")
     @classmethod

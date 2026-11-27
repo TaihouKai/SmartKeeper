@@ -342,6 +342,13 @@
       "not_listed": "This game is not in the room list",
       "started": "This game has already started"
     },
+    "lore": {
+      "bad_json": "Not valid JSON",
+      "duplicate_title": "Duplicate lore title: {title}",
+      "no_content": "Lore entry without text: {title}",
+      "no_keys": "Lore entry without keywords: {title}",
+      "no_title": "A lore entry has no title"
+    },
     "mention": {
       "unknown": "Unknown @ reference"
     },
@@ -1216,11 +1223,17 @@
     "use": "Use this"
   },
   "llm": {
+    "cached": "Cached",
+    "calls": "Calls",
+    "cost": "Cost",
+    "input": "Input",
     "messages": "Messages",
+    "output": "Output",
+    "purpose": "Purpose",
     "response": "Response",
     "searches": "Web searches",
     "system": "System prompt",
-    "totals": "{n} calls, {in} input tokens, {out} output tokens"
+    "totals": "Last {n} calls, {cost} in total (input / cached / output tokens; prices come from the server configuration, — when a model has none)"
   },
   "lobby": {
     "continue": "Continue",
@@ -1645,6 +1658,23 @@
     },
     "levels_hint": "Checked in order; the first true condition wins. Variables: roll, target, difficulty, opp_roll, opp_target.",
     "locked": "Required by the engine; can't be changed",
+    "lore": {
+      "add": "New entry",
+      "content": "Text",
+      "count": "{n} entries, {on} on",
+      "edit": "Edit",
+      "empty": "No entries yet.",
+      "import_add": "Import World Info (append)",
+      "import_replace": "Import World Info (replace all)",
+      "keys": "Keywords (comma-separated)",
+      "keys_hint": "Any one appearing counts; English matches whole words; /regex/ is a regex. A word common to many entries counts only together with another keyword of this entry.",
+      "more": "{n} more; search to narrow down",
+      "new_title": "New entry",
+      "search": "Search titles or keywords",
+      "title": "Title"
+    },
+    "lore_hint": "Background setting, never always-on: each call the engine picks the entries whose keywords appear in the scenario, the cards or this round's actions, within a size budget. Rulebook, scenario and cards win over lore. Import a SillyTavern World Info JSON to start.",
+    "lore_title": "Lore",
     "missing_template": "{name} (no such template; choose again)",
     "new": "New rule pack",
     "open": "Open",
@@ -1677,6 +1707,7 @@
       "handbook": "Rulebook",
       "insights": "Seen at a glance",
       "levels": "Result level",
+      "lore": "Lore",
       "params": "Default parameters",
       "placement": "Placement",
       "player_entities": "Player entities",

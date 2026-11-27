@@ -32,6 +32,7 @@ export function blankPack(t: T): Pack {
     insights: [],
     handbook: "",
     params: [],
+    lore: [],
   };
 }
 
@@ -166,6 +167,7 @@ export type Sel =
   | { k: "checks" }
   | { k: "text" }
   | { k: "insights" }
+  | { k: "lore" }
   | { k: "handbook" }
   | { k: "params" }
   | { k: "samples" };
@@ -192,6 +194,7 @@ export function selForPath(path: string): Sel {
     checks: { k: "checks" },
     rules_text: { k: "text" },
     insights: { k: "insights" },
+    lore: { k: "lore" },
     handbook: { k: "handbook" },
     params: { k: "params" },
     samples: { k: "samples" },

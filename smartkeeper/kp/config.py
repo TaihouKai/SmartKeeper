@@ -16,5 +16,9 @@ class KPConfig:
     claim_chunk_events: int = 400  # 声明核对时玩家视图每段的事件数
     leak_check: bool = True  # 每份反馈过模型泄密检查（确定性的检查总是做）
     rolling_summary: bool = True  # 每轮发布后更新滚动摘要
+    # 资料库（规则包的背景设定）：按剧本和角色卡挑的一层整局不变，放在上下文的固定部分；按本轮的文字挑的一层另算
+    lore_game_chars: int = 6000
+    lore_round_chars: int = 3000
+    lore_entry_chars: int = 900  # 单条最长，超过截断
     # 界面翻译表（语言 -> 键 -> 文字）：审核角色卡时把技能代码写成句子用其中的 ex.*；空的话不给效果说明
     messages: Mapping[str, Mapping[str, str]] = field(default_factory=dict[str, Mapping[str, str]])

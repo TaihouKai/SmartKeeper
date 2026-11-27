@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -1893,10 +1894,15 @@ PACK = {
 def main() -> int:
     sys.path.insert(0, str(ROOT))
     from smartkeeper.contracts import RulePack
-    from smartkeeper.rules import RulesService
+    from smartkeeper.rules import RulesService, from_world_info
     from smartkeeper.rules.store import export_pack
 
     prefix_pack(PACK)
+    # 资料库：型月设定集（世界书格式的源文件，见 docs/plan-lorebook.md）
+    lore_src = json.loads(
+        Path(__file__).with_name("lore_worldinfo.json").read_text(encoding="utf-8")
+    )
+    PACK["lore"] = [x.model_dump(mode="json") for x in from_world_info(lore_src)]
     pack = RulePack.model_validate(PACK)
     problems = RulesService().validate_pack(pack)
     for p in problems:

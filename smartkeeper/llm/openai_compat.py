@@ -11,6 +11,13 @@ from pydantic import JsonValue
 from smartkeeper.contracts import LLMError, LLMResult, Message
 
 
+def _cached(usage: object) -> int:
+    """命中缓存的输入：OpenAI 写在 prompt_tokens_details.cached_tokens，DeepSeek 写在 prompt_cache_hit_tokens。"""
+    details = getattr(usage, "prompt_tokens_details", None)
+    hit = getattr(details, "cached_tokens", None) or getattr(usage, "prompt_cache_hit_tokens", None)
+    return int(hit or 0)
+
+
 class OpenAICompatLLM:
     supports_search = False
     provider = "openai_compat"
@@ -58,6 +65,7 @@ class OpenAICompatLLM:
             model=resp.model,
             input_tokens=usage.prompt_tokens if usage else 0,
             output_tokens=usage.completion_tokens if usage else 0,
+            cached_input_tokens=_cached(usage),
             stop_reason=choice.finish_reason,
             duration_ms=int((time.monotonic() - t0) * 1000),
         )

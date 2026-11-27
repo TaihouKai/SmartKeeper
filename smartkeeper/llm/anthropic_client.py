@@ -66,7 +66,7 @@ class AnthropicLLM:
             kwargs["fallbacks"] = "default"
         texts: list[str] = []
         searches: list[SearchRecord] = []
-        in_tok = out_tok = 0
+        in_tok = out_tok = cached = 0
         stop: str | None = None
         served_by = model
         try:
@@ -75,7 +75,11 @@ class AnthropicLLM:
                     messages=cast(Any, convo), **kwargs
                 ) as stream:
                     msg = stream.get_final_message()
-                in_tok += msg.usage.input_tokens
+                # input_tokens 不含缓存的部分；这里记全部输入，命中缓存的另记
+                read = int(getattr(msg.usage, "cache_read_input_tokens", 0) or 0)
+                made = int(getattr(msg.usage, "cache_creation_input_tokens", 0) or 0)
+                in_tok += msg.usage.input_tokens + read + made
+                cached += read
                 out_tok += msg.usage.output_tokens
                 stop = msg.stop_reason
                 served_by = msg.model
@@ -117,6 +121,7 @@ class AnthropicLLM:
             model=served_by,
             input_tokens=in_tok,
             output_tokens=out_tok,
+            cached_input_tokens=cached,
             searches=tuple(searches),
             stop_reason=stop,
             duration_ms=int((time.monotonic() - t0) * 1000),

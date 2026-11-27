@@ -75,6 +75,7 @@ export function Outline({ pack, current, onSelect, problems, onAddTemplate, onAd
         {top("params", t("rules.path.params"), "params")}
         {top("handbook", t("rules.path.handbook"), "handbook")}
         {top("insights", t("rules.path.insights"), "insights")}
+        {top("lore", t("rules.path.lore"), "lore")}
         {top("text", t("rules.outline_text"), "rules_text")}
         {top("samples", t("rules.path.samples"), "samples")}
       </div>

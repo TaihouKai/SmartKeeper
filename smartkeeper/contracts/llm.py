@@ -17,8 +17,9 @@ class SearchRecord(Frozen):
 class LLMResult(Frozen):
     text: str
     model: str
-    input_tokens: int = 0
+    input_tokens: int = 0  # 全部输入（含命中缓存的）
     output_tokens: int = 0
+    cached_input_tokens: int = 0  # 输入里命中提示缓存的部分（按缓存价计费）
     searches: tuple[SearchRecord, ...] = ()
     stop_reason: str | None = None
     duration_ms: int = 0
@@ -67,6 +68,7 @@ class LLMCallRecord(Frozen):
     searches: tuple[SearchRecord, ...]
     input_tokens: int
     output_tokens: int
+    cached_input_tokens: int
     duration_ms: int
     valid: bool | None
     error: str | None

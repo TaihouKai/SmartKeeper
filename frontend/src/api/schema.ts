@@ -354,6 +354,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/lore/from-world-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lore From World Info
+         * @description 世界书（SillyTavern World Info 的 JSON）转成资料库条目，给规则编辑器用（不存，编辑器里保存规则包才算）。
+         */
+        post: operations["lore_from_world_info_api_admin_lore_from_world_info_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/materials": {
         parameters: {
             query?: never;
@@ -416,6 +436,26 @@ export interface paths {
         get?: never;
         /** Put Scenario */
         put: operations["put_scenario_api_admin_materials_scenarios__name___part__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/model-prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Model Prices
+         * @description 服务器配置的模型价格（美元 / 百万 token），管理台按它算每次调用的花费。模型名按前缀匹配。
+         */
+        get: operations["model_prices_api_admin_model_prices_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2968,6 +3008,8 @@ export interface components {
         JsonValue: unknown;
         /** LLMCallRecord */
         LLMCallRecord: {
+            /** Cached Input Tokens */
+            cached_input_tokens: number;
             /** Created At */
             created_at: string;
             /** Duration Ms */
@@ -3173,6 +3215,48 @@ export interface components {
             /** Z */
             z: number;
         };
+        /**
+         * LoreEntry
+         * @description 资料库的一条：背景设定，按关键词由引擎挑进 KP 的上下文（不常驻，规则书、剧本、角色卡优先）。
+         *
+         *     keys 任一出现在扫描的文字里就算命中；secondary 不空时再按 logic 看次关键词
+         *     （any 任一出现、all 全部出现、not_any 一个都不出现、not_all 不全出现）。
+         *     关键词写成 /正则/ 就按正则；英文和数字的关键词只按整词匹配；case_sensitive 才区分大小写。
+         */
+        LoreEntry: {
+            /**
+             * Case Sensitive
+             * @default false
+             */
+            case_sensitive: boolean;
+            /** Content */
+            content: string;
+            /**
+             * Disabled
+             * @default false
+             */
+            disabled: boolean;
+            /** Keys */
+            keys: string[];
+            /**
+             * Logic
+             * @default any
+             * @enum {string}
+             */
+            logic: "any" | "all" | "not_any" | "not_all";
+            /**
+             * Order
+             * @default 100
+             */
+            order: number;
+            /**
+             * Secondary
+             * @default []
+             */
+            secondary: string[];
+            /** Title */
+            title: string;
+        };
         /** MaterialsOut */
         MaterialsOut: {
             /** Maps */
@@ -3208,6 +3292,15 @@ export interface components {
         };
         Message: {
             [key: string]: components["schemas"]["JsonValue"];
+        };
+        /** ModelPrice */
+        ModelPrice: {
+            /** Cached */
+            cached: number;
+            /** Input */
+            input: number;
+            /** Output */
+            output: number;
         };
         /** NameIn */
         NameIn: {
@@ -3778,6 +3871,11 @@ export interface components {
              * @default []
              */
             insights: components["schemas"]["InsightRule"][];
+            /**
+             * Lore
+             * @default []
+             */
+            lore: components["schemas"]["LoreEntry"][];
             /**
              * Params
              * @default []
@@ -5248,6 +5346,39 @@ export interface operations {
             };
         };
     };
+    lore_from_world_info_api_admin_lore_from_world_info_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TextBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoreEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     materials_api_admin_materials_get: {
         parameters: {
             query?: never;
@@ -5399,6 +5530,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    model_prices_api_admin_model_prices_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["ModelPrice"];
+                    };
                 };
             };
         };

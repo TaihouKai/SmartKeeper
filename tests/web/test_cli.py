@@ -31,7 +31,7 @@ def test_cli_demo_with_fake_llm(tmp_path: Path) -> None:
         return json.dumps({"broadcast": "b", "messages": {p: "m" for p in ps}, "positions": {}})
 
     def intent(c: FakeCall) -> str:
-        m = re.search(r'"ref": "(h[0-9a-f]+)",\s*"name"', c.prompt)
+        m = re.search(r'"ref":\s*"(h[0-9a-f]+)",\s*"name"', c.prompt)
         assert m
         return json.dumps({"items": [{"actor": m.group(1), "verb": "look", "seconds": 300}]})
 

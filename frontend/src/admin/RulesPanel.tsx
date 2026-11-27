@@ -11,6 +11,7 @@ import { blankGroup, blankPack, blankTemplate, describePath, docFor, getAt, open
 import { fillCheck, fillConfig } from "../ui/skillConfig";
 import { Outline } from "./rules/Outline";
 import { ChecksSection, DerivedSection, FieldsSection, FormulasSection, GroupSection, HandbookSection, InsightsSection, PackParamsSection, PlayersSection, SamplesSection, TablesSection, TextSection, WorldSection } from "./rules/sections";
+import { LoreSection } from "./rules/LoreSection";
 import "./rules/workbench.css";
 
 
@@ -300,6 +301,7 @@ export function RulesPanel() {
     if (s.k === "handbook") return <HandbookSection pack={pack} onChange={setPack} />;
     if (s.k === "params") return <PackParamsSection pack={pack} onChange={setPack} validate={validate} />;
     if (s.k === "insights") return <InsightsSection pack={pack} onChange={setPack} validate={validate} />;
+    if (s.k === "lore") return <LoreSection pack={pack} onChange={setPack} />;
     return <SamplesSection pack={pack} onChange={setPack} />;
   })();
 

@@ -205,6 +205,11 @@ test("admin console login and panels render", async ({ page }) => {
   await page.locator(".wb-pack").click();
   await expect(page.locator(".wb-pop option", { hasText: "Draft" }).first()).toBeAttached();
   await page.keyboard.press("Escape");
+  // 资料库：空的规则包里没有条目，可以新建
+  await page.locator(".wb-node", { hasText: "Lore" }).first().click();
+  await expect(page.getByText("No entries yet.")).toBeVisible();
+  await page.getByRole("button", { name: "New entry" }).click();
+  await expect(page.getByText("1 entries, 1 on")).toBeVisible();
   // 公式速查在 IDE 的工具里
   await page.locator(".wb-ide-tooltabs button", { hasText: "Reference" }).click();
   await expect(page.getByText("Roll 4d6 and keep the highest 3")).toBeVisible();
@@ -230,8 +235,10 @@ test("admin console login and panels render", async ({ page }) => {
   await page.getByRole("button", { name: "World state" }).click();
   await expect(page.locator("pre.sk-code").first()).toContainText("game_seconds");
   await page.getByRole("button", { name: "LLM calls" }).click();
-  await expect(page.getByText("adjudicate").first()).toBeVisible();
-  await page.getByText("adjudicate").first().click();
+  // 先是按用途的汇总（次数、输入、命中缓存、输出、花费），下面是每次调用；点一次调用看 prompt
+  await expect(page.getByText("adjudicate").first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Cached", { exact: true })).toBeVisible();
+  await page.locator("td", { hasText: /^#\d+$/ }).first().click();
   await expect(page.getByText("System prompt")).toBeVisible();
   await shot(page, "admin-llm");
   // 重新开始整局（点两下），回到开局之前、可以再开始；结束以后可以删除本局（也点两下）

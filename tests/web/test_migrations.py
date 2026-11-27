@@ -30,6 +30,7 @@ def test_legacy_db_is_stamped(tmp_path: Path) -> None:
         # 0009 才加的列
         c.exec_driver_sql("ALTER TABLE player DROP COLUMN character_draft")
         c.exec_driver_sql("ALTER TABLE player DROP COLUMN character_draft_at")
+        c.exec_driver_sql("ALTER TABLE llm_call DROP COLUMN cached_input_tokens")  # 0013
     migrate(db)
     assert "rule_pack_draft" in sa.inspect(db).get_table_names()
     assert "alembic_version" in sa.inspect(db).get_table_names()

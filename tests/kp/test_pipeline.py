@@ -239,7 +239,7 @@ def test_claim_check_recorded_and_used() -> None:
     install_handlers(g)
     g.declare(g.players[1])
     assert count(g, "claim_check", verdict="holds") == 1
-    assert '"verdict": "holds"' in g.llm.by_purpose("adjudicate")[-1].prompt
+    assert '"verdict":"holds"' in g.llm.by_purpose("adjudicate")[-1].prompt
 
 
 def test_npc_reply_in_talk_mode() -> None:

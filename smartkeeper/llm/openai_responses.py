@@ -18,6 +18,11 @@ from smartkeeper.contracts import LLMError, LLMResult, Message, SearchRecord
 WEB_SEARCH_TOOL: dict[str, Any] = {"type": "web_search"}
 
 
+def _cached(usage: object) -> int:
+    details = getattr(usage, "input_tokens_details", None)
+    return int(getattr(details, "cached_tokens", 0) or 0)
+
+
 class OpenAIResponsesLLM:
     def __init__(
         self,
@@ -45,7 +50,7 @@ class OpenAIResponsesLLM:
         allow_search: bool = False,
         game_id: str | None = None,
     ) -> LLMResult:
-        del purpose, json_schema, game_id  # JSON 一律在本地校验，不依赖结构化输出
+        del purpose, json_schema  # JSON 一律在本地校验，不依赖结构化输出
         t0 = time.monotonic()
         kwargs: dict[str, Any] = {
             "model": model,
@@ -55,6 +60,9 @@ class OpenAIResponsesLLM:
         }
         if allow_search and self.supports_search:
             kwargs["tools"] = [WEB_SEARCH_TOOL]
+        if game_id:
+            # 同一局的调用落在同一份提示缓存上（开头是同样的规则书和剧本）
+            kwargs["prompt_cache_key"] = f"smartkeeper-{game_id}"
         try:
             resp = cast(Response, self._client.responses.create(**kwargs))
         except openai.APIConnectionError as e:
@@ -86,6 +94,7 @@ class OpenAIResponsesLLM:
             model=resp.model,
             input_tokens=usage.input_tokens if usage else 0,
             output_tokens=usage.output_tokens if usage else 0,
+            cached_input_tokens=_cached(usage),
             stop_reason=reason or resp.status,
             duration_ms=int((time.monotonic() - t0) * 1000),
             searches=tuple(searches),

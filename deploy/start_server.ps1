@@ -24,6 +24,8 @@ $env:SMARTKEEPER_JUDGE_PROVIDER = $cfg.judge_provider
 $env:SMARTKEEPER_JUDGE_MODEL = $cfg.judge_model
 $env:SMARTKEEPER_WRITER_PROVIDER = $cfg.writer_provider
 $env:SMARTKEEPER_WRITER_MODEL = $cfg.writer_model
+# 模型价格（美元 / 百万 token：输入、命中缓存的输入、输出），管理台算花费用
+if ($cfg.model_prices) { $env:SMARTKEEPER_MODEL_PRICES = ($cfg.model_prices | ConvertTo-Json -Compress -Depth 4) }
 if ($cfg.openai_base_url) { $env:OPENAI_COMPAT_BASE_URL = $cfg.openai_base_url }
 if ($cfg.openai_key_secret) { $env:OPENAI_COMPAT_API_KEY = (Read-Secret $cfg.openai_key_secret) }
 if ($cfg.openai_compat_web_search) { $env:OPENAI_COMPAT_WEB_SEARCH = "true" }

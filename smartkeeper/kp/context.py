@@ -20,18 +20,27 @@ from smartkeeper.contracts import (
     Point,
 )
 from smartkeeper.engine import Engine, kp_meta, place_names_in, split_front_matter
-from smartkeeper.kp import templates
+from smartkeeper.kp import lore, templates
 from smartkeeper.kp.config import KPConfig
 from smartkeeper.kp.render import (
     dumps,
     entity_tokens,
+    kp_presets,
+    kp_sheets,
+    kp_world_state,
     player_text,
     render_events,
     replace_entity_tokens,
     section,
+    sheet_texts,
+    texts_of,
 )
 
 UNKNOWN = {"zh": "某人", "en": "someone"}
+LORE_GAME = (
+    "资料库：和剧本、角色卡有关的背景设定（只是背景；和规则书、剧本、角色卡冲突时以它们为准）"
+)
+LORE_ROUND = "资料库：这次提到的背景设定（只是背景；和规则书、剧本、角色卡冲突时以它们为准）"
 STYLE = {
     "zh": "文风：简洁的第二人称小说体。",
     "en": "Style: concise second-person prose.",
@@ -116,6 +125,59 @@ class Contexts:
             return pub
         return f"{pub}\n\n---（以下是 KP 专属部分）---\n\n{g.scenario_kp}"
 
+    # 带规则书的调用（审核、开场、聊天、即时结果、检定规划、裁定）拼成同一个顺序，前面的部分逐字相同才吃得到缓存：
+    # system 只有各调用共用的 KP 总则；user 先放不变的（规则书、剧本、按剧本和角色卡挑的资料），再放会变的，
+    # 这次调用自己的任务说明放在最后。
+
+    def _shared_system(self, game_id: str) -> str:
+        lang = templates.language_name(self.language(game_id))
+        body = templates.render("_common", language=lang)
+        ref = self._reference_note(game_id)
+        return f"{body}\n\n{ref}".strip()
+
+    def _task(self, game_id: str, name: str) -> str:
+        lang = templates.language_name(self.language(game_id))
+        return section(
+            "这次的任务（照这里的要求做，输出格式也照这里）",
+            templates.render(name, common="", language=lang),
+        )
+
+    def _lore(
+        self,
+        game_id: str,
+        texts: Sequence[str],
+        title: str,
+        budget: int,
+        exclude: Sequence[str] = (),
+    ) -> tuple[str, list[str]]:
+        """按关键词从资料库挑条目，写成一段；没有命中就不写。返回这一段和挑中的标题。"""
+        cfg = self.cfg
+        hits = lore.pick(
+            self.e.rulepack(game_id).lore, texts, budget, cfg.lore_entry_chars, exclude
+        )
+        if not hits:
+            return "", []
+        return section(title, lore.render(hits, cfg.lore_entry_chars)), [
+            h.entry.title for h in hits
+        ]
+
+    def _game_lore(self, game_id: str) -> tuple[str, list[str]]:
+        """按剧本（含 KP 部分）和全部角色卡的文字挑的资料：整局基本不变，放在固定部分。只给 KP 自己裁定的调用。"""
+        state = self.e.world_state(game_id)
+        texts = [self._scenario(game_id, kp=True), *sheet_texts(state)]
+        return self._lore(game_id, texts, LORE_GAME, self.cfg.lore_game_chars)
+
+    def _judge_prefix(self, game_id: str) -> tuple[list[str], list[str]]:
+        """裁定类调用共用的开头：规则书、剧本（全部）、按剧本和角色卡挑的资料。返回各段和挑中的资料标题。"""
+        game_lore, picked = self._game_lore(game_id)
+        parts = [
+            section("规则书", self.e.rulebook(game_id)),
+            section("剧本（全部）", self._scenario(game_id, kp=True)),
+        ]
+        if game_lore:
+            parts.append(game_lore)
+        return parts, picked
+
     # ---------------- 建角与开场 ----------------
 
     def review(self, player_id: str) -> Prompt:
@@ -124,10 +186,18 @@ class Contexts:
         identity = [e for e in self.e.view_for(g, player_id) if e.type == "identity_assigned"]
         subs = [s.model_dump(mode="json") for s in self.e.submitted_character(player_id)]
         syntax = self.syntax_reference(self.language(g)) if self.syntax_reference else ""
+        # 审核只看公开的剧本和交上来的卡，资料也只按它们挑（不按 KP 专属部分挑，免得审核意见里漏出来）
+        review_lore, _ = self._lore(
+            g,
+            [self._scenario(g, kp=False), player_text(dumps(subs), "")],
+            LORE_GAME,
+            self.cfg.lore_game_chars,
+        )
         user = "\n".join(
             [
                 section("规则书", self.e.rulebook(g)),
                 section("剧本（公开部分）", self._scenario(g, kp=False)),
+                *([review_lore] if review_lore else []),
                 section(
                     "玩家的身份",
                     dumps([x.payload for x in identity]) if identity else "（剧本没有身份）",
@@ -166,9 +236,10 @@ class Contexts:
                         ]
                     ),
                 ),
+                self._task(g, "review_character"),
             ]
         )
-        return Prompt(self._system(g, "review_character"), user)
+        return Prompt(self._shared_system(g), user)
 
     def _effects_section(self, game_id: str, player_id: str) -> list[str]:
         """玩家写的（和改过的）条目，代码实际做什么：引擎写成的句子。"""
@@ -217,12 +288,12 @@ class Contexts:
                 }
             )
         m = self.e.map_data(game_id)
+        prefix, _ = self._judge_prefix(game_id)
         user = "\n".join(
             [
-                section("规则书", self.e.rulebook(game_id)),
-                section("剧本（全部）", self._scenario(game_id, kp=True)),
+                *prefix,
                 section("玩家", dumps(players)),
-                section("世界状态（含全部角色卡）", dumps(state)),
+                section("世界状态（含全部角色卡）", dumps(kp_world_state(state))),
                 section(
                     "地图",
                     dumps(
@@ -245,9 +316,10 @@ class Contexts:
                 ),
                 self._places_for_judge(game_id, opening=True),
                 section("需要初始位置的实体", dumps(need)),
+                self._task(game_id, "opening"),
             ]
         )
-        return Prompt(self._system(game_id, "opening"), user), need
+        return Prompt(self._shared_system(game_id), user), need
 
     def name_handle(self, game_id: str, player_id: str, entity_id: str) -> Prompt:
         appearance, labels = self.e.handle_context(game_id, player_id, entity_id)
@@ -308,34 +380,42 @@ class Contexts:
         p = self.e.player(player_id)
         g = p.game_id
         view = self.e.view_for(g, player_id)
-        sheets = [s.model_dump(mode="json") for s in self.e.sheets(g, player_id)]
+        sheets = kp_sheets([s.model_dump(mode="json") for s in self.e.sheets(g, player_id)])
+        history = render_events(view, self.names(g), self.cfg.history_events)
+        # 聊天的回答给玩家看：资料只按他看得到的东西挑（公开的剧本、他的卡、他看到的历史）
+        chat_lore, _ = self._lore(
+            g,
+            [self._scenario(g, kp=False), *texts_of(sheets), history],
+            LORE_ROUND,
+            self.cfg.lore_round_chars,
+        )
         user = "\n".join(
             [
                 section("规则书", self.e.rulebook(g)),
-                section(
-                    "该玩家能看到的历史（最近的在后）",
-                    render_events(view, self.names(g), self.cfg.history_events),
-                ),
+                *([chat_lore] if chat_lore else []),
+                section("该玩家能看到的历史（最近的在后）", history),
                 section("该玩家的角色卡", dumps(sheets)),
                 section(
                     "该玩家各实体此刻感知范围内的状态", dumps(self.e.state_slice(g, player_id))
                 ),
                 self._place_names(self._known_names(g, player_id)),
                 "请回答上面历史里该玩家在聊天框里最后提出的问题。",
+                self._task(g, "chat"),
             ]
         )
-        return Prompt(self._system(g, "chat"), user)
+        return Prompt(self._shared_system(g), user)
 
     def instant(self, player_id: str, text: str, intent: Intent) -> Prompt:
         """当场出结果：这个玩家的角色卡、此刻的状态、他能看到的历史、他的行动。"""
         p = self.e.player(player_id)
         g = p.game_id
         view = self.e.view_for(g, player_id)
-        sheets = [s.model_dump(mode="json") for s in self.e.sheets(g, player_id)]
+        sheets = kp_sheets([s.model_dump(mode="json") for s in self.e.sheets(g, player_id)])
+        prefix, picked = self._judge_prefix(g)
+        said, _ = self._lore(g, [text], LORE_ROUND, self.cfg.lore_round_chars, exclude=picked)
         user = "\n".join(
             [
-                section("规则书", self.e.rulebook(g)),
-                section("剧本（全部）", self._scenario(g, kp=True)),
+                *prefix,
                 section(
                     "该玩家能看到的历史（最近的在后）",
                     render_events(view, self.names(g), self.cfg.history_events),
@@ -346,9 +426,11 @@ class Contexts:
                 ),
                 section("行动（已解析）", dumps(self._fixed_items(g, player_id, intent))),
                 section("行动原文", player_text(text, p.display_name)),
+                *([said] if said else []),
+                self._task(g, "instant"),
             ]
         )
-        return Prompt(self._system(g, "instant"), user)
+        return Prompt(self._shared_system(g), user)
 
     def intent(
         self, player_id: str, text: str, fixed: Intent | None = None
@@ -587,20 +669,32 @@ class Contexts:
                 ends_at[eid]["left_m"] = round(meters)
                 ends_at[eid]["left_s"] = secs
         claims = [x.payload for x in this_round if x.type == "claim_check"]
+        prefix, picked = self._judge_prefix(game_id)
+        said = [
+            str(x.payload.get("text", ""))
+            for x in this_round
+            if x.type in ("action_declared", "pm_kp", "talk_message")
+        ]
+        round_lore, _ = self._lore(
+            game_id,
+            [*said, render_events(recent, names)],
+            LORE_ROUND,
+            self.cfg.lore_round_chars,
+            exclude=picked,
+        )
         parts = [
-            section("规则书", e.rulebook(game_id)),
-            section("剧本（全部）", self._scenario(game_id, kp=True)),
-            section("世界状态", dumps(state)),
+            *prefix,
+            section(
+                "各实体此刻生效的固定条目（规则包写好的，不在世界状态里）",
+                dumps(kp_presets(e.active_presets_all(game_id))),
+            ),
+            section("世界状态", dumps(kp_world_state(state))),
             self._places_for_judge(game_id),
             section(
                 "结盟（每组里的角色互为友军；技能的 affects、脚本里的 ally、光环都按这个算，由引擎处理）",
                 dumps(e.alliances_for_kp(game_id)),
             ),
             section("各实体的推导值", dumps(e.derived_all(game_id))),
-            section(
-                "各实体此刻生效的固定条目（规则包写好的，不在世界状态里）",
-                dumps(e.active_presets_all(game_id)),
-            ),
             section(
                 "地图上的设置物（陷阱、结界等）与本轮按行动推算会被触发的",
                 dumps(e.placement_report(game_id)),
@@ -635,6 +729,7 @@ class Contexts:
                 dumps(e.known_intel_all(game_id)),
             ),
             section("聊天问答（背景，不是行动）", render_events(chat, names)),
+            *([round_lore] if round_lore else []),
         ]
         if include_results:
             attempt = e.current_attempt(game_id, r.no)
@@ -682,11 +777,14 @@ class Contexts:
             "引擎已经替玩家用了的技能（行动条目里写明了技能的；不要再声明）",
             dumps(self.e.planned_uses(game_id)),
         )
-        return Prompt(self._system(game_id, "plan"), "\n".join([body, auto]))
+        return Prompt(
+            self._shared_system(game_id), "\n".join([body, auto, self._task(game_id, "plan")])
+        )
 
     def adjudicate(self, game_id: str) -> Prompt:
+        body = self._round_body(game_id, include_results=True)
         return Prompt(
-            self._system(game_id, "adjudicate"), self._round_body(game_id, include_results=True)
+            self._shared_system(game_id), "\n".join([body, self._task(game_id, "adjudicate")])
         )
 
     # ---------------- 分发 ----------------

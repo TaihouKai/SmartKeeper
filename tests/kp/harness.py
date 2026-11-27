@@ -79,7 +79,7 @@ def install_handlers(g: Game) -> None:
         return json.dumps({"label": f"人{counter['n']}"}, ensure_ascii=False)
 
     def intent(call: FakeCall) -> str:
-        m = re.search(r'"ref": "(h[0-9a-f]+)",\s*"name"', call.prompt)
+        m = re.search(r'"ref":\s*"(h[0-9a-f]+)",\s*"name"', call.prompt)
         assert m, call.prompt
         return json.dumps(
             {

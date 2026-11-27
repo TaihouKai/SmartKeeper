@@ -11,3 +11,4 @@
 - `SqlLLMProfiles`：`llm_profile` 表，管理员建的几套模型选择（`LLMProfile`：裁定用哪个实现和模型、其余调用用哪个），开局时选一套。
 - 不依赖提供方的结构化输出，JSON 一律由调用方在本地校验。
 - 单独测试：`uv run pytest tests/llm`（不联网）；真模型测试标 `live`。
+- 各实现把命中提示缓存的输入 token 记进 `LLMResult.cached_input_tokens`（`llm_call` 里也有这一列）；OpenAI Responses 的请求带按局的 `prompt_cache_key`。

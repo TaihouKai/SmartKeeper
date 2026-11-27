@@ -13,7 +13,7 @@ from smartkeeper.contracts import Intent
 from smartkeeper.engine import Engine
 from smartkeeper.llm import FakeCall, FakeLLM
 
-_REF = re.compile(r'"ref": "(h[0-9a-f]+)",\s*"(?:name|label)": "([^"]*)"')
+_REF = re.compile(r'"ref":\s*"(h[0-9a-f]+)",\s*"(?:name|label)":\s*"([^"]*)"')
 
 
 def _section(prompt: str, title: str) -> str:

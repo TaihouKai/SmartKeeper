@@ -177,3 +177,22 @@ def test_openai_responses_incomplete_without_text_is_an_error() -> None:
     llm = OpenAIResponsesLLM(client=stub)  # type: ignore[arg-type]
     with pytest.raises(LLMError):
         llm.complete(purpose="x", model="gpt-x", system="s", messages=[])
+
+
+def test_openai_responses_cache_key_per_game_and_cached_tokens_recorded() -> None:
+    from smartkeeper.llm import OpenAIResponsesLLM
+
+    resp = oa_resp("ok", [])
+    resp.usage = SimpleNamespace(
+        input_tokens=100, output_tokens=3, input_tokens_details=SimpleNamespace(cached_tokens=80)
+    )
+    stub = StubOpenAI(resp)
+    log = SqlLLMCallLog(sa.create_engine("sqlite://"))
+    rec = RecordingLLM(OpenAIResponsesLLM(client=stub), log)  # type: ignore[arg-type]
+    res = rec.complete(purpose="plan", model="gpt-x", system="s", messages=[], game_id="g1")
+    # 同一局的调用落在同一份提示缓存上
+    assert stub.sent[0]["prompt_cache_key"] == "smartkeeper-g1"
+    assert (res.input_tokens, res.cached_input_tokens) == (100, 80)
+    assert log.list("g1")[0].cached_input_tokens == 80
+    rec.complete(purpose="copilot", model="gpt-x", system="s", messages=[])
+    assert "prompt_cache_key" not in stub.sent[1]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import Callable
@@ -22,6 +23,7 @@ from smartkeeper.contracts import (
     IllegalState,
     LLMCallRecord,
     LLMProfile,
+    LoreEntry,
     NotFound,
     PatchOp,
     Problem,
@@ -35,7 +37,7 @@ from smartkeeper.contracts import (
 )
 from smartkeeper.engine import kp_meta, public_meta, split_front_matter
 from smartkeeper.mapdata import display_geojson
-from smartkeeper.rules import export_pack, parse_import
+from smartkeeper.rules import export_pack, from_world_info, parse_import
 from smartkeeper.web.auth import ADMIN_COOKIE, ADMIN_COOKIE_PATH, ADMIN_SESSION_SECONDS, Auth
 from smartkeeper.web.services import Services
 
@@ -167,6 +169,12 @@ class LLMProfilesOut(BaseModel):
     default: LLMProfile  # 服务器配置的那套（id 为空），不能在这里改
     profiles: list[LLMProfile]
     providers: list[str]  # 服务器上配好了密钥、可以选的实现
+
+
+class ModelPrice(BaseModel):
+    input: float
+    cached: float
+    output: float
 
 
 class PatchGameIn(BaseModel):
@@ -423,6 +431,15 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
             names=s.rules.complete_names(body.pack, body.template, body.scope),
         )
 
+    @guarded.post("/lore/from-world-info")
+    def lore_from_world_info(body: TextBody) -> list[LoreEntry]:
+        """世界书（SillyTavern World Info 的 JSON）转成资料库条目，给规则编辑器用（不存，编辑器里保存规则包才算）。"""
+        try:
+            data = json.loads(body.text)
+        except ValueError as e:
+            raise ValidationFailed("lore.bad_json") from e
+        return from_world_info(data)
+
     @guarded.post("/rulepacks/import")
     def import_pack(body: TextBody) -> RulePackVersion:
         pack = parse_import(body.text)
@@ -612,6 +629,13 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
     @guarded.get("/games/{game_id}/llm-calls")
     def llm_calls(game_id: str, limit: int = 200) -> list[LLMCallRecord]:
         return s.llm_log.list(game_id, limit)
+
+    @guarded.get("/model-prices")
+    def model_prices() -> dict[str, ModelPrice]:
+        """服务器配置的模型价格（美元 / 百万 token），管理台按它算每次调用的花费。模型名按前缀匹配。"""
+        return {
+            k: ModelPrice(input=a, cached=b, output=c) for k, (a, b, c) in s.model_prices.items()
+        }
 
     r.include_router(guarded)
     return r

@@ -34,3 +34,7 @@ class Services:
     messages: dict[str, dict[str, str]] = field(default_factory=dict[str, dict[str, str]])
     scenarios_dir: str = "scenarios"
     base_url: str | None = None  # 没配置时邀请链接用管理员打开控制台时的地址
+    # 模型价格（美元 / 百万 token：输入、命中缓存的输入、输出），按模型名前缀匹配
+    model_prices: dict[str, tuple[float, float, float]] = field(
+        default_factory=dict[str, tuple[float, float, float]]
+    )

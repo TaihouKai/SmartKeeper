@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
@@ -9,7 +10,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import sqlalchemy as sa
 from fastapi import FastAPI, HTTPException, Request
@@ -85,6 +86,10 @@ class Settings:
     )
     official_openai_key: str | None = None  # provider=openai 用；不填时 SDK 读 OPENAI_API_KEY
     base_url: str | None = None
+    # 模型价格（美元 / 百万 token：输入、命中缓存的输入、输出），管理台算每次调用的花费用；模型名按前缀匹配
+    model_prices: dict[str, tuple[float, float, float]] = field(
+        default_factory=dict[str, tuple[float, float, float]]
+    )
     extra: dict[str, str] = field(default_factory=dict[str, str])
 
     @staticmethod
@@ -108,7 +113,26 @@ class Settings:
             in ("1", "true", "yes", "on"),
             official_openai_key=env.get("OPENAI_API_KEY") or None,
             base_url=env.get("SMARTKEEPER_BASE_URL") or None,
+            model_prices=parse_prices(env.get("SMARTKEEPER_MODEL_PRICES", "")),
         )
+
+
+def parse_prices(text: str) -> dict[str, tuple[float, float, float]]:
+    """{"模型": [输入, 缓存输入, 输出], ...}（美元 / 百万 token）；写错的项跳过。"""
+    try:
+        raw: object = json.loads(text) if text.strip() else {}
+    except ValueError:
+        return {}
+    out: dict[str, tuple[float, float, float]] = {}
+    if isinstance(raw, dict):
+        for k, v in cast(dict[str, object], raw).items():
+            if isinstance(v, list) and len(cast(list[object], v)) == 3:
+                try:
+                    a, b, c = (float(cast(Any, x)) for x in cast(list[object], v))
+                except (TypeError, ValueError):
+                    continue
+                out[k] = (a, b, c)
+    return out
 
 
 def make_db(path: str) -> sa.Engine:
@@ -281,6 +305,7 @@ def build_services(
         messages=messages,
         scenarios_dir=settings.scenarios_dir,
         base_url=settings.base_url,
+        model_prices=settings.model_prices,
     )
 
 

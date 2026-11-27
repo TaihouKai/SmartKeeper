@@ -12,6 +12,8 @@
 - 更新：在部署目录里 `git pull`、`uv sync`、`cd frontend; npm ci; npm run build`，然后重启计划任务。
 - 端口：8000，防火墙入站规则 “SmartKeeper 8000”。
 
+价格：`server.json` 里可以加 `"model_prices": {"gpt-6-luna": [0.10, 0.01, 0.50]}`（美元 / 百万 token：输入、命中缓存的输入、输出；模型名按前缀匹配），管理台的 LLM 调用面板据此算花费。
+
 换模型：改 `server.json` 里的 `judge_provider` / `judge_model` / `writer_provider` / `writer_model`，改完重启计划任务。provider 有三类：
 - `anthropic`（Claude）：key 存成 `anthropic.dpapi`。默认允许联网搜索。
 - `openai`（ChatGPT，走 Responses API）：key 存成 `openai.dpapi`。默认允许联网搜索。

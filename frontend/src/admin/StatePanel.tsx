@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, call } from "../api/client";
+import { api, call, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
 import { ErrorBox, Section } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
@@ -49,17 +49,72 @@ export function StatePanel({ gameId }: { gameId: string }) {
   );
 }
 
-/** “LLM 调用”面板：每次调用的 prompt、响应、搜索记录、token、耗时。 */
+type Price = { input: number; cached: number; output: number };
+type Call = Schemas["LLMCallRecord"];
+
+/** 一次调用的花费（美元）：模型名按最长的前缀找价格；没配价格的是 null。 */
+export function callCost(c: Pick<Call, "model" | "input_tokens" | "cached_input_tokens" | "output_tokens">, prices: Record<string, Price>): number | null {
+  const key = Object.keys(prices)
+    .filter((k) => c.model.startsWith(k))
+    .sort((a, b) => b.length - a.length)[0];
+  if (key === undefined) return null;
+  const p = prices[key];
+  if (!p) return null;
+  const fresh = Math.max(0, c.input_tokens - c.cached_input_tokens);
+  return (fresh * p.input + c.cached_input_tokens * p.cached + c.output_tokens * p.output) / 1e6;
+}
+
+const usd = (x: number | null) => (x === null ? "—" : `$${x.toFixed(4)}`);
+
+/** “LLM 调用”面板：按用途汇总（次数、输入、命中缓存、输出、花费），每次调用的 prompt、响应、搜索记录、token、耗时。 */
 export function LlmPanel({ gameId }: { gameId: string }) {
   const { t } = useI18n();
   const calls = usePoll(() => call(api.GET("/api/admin/games/{game_id}/llm-calls", { params: { path: { game_id: gameId }, query: { limit: 300 } } })), 30_000, [gameId]);
+  const priceList = usePoll(() => call(api.GET("/api/admin/model-prices")), 600_000);
   const [open, setOpen] = useState<number | null>(null);
   const list = calls.data ?? [];
-  const tokensIn = list.reduce((s, c) => s + c.input_tokens, 0);
-  const tokensOut = list.reduce((s, c) => s + c.output_tokens, 0);
+  const prices = priceList.data ?? {};
+  const byPurpose = new Map<string, { n: number; inTok: number; cached: number; outTok: number; cost: number | null }>();
+  for (const c of list) {
+    const row = byPurpose.get(c.purpose) ?? { n: 0, inTok: 0, cached: 0, outTok: 0, cost: 0 };
+    const cost = callCost(c, prices);
+    byPurpose.set(c.purpose, {
+      n: row.n + 1,
+      inTok: row.inTok + c.input_tokens,
+      cached: row.cached + c.cached_input_tokens,
+      outTok: row.outTok + c.output_tokens,
+      cost: row.cost === null || cost === null ? null : row.cost + cost,
+    });
+  }
+  const rows = [...byPurpose.entries()].sort((a, b) => b[1].inTok - a[1].inTok);
+  const total = rows.reduce<number | null>((s, [, r]) => (s === null || r.cost === null ? null : s + r.cost), 0);
   return (
     <Section title={t("admin.panel.llm")}>
-      <p className="sk-hint">{t("llm.totals", { n: String(list.length), in: String(tokensIn), out: String(tokensOut) })}</p>
+      <table className="sk-table">
+        <thead>
+          <tr>
+            <th>{t("llm.purpose")}</th>
+            <th>{t("llm.calls")}</th>
+            <th>{t("llm.input")}</th>
+            <th>{t("llm.cached")}</th>
+            <th>{t("llm.output")}</th>
+            <th>{t("llm.cost")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([purpose, r]) => (
+            <tr key={purpose}>
+              <td>{purpose}</td>
+              <td>{r.n}</td>
+              <td>{r.inTok}</td>
+              <td>{r.cached}</td>
+              <td>{r.outTok}</td>
+              <td>{usd(r.cost)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="sk-hint">{t("llm.totals", { n: String(list.length), cost: usd(total) })}</p>
       <table className="sk-table">
         <tbody>
           {list.map((c) => (
@@ -67,7 +122,8 @@ export function LlmPanel({ gameId }: { gameId: string }) {
               <td>#{c.id}</td>
               <td>{c.purpose}</td>
               <td>{c.model}</td>
-              <td>{c.input_tokens}/{c.output_tokens}</td>
+              <td>{c.input_tokens}/{c.cached_input_tokens}/{c.output_tokens}</td>
+              <td>{usd(callCost(c, prices))}</td>
               <td>{c.duration_ms} ms</td>
               <td>{c.valid === null ? "" : c.valid ? "✓" : "✗"} {c.searches.length ? `🔍${c.searches.length}` : ""}</td>
             </tr>

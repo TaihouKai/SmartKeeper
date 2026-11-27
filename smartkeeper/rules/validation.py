@@ -32,6 +32,7 @@ from smartkeeper.contracts import (
 from smartkeeper.rules import budgets, checkconfig, choices, skillconfig, stealth
 from smartkeeper.rules.bonus import effects_of
 from smartkeeper.rules.evaluator import CLOCK_VARS, EntityContext, open_columns
+from smartkeeper.rules.lore import check_lore
 from smartkeeper.rules.sheets import init_sheet
 
 # 受到伤害的公式里能用的：原始伤害和伤害类型
@@ -825,6 +826,7 @@ def validate_pack(pack: RulePack) -> list[Problem]:
         problems += _check_insight(pack, rule, f"insights[{i}]")
     problems += _check_pack_params(pack)
     problems += _check_handbook_refs(pack)
+    problems += check_lore(pack.lore)
     if problems:
         return problems
     # 结构没问题之后才验算例题，否则错误会重复
