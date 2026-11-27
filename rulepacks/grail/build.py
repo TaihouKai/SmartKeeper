@@ -1024,7 +1024,7 @@ def klass_skill(name: str, pid: str, desc: str, when: str, *args: str, **kw: Any
     return preset(name, pid, desc, *args, when=when, **kw)
 
 
-# 狂化：按等级提升各项（E 力量 +1、幸运和魔力 -1；D 加耐久；C 加敏捷；B 加魔力；A 力量 +2）
+# 狂化：按等级提升各项（E 筋力 +1、幸运和魔力 -1；D 加耐久；C 加敏捷；B 加魔力；A 力量 +2）
 MADNESS = """
 self.str += 2 if this.level >= 5 else 1  # 狂化：筋力
 if this.level >= 2:
@@ -1350,8 +1350,8 @@ SERVANT = {
                 klass_skill(
                     "狂化",
                     "madness",
-                    "以理性为代价提升能力：E 力量 +1 级、幸运和魔力 -1 级；D 力量和耐久 +1 级、魔力 -1 级；C 力量、耐久、敏捷 +1 级；"
-                    "B 力量、耐久、敏捷、魔力 +1 级；A 力量 +2 级，耐久、敏捷、魔力 +1 级。等级越高越难沟通，C 以上几乎不能说话。"
+                    "以理性为代价提升能力：E 筋力 +1 级、幸运和魔力 -1 级；D 筋力和耐久 +1 级、魔力 -1 级；C 筋力、耐久、敏捷 +1 级；"
+                    "B 筋力、耐久、敏捷、魔力 +1 级；A 筋力 +2 级，耐久、敏捷、魔力 +1 级。等级越高越难沟通，C 以上几乎不能说话。"
                     "每天的魔力消耗多出狂化等级点。等级由御主决定。",
                     is_class("Berserker"),
                     bonus=MADNESS,
@@ -1845,26 +1845,26 @@ PACK = {
                     "appearance": "身穿蓝银铠甲、手持看不见的剑的少女骑士",
                     "legend": "（示例）不列颠传说中的骑士王，拔出石中剑的少年王，圆桌骑士之首。",
                     "weapons": "（示例）手持被风包裹、看不见剑身的圣剑，剑术是正统的西洋骑士剑。",
-                    "weakness": "（示例）龙的因子带来的强大魔力需要御主的供给。",
+                    "weakness": "（示例）死于卡姆兰之丘，倒在叛逆的骑士莫德雷德手下；圣剑的光一旦放出，谁都认得出她是谁。",
                     "can_fly": False,
                     "klass": "Saber",
-                    "str": 5,
+                    "str": 4,
                     "agi": 3,
-                    "con": 4,
-                    "int": 2,
-                    "luk": 4,
+                    "con": 3,
+                    "int": 4,
+                    "luk": 5,
                     "np": 5,
                 },
                 "groups": {"noble_phantasm": [SAMPLE_NP, SAMPLE_WIND]},
                 "preset_fields": {
-                    "klass_skill": {"骑乘": {"level": 2}, "对魔力": {"level": 5}},
+                    "klass_skill": {"骑乘": {"level": 4}, "对魔力": {"level": 5}},
                 },
             },
             "expected": {
-                "hp_max": 64,
-                "mp_max": 60,
+                "hp_max": 48,
+                "mp_max": 120,
                 "move_speed": 1620,
-                "perception_radius": 240,
+                "perception_radius": 270,
                 "independent_minutes": 0,
             },
         },
