@@ -908,6 +908,10 @@ class Contexts:
                 section("KP 长期备忘", str(state.get("kp_notes", ""))),
                 section(f"你扮演的 NPC（实体 {t.b_entity}）", dumps(npc)),
                 section(
+                    "这个 NPC 自己知道的（引擎按实际发生过的事算的：现在几点、他见过的人、他之前和人说过的话）",
+                    dumps(self.e.npc_knowledge(game_id, t.b_entity, except_talk=t.id)),
+                ),
+                section(
                     "对方的外观（NPC 只知道这些）",
                     player_text(appearance or "（没有描述）", "sheet"),
                 ),

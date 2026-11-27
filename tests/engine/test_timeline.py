@@ -1308,3 +1308,63 @@ def test_restart_goes_back_to_before_the_opening_and_delete_removes_an_ended_gam
     e.delete_game(g)
     with pytest.raises(NotFound):
         e.game(g)
+
+
+def test_npc_knows_who_it_has_seen_and_what_was_said() -> None:
+    """扮演 NPC 时给它的“他知道的”：引擎按实际发生的事算——见过谁（外观、时刻、在不在跟前）、说过的话、几点。"""
+    t = setup_table("single", 2)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0 = t.entities(p0)[0]
+    before = e.npc_knowledge(g, "npc_1")
+    assert before["seen"] == [] and before["talks"] == []  # 开局时谁都离他很远
+    e.admin_patch(
+        g, [PatchOp(op="replace", path=f"/entities/{e0}/pos", value={"x": -50, "y": 145, "z": 0})]
+    )
+    talk = e.start_talk(p0, e0, "npc_1")
+    e.say(g, talk.id, p0, "现在来过几个人了？")
+    e.say(g, talk.id, KP, "就你一个。")
+    know = e.npc_knowledge(g, "npc_1")
+    seen = know["seen"]
+    assert isinstance(seen, list) and len(seen) == 1
+    me = seen[0]
+    assert isinstance(me, dict) and me["here_now"] is True and me["distance_m"] == 5
+    assert me["looks"] == e.appearance_of(g, e0)
+    assert know["talks"] == [
+        {
+            "with": e.appearance_of(g, e0),
+            "lines": ["对方: 现在来过几个人了？", "他自己: 就你一个。"],
+        }
+    ]
+    assert str(know["now"]).startswith("第 1 天")
+    # 正在进行的这场对话本身另有原文，不重复给
+    assert e.npc_knowledge(g, "npc_1", except_talk=talk.id)["talks"] == []
+    # 离开以后：还记得见过他，只是不在跟前了
+    e.end_talk(g, talk.id, p0)
+    e.admin_patch(
+        g, [PatchOp(op="replace", path=f"/entities/{e0}/pos", value={"x": -50, "y": -40, "z": 0})]
+    )
+    wait(t, p0, 10)
+    wait(t, p1, 10)
+    e.close_round(g)
+    publish(t, only=[p0, p1])
+    later = e.npc_knowledge(g, "npc_1")["seen"]
+    assert isinstance(later, list) and len(later) == 1
+    assert isinstance(later[0], dict) and later[0]["here_now"] is False
+
+
+def test_passing_by_mid_round_counts_as_seen() -> None:
+    """一轮里走到 NPC 跟前又走回来：每轮开始时都离得很远，途中的目击照样记下。"""
+    t = setup_table("single", 2)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e0 = t.entities(p0)[0]
+    there = ActionItem(actor=e0, verb="go", destination=Location(pos=Point(x=-50, y=145, z=0)))
+    back = ActionItem(actor=e0, verb="go", destination=Location(pos=Point(x=-50, y=-40, z=0)))
+    e.declare_action(p0, "go and come back", Intent(items=(there, back)))
+    wait(t, p1, 3600)
+    e.close_round(g)
+    publish(t, only=[p0])
+    seen = e.npc_knowledge(g, "npc_1")["seen"]
+    assert isinstance(seen, list) and len(seen) == 1
+    assert isinstance(seen[0], dict) and seen[0]["here_now"] is False

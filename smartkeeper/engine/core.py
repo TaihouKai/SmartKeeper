@@ -1558,10 +1558,7 @@ class Engine:
             m = self._map(game_id)
             pack = self.rulepack(game_id)
             now, end = self.round_window(game_id)
-            start = state.get("clock")
-            secs = (start if isinstance(start, int) else 0) + end
-            day, rest = divmod(secs, 86400)
-            lines = [f"本轮结束时：第 {day + 1} 天 {rest // 3600:02d}:{rest % 3600 // 60:02d}"]
+            lines = [f"本轮结束时：{clock_text(state, end)}"]
             acts = self.activities(game_id)
 
             def named(p: Point) -> list[MapFeature]:
@@ -1682,6 +1679,50 @@ class Engine:
         "talk_ended",
     )
 
+    def npc_knowledge(
+        self, game_id: str, npc: str, except_talk: str | None = None
+    ) -> dict[str, JsonValue]:
+        """扮演 NPC 时给它的“他自己知道的”，由引擎按实际发生过的事算出来（不靠剧本）：现在的钟点；
+        他掌握过位置的人（亲眼见到或被人告知）的外观、最近一次的时刻、此刻在不在跟前；他之前和谁当面
+        说过什么。不含名字和身份：别人自己说出口的，才在对话的原话里。"""
+        with self._lock:
+            state = self._state(game_id)
+            space = self._space(game_id)
+            pack = self.rulepack(game_id)
+            now = int(cast(int, state.get("game_seconds", 0)))
+            here = sightings.perceived(space, npc) if npc in space.bodies else set[str]()
+            seen: list[JsonValue] = []
+            for eid in sorted(space.entities):
+                if eid == npc:
+                    continue
+                last = sightings.stamps(state, eid).get(npc)
+                if last is None and eid not in here:
+                    continue
+                item: dict[str, JsonValue] = {
+                    "looks": self._appearance(state, pack, eid, True) or LOOKS_HIDDEN,
+                    "last_seen": clock_text(state, now if eid in here else cast(int, last)),
+                    "here_now": eid in here,
+                }
+                if eid in here:
+                    d = self._spatial.distance(space.bodies[npc].pos, space.bodies[eid].pos)
+                    item["distance_m"] = round(d)
+                seen.append(item)
+            talks: list[JsonValue] = []
+            for t in self.talks(game_id):
+                if t.id == except_talk or npc not in (t.a_entity, t.b_entity) or not t.messages:
+                    continue
+                other = t.a_entity if t.b_entity == npc else t.b_entity
+                talks.append(
+                    {
+                        "with": self._appearance(state, pack, other, True) or LOOKS_HIDDEN,
+                        "lines": [
+                            f"{'他自己' if m.speaker == npc else '对方'}: {m.text}"
+                            for m in t.messages
+                        ],
+                    }
+                )
+            return {"now": clock_text(state, now), "seen": seen, "talks": talks}
+
     def talks(self, game_id: str) -> list[Talk]:
         """全部对话，状态由对话事件推出来。"""
         out: dict[str, Talk] = {}
@@ -1779,7 +1820,22 @@ class Engine:
             )
             if b_player is None:
                 self._talk_event(g.id, t, "talk_accepted", KP, {})
+                self._stamp_talk(g.id, t)
             return self.talk(g.id, tid)
+
+    def _stamp_talk(self, game_id: str, t: Talk) -> None:
+        """当面说上话了：双方互相记一次目击（每轮开始时的记录赶不上轮中途的见面）。"""
+        state = self._state(game_id)
+        now = int(cast(int, state.get("game_seconds", 0)))
+        a, b = sightings.side_of(state, t.a_entity), sightings.side_of(state, t.b_entity)
+        marks = sightings.sight_marks({a: {t.b_entity}, b: {t.a_entity}}, now)
+        ops = sightings.stamp_ops(state, marks)
+        if ops:
+            self._events.append(
+                game_id,
+                self.game(game_id).current_round,
+                [self._patch_event(ops, cause="sighting", actor=ENGINE)],
+            )
 
     def answer_talk(self, player_id: str, talk_id: str, accept: bool) -> Talk:
         """被邀请的玩家接受或拒绝。接受了，他的行动就此停止，对话结束后要重新行动。"""
@@ -1805,6 +1861,8 @@ class Engine:
             self._talk_event(
                 game_id, t, "talk_accepted" if accept else "talk_declined", player_id, {}
             )
+            if accept:
+                self._stamp_talk(game_id, t)
             return self.talk(game_id, talk_id)
 
     def say(self, game_id: str, talk_id: str, speaker: str, text: str) -> Event:
@@ -4576,6 +4634,9 @@ class Engine:
                     payload={"adjudication": raw},
                 )
             ]
+            seen_on_way = self._route_sightings(game_id)
+            if seen_on_way:
+                evs.append(self._patch_event(seen_on_way, cause="sighting", actor=ENGINE))
             evs += [
                 self._patch_event(
                     ops, cause=cause, actor=KP if cause != "expiry" and cause != "time" else ENGINE
@@ -4844,6 +4905,43 @@ class Engine:
     def _group(pack: RulePack, template: str, group: str) -> GroupDef | None:
         tpl = pack.template(template)
         return next((g for g in tpl.groups if g.name == group), None) if tpl else None
+
+    def _route_sightings(self, game_id: str) -> list[PatchOp]:
+        """本轮途中的目击：沿各人进行中的行动每隔一段取一个时刻，算那一刻谁察觉到了谁
+        （每轮开始时的记录赶不上路上擦肩而过的）。只记目击，不改别的。"""
+        state = self._state(game_id)
+        now, end = self.round_window(game_id)
+        acts = self.activities(game_id)
+        if end <= now or not acts:
+            return []
+        m = self._map(game_id)
+        pack = self.rulepack(game_id)
+        ents = _obj(state.get("entities"))
+        step = max(ROUTE_SIGHT_STEP, (end - now) // ROUTE_SIGHT_MAX + 1)
+        marks: dict[str, dict[str, int]] = {}
+        for t in range(now + step, end, step):
+            ops: list[PatchOp] = []
+            for eid, act in acts.items():
+                ent = _obj(ents.get(eid))
+                pos = point_of(ent.get("pos"))
+                if pos is None:
+                    continue
+                inside = ent.get("inside")
+                here = Location(pos=pos, inside=inside if isinstance(inside, str) else None)
+                loc = location_at(act, t, here)
+                if loc is None or loc == here:
+                    continue
+                ops.append(
+                    PatchOp(op="replace", path=f"/entities/{eid}/pos", value=loc.pos.model_dump())
+                )
+                ops.append(PatchOp(op="replace", path=f"/entities/{eid}/inside", value=loc.inside))
+            if not ops:
+                continue
+            space = self._space_for(m, self._world.apply(state, ops), pack)
+            found = sightings.observe(space, lambda e: self._dead(state, e))
+            for target, sides in sightings.sight_marks(found, t).items():
+                marks.setdefault(target, {}).update(sides)
+        return sightings.stamp_ops(state, marks)
 
     def _record_sightings(self, game_id: str, round_no: int) -> None:
         """每轮开始时：每一方此刻察觉到的实体记一次目击（技能的 seen_within 按它判）。"""
@@ -6134,11 +6232,22 @@ class Engine:
             return state
 
 
+def clock_text(state: State, seconds: int) -> str:
+    """游戏内第 seconds 秒是第几天几点（按开场定下的钟点）。"""
+    start = state.get("clock")
+    day, rest = divmod((start if isinstance(start, int) else 0) + seconds, 86400)
+    return f"第 {day + 1} 天 {rest // 3600:02d}:{rest % 3600 // 60:02d}"
+
+
 # 写反馈的景物素材：沿路线每隔多少秒取一个点、取点周围多少米内有名字的地物、每个角色最多列几个
 SCENERY_STEP = 20
 SCENERY_RADIUS = 40.0
 SCENERY_NAMES = 8
 SCENERY_BUILDINGS = 3
+
+# 途中的目击：沿行动路线每隔多少秒算一次谁察觉到了谁；一轮最多算这么多次（很长的回合拉大间隔）
+ROUTE_SIGHT_STEP = 20
+ROUTE_SIGHT_MAX = 60
 
 # 当场出结果的行动最多这么多秒（“几秒以内的小事”）
 INSTANT_SECONDS = 5
