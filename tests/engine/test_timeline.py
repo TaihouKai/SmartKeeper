@@ -174,7 +174,7 @@ def test_events_are_stamped_with_the_players_own_time() -> None:
         for x in evs:
             if x.seq in secs:
                 by_type.setdefault(x.type, []).append(secs[x.seq])
-        assert by_type["pm_kp"][0] == 0
+        assert by_type["broadcast"][0] == 0 and by_type["pm_kp"][0] == 0
         assert by_type["action_declared"][0] == 0
         assert max(secs.values()) == last
     secs0 = e.event_seconds(g, p0, [x.seq for x in e.view_for(g, p0)])

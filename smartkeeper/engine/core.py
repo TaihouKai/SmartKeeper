@@ -953,6 +953,7 @@ class Engine:
                     payload={
                         "text": self._link_places(game_id, _text(opening.broadcast), named_state),
                         "anonymous": False,
+                        "kind": "opening",
                     },
                 )
             )
@@ -5577,10 +5578,17 @@ class Engine:
         ]
         keys = [m[0] for m in marks]
         out: dict[int, int] = {}
+        opening = [
+            x.seq
+            for x in self._events.view_for(game_id, player_id, types=["broadcast"])
+            if x.payload.get("kind") == "opening"
+        ]
         for seq in seqs:
             i = bisect.bisect_right(keys, seq)
             if i:
                 out[seq] = marks[i - 1][1]
+            elif seq in opening:
+                out[seq] = 0  # 开场广播：和开场私信同一刻
         return out
 
     def _player_state(self, game_id: str, player_id: str) -> State:
