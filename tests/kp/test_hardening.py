@@ -163,6 +163,37 @@ def test_plan_ignores_extra_query_keys() -> None:
     assert plan.queries[0].query_id == "q1"
 
 
+def test_double_escaped_newlines_in_text_become_newlines() -> None:
+    from smartkeeper.kp.schemas import OpeningOut, parse
+
+    reply = json.dumps(
+        {
+            "broadcast": "第一段\n\n第二段\\n不动",  # 已经有真换行的不改
+            "messages": {"p1": "【甲】你好。\\n\\n【乙】再见。"},
+            "public_intel": [{"about": "npc_1", "text": "一\\n二"}],
+        },
+        ensure_ascii=False,
+    )
+    out = parse(OpeningOut, reply)
+    assert out.messages["p1"] == "【甲】你好。\n\n【乙】再见。"
+    assert out.public_intel[0].text == "一\n二"
+    assert out.broadcast == "第一段\n\n第二段\\n不动"
+
+
+def test_state_patch_values_are_left_as_written() -> None:
+    from smartkeeper.kp.schemas import InstantOut, parse
+
+    reply = json.dumps(
+        {
+            "result": "好了\\n完成",
+            "state_patch": [{"op": "replace", "path": "/entities/e1/note", "value": "a\\nb"}],
+        }
+    )
+    out = parse(InstantOut, reply)
+    assert out.result == "好了\n完成"
+    assert out.state_patch[0].value == "a\\nb"
+
+
 def test_feedback_writer_sees_the_looks_of_who_it_writes_about() -> None:
     """写反馈的模型拿到本轮提到的人和玩家自己角色的外观，人称、相貌按外观写，不按名字猜。"""
     g = new_game(2)

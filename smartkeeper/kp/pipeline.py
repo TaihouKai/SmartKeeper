@@ -51,6 +51,7 @@ from smartkeeper.kp.schemas import (
     ReviewOut,
     parse,
     repair_adjudication,
+    unescape_newlines,
 )
 
 SEARCH_PURPOSES = {"review_character", "opening", "chat", "plan", "adjudicate"}
@@ -135,7 +136,7 @@ class KP:
         res = self._call(
             purpose, game_id, prompt, [{"role": "user", "content": prompt.user}], judge
         )
-        text = res.text.strip()
+        text = str(unescape_newlines(res.text.strip()))
         self._mark(res, bool(text))
         if not text:
             raise LLMError("llm.empty_reply", purpose)

@@ -170,10 +170,28 @@ def extract_json(text: str) -> object:
     raise OutputError("the reply contains no valid JSON object")
 
 
+def unescape_newlines(obj: object) -> object:
+    """模型有时把换行多转义一次，JSON 里写成 "\\\\n"，解析出来是字面的反斜杠加 n。
+    一段文字里没有真换行、却有字面的 \\n 时，按换行还原（\\t 同理）。
+    state_patch 里的值是角色卡等数据，原样不动。"""
+    if isinstance(obj, str):
+        if "\n" not in obj and "\\n" in obj:
+            return obj.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+        return obj
+    if isinstance(obj, list):
+        return [unescape_newlines(x) for x in cast(list[object], obj)]
+    if isinstance(obj, dict):
+        return {
+            k: v if k == "state_patch" else unescape_newlines(v)
+            for k, v in cast(dict[str, object], obj).items()
+        }
+    return obj
+
+
 def parse[T: BaseModel](
     model: type[T], text: str, repair: Callable[[object], object] | None = None
 ) -> T:
-    obj = extract_json(text)
+    obj = unescape_newlines(extract_json(text))
     if repair is not None:
         obj = repair(obj)
     try:
