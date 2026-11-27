@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, call, currentGame, type Schemas } from "../api/client";
 import { useI18n } from "../i18n";
-import { ErrorBox } from "../ui/components";
+import { ErrorBox, formatGameTime } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { Markdown } from "../ui/markdown";
 import { ActionPanel } from "./ActionPanel";
@@ -26,7 +26,7 @@ const BROADCAST_TYPES = new Set(["broadcast", "round_opened"]);
 const HIDDEN_TYPES = new Set(["talk_invited", "talk_accepted", "talk_declined", "talk_message", "talk_ended", "round_closed", "character_submitted", "character_approved", "character_rejected"]);
 
 /** 一条消息（气泡）：谁说的、内容、是不是自己说的、样式。 */
-type Bubble = { id: string; who: string; body: string; md?: boolean; mine: boolean; tone: "kp" | "action" | "sys" | "plain"; quote?: number };
+type Bubble = { id: string; who: string; when?: string; body: string; md?: boolean; mine: boolean; tone: "kp" | "action" | "sys" | "plain"; quote?: number };
 
 function toneOf(cls: string): Bubble["tone"] {
   if (cls.includes("sys")) return "sys";
@@ -89,7 +89,7 @@ export function ChatPanel({
   mentionables: Mentionable[];
   onChanged: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const peers = usePoll(() => call(api.GET("/api/chat/peers")), 60_000);
   const dms = usePoll(() => call(api.GET("/api/chat", { params: { query: { since: 0 } } })), 8_000);
   const [extraDm, setExtraDm] = useState<string[]>([]);
@@ -153,7 +153,8 @@ export function ChatPanel({
       const list = active.key === "kp" ? kpEvents : bcEvents;
       return list.map((e) => {
         const d = describeEvent(e, t);
-        return { id: `e${e.seq}`, who: d.who, body: d.body, md: d.md, mine: e.actor === "me", tone: toneOf(d.cls), quote: e.type === "round_opened" ? undefined : e.seq };
+        const when = e.game_seconds != null ? formatGameTime(status?.start_time, e.game_seconds, lang) : undefined;
+        return { id: `e${e.seq}`, who: d.who, when, body: d.body, md: d.md, mine: e.actor === "me", tone: toneOf(d.cls), quote: e.type === "round_opened" ? undefined : e.seq };
       });
     }
     if (active.key.startsWith("talk:")) {
@@ -209,7 +210,12 @@ export function ChatPanel({
           {bubbles.length === 0 && <p className="sk-hint pl-empty">{t("ch.empty")}</p>}
           {bubbles.map((b) => (
             <div key={b.id} className={`pl-msg ${b.mine ? "mine" : ""} ${b.tone}`}>
-              {b.tone !== "sys" && b.who && <div className="pl-who">{b.who}</div>}
+              {b.tone !== "sys" && b.who && (
+                <div className="pl-who">
+                  {b.who}
+                  {b.when && <span className="pl-when">{b.when}</span>}
+                </div>
+              )}
               <div className="pl-bubble">{b.md ? <Markdown text={b.body} /> : <PlaceText text={b.body} places={places} onOpen={onPlace} />}</div>
               {b.quote !== undefined && !b.mine && b.tone !== "sys" && (
                 <button type="button" className="sk-link pl-quote" onClick={() => quote(b.quote!)}>

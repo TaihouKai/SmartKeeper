@@ -2301,6 +2301,8 @@ export interface components {
             actor_name: string | null;
             /** Created At */
             created_at: string;
+            /** Game Seconds */
+            game_seconds?: number | null;
             /** Payload */
             payload: {
                 [key: string]: components["schemas"]["JsonValue"];

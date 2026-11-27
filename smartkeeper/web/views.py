@@ -52,6 +52,8 @@ class EventOut(BaseModel):
     actor_name: str | None
     payload: dict[str, JsonValue]
     created_at: str
+    # 发生在该玩家自己时间里的哪一刻（游戏内秒数，和 /status 的 game_seconds 同一个基准）；开场之前的没有
+    game_seconds: int | None = None
 
 
 def _intent_to_refs(engine: Engine, player_id: str, raw: JsonValue) -> JsonValue:
@@ -59,7 +61,15 @@ def _intent_to_refs(engine: Engine, player_id: str, raw: JsonValue) -> JsonValue
     return RefIntent.from_intent(engine, player_id, intent).model_dump(mode="json")
 
 
-def event_for_player(engine: Engine, player_id: str, e: Event, names: dict[str, str]) -> EventOut:
+def event_for_player(
+    engine: Engine,
+    player_id: str,
+    e: Event,
+    names: dict[str, str],
+    seconds: dict[int, int] | None = None,
+) -> EventOut:
+    if seconds is None:
+        seconds = engine.event_seconds(e.game_id, player_id, [e.seq])
     if e.type.startswith("talk_"):
         # 对话的内容走 /api/talks；这里不能露出对方是玩家还是 KP 扮演的 NPC
         return EventOut(
@@ -70,6 +80,7 @@ def event_for_player(engine: Engine, player_id: str, e: Event, names: dict[str, 
             actor_name=None,
             payload={"talk": e.payload.get("talk")},
             created_at=e.created_at.isoformat(),
+            game_seconds=seconds.get(e.seq),
         )
     payload = dict(e.payload)
     if e.type == "action_declared" and "intent" in payload:
@@ -101,6 +112,7 @@ def event_for_player(engine: Engine, player_id: str, e: Event, names: dict[str, 
         actor_name=name,
         payload=payload,
         created_at=e.created_at.isoformat(),
+        game_seconds=seconds.get(e.seq),
     )
 
 

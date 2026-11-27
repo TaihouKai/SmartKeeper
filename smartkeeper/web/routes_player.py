@@ -296,7 +296,9 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
     @r.get("/events")
     def events(p: Annotated[Player, Depends(require_player)], since: int = 0) -> list[EventOut]:
         nm = names(p.game_id)
-        return [event_for_player(e, p.id, x, nm) for x in e.view_for(p.game_id, p.id, since)]
+        evs = e.view_for(p.game_id, p.id, since)
+        secs = e.event_seconds(p.game_id, p.id, [x.seq for x in evs])
+        return [event_for_player(e, p.id, x, nm, secs) for x in evs]
 
     @r.get("/status")
     def status(p: Annotated[Player, Depends(require_player)]) -> StatusOut:

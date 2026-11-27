@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 import contextlib
 import copy
 import hashlib
@@ -5541,29 +5542,46 @@ class Engine:
         ents = _obj(self._state(self.player(player_id).game_id).get("entities"))
         return [h for h in self._handles.list(player_id) if h.entity_id in ents]
 
-    def _last_notice(self, game_id: str, player_id: str) -> Event | None:
-        """该玩家最近一次被通知（开场私信、反馈、对话）的事件。"""
+    def _notices(self, game_id: str, player_id: str) -> list[Event]:
+        """该玩家被通知（开场私信、反馈、对话）的事件，按先后。"""
         evs = self._events.view_for(
             game_id,
             player_id,
             types=["feedback", "pm_kp", "talk_invited", "talk_accepted", "talk_ended"],
         )
-        for e in reversed(evs):
-            if e.type != "pm_kp" or e.payload.get("kind") == "opening":
-                return e
-        return None
+        return [e for e in evs if e.type != "pm_kp" or e.payload.get("kind") == "opening"]
 
-    def player_seconds(self, game_id: str, player_id: str) -> int:
-        """该玩家自己的时间：上一次被通知时的游戏内时刻。没被通知的玩家看不到时间往前走。"""
-        e = self._last_notice(game_id, player_id)
-        if e is None:
-            return 0
+    def _last_notice(self, game_id: str, player_id: str) -> Event | None:
+        """该玩家最近一次被通知的事件。"""
+        evs = self._notices(game_id, player_id)
+        return evs[-1] if evs else None
+
+    def _notice_seconds(self, game_id: str, e: Event) -> int:
         v = e.payload.get("game_seconds")
         if isinstance(v, int):
             return v
         if e.type == "pm_kp":
             return 0
         return int(cast(int, self.rebuild_state(game_id, e.seq).get("game_seconds", 0)))
+
+    def player_seconds(self, game_id: str, player_id: str) -> int:
+        """该玩家自己的时间：上一次被通知时的游戏内时刻。没被通知的玩家看不到时间往前走。"""
+        e = self._last_notice(game_id, player_id)
+        return 0 if e is None else self._notice_seconds(game_id, e)
+
+    def event_seconds(self, game_id: str, player_id: str, seqs: list[int]) -> dict[int, int]:
+        """每条事件发生在该玩家自己时间里的哪一刻（他当时最近一次被通知时的游戏内时刻）。
+        开场之前的事件不在里面。按玩家自己的时间算，别人的回合推进不会从这里漏出来。"""
+        marks = [
+            (e.seq, self._notice_seconds(game_id, e)) for e in self._notices(game_id, player_id)
+        ]
+        keys = [m[0] for m in marks]
+        out: dict[int, int] = {}
+        for seq in seqs:
+            i = bisect.bisect_right(keys, seq)
+            if i:
+                out[seq] = marks[i - 1][1]
+        return out
 
     def _player_state(self, game_id: str, player_id: str) -> State:
         """该玩家看到的世界。轮到他行动时就是现在；行动还在进行时，是他上一次被通知时那一刻的状态。"""

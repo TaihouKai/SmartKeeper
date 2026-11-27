@@ -156,6 +156,33 @@ def test_round_ends_at_the_earliest_action_and_others_continue() -> None:
     assert e.player_seconds(g, p1) == 100 and e.player_seconds(g, p0) == 60
 
 
+def test_events_are_stamped_with_the_players_own_time() -> None:
+    """玩家消息旁边显示的时刻：开场、行动在当时他自己的时间；反馈在它说的那一刻；别人往前走不影响他。"""
+    t = setup_table("single", 2)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    apart(t)
+    wait(t, p0, 60)
+    walk(t, p1, Point(x=190, y=-10))
+    e.close_round(g)
+    publish(t, only=[p0])
+    wait(t, p0, 300)
+    for pid, last in ((p0, 60), (p1, 0)):
+        evs = e.view_for(g, pid)
+        secs = e.event_seconds(g, pid, [x.seq for x in evs])
+        by_type: dict[str, list[int]] = {}
+        for x in evs:
+            if x.seq in secs:
+                by_type.setdefault(x.type, []).append(secs[x.seq])
+        assert by_type["pm_kp"][0] == 0
+        assert by_type["action_declared"][0] == 0
+        assert max(secs.values()) == last
+    secs0 = e.event_seconds(g, p0, [x.seq for x in e.view_for(g, p0)])
+    fb = next(x for x in e.view_for(g, p0) if x.type == "feedback")
+    assert secs0[fb.seq] == 60
+    assert secs0[e.view_for(g, p0)[-1].seq] == 60  # 第二轮的行动在他 60 秒那一刻
+
+
 def test_busy_player_sees_the_world_at_their_own_time() -> None:
     t = setup_table("single", 2)
     e, g = t.engine, t.game_id
