@@ -811,11 +811,7 @@ class Engine:
                 for eid in old
                 if eid in _obj(state.get("entities"))
             ]
-            kept: dict[str, JsonValue] = {
-                k: v for k, v in _obj(state.get("entities")).items() if k not in old
-            }
-            remaining: State = {**state, "entities": kept}
-            ids = self._new_entity_ids(remaining, len(subs))
+            ids = self._new_entity_ids(g.id, state, len(subs))
             for eid, s in zip(ids, subs, strict=True):
                 ops.append(
                     PatchOp(
@@ -842,8 +838,14 @@ class Engine:
             ]
             return self._events.append(g.id, 0, evs)[-1]
 
-    def _new_entity_ids(self, state: State, n: int, prefix: str = "ent") -> list[str]:
+    def _new_entity_ids(self, game_id: str, state: State, n: int, prefix: str = "ent") -> list[str]:
+        """新实体的编号：这一局从来没用过的（删掉的实体的编号也不复用，玩家手里它的代号不会安到新实体上）。"""
         used = set(_obj(state.get("entities")))
+        for e in self._events.view_for(game_id, KP, types=["state_patch"]):
+            for o in self._ops(e):
+                parts = o.path.split("/")
+                if o.op == "add" and len(parts) == 3 and parts[1] == "entities":
+                    used.add(parts[2])
         out: list[str] = []
         i = 1
         while len(out) < n:
@@ -1074,7 +1076,7 @@ class Engine:
                 raise IllegalState("action.busy")
             mine = set(self.controlled(g.id, player_id))
             # 玩家只能指代自己的实体和他有代号的实体（感知过的），不能凭实体 ID 猜
-            entities = mine | {h.entity_id for h in self._handles.list(player_id)}
+            entities = mine | {h.entity_id for h in self._live_handles(player_id)}
             m = self._map(g.id)
             problems: list[Problem] = []
             for i, item in enumerate(intent.items):
@@ -4817,7 +4819,7 @@ class Engine:
     def _player_label(self, game_id: str, viewer: str, other: str, state: State) -> str:
         """viewer 对另一个玩家的叫法：他认识的那个玩家的角色的代号；一个都不认识就是“某人”。"""
         mine = {str(e) for e in _list(_obj(state.get("controls")).get(other))}
-        labels = [f"@{h.label}" for h in self._handles.list(viewer) if h.entity_id in mine]
+        labels = [f"@{h.label}" for h in self._live_handles(viewer) if h.entity_id in mine]
         return "、".join(sorted(labels)) or self._unknown_word(game_id)
 
     def _alliance_events(
@@ -5089,7 +5091,7 @@ class Engine:
         return f.to_text(node, values)
 
     def _intel_labels(self, player_id: str, state: State, pack: RulePack) -> dict[str, str]:
-        out = {h.entity_id: f"@{h.label}" for h in self._handles.list(player_id)}
+        out = {h.entity_id: f"@{h.label}" for h in self._live_handles(player_id)}
         for e in _list(_obj(state.get("controls")).get(player_id)):
             out[str(e)] = self._entity_name(state, str(e), pack)
         return out
@@ -5279,7 +5281,7 @@ class Engine:
         out: list[tuple[str, str]] = []
         for p in self._active_players(game_id):
             mine = set(self.controlled(game_id, p.id))
-            for h in self._handles.list(p.id):
+            for h in self._live_handles(p.id):
                 if h.auto and not h.named and h.entity_id not in mine:
                     out.append((p.id, h.entity_id))
         return out
@@ -5292,7 +5294,7 @@ class Engine:
         mine = set(self.controlled(game_id, player_id))
         labels = [
             h.label
-            for h in self._handles.list(player_id)
+            for h in self._live_handles(player_id)
             if h.entity_id != entity_id and h.entity_id not in mine and not (h.auto and not h.named)
         ]
         return appearance, labels
@@ -5359,7 +5361,13 @@ class Engine:
         return h.ref if h is not None else None
 
     def handles(self, player_id: str) -> list[Handle]:
-        return self._handles.list(player_id)
+        return self._live_handles(player_id)
+
+    def _live_handles(self, player_id: str) -> list[Handle]:
+        """这个玩家对现存实体的代号。实体被删掉了（改卡重新通过换掉的旧角色、到期的召唤物、
+        管理员删掉的），代号随之作废：不再列出、不再起外号。实体编号不复用，作废的代号不会安到别人头上。"""
+        ents = _obj(self._state(self.player(player_id).game_id).get("entities"))
+        return [h for h in self._handles.list(player_id) if h.entity_id in ents]
 
     def _last_notice(self, game_id: str, player_id: str) -> Event | None:
         """该玩家最近一次被通知（开场私信、反馈、对话）的事件。"""
@@ -5409,7 +5417,7 @@ class Engine:
         space = self._player_space(game_id, player_id)
         state = space.state
         mine = space.controls.get(player_id, [])
-        handles = {h.entity_id: h for h in self._handles.list(player_id)}
+        handles = {h.entity_id: h for h in self._live_handles(player_id)}
         own: list[OwnEntity] = []
         for e in mine:
             ent = _obj(space.entities.get(e))
@@ -5454,7 +5462,7 @@ class Engine:
         known = self.player_intel(game_id, player_id)
         seen = tuple(
             SeenEntry(ref=h.ref, label=h.label, note=h.note, intel=known.get(h.entity_id, ()))
-            for h in sorted(self._handles.list(player_id), key=lambda x: (x.label, x.ref))
+            for h in sorted(self._live_handles(player_id), key=lambda x: (x.label, x.ref))
             if h.entity_id not in mine
         )
         return Scene(entities=tuple(own), map_changes=changes, seen=seen)

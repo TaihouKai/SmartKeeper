@@ -198,6 +198,8 @@ def test_approved_character_can_be_revised_before_the_game_starts() -> None:
     e.submit_character(p.id, sheets_for(pack, 1))
     assert e.character_status(p.id) == "submitted"
     first = e.controlled(g.id, p.id)
+    e.scene(g.id, p.id)  # 建卡页看过一眼：旧角色有了代号
+    assert {h.entity_id for h in e.handles(p.id)} == set(first)
     e.approve_character(p.id)
     # 重新通过：换掉上次的实体，不留下没人控制的旧角色
     state = e.world_state(g.id)
@@ -205,3 +207,7 @@ def test_approved_character_can_be_revised_before_the_game_starts() -> None:
     assert isinstance(ents, dict)
     now = e.controlled(g.id, p.id)
     assert len(now) == len(first) and set(ents) == set(now)
+    # 新角色用新编号；旧角色的代号作废：不当成“见过的人”，也不拿去起外号
+    assert not set(now) & set(first)
+    assert {h.entity_id for h in e.handles(p.id)} <= set(now)
+    assert e.unnamed_handles(g.id) == []
