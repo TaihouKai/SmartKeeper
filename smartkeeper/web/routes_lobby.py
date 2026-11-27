@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from smartkeeper.contracts import DocEntry, NotFound
 from smartkeeper.web.auth import PLAYER_COOKIE, RateLimiter, enter_seat, seats_of
 from smartkeeper.web.services import Services
+from smartkeeper.web.views import LoreOut, lore_count, public_lore
 
 
 class LobbyGame(BaseModel):
@@ -29,6 +30,7 @@ class RulebookOut(BaseModel):
     world_name: str
     handbook: str  # 规则书（Markdown）
     scenario: str  # 剧本的公开部分
+    lore_count: int = 0  # 资料库里打开的条目数（有的话规则书页面上能查）
 
 
 class JoinIn(BaseModel):
@@ -101,7 +103,17 @@ def build_lobby_router(s: Services) -> APIRouter:
             world_name=pack.world.name,
             handbook=pack.handbook,
             scenario=e.public_scenario(g.id),
+            lore_count=lore_count(pack),
         )
+
+    @r.get("/{game_id}/lore")
+    def lore(game_id: str) -> list[LoreOut]:
+        """房间列表里的局的资料库：还没加入也能查。"""
+        listed = {g.id: g for g, _n in e.lobby()}
+        g = listed.get(game_id)
+        if g is None:
+            raise NotFound("lobby.not_listed")
+        return public_lore(e.rulepack(g.id))
 
     @r.post("/join")
     def join(body: JoinIn, request: Request, response: Response) -> JoinOut:

@@ -14,6 +14,7 @@ from smartkeeper.contracts import (
     Location,
     MapData,
     Point,
+    RulePack,
     Talk,
 )
 from smartkeeper.engine import Engine
@@ -418,3 +419,23 @@ def scene(engine: Engine, game_id: str, player_id: str) -> SceneOut:
             for pid, p in sorted(engine.known_places(game_id, player_id).items())
         ],
     )
+
+
+class LoreOut(BaseModel):
+    """规则书页面上能查的资料库条目（关着的不给）。"""
+
+    title: str
+    keys: list[str]
+    content: str
+
+
+def public_lore(pack: RulePack) -> list[LoreOut]:
+    return [
+        LoreOut(title=x.title, keys=list(x.keys), content=x.content)
+        for x in pack.lore
+        if not x.disabled
+    ]
+
+
+def lore_count(pack: RulePack) -> int:
+    return sum(1 for x in pack.lore if not x.disabled)

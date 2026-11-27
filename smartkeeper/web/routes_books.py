@@ -34,6 +34,7 @@ from smartkeeper.web.sheetform import (
     PreviewOut,
     SheetFormulaIn,
 )
+from smartkeeper.web.views import LoreOut, lore_count, public_lore
 
 _NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 
@@ -56,6 +57,7 @@ class BookSummary(BaseModel):
 
 class BookOut(BookSummary):
     handbook: str = ""
+    lore_count: int = 0  # 资料库里打开的条目数（有的话规则书页面上能查）
     scenario_list: list[ScenarioSummary] = []
     character_list: list[LibraryCharacter] = []
 
@@ -156,9 +158,15 @@ def build_books_router(s: Services) -> APIRouter:
             scenarios=len(scen),
             characters=len(chars),
             handbook=pack.handbook,
+            lore_count=lore_count(pack),
             scenario_list=scen,
             character_list=chars,
         )
+
+    @r.get("/{book_id}/lore")
+    def lore(book_id: str) -> list[LoreOut]:
+        """规则书的资料库（规则书页面上查）。"""
+        return public_lore(e.book_pack(book_id))
 
     @r.get("/{book_id}/scenarios/{scenario_id}")
     def scenario(book_id: str, scenario_id: str) -> BookScenarioOut:

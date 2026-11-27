@@ -1260,6 +1260,16 @@
     "as": "As {name}",
     "public": "Public view"
   },
+  "lore": {
+    "back": "Back to the rulebook",
+    "hint": "Background setting for this rulebook, {n} entries. The keeper consults the relevant ones by keyword; rulebook, scenario and cards win over lore.",
+    "index": "Index",
+    "more": "{n} more; search to narrow down",
+    "none": "Nothing found.",
+    "open": "Lore ({n} entries)",
+    "pick": "Pick an entry on the left.",
+    "search": "Search titles, keywords or text"
+  },
   "map": {
     "aria": "Map",
     "building_size": "about {m} m tall, about {n} floors",

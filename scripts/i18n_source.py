@@ -1210,6 +1210,17 @@ T: dict[str, tuple[str, str]] = {
     "rules.ph.reveal": ("例如 this.release；空是总暴露", "e.g. this.release; empty = always"),
     "rules.path.insights": ("看见就知道", "Seen at a glance"),
     "rules.path.lore": ("资料库", "Lore"),
+    "lore.open": ("资料库（{n} 条）", "Lore ({n} entries)"),
+    "lore.back": ("回到规则书", "Back to the rulebook"),
+    "lore.hint": (
+        "这套规则书的背景设定，共 {n} 条。KP 裁定时会按关键词参考其中相关的几条；和规则书、剧本、角色卡冲突时以它们为准。",
+        "Background setting for this rulebook, {n} entries. The keeper consults the relevant ones by keyword; rulebook, scenario and cards win over lore.",
+    ),
+    "lore.search": ("搜标题、关键词或正文", "Search titles, keywords or text"),
+    "lore.index": ("索引", "Index"),
+    "lore.more": ("还有 {n} 条，搜一下缩小范围", "{n} more; search to narrow down"),
+    "lore.none": ("没有找到。", "Nothing found."),
+    "lore.pick": ("在左边选一条。", "Pick an entry on the left."),
     "rules.lore_title": ("资料库", "Lore"),
     "rules.lore_hint": (
         "背景设定，不常驻：每次由引擎按关键词挑出和剧本、角色卡、本轮行动有关的几条给 KP，有字数上限。和规则书、剧本、角色卡冲突时以它们为准。可以从 SillyTavern 的世界书（World Info JSON）导入。",

@@ -53,10 +53,13 @@ from smartkeeper.web.sheetform import (
 from smartkeeper.web.views import (
     ActionEcho,
     EventOut,
+    LoreOut,
     SceneOut,
     TalkOut,
     echo,
     event_for_player,
+    lore_count,
+    public_lore,
     scene,
     talk_for_player,
 )
@@ -88,6 +91,7 @@ class StatusOut(BaseModel):
 class RulesOut(BaseModel):
     rulebook: str
     handbook: str  # 规则书（Markdown）
+    lore_count: int = 0  # 资料库里打开的条目数（有的话规则书页面上能查）
     params: list[PackParam]  # 默认参数（各自适用于哪些分组）
     checks: list[str]  # 检定名（自己加参数时可以要求过一个检定）
     world_name: str
@@ -323,6 +327,11 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
             me=me,
         )
 
+    @r.get("/rules/lore")
+    def rules_lore(p: Annotated[Player, Depends(require_player)]) -> list[LoreOut]:
+        """自己所在的局的资料库（规则书页面上查）。"""
+        return public_lore(e.rulepack(p.game_id))
+
     @r.get("/rules")
     def rules(p: Annotated[Player, Depends(require_player)]) -> RulesOut:
         pack = e.rulepack(p.game_id)
@@ -330,6 +339,7 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         return RulesOut(
             rulebook=render_rules(pack, include_hidden=False),
             handbook=pack.handbook,
+            lore_count=lore_count(pack),
             params=list(pack.params),
             checks=[c.name for c in pack.checks],
             world_name=pack.world.name,

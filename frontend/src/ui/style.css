@@ -173,6 +173,17 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.6; }
 .sk-toc { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 8px 0 16px; background: var(--card); }
 .sk-toc ul { margin: 4px 0; padding-left: 0; list-style: none; columns: 2 220px; }
 .sk-toc li.lv2 { padding-left: 1em; font-size: 14px; }
+/* 规则书页面的资料库：左边索引、右边正文；手机上上下排 */
+.sk-lore-search { width: 100%; margin: 8px 0; }
+.sk-lore-body { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 16px; align-items: start; }
+.sk-lore-index { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; max-height: 70vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--card); }
+.sk-lore-index .sk-link { text-align: left; }
+.sk-lore-index .sk-link.active { font-weight: 600; }
+.sk-lore-entry h2 { margin-top: 0; }
+@media (max-width: 700px) {
+  .sk-lore-body { grid-template-columns: 1fr; }
+  .sk-lore-index { max-height: 40vh; }
+}
 .sk-toc li.lv1 { font-weight: 600; margin-top: 4px; }
 .sk-invite code { word-break: break-all; font-size: 12px; }
 tr.inactive { opacity: 0.5; }

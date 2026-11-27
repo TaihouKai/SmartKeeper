@@ -862,6 +862,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/books/{book_id}/lore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lore
+         * @description 规则书的资料库（规则书页面上查）。
+         */
+        get: operations["lore_api_books__book_id__lore_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/books/{book_id}/pdf": {
         parameters: {
             query?: never;
@@ -1303,6 +1323,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lobby/{game_id}/lore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lore
+         * @description 房间列表里的局的资料库：还没加入也能查。
+         */
+        get: operations["lore_api_lobby__game_id__lore_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lobby/{game_id}/rulebook": {
         parameters: {
             query?: never;
@@ -1427,6 +1467,26 @@ export interface paths {
         };
         /** Rules */
         get: operations["rules_api_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rules/lore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rules Lore
+         * @description 自己所在的局的资料库（规则书页面上查）。
+         */
+        get: operations["rules_lore_api_rules_lore_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1728,6 +1788,11 @@ export interface components {
             handbook: string;
             /** Id */
             id: string;
+            /**
+             * Lore Count
+             * @default 0
+             */
+            lore_count: number;
             /** Name */
             name: string;
             /**
@@ -3257,6 +3322,18 @@ export interface components {
             /** Title */
             title: string;
         };
+        /**
+         * LoreOut
+         * @description 规则书页面上能查的资料库条目（关着的不给）。
+         */
+        LoreOut: {
+            /** Content */
+            content: string;
+            /** Keys */
+            keys: string[];
+            /** Title */
+            title: string;
+        };
         /** MaterialsOut */
         MaterialsOut: {
             /** Maps */
@@ -3943,6 +4020,11 @@ export interface components {
             game_name: string;
             /** Handbook */
             handbook: string;
+            /**
+             * Lore Count
+             * @default 0
+             */
+            lore_count: number;
             /** Scenario */
             scenario: string;
             /** World Name */
@@ -3955,6 +4037,11 @@ export interface components {
             /** Handbook */
             handbook: string;
             identities: components["schemas"]["IdentityRules"];
+            /**
+             * Lore Count
+             * @default 0
+             */
+            lore_count: number;
             /** Params */
             params: components["schemas"]["PackParam"][];
             /** Player Entities */
@@ -6436,6 +6523,37 @@ export interface operations {
             };
         };
     };
+    lore_api_books__book_id__lore_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                book_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoreOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     character_pdf_api_books__book_id__pdf_post: {
         parameters: {
             query?: never;
@@ -7309,6 +7427,37 @@ export interface operations {
             };
         };
     };
+    lore_api_lobby__game_id__lore_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoreOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     rulebook_api_lobby__game_id__rulebook_get: {
         parameters: {
             query?: never;
@@ -7516,6 +7665,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RulesOut"];
+                };
+            };
+        };
+    };
+    rules_lore_api_rules_lore_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoreOut"][];
                 };
             };
         };
