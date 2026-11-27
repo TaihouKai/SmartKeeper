@@ -147,6 +147,7 @@ from smartkeeper.engine.timeline import (
     travel_left,
     travel_seconds,
 )
+from smartkeeper.engine.untokened import Looks, untokened
 
 MAX_TEXT = 4000
 
@@ -5489,6 +5490,34 @@ class Engine:
             for eid in sorted(set(entity_ids)):
                 if eid in ents and eid not in mine:
                     self._handles.ensure(player_id, eid)
+
+    def untokened_entities(self, game_id: str, adj: Adjudication) -> list[Problem]:
+        """裁定里玩家会读到的文字用名字或外貌提到了实体、却没写 {{实体ID}}（只是提醒，见 untokened）。"""
+        state = self._state(game_id)
+        pack = self.rulepack(game_id)
+        looks: dict[str, Looks] = {}
+        for eid, ent in _obj(state.get("entities")).items():
+            name = _obj(_obj(ent).get("sheet")).get("name")
+            shown = self._entity_name(state, eid, pack)
+            names = {x for x in (name, shown) if isinstance(x, str) and x != eid}
+            appearance = self._appearance(state, pack, eid)
+            looks[eid] = Looks(
+                tuple(sorted(names)), "" if appearance == LOOKS_HIDDEN else appearance
+            )
+        texts: list[tuple[str, str]] = []
+        for i, o in enumerate(adj.outcomes):
+            texts.append((f"outcomes[{i}].result", o.result))
+            texts += [(f"outcomes[{i}].observations[{j}]", x) for j, x in enumerate(o.observations)]
+        for i, enc in enumerate(adj.encounters):
+            texts += [(f"encounters[{i}].observed_by.{p}", x) for p, x in enc.observed_by.items()]
+        texts += [(f"public_events[{i}]", x) for i, x in enumerate(adj.public_events)]
+        texts += [(f"intel[{i}].text", x.text) for i, x in enumerate(adj.intel)]
+        texts += [(f"public_intel[{i}].text", x.text) for i, x in enumerate(adj.public_intel)]
+        return [
+            Problem(code="adj.entity_untokened", path=path, params={"entity": eid, "matched": hit})
+            for path, text in texts
+            for eid, hit in untokened(text, looks)
+        ]
 
     def unnamed_handles(self, game_id: str) -> list[tuple[str, str]]:
         out: list[tuple[str, str]] = []

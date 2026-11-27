@@ -7,7 +7,7 @@ import re
 from smartkeeper.contracts import KP
 from smartkeeper.kp import KP as KPClass
 from smartkeeper.kp import Contexts, KPConfig, fixed_models
-from tests.kp.harness import new_game
+from tests.kp.harness import Game, new_game
 
 
 def count(g, type_: str, **where: object) -> int:  # type: ignore[no-untyped-def]
@@ -397,3 +397,40 @@ def test_review_shows_what_the_code_does() -> None:
     assert "引擎算好的合计" in prompt.user
     # 卡上的代码也原样给 KP，好找 bug
     assert "range = 30" in prompt.user and "target.damage" in prompt.user
+
+
+def _described_once(g: Game, times: int):  # type: ignore[no-untyped-def]
+    """前 times 次裁定里只用外貌提到小偷（没写记号），之后照常。"""
+    good = g.llm.handlers["adjudicate"]
+    calls = {"n": 0}
+
+    def adjudicate(call):  # type: ignore[no-untyped-def]
+        calls["n"] += 1
+        out = good(call)
+        if calls["n"] <= times:
+            out = out.replace("{{npc_thief}}", "一个穿灰色连帽衫、背着很大的黑色双肩包的人")
+        return out
+
+    return adjudicate
+
+
+def test_entity_described_without_token_gets_one_reminder() -> None:
+    g = new_game(2)
+    g.llm.on("adjudicate", _described_once(g, 1))
+    g.play_round()
+    assert g.engine.round(g.game_id, 1).status == "published"
+    calls = g.llm.by_purpose("adjudicate")
+    assert len(calls) == 2
+    reminder = str(calls[-1].messages[-1]["content"])
+    assert "adj.entity_untokened" in reminder and "npc_thief" in reminder
+    # 改过来了：玩家见到了他，有了代号
+    p = g.players[0]
+    assert any(h.entity_id == "npc_thief" for h in g.engine.handles(p))
+
+
+def test_reminder_never_blocks_the_round() -> None:
+    g = new_game(2)
+    g.llm.on("adjudicate", _described_once(g, 99))
+    g.play_round()
+    assert g.engine.round(g.game_id, 1).status == "published"
+    assert len(g.llm.by_purpose("adjudicate")) == 2  # 只提醒一次，改完还没写也收下

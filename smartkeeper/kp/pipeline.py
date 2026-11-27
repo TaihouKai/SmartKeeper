@@ -29,6 +29,7 @@ from smartkeeper.contracts import (
     Message,
     NotFound,
     Opening,
+    Problem,
     Round,
     SmartKeeperError,
     TargetRef,
@@ -161,30 +162,45 @@ class KP:
         apply: Callable[[T], R],
         judge: bool,
         repair: Callable[[object], object] | None = None,
+        lint: Callable[[T], list[Problem]] | None = None,
     ) -> R:
-        """解析成 model 并交给 apply（通常是 engine 的写入）。解析或校验失败带着错误重试，最多 max_retries 次。"""
+        """解析成 model 并交给 apply（通常是 engine 的写入）。解析或校验失败带着错误重试，最多 max_retries 次。
+
+        lint 是只提醒不拦的检查：有问题时先让模型改一次（不占重试次数），改完不管还有没有都收下；
+        改出来的不合格、重试又用尽了，就用提醒之前的那份。"""
         messages: list[Message] = [{"role": "user", "content": prompt.user}]
         last: Exception | None = None
-        for _ in range(self.cfg.max_retries + 1):
+        fallback: T | None = None
+        attempts = 0
+        while attempts <= self.cfg.max_retries:
             res = self._call(purpose, game_id, prompt, messages, judge)
             try:
                 out = parse(model, res.text, repair)
-                result = apply(out)
+                hints = lint(out) if lint is not None and fallback is None else []
+                if hints:
+                    fallback = out
+                    errors = _problems_text(ValidationFailed("reminders", hints))
+                else:
+                    attempts += 1
+                    result = apply(out)
+                    self._mark(res, True)
+                    return result
             except OutputError as e:
+                attempts += 1
                 errors = str(e)
                 last = e
             except ValidationFailed as e:
+                attempts += 1
                 errors = _problems_text(e)
                 last = e
-            else:
-                self._mark(res, True)
-                return result
             self._mark(res, False)
             messages = [
                 *messages,
                 {"role": "assistant", "content": res.text or "（空）"},
                 {"role": "user", "content": RETRY_NOTE.format(errors=errors)},
             ]
+        if fallback is not None:
+            return apply(fallback)
         assert last is not None
         raise last
 
@@ -599,6 +615,7 @@ class KP:
                 apply,
                 judge=True,
                 repair=lambda raw: repair_adjudication(raw, owner),
+                lint=lambda adj: self.engine.untokened_entities(game_id, adj),
             )
         except (OutputError, ValidationFailed) as e:
             self._fail(game_id, e)  # 重试用尽：回合停在“待审核”，等管理员处理
