@@ -550,7 +550,7 @@ export function PlayPage() {
                 await err.run(() => call(api.PATCH("/api/handles/{ref}", { params: { path: { ref } }, body: { label, note } })));
                 void scene.refresh();
               }}
-              canTalk={status.data?.me === "act" || status.data?.me === "submitted"}
+              canTalk={status.data?.me === "act" || status.data?.me === "change" || status.data?.me === "submitted"}
               onTalk={startTalk}
             />
           )}

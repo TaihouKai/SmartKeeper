@@ -1023,7 +1023,7 @@ class Engine:
                 raise ValidationFailed("action.unresolved_reference", refs=list(intent.unresolved))
             if not intent.items:
                 raise ValidationFailed("action.empty")
-            idle = set(self.idle_entities(g.id, player_id))
+            idle = set(self.free_entities(g.id, player_id))
             if not idle:
                 raise IllegalState("action.busy")
             mine = set(self.controlled(g.id, player_id))
@@ -1636,7 +1636,7 @@ class Engine:
             g = self.game(p.game_id)
             if g.status != "running" or self.round(g.id).status != "collecting":
                 raise IllegalState("talk.not_now")
-            if from_entity not in self.idle_entities(g.id, player_id):
+            if from_entity not in self.free_entities(g.id, player_id):
                 raise IllegalState("talk.busy")
             space = self._space(g.id)
             if to_entity not in space.perceived_by(from_entity):
@@ -3677,6 +3677,54 @@ class Engine:
                     out.add(pid)
         return out
 
+    def _stopped_players(
+        self,
+        game_id: str,
+        round_no: int,
+        adj: Adjudication,
+        controls: Mapping[str, set[str]],
+        moved: set[str],
+        fired: Mapping[str, Sequence[str]],
+        changed_ops: Sequence[PatchOp],
+    ) -> set[str]:
+        """收到结果的玩家里，行动要到此结束的：KP 说他得停下来应对，或者他的角色被别人用了技能
+        （打中没打中都算）、被移动、角色卡被改、死了、踩到了设置物。其余的只是通知，行动照常继续。"""
+        listed = {u.seq for u in adj.uses}
+        mine_of = {e: pid for pid, ents in controls.items() for e in ents}
+        hit: set[str] = set()
+        for e in self.current_attempt(game_id, round_no):
+            p = e.payload
+            if e.type != "entry_used" or e.seq not in listed:
+                continue
+            target, source = p.get("target"), p.get("source")
+            if isinstance(target, str) and mine_of.get(target) != mine_of.get(str(source)):
+                hit.add(target)
+        hit |= moved | adjv.touched_entities(changed_ops)
+        hit |= {e for ents in fired.values() for e in ents}
+        out: set[str] = set()
+        for o in adj.outcomes:
+            mine = controls.get(o.player_id, set())
+            if o.interrupt or mine & hit:
+                out.add(o.player_id)
+        return out
+
+    def may_change(self, game_id: str, player_id: str) -> bool:
+        """上一轮收到了只是通知的结果、行动照常继续的玩家：这一轮可以改主意，新的安排替换还没做完的行动。"""
+        r = self.round(game_id)
+        acts = self.activities(game_id)
+        if r.status != "collecting" or not any(
+            e in acts for e in self.controlled(game_id, player_id)
+        ):
+            return False
+        fb = self._events.view_for(game_id, player_id, types=["feedback"])
+        return bool(fb) and fb[-1].payload.get("round") == r.no - 1
+
+    def free_entities(self, game_id: str, player_id: str) -> list[str]:
+        """这一轮能安排行动的实体：没有进行中行动的；能改主意的玩家是他的全部实体。"""
+        if self.may_change(game_id, player_id):
+            return list(self.controlled(game_id, player_id))
+        return self.idle_entities(game_id, player_id)
+
     @staticmethod
     def _items(acts: dict[str, Activity]) -> dict[str, adjv.ItemInfo]:
         """进行中的行动里的全部条目（包括前几轮确认、还没做完的）。"""
@@ -3931,10 +3979,13 @@ class Engine:
             cur = self._world.apply(cur, ops)
             groups.append(("kp_notes", ops))
         ops = [PatchOp(op="replace", path="/game_seconds", value=end)]
-        # 做完了的行动、收到结果的玩家的全部行动，到此结束
-        notified = outcome_players
+        # 做完了的行动到此结束；收到结果的玩家里要停下来应对的，全部行动到此结束；
+        # 只是察觉到了什么的，行动照常继续（下一轮可以自己改主意）
+        stopped = self._stopped_players(
+            game_id, r.no, adj, controls, kp_moved, fired, [*adj.state_patch, *death_ops]
+        )
         for eid, act in sorted(acts.items()):
-            if act.end <= end or act.player in notified:
+            if act.end <= end or act.player in stopped:
                 ops.append(PatchOp(op="remove", path=f"/activities/{eid}"))
         cur = self._world.apply(cur, ops)
         groups.append(("time", ops))

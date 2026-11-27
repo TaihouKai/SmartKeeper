@@ -359,7 +359,7 @@ function KpComposer({
   onChanged: () => void;
 }) {
   const { t } = useI18n();
-  const collecting = status?.game_status === "running" && (status.me === "act" || status.me === "submitted");
+  const collecting = status?.game_status === "running" && (status.me === "act" || status.me === "change" || status.me === "submitted");
   const busy = status?.game_status === "running" && status.me === "busy";
   const [mode, setMode] = useState<"act" | "ask">("act");
   const [question, setQuestion] = useState("");
@@ -386,6 +386,7 @@ function KpComposer({
       {mode === "act" ? (
         <>
           {busy && <p className="pl-note">{t("kp.busy")}</p>}
+          {status?.me === "change" && <p className="pl-note">{t("kp.may_change")}</p>}
           {status?.me === "submitted" && myDecl && (
             <p className="pl-note">
               {t("kp.submitted_already")} {prettyMentions(String(myDecl.payload.text ?? ""))}

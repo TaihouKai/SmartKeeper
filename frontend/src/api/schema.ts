@@ -4236,7 +4236,7 @@ export interface components {
              * Me
              * @enum {string}
              */
-            me: "act" | "submitted" | "busy" | "idle";
+            me: "act" | "change" | "submitted" | "busy" | "idle";
             /** Start Time */
             start_time: string | null;
         };

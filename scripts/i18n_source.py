@@ -1009,6 +1009,7 @@ T: dict[str, tuple[str, str]] = {
     "status.me.act": ("轮到你行动", "Your move"),
     "status.me.submitted": ("已提交，等待结算", "Submitted, waiting"),
     "status.me.busy": ("你的行动进行中", "Your action is under way"),
+    "status.me.change": ("行动照常进行，可以改主意", "Your action carries on; you may change it"),
     "status.me.idle": ("等待开始", "Waiting"),
     "time.s": ("{s} 秒", "{s}s"),
     "time.ms": ("{m} 分 {s} 秒", "{m}m {s}s"),
@@ -1260,6 +1261,10 @@ T: dict[str, tuple[str, str]] = {
         'Write what your character does next ("I …"). It is parsed for you to confirm, with an estimate of how long it takes; you can resubmit until it starts. Once under way it can\'t be changed until it finishes or something interrupts it. Only confirmed actions change the world.',
     ),
     "kp.submitted_already": ("已提交：", "Submitted:"),
+    "kp.may_change": (
+        "你的行动还在进行，刚收到的消息没有打断它。想改主意就重新安排（替换掉还没做完的部分）；不改就照原样继续，不用提交。",
+        "Your action is still under way; the news didn't interrupt it. To change your mind, plan again (it replaces what's left); otherwise it simply carries on, no need to submit.",
+    ),
     "kp.busy": (
         "你的行动还在进行。行动做完、或者发生了和你有关的事时会通知你；在那之前不能改变行动。",
         "Your action is still under way. You'll be told when it finishes or something affects you; until then it can't be changed.",

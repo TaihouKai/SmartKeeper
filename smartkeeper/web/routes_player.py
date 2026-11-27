@@ -82,7 +82,7 @@ class StatusOut(BaseModel):
     game_seconds: int  # 自己的时间：上一次收到消息时的游戏内时刻
     start_time: str | None
     # act：轮到我行动；submitted：已提交，等结算；busy：我的行动还在进行
-    me: Literal["act", "submitted", "busy", "idle"]
+    me: Literal["act", "change", "submitted", "busy", "idle"]
 
 
 class RulesOut(BaseModel):
@@ -303,12 +303,15 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         g = e.game(p.game_id)
         meta = split_front_matter(g.scenario_public)[0]
         start = meta.get("start_time")
-        me: Literal["act", "submitted", "busy", "idle"] = "idle"
+        me: Literal["act", "change", "submitted", "busy", "idle"] = "idle"
         if g.status == "running":
-            if not e.idle_entities(g.id, p.id):
+            if not e.free_entities(g.id, p.id):
                 me = "busy"
             elif p.id in e.declarations(g.id) or e.round(g.id).status != "collecting":
                 me = "submitted"
+            elif not e.idle_entities(g.id, p.id):
+                # 行动还在进行，刚收到的消息没有打断它：想改主意可以重新安排，不改就照原样继续
+                me = "change"
             else:
                 me = "act"
         return StatusOut(
@@ -687,7 +690,7 @@ def build_player_router(s: Services, require_player: Callable[..., Player]) -> A
         if body.from_ is not None:
             mine = e.entity_for_ref(p.id, body.from_)
         else:
-            idle = e.idle_entities(p.game_id, p.id)
+            idle = e.free_entities(p.game_id, p.id)
             if not idle:
                 raise HTTPException(status_code=409, detail={"code": "talk.busy"})
             mine = idle[0]

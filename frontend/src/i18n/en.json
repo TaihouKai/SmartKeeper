@@ -1149,6 +1149,7 @@
     "estimate": "Estimated time {total}",
     "insert_mention": "Insert @…",
     "item_time": "travel {move} + action {act}",
+    "may_change": "Your action is still under way; the news didn't interrupt it. To change your mind, plan again (it replaces what's left); otherwise it simply carries on, no need to submit.",
     "mode_act": "Act",
     "mode_ask": "Ask",
     "parse": "Parse",
@@ -1856,6 +1857,7 @@
     "me": {
       "act": "Your move",
       "busy": "Your action is under way",
+      "change": "Your action carries on; you may change it",
       "idle": "Waiting",
       "submitted": "Submitted, waiting"
     },

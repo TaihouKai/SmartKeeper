@@ -1187,3 +1187,51 @@ def test_travel_left_is_worked_out_by_the_engine() -> None:
     meters, secs = timeline.travel_left(act, 40) or (0.0, 0)
     assert round(meters) == 300 and secs == 60
     assert timeline.travel_left(act, 100) is None
+
+
+def test_noticing_something_tells_the_player_without_stopping_the_action() -> None:
+    """只是察觉到了什么（有人走进感知范围）：收到结果，但行动照常继续；下一轮可以改主意，不改就不用提交。"""
+    t = setup_table("single", 2)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e1 = t.entities(p1)[0]
+    apart(t)
+    wait(t, p1, 3000)
+    walk(t, p0, Point(x=180, y=180))  # 走到 p1 身边
+    e.close_round(g)
+    publish(t, only=[p0, p1])
+    assert [x for x in e.view_for(g, p1) if x.type == "feedback"]
+    assert e1 in e.activities(g)  # 行动还在
+    assert e.required_players(g) == [p0]  # 回合不等他
+    assert e.may_change(g, p1)
+    # 他改主意：新的安排替换掉还没做完的行动
+    wait(t, p1, 20)
+    wait(t, p0, 60)
+    e.close_round(g)
+    assert e.activities(g)[e1].end - e.activities(g)[e1].start == 20
+
+
+def test_interrupt_or_being_targeted_stops_the_action() -> None:
+    """KP 说他得停下来应对（interrupt），行动到此结束。"""
+    t = setup_table("single", 2)
+    e, g = t.engine, t.game_id
+    p0, p1 = t.players
+    e1 = t.entities(p1)[0]
+    apart(t)
+    wait(t, p1, 3000)
+    walk(t, p0, Point(x=180, y=180))
+    e.close_round(g)
+    adj = t.simple_adjudication(only=[p0, p1])
+    adj = adj.model_copy(
+        update={
+            "outcomes": tuple(
+                o.model_copy(update={"interrupt": o.player_id == p1}) for o in adj.outcomes
+            )
+        }
+    )
+    e.apply_adjudication(g, adj)
+    for o in adj.outcomes:
+        e.set_feedback_draft(g, o.player_id, "fb")
+    e.publish_round(g)
+    assert e1 not in e.activities(g)
+    assert p1 in e.required_players(g) and not e.may_change(g, p1)

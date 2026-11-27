@@ -26,6 +26,10 @@ class Outcome(Frozen):
     resolves: tuple[str, ...] = ()
     result: str
     observations: tuple[str, ...] = ()
+    # 他必须停下来应对（被搭话、被拦住去路、出了他不能不管的事）：行动到此结束。
+    # 不写时只是通知（察觉到有人进出、听到动静），行动照常继续，玩家可以自己改主意。
+    # 被攻击、被移动、角色卡被改、踩到设置物时引擎自己让他停下，不看这一项。
+    interrupt: bool = False
 
 
 class Encounter(Frozen):
