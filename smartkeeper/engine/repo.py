@@ -156,6 +156,17 @@ class Repo:
         with self.db.begin() as c:
             c.execute(game.update().where(game.c.id == game_id).values(**values))
 
+    def delete_rounds(self, game_id: str) -> None:
+        with self.db.begin() as c:
+            c.execute(round_.delete().where(round_.c.game_id == game_id))
+
+    def delete_game(self, game_id: str) -> None:
+        """删掉一局和它的回合、玩家（事件、代号、记事由各自的模块删）。"""
+        with self.db.begin() as c:
+            c.execute(round_.delete().where(round_.c.game_id == game_id))
+            c.execute(player.delete().where(player.c.game_id == game_id))
+            c.execute(game.delete().where(game.c.id == game_id))
+
     def games_using(self, pack_id: str, version: int) -> list[str]:
         with self.db.connect() as c:
             rows = c.execute(

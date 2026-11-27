@@ -522,6 +522,24 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
 
     # ---------------- 维护：强制结算、出错停下的一轮接着跑 ----------------
 
+    @guarded.post("/games/{game_id}/restart")
+    def restart_game(game_id: str) -> Game:
+        """重新开始整局（测试用）：开场以后的一切都删掉，回到建角阶段末尾；玩家和通过的角色卡保留。"""
+        opened = e.opening_event(game_id)
+        g = e.restart_game(game_id)
+        if opened is not None:
+            s.chat.delete(game_id, since=opened.created_at.isoformat())
+        openings.pop(game_id, None)
+        return g
+
+    @guarded.delete("/games/{game_id}")
+    def delete_game(game_id: str) -> OkOut:
+        """删除一局（只能删结束了的）。"""
+        e.delete_game(game_id)
+        s.chat.delete(game_id)
+        openings.pop(game_id, None)
+        return OkOut()
+
     @guarded.post("/games/{game_id}/round/close")
     def force_close(game_id: str, bg: BackgroundTasks) -> OkOut:
         """强制结算这一轮：没交行动的玩家本轮视为没有行动（管理员的维护操作，引擎不会自己这么做）。"""

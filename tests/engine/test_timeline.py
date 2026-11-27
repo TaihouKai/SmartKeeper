@@ -1280,3 +1280,31 @@ def test_a_character_finishing_does_not_cut_off_the_players_other_characters() -
     acts = e.activities(g)
     assert first not in acts and second in acts  # 第二个角色的话照样说完
     assert p0 in e.required_players(g)
+
+
+def test_restart_goes_back_to_before_the_opening_and_delete_removes_an_ended_game() -> None:
+    """重新开始整局：开场以后的事件、回合、代号都删掉，回到建角阶段末尾，角色卡还在，可以再开场；
+    删除：只能删结束了的局，删了就找不到了。"""
+    from smartkeeper.contracts import NotFound, Opening
+
+    t = setup_table("single", 2)
+    e, g = t.engine, t.game_id
+    for p in t.players:
+        wait(t, p, 10)
+    t.play_round()
+    assert e.game(g).current_round == 2
+    with pytest.raises(IllegalState):
+        e.delete_game(g)  # 还没结束
+    e.restart_game(g)
+    assert e.game(g).status == "characters" and e.game(g).current_round == 0
+    assert all(e.character_status(p) == "approved" for p in t.players)
+    assert not [x for x in e.view_for(g, t.players[0]) if x.type in ("broadcast", "feedback")]
+    assert not e.handles(t.players[0])
+    ents = e.world_state(g)["entities"]
+    assert all(ents[x]["pos"] is None for x in t.entities(t.players[0]))  # type: ignore[index]
+    e.start_game(g, Opening(broadcast="Again.", messages={p: "hi" for p in t.players}))
+    assert e.game(g).status == "running" and e.game(g).current_round == 1
+    e.end_game(g)
+    e.delete_game(g)
+    with pytest.raises(NotFound):
+        e.game(g)

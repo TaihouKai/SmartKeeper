@@ -61,6 +61,14 @@ class SqlEventLog:
         self._lock = threading.Lock()
         metadata.create_all(db)
 
+    def truncate(self, game_id: str, from_seq: int) -> None:
+        with self._lock, self._db.begin() as c:
+            c.execute(event.delete().where(event.c.game_id == game_id, event.c.seq >= from_seq))
+
+    def delete_game(self, game_id: str) -> None:
+        with self._lock, self._db.begin() as c:
+            c.execute(event.delete().where(event.c.game_id == game_id))
+
     def append(self, game_id: str, round_no: int, events: Sequence[NewEvent]) -> list[Event]:
         if not events:
             return []

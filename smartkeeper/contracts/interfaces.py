@@ -62,6 +62,14 @@ class EventLog(Protocol):
 
     def get(self, game_id: str, seq: int) -> Event | None: ...
 
+    def truncate(self, game_id: str, from_seq: int) -> None:
+        """删掉这一局 seq >= from_seq 的事件（管理员重新开始整局时用；平时只追加）。"""
+        ...
+
+    def delete_game(self, game_id: str) -> None:
+        """删掉这一局的全部事件（管理员删除结束了的局时用）。"""
+        ...
+
 
 class RulePackStore(Protocol):
     """规则包的存储与版本。版本不可变。"""
@@ -435,3 +443,7 @@ class HandleStore(Protocol):
     ) -> Handle: ...
 
     def set_note(self, player_id: str, entity_id: str, note: str) -> Handle: ...
+
+    def delete_players(self, player_ids: Sequence[str]) -> None:
+        """删掉这些玩家的全部代号（重新开始或删除一局时用）。"""
+        ...

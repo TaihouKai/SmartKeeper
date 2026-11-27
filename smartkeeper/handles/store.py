@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import secrets
 import threading
+from collections.abc import Sequence
 from typing import Any
 
 import sqlalchemy as sa
@@ -52,6 +53,12 @@ class SqlHandleStore:
     def _one(self, c: sa.Connection, *where: Any) -> Handle | None:
         row = c.execute(sa.select(handle).where(*where)).first()
         return _h(row._mapping) if row is not None else None  # pyright: ignore[reportPrivateUsage]
+
+    def delete_players(self, player_ids: Sequence[str]) -> None:
+        if not player_ids:
+            return
+        with self._lock, self._db.begin() as c:
+            c.execute(handle.delete().where(handle.c.player_id.in_(list(player_ids))))
 
     def get(self, player_id: str, entity_id: str) -> Handle | None:
         with self._db.connect() as c:

@@ -59,6 +59,7 @@ button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); b
 button:disabled { opacity: 0.5; cursor: default; }
 .sk-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .sk-link { border: none; background: none; color: var(--accent); padding: 2px 4px; }
+.sk-danger { background: var(--warn); color: #fff; border-color: var(--warn); }
 .sk-top { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .sk-top h1 { flex: 1; }
 .sk-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--line); margin: 8px 0; position: sticky; top: 0; background: var(--bg); z-index: 5; }

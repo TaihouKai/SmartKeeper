@@ -285,6 +285,51 @@ class Engine:
         self._repo.insert_game(g, _now())
         return g
 
+    def opening_event(self, game_id: str) -> Event | None:
+        """开场写下的第一个事件（它之前是建角阶段）；还没开场是 None。"""
+        for e in self._events.view_for(game_id, KP):
+            if (
+                e.round_no >= 1
+                or e.type == "broadcast"
+                or (e.type == "state_patch" and e.payload.get("cause") == "opening")
+                or (e.type == "pm_kp" and e.payload.get("kind") == "opening")
+            ):
+                return e
+        return None
+
+    def restart_game(self, game_id: str) -> Game:
+        """管理员重新开始整局：开场以后的一切（事件、回合、代号、记事）都删掉，回到建角阶段的末尾。
+        玩家、邀请链接、审核通过的角色卡保留，管理员再点开始就重新开场。KP 正在裁定时不行。"""
+        with self._lock:
+            g = self.game(game_id)
+            if g.status not in ("running", "ended"):
+                raise IllegalState("game.not_started")
+            if g.current_round and self.round(game_id).status == "adjudicating":
+                raise IllegalState("game.round_in_progress")
+            cut = self.opening_event(game_id)
+            if cut is not None:
+                self._events.truncate(game_id, cut.seq)
+            self._repo.delete_rounds(game_id)
+            self._handles.delete_players([p.id for p in self._repo.players(game_id)])
+            self._memory.clear(game_id)
+            self._repo.update_game(game_id, status="characters", current_round=0)
+            self._state_cache.pop(game_id, None)
+            self._view_cache.clear()
+            return self.game(game_id)
+
+    def delete_game(self, game_id: str) -> None:
+        """管理员删除一局（只能删结束了的）：事件、回合、玩家、代号、记事一起删掉。"""
+        with self._lock:
+            g = self.game(game_id)
+            if g.status != "ended":
+                raise IllegalState("game.not_ended")
+            self._handles.delete_players([p.id for p in self._repo.players(game_id)])
+            self._memory.clear(game_id)
+            self._events.delete_game(game_id)
+            self._repo.delete_game(game_id)
+            self._state_cache.pop(game_id, None)
+            self._view_cache.clear()
+
     def update_settings(self, game_id: str, settings: GameSettings) -> Game:
         self._repo.update_game(game_id, settings=settings)
         return self.game(game_id)

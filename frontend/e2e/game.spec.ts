@@ -221,4 +221,15 @@ test("admin console login and panels render", async ({ page }) => {
   await page.getByText("adjudicate").first().click();
   await expect(page.getByText("System prompt")).toBeVisible();
   await shot(page, "admin-llm");
+  // 重新开始整局（点两下），回到开局之前、可以再开始；结束以后可以删除本局（也点两下）
+  await page.getByRole("button", { name: "Games" }).click();
+  await page.locator(".sk-chip", { hasText: "e2e" }).first().click();
+  await page.getByRole("button", { name: "Restart the whole game" }).click();
+  await page.getByRole("button", { name: "Yes, restart" }).click();
+  await expect(page.getByRole("button", { name: "Start the game (keeper opening)" })).toBeVisible({ timeout: 10_000 });
+  await shot(page, "admin-restarted");
+  await page.getByRole("button", { name: "End the game" }).click();
+  await page.getByRole("button", { name: "Delete this game" }).click();
+  await page.getByRole("button", { name: "Yes, delete" }).click();
+  await expect(page.locator(".sk-chip", { hasText: "e2e" })).toHaveCount(0, { timeout: 10_000 });
 });

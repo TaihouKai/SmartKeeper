@@ -166,6 +166,8 @@ export function GamesPanel({ selected, onSelect }: { selected: string | null; on
   const detail = usePoll(async () => (selected ? call(api.GET("/api/admin/games/{game_id}", { params: { path: { game_id: selected } } })) : null), 10_000, [selected]);
   const [invite, setInvite] = useState("");
   const [links, setLinks] = useState<{ name: string; url: string }[]>([]);
+  // 重新开始、删除要点两下：第一下只是亮出“确定”
+  const [confirming, setConfirming] = useState<"restart" | "delete" | null>(null);
   const act = useAction();
   const d = detail.data;
   const gid = selected ?? "";
@@ -242,6 +244,32 @@ export function GamesPanel({ selected, onSelect }: { selected: string | null; on
             )}
             {d.game.status !== "ended" && (
               <button className="sk-link" onClick={() => void act.run(async () => { await call(api.PATCH("/api/admin/games/{game_id}", { params: { path: { game_id: gid } }, body: { action: "end" } })); refresh(); })}>{t("games.end")}</button>
+            )}
+            {(d.game.status === "running" || d.game.status === "ended") && d.round?.status !== "adjudicating" && (
+              <div className="sk-row">
+                {confirming === "restart" ? (
+                  <>
+                    <span className="sk-hint">{t("games.restart_confirm")}</span>
+                    <button className="sk-danger" onClick={() => void act.run(async () => { await call(api.POST("/api/admin/games/{game_id}/restart", { params: { path: { game_id: gid } } })); setConfirming(null); refresh(); })}>{t("games.restart_yes")}</button>
+                    <button className="sk-link" onClick={() => setConfirming(null)}>{t("games.cancel")}</button>
+                  </>
+                ) : (
+                  <button onClick={() => setConfirming("restart")}>{t("games.restart")}</button>
+                )}
+              </div>
+            )}
+            {d.game.status === "ended" && (
+              <div className="sk-row">
+                {confirming === "delete" ? (
+                  <>
+                    <span className="sk-hint">{t("games.delete_confirm")}</span>
+                    <button className="sk-danger" onClick={() => void act.run(async () => { await call(api.DELETE("/api/admin/games/{game_id}", { params: { path: { game_id: gid } } })); setConfirming(null); onSelect(""); void games.refresh(); })}>{t("games.delete_yes")}</button>
+                    <button className="sk-link" onClick={() => setConfirming(null)}>{t("games.cancel")}</button>
+                  </>
+                ) : (
+                  <button className="sk-link" onClick={() => setConfirming("delete")}>{t("games.delete")}</button>
+                )}
+              </div>
             )}
           </div>
         </>

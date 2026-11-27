@@ -41,6 +41,14 @@ class SqlChatStore:
         self._db = db
         metadata.create_all(db)
 
+    def delete(self, game_id: str, since: str | None = None) -> None:
+        """删掉这一局的私聊（since：只删这个时刻以后的，ISO 时间）。重新开始或删除一局时用。"""
+        q = chat_message.delete().where(chat_message.c.game_id == game_id)
+        if since is not None:
+            q = q.where(chat_message.c.created_at >= since)
+        with self._db.begin() as c:
+            c.execute(q)
+
     def post(self, game_id: str, sender: str, recipient: str, text: str) -> ChatMessage:
         if not text.strip() or len(text) > MAX_TEXT:
             raise ValidationFailed("text.length", max=MAX_TEXT)

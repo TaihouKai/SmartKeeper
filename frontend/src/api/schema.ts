@@ -105,7 +105,11 @@ export interface paths {
         get: operations["game_api_admin_games__game_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Game
+         * @description 删除一局（只能删结束了的）。
+         */
+        delete: operations["delete_game_api_admin_games__game_id__delete"];
         options?: never;
         head?: never;
         /** Patch Game */
@@ -191,6 +195,26 @@ export interface paths {
         get: operations["llm_calls_api_admin_games__game_id__llm_calls_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/games/{game_id}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart Game
+         * @description 重新开始整局（测试用）：开场以后的一切都删掉，回到建角阶段末尾；玩家和通过的角色卡保留。
+         */
+        post: operations["restart_game_api_admin_games__game_id__restart_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4608,6 +4632,37 @@ export interface operations {
             };
         };
     };
+    delete_game_api_admin_games__game_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     patch_game_api_admin_games__game_id__patch: {
         parameters: {
             query?: never;
@@ -4796,6 +4851,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LLMCallRecord"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restart_game_api_admin_games__game_id__restart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Game"];
                 };
             };
             /** @description Validation Error */
