@@ -119,7 +119,7 @@ from smartkeeper.engine import entries as entry_refs
 from smartkeeper.engine.applier import StepApplier
 from smartkeeper.engine.duel import Duel, Side, Strike
 from smartkeeper.engine.duel import Result as DuelResult
-from smartkeeper.engine.mentions import find_mentions, replace_mentions
+from smartkeeper.engine.mentions import find_mentions, link_labels, replace_mentions
 from smartkeeper.engine.placements import (
     inside_tags,
     perceived_placements,
@@ -1050,7 +1050,9 @@ class Engine:
             actor=KP if from_kp else player_id,
             visibility=Visibility.to(player_id),
             payload={
-                "text": self._link_places(g.id, _text(text)) if from_kp else _text(text),
+                "text": self._link_people(player_id, self._link_places(g.id, _text(text)))
+                if from_kp
+                else _text(text),
                 "from": "kp" if from_kp else "player",
                 "kind": "chat",
             },
@@ -1443,7 +1445,9 @@ class Engine:
                     actor=KP,
                     visibility=Visibility.to(player_id),
                     payload={
-                        "text": self._link_places(game_id, _text(result)),
+                        "text": self._link_people(
+                            player_id, self._link_places(game_id, _text(result))
+                        ),
                         "action": _text(action_text),
                     },
                 )
@@ -4653,7 +4657,10 @@ class Engine:
                         actor=KP,
                         visibility=Visibility.to(o.player_id),
                         payload={
-                            "text": self._link_places(game_id, str(feedback[o.player_id]), final),
+                            "text": self._link_people(
+                                o.player_id,
+                                self._link_places(game_id, str(feedback[o.player_id]), final),
+                            ),
                             "round": r.no,
                             "game_seconds": seconds,
                             **(
@@ -6182,6 +6189,10 @@ class Engine:
             have[pid] = new
             ops.append(PatchOp(op="add", path=f"/places/{pid}", value=new.model_dump(mode="json")))
         return ops, problems
+
+    def _link_people(self, player_id: str, text: str) -> str:
+        """给这个玩家的 KP 文字里写的 @代号 换成可以点的链接（指向他的代号，改名后跟着变）。"""
+        return link_labels(text, {h.label: h.ref for h in self._live_handles(player_id)})
 
     def _link_places(self, game_id: str, text: str, state: State | None = None) -> str:
         """KP 文字里的 {{place:名字}} 换成可以点的链接。"""

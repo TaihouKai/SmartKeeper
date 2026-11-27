@@ -244,3 +244,24 @@ def test_feedback_writer_sees_the_looks_of_who_it_writes_about() -> None:
         assert "性别" in prompt  # 写作要求里有按外观写人称
     own = [g.engine.appearance_of(g.game_id, e) for p in g.players for e in g.ents(p)]
     assert any(a and any(a in p for p in seen) for a in own)
+
+
+def test_people_in_kp_text_link_to_the_players_handles_and_the_kp_sees_plain_labels() -> None:
+    """反馈里写的 @代号 发给玩家时变成指向他代号的链接（界面上能点、改名跟着变）；KP 那边看到的还是 @代号。"""
+    g = new_game(2)
+    pid = g.players[0]
+    h = g.engine.handles(pid)[0]
+    label, ref = h.label, h.ref
+    g.llm.on("feedback", lambda c: f"你看见@{label}站在路口。")
+    g.play_round()
+    fb = [x for x in g.engine.view_for(g.game_id, pid) if x.type == "feedback"][-1]
+    assert f"@[{label}]({ref})" in str(fb.payload["text"])
+    g.llm.on("chat", lambda c: f"那是@{label}。")
+    g.engine.post_kp_chat(pid, "刚才那是谁？")
+    g.kp.answer_chat(pid)
+    reply = [x for x in g.engine.view_for(g.game_id, pid) if x.type == "pm_kp"][-1]
+    assert reply.actor == KP and f"@[{label}]({ref})" in str(reply.payload["text"])
+    g.play_round()
+    assert f"那是@{label}。" in g.llm.by_purpose("adjudicate")[-1].prompt
+    for c in g.llm.calls:
+        assert f"]({ref})" not in c.prompt

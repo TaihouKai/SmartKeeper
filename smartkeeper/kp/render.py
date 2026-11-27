@@ -40,7 +40,13 @@ def _compact(v: JsonValue) -> str:
 _PLACE_LINK = re.compile(r"\[([^\]\n]{1,80})\]\((?:place|feature):[A-Za-z0-9_.-]{1,80}\)")
 
 
+# 引擎写进给玩家的消息里的 @[代号](ref)：给 KP 看时只留 @代号
+_PERSON_LINK = re.compile(r"@\[([^\]\n]{1,80})\]\([A-Za-z0-9_\-]{1,80}\)")
+
+
 def place_tokens(text: str) -> str:
+    """消息里的链接换回 KP 自己的写法：地点 {{place:名字}}，提到的人 @代号。"""
+    text = _PERSON_LINK.sub(lambda m: "@" + m.group(1), text)
     return _PLACE_LINK.sub(lambda m: "{{place:" + m.group(1) + "}}", text)
 
 

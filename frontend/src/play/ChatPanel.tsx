@@ -5,7 +5,7 @@ import { ErrorBox, formatGameTime } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { Markdown } from "../ui/markdown";
 import { ActionPanel } from "./ActionPanel";
-import { PlaceText, type PlaceTarget } from "./PlaceText";
+import { PlaceText, type PersonTarget, type PlaceTarget } from "./PlaceText";
 import { filterMentions, insertMention, mentionQuery } from "./mention";
 import { describeEvent, prettyMentions, type Ev } from "./events";
 
@@ -74,9 +74,11 @@ export function ChatPanel({
   onChanged,
   places,
   onPlace,
+  onPerson,
 }: {
   places: { id: string; name: string }[];
   onPlace: (p: PlaceTarget) => void;
+  onPerson: (p: PersonTarget) => void;
   events: Ev[];
   status: Schemas["StatusOut"] | null;
   talks: Talk[];
@@ -95,6 +97,8 @@ export function ChatPanel({
   const [extraDm, setExtraDm] = useState<string[]>([]);
   const [marks, mark] = useReadMarks();
 
+  // 消息里提到的人：我现在对他们的叫法（自己的角色、见过的、身边的）
+  const people = useMemo(() => mentionables.filter((m) => !m.ref.includes(":")).map((m) => ({ ref: m.ref, label: m.label })), [mentionables]);
   const kpEvents = events.filter((e) => !BROADCAST_TYPES.has(e.type) && !HIDDEN_TYPES.has(e.type));
   const bcEvents = events.filter((e) => BROADCAST_TYPES.has(e.type));
   const messages: Msg[] = dms.data ?? [];
@@ -216,7 +220,7 @@ export function ChatPanel({
                   {b.when && <span className="pl-when">{b.when}</span>}
                 </div>
               )}
-              <div className="pl-bubble">{b.md ? <Markdown text={b.body} /> : <PlaceText text={b.body} places={places} onOpen={onPlace} />}</div>
+              <div className="pl-bubble">{b.md ? <Markdown text={b.body} /> : <PlaceText text={b.body} places={places} onOpen={onPlace} people={people} onPerson={onPerson} />}</div>
               {b.quote !== undefined && !b.mine && b.tone !== "sys" && (
                 <button type="button" className="sk-link pl-quote" onClick={() => quote(b.quote!)}>
                   {t("event.quote")}

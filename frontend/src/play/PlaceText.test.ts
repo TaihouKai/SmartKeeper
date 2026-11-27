@@ -26,6 +26,23 @@ describe("splitPlaces", () => {
     expect(splitPlaces("[教会](place:place_1)", PLACES)).toEqual([{ kind: "place", id: "place_1", name: "教会" }]);
   });
 
+  it("turns mentions into people, and known @labels in plain text too", () => {
+    const people = [{ ref: "h1", label: "黑衣神父" }];
+    expect(splitPlaces("看见@[黑衣神父](h1)和@[x](point:1.5,-2,0)，又见@黑衣神父。", [], people)).toEqual([
+      "看见",
+      { kind: "entity", ref: "h1", name: "黑衣神父" },
+      "和",
+      "@x",
+      "，又见",
+      { kind: "entity", ref: "h1", name: "黑衣神父" },
+      "。",
+    ]);
+  });
+
+  it("keeps brackets that are not links as text", () => {
+    expect(splitPlaces("[注](abc)", [])).toEqual(["[注](abc)"]);
+  });
+
   it("leaves text without places alone", () => {
     expect(splitPlaces("什么都没有", PLACES)).toEqual(["什么都没有"]);
   });

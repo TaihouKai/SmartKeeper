@@ -53,6 +53,16 @@ def find_mentions(text: str) -> list[Mention]:
     return [Mention(m.group(1), m.group(2), m.start(), m.end()) for m in MENTION.finditer(text)]
 
 
+def link_labels(text: str, refs: dict[str, str]) -> str:
+    """给玩家的消息里写的 `@代号` 换成 `@[代号](ref)`（refs：代号 -> ref，长的代号优先），
+    界面上就能点，玩家改了代号也跟着显示新的。已经是链接的不动。"""
+    labels = sorted((x for x in refs if x), key=len, reverse=True)
+    if "@" not in text or not labels:
+        return text
+    pat = re.compile("@(" + "|".join(re.escape(x) for x in labels) + ")")
+    return pat.sub(lambda m: f"@[{m.group(1)}]({refs[m.group(1)]})", text)
+
+
 def replace_mentions(text: str, labels: dict[str, str]) -> str:
     """把 `@[x](ref)` 换成 `@<labels[ref]>`；labels 里没有的 ref 保留原文字。"""
 

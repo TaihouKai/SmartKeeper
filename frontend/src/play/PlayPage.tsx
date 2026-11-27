@@ -569,6 +569,7 @@ export function PlayPage() {
           onChanged={refresh}
           places={scene.data?.places ?? []}
           onPlace={(p) => void err.run(() => openPlace(p))}
+          onPerson={(p) => onPick({ kind: "entity", ref: p.ref, label: p.name })}
         />
       </div>
       {sheetOpen && (

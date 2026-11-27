@@ -12,9 +12,10 @@ export function prettyMentions(text: string): string {
   return text.replace(MENTION, (_m, label: string) => `@${label}`);
 }
 
+/** 事件的原文（@ 提到的人和地方保留链接写法，显示时再决定怎么画）。 */
 export function eventText(e: Ev): string {
   const text = e.payload.text;
-  return typeof text === "string" ? prettyMentions(text) : "";
+  return typeof text === "string" ? text : "";
 }
 
 /** 一条事件写成什么：谁说的、内容、内容是不是 Markdown、样式（反馈、行动、系统消息……）。 */
@@ -115,7 +116,9 @@ export function describeEvent(e: Ev, t: (k: string, p?: Record<string, string>) 
 /** 一条事件的显示：系统事件用消息代码渲染，其余显示原文。可选“引用”按钮。 */
 export function EventRow({ e, onQuote }: { e: Ev; onQuote?: (seq: number) => void }) {
   const { t } = useI18n();
-  const { who, body, md, cls } = describeEvent(e, t);
+  const d = describeEvent(e, t);
+  const { who, md, cls } = d;
+  const body = prettyMentions(d.body);
   return (
     <div className={cls}>
       {who && <span className="who">{who}</span>}
