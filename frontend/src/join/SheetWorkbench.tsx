@@ -382,7 +382,7 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
                         {b}
                       </span>
                     ))}
-                    <Clamp text={p?.description ?? ""} />
+                    <Clamp text={edits[pname]?.description ?? p?.description ?? ""} />
                   </div>
                   <div className="cf-item-actions">
                     <button type="button" onClick={() => setViewing(pname)}>
@@ -468,6 +468,7 @@ function GroupPanel({ template, g, value, onChange, preview, params, checks }: {
         <PresetView
           template={template.name}
           p={(g.presets ?? []).find((x) => x.name === viewing)!}
+          edit={edits[viewing]}
           g={g}
           defaults={params.filter((x) => (x.groups ?? []).includes(g.name))}
           canCopy={canAdd}
@@ -540,15 +541,37 @@ function RefTag({ template, id }: { template: string; id: string }) {
   );
 }
 
-function PresetView({ template, p, g, defaults, canCopy, onCopy, onClose }: { template: string; p: Schemas["GroupPreset"]; g: Group; defaults: readonly Schemas["PackParam"][]; canCopy: boolean; onCopy: (p: Schemas["GroupPreset"]) => void; onClose: () => void }) {
+/** 查看一个固定条目：玩家改过的（edit）就按改过的显示，改过的部分标“已修改”，规则书原文折叠在下面。 */
+function PresetView({ template, p: base, edit, g, defaults, canCopy, onCopy, onClose }: { template: string; p: Schemas["GroupPreset"]; edit?: PresetEdit; g: Group; defaults: readonly Schemas["PackParam"][]; canCopy: boolean; onCopy: (p: Schemas["GroupPreset"]) => void; onClose: () => void }) {
   const { t } = useI18n();
+  const changed = (k: keyof PresetEdit) => edit !== undefined && edit[k] !== undefined;
+  const p: Schemas["GroupPreset"] = {
+    ...base,
+    ...(changed("description") ? { description: edit!.description } : {}),
+    ...(changed("config") ? { config: edit!.config } : {}),
+    ...(changed("bonus") ? { bonus: edit!.bonus, effects: [] } : {}),
+    ...(changed("script") ? { script: edit!.script } : {}),
+    ...(changed("params") ? { params: edit!.params as Schemas["GroupPreset"]["params"] } : {}),
+    ...(changed("uses") ? { uses: edit!.uses as unknown as Schemas["GroupPreset"]["uses"] } : {}),
+  };
   const cols = (g.fields ?? []).filter((c) => (p.fields ?? {})[c.name] !== undefined);
   const params = [...defaults, ...(p.params ?? [])];
-  const code = (title: string, text: string | undefined) =>
-    text && text.trim() ? (
+  const tag = (k: keyof PresetEdit) => (changed(k) ? <span className="cf-tag cf-tag-edited">{t("cf.modified")}</span> : null);
+  const original = (k: keyof PresetEdit, text: string | undefined) =>
+    changed(k) ? (
+      <details className="cf-original">
+        <summary>{t("cf.original")}</summary>
+        {!text || !text.trim() ? <p className="sk-hint">{t("cf.original_empty")}</p> : k === "description" ? <Described text={text} className="" /> : <pre className="sk-code">{text.trim()}</pre>}
+      </details>
+    ) : null;
+  const code = (title: string, text: string | undefined, k?: keyof PresetEdit, was?: string) =>
+    (text && text.trim()) || (k && changed(k)) ? (
       <>
-        <h4>{title}</h4>
-        <pre className="sk-code">{text.trim()}</pre>
+        <h4>
+          {title} {k && tag(k)}
+        </h4>
+        {text && text.trim() ? <pre className="sk-code">{text.trim()}</pre> : <p className="sk-hint">{t("cf.original_empty")}</p>}
+        {k && original(k, was)}
       </>
     ) : null;
   return (
@@ -571,7 +594,10 @@ function PresetView({ template, p, g, defaults, canCopy, onCopy, onClose }: { te
           {t("cf.ref")} <RefTag template={template} id={p.id} />
         </p>
       )}
+      {edit && <p className="sk-hint">{t("cf.view_modified")}</p>}
+      {changed("description") && <h4>{t("cf.description")} {tag("description")}</h4>}
       <Described text={p.description} className="cf-lead" />
+      {original("description", base.description)}
       {!p.config?.trim() && !p.script?.trim() && (p.uses ?? []).length === 0 && <p className="sk-hint">{t("rules.uses.kp_rules")}</p>}
       {cols.length > 0 && (
         <p>
@@ -582,12 +608,14 @@ function PresetView({ template, p, g, defaults, canCopy, onCopy, onClose }: { te
           ))}
         </p>
       )}
-      {code(t("character.config_simple"), p.config)}
-      {code(t("character.effects_simple"), p.bonus || toCode(p.effects ?? []))}
-      {code(t("character.script_simple"), p.script)}
+      {code(t("character.config_simple"), p.config, "config", base.config)}
+      {code(t("character.effects_simple"), p.bonus || toCode(p.effects ?? []), "bonus", base.bonus || toCode(base.effects ?? []))}
+      {code(t("character.script_simple"), p.script, "script", base.script)}
       {params.length > 0 && (
         <>
-          <h4>{t("cf.params")}</h4>
+          <h4>
+            {t("cf.params")} {tag("params")}
+          </h4>
           <ul>
             {params.map((x) => (
               <li key={x.name}>
@@ -600,6 +628,7 @@ function PresetView({ template, p, g, defaults, canCopy, onCopy, onClose }: { te
           </ul>
         </>
       )}
+      {changed("uses") && <h4>{t("rules.uses.title")} {tag("uses")}</h4>}
       {(p.uses ?? []).map((u) => (
         <div key={u.name}>
           <h4>

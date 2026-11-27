@@ -653,6 +653,13 @@ T: dict[str, tuple[str, str]] = {
         "This sheet was changed in another tab; reload the page",
     ),
     "cf.modified": ("已修改", "Modified"),
+    "cf.view_modified": (
+        "你改过这个条目：下面按改过的显示，改过的部分标着“已修改”，点“规则书原文”可以对照。",
+        'You changed this entry: it is shown as changed, with changed parts marked; open "Rulebook original" to compare.',
+    ),
+    "cf.original": ("规则书原文", "Rulebook original"),
+    "cf.original_empty": ("（空）", "(empty)"),
+    "cf.description": ("说明", "Description"),
     "cf.restore": ("恢复默认", "Restore default"),
     "cf.modify_title": ("修改：{name}", "Modify: {name}"),
     "cf.modify_hint": (

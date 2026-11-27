@@ -88,6 +88,7 @@
     "budget_used": "{used} of {total} used",
     "complete": "All filled in",
     "copy_this": "Copy this",
+    "description": "Description",
     "done": "Done",
     "edit": "Edit",
     "export_pdf": "Export PDF",
@@ -102,6 +103,8 @@
     "more": "More",
     "none_yet": "None yet: add one below.",
     "numbers": "Numbers",
+    "original": "Rulebook original",
+    "original_empty": "(empty)",
     "params": "Parameters chosen when used",
     "ref": "Reference:",
     "ref_hint": "Use this name in formulas and scripts: on its own it is whether the entry exists (1/0); add .column for one of its columns. Click to select and copy",
@@ -118,6 +121,7 @@
     "unnamed": "(unnamed)",
     "uses_n": "{n} uses",
     "view": "View",
+    "view_modified": "You changed this entry: it is shown as changed, with changed parts marked; open \"Rulebook original\" to compare.",
     "yours": "Your own"
   },
   "ch": {

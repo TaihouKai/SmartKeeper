@@ -333,6 +333,8 @@ tr.inactive { opacity: 0.5; }
 .lib-fields { display: grid; gap: 8px; max-width: 560px; }
 .cf-ref { font-size: 12px; padding: 0 6px; border-radius: 4px; background: var(--wb-sunken); border: 1px solid var(--line); user-select: all; cursor: text; }
 .cf-tag-edited { color: var(--accent, #b45309); border-color: currentColor; }
+.cf-original { margin: 4px 0 10px; }
+.cf-original summary { cursor: pointer; color: var(--muted, inherit); font-size: 13px; }
 
 /* 规则书总览 */
 .bk-nav { display: flex; gap: 18px; margin: 4px 0 8px; font-size: 15px; }
