@@ -1235,3 +1235,28 @@ def test_interrupt_or_being_targeted_stops_the_action() -> None:
     e.publish_round(g)
     assert e1 not in e.activities(g)
     assert p1 in e.required_players(g) and not e.may_change(g, p1)
+
+
+def test_before_and_while_moving_items() -> None:
+    """出发前做的排到最前；边走边做的和移动重叠，只算超出路程的部分；一起走的等同伴做完再一起出发。"""
+    t = setup_table("single", 2)
+    e, g = t.engine, t.game_id
+    p0 = t.players[0]
+    a = t.entities(p0)[0]
+    go = Location(pos=Point(x=50, y=-40))  # 100 米，50 秒
+    items = (
+        ActionItem(actor=a, verb="go", destination=go),
+        ActionItem(actor=a, verb="ask", act_seconds=3, when="before"),
+        ActionItem(actor=a, verb="chat", act_seconds=60, when="during"),
+        ActionItem(actor=a, verb="look", act_seconds=5),
+    )
+    intent = Intent(items=items)
+    # 3（先问）+ 50（路上聊了 50 秒）+ 10（到了接着聊完）+ 5
+    assert e.intent_seconds(g, intent) == 68
+    e.declare_action(p0, "x", intent)
+    wait(t, t.players[1], 600)
+    e.close_round(g)
+    act = e.activities(g)[a]
+    assert [s.move for s in act.steps] == [0, 50, 0, 0]
+    assert [s.act for s in act.steps] == [3, 0, 10, 5]
+    assert act.end - act.start == 68

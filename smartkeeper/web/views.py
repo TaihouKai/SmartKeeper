@@ -190,6 +190,7 @@ class EchoItem(BaseModel):
     move_seconds: int
     act_seconds: int
     entry: str | None = None  # 用的是哪个技能（没用技能是 None）
+    when: Literal["after", "before", "during"] = "after"  # 出发前做 / 边走边做 / 按顺序
 
 
 class ActionEcho(BaseModel):
@@ -253,11 +254,9 @@ def echo(
                 move_seconds=it.move_seconds,
                 act_seconds=it.act_seconds,
                 entry=it.entry,
+                when=it.when,
             )
         )
-    per_actor: dict[str, int] = {}
-    for it in intent.items:
-        per_actor[it.actor] = per_actor.get(it.actor, 0) + it.move_seconds + it.act_seconds
     return ActionEcho(
         parse_id=parse_id,
         text=text,
@@ -265,7 +264,7 @@ def echo(
         unresolved=list(intent.unresolved),
         conflict=intent.conflict,
         instant=engine.instant_ok_intent(game_id, player_id, intent),
-        total_seconds=max(per_actor.values(), default=0),
+        total_seconds=engine.intent_seconds(game_id, intent),
     )
 
 

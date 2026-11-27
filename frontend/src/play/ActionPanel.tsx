@@ -88,6 +88,7 @@ export function ActionPanel({
               {it.verb && <> · {it.verb}</>}
               {it.targets.length > 0 && <> → {it.targets.map((x) => (x.kind === "entity" ? `@${x.label}` : x.label || t("kp.a_point"))).join(", ")}</>}
               {it.destination && <> ⇒ {it.destination_label || t("kp.a_point")}</>}
+              {it.when !== "after" && <span className="sk-hint"> （{t(`plan.when.${it.when}`)}）</span>}
               {it.entry && <div className="pl-echo-skill">{t("skill.echo", { name: it.entry })}</div>}
               <div className="sk-hint">{t("kp.item_time", { move: formatDuration(t, it.move_seconds), act: formatDuration(t, it.act_seconds) })}</div>
               {it.detail && <div className="sk-hint">{prettyMentions(it.detail)}</div>}

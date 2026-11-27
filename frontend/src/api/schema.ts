@@ -2076,6 +2076,12 @@ export interface components {
             targets: components["schemas"]["EchoTarget"][];
             /** Verb */
             verb: string;
+            /**
+             * When
+             * @default after
+             * @enum {string}
+             */
+            when: "after" | "before" | "during";
         };
         /** EchoTarget */
         EchoTarget: {

@@ -373,6 +373,8 @@ class Contexts:
                             "name": x.name,
                             "description": x.description[:160],
                             **({"cooldown": True} if x.cooldown else {}),
+                            # 开关类技能现在开着没有（已经是玩家要的状态就不要再写这个技能）
+                            **({"on": x.toggle_on} if x.toggle_on is not None else {}),
                         }
                         for x in skills
                         if x.entity_id == refs[ent.ref]

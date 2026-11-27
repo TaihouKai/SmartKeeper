@@ -31,6 +31,9 @@ class ActionItem(Frozen):
     params: dict[str, float] = {}  # 用技能时选的参数（界面上选的；没选的按默认）
     # 一起走：同一个值的几条（不同的角色）移动耗时取其中最慢的，一起出发、一起到
     group: str | None = None
+    # 相对这个角色这次的移动什么时候做：after 按列出的顺序（默认）；before 出发之前做（排到最前面）；
+    # during 边走边做（路上聊天、边走边看）：和这个角色的移动同时进行，只有比路程长的部分另外花时间
+    when: Literal["after", "before", "during"] = "after"
 
 
 class ComposedAction(Frozen):

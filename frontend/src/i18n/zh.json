@@ -1345,6 +1345,10 @@
     "together": "{who}（和 {with} 一起）",
     "use": "{who}：{skill}",
     "use_on": "{who}：{skill} → {target}",
+    "when": {
+      "before": "出发前做",
+      "during": "边走边做"
+    },
     "with": "和{who}一起",
     "with_params": "{action}（{params}）"
   },

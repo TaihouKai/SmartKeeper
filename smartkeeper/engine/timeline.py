@@ -50,14 +50,60 @@ def travel_seconds(space: Space, entity_id: str, start: Point, to: Point) -> tup
     return math.ceil(dist / speed * 60 - 1e-9), fly
 
 
+def arrange(items: Sequence[ActionItem]) -> list[int]:
+    """执行顺序（条目的下标）：出发前做的（before）排最前；边走边做的（during）紧跟在这个角色的
+    第一段移动后面（没有移动就按原来的位置）；其余按列出的顺序。"""
+    before = [k for k, it in enumerate(items) if it.when == "before"]
+    rest = [k for k, it in enumerate(items) if it.when != "before"]
+    during = [k for k in rest if items[k].when == "during"]
+    order = [k for k in rest if k not in during]
+    for k in during:
+        actor = items[k].actor
+        moves = [i for i, x in enumerate(order) if items[x].actor == actor and items[x].destination]
+        if moves:
+            # 同一个角色的几条边走边做的，按列出的顺序排在这段移动后面
+            at = moves[0] + 1
+            while (
+                at < len(order)
+                and items[order[at]].when == "during"
+                and items[order[at]].actor == actor
+            ):
+                at += 1
+            order.insert(at, k)
+        else:
+            order.append(k)
+    return before + order
+
+
+def _effective_act(
+    items: Sequence[ActionItem], order: Sequence[int], moves: Sequence[int]
+) -> dict[int, int]:
+    """每一条实际另外花的动作时间：边走边做的和前面那段移动重叠，只算超出路程的部分。"""
+    out: dict[int, int] = {}
+    last_move: dict[str, int] = {}
+    for k in order:
+        it = items[k]
+        if it.destination is not None:
+            last_move[it.actor] = moves[k]
+        if it.when == "during" and it.actor in last_move:
+            out[k] = max(0, it.act_seconds - last_move[it.actor])
+            last_move[it.actor] = max(0, last_move[it.actor] - it.act_seconds)
+        else:
+            out[k] = it.act_seconds
+    return out
+
+
 def _moves(space: Space, items: Sequence[ActionItem]) -> list[tuple[Point | None, int, bool]]:
-    """每一条的起点、移动耗时、飞不飞。同一实体的条目按顺序衔接：下一条从上一条的终点出发。
+    """每一条的起点、移动耗时、飞不飞（按条目原来的下标）。按执行顺序（arrange）衔接：
+    同一实体的下一条从上一条的终点出发。
 
     一起走的（同一个 group）一起到：到达时刻 = 组里最晚能出发的人（前面还有别的事要做）+ 最慢的路程；
     先能出发的人走得慢一些，同一时刻到。"""
+    order = arrange(items)
+    alone_at: dict[int, tuple[Point | None, int, bool]] = {}
     here: dict[str, Point | None] = {}
-    alone: list[tuple[Point | None, int, bool]] = []
-    for it in items:
+    for k in order:
+        it = items[k]
         if it.actor not in here:
             here[it.actor] = point_of(_obj(space.entities.get(it.actor)).get("pos"))
         start = here[it.actor]
@@ -66,15 +112,19 @@ def _moves(space: Space, items: Sequence[ActionItem]) -> list[tuple[Point | None
             move, fly = travel_seconds(space, it.actor, start, it.destination.pos)
         if it.destination is not None:
             here[it.actor] = it.destination.pos
-        alone.append((start, move, fly))
+        alone_at[k] = (start, move, fly)
+    alone = [alone_at[k] for k in range(len(items))]
     members: dict[str, list[int]] = {}
-    for k, it in enumerate(items):
+    for k in order:
+        it = items[k]
         if it.group is not None:
             members.setdefault(it.group, []).append(k)
     ready: dict[str, int] = {}  # 每个人前面的事做完的时刻
     moves = [m for _, m, _ in alone]
+    acts = _effective_act(items, order, moves)
     done: set[str] = set()
-    for k, it in enumerate(items):
+    for k in order:
+        it = items[k]
         g = it.group
         if g is not None and g not in done:
             done.add(g)
@@ -83,7 +133,8 @@ def _moves(space: Space, items: Sequence[ActionItem]) -> list[tuple[Point | None
             slowest = max(alone[x][1] for x in idx)
             for x in idx:
                 moves[x] = leave + slowest - ready.get(items[x].actor, 0)
-        ready[it.actor] = ready.get(it.actor, 0) + moves[k] + it.act_seconds
+            acts = _effective_act(items, order, moves)
+        ready[it.actor] = ready.get(it.actor, 0) + moves[k] + acts[k]
     return [(start, moves[k], fly) for k, (start, _, fly) in enumerate(alone)]
 
 
@@ -98,9 +149,14 @@ def plan_items(space: Space, items: Sequence[ActionItem]) -> list[ActionItem]:
 def build_activities(
     space: Space, player: str, now: int, items: Sequence[ActionItem]
 ) -> dict[str, Activity]:
-    """把一份确认过的行动声明变成各实体进行中的行动。"""
+    """把一份确认过的行动声明变成各实体进行中的行动（按执行顺序；边走边做的只算超出路程的时间）。"""
     steps: dict[str, list[Step]] = {}
-    for it, (start, move, fly) in zip(items, _moves(space, items), strict=True):
+    order = arrange(items)
+    moved = _moves(space, items)
+    acts = _effective_act(items, order, [m for _, m, _ in moved])
+    for k in order:
+        it = items[k]
+        start, move, fly = moved[k]
         assert it.id is not None
         targets = tuple(t.id for t in it.targets if t.kind == "entity" and t.id)
         steps.setdefault(it.actor, []).append(
@@ -110,7 +166,7 @@ def build_activities(
                 start=start if it.destination is not None else None,
                 to=it.destination,
                 move=move,
-                act=it.act_seconds,
+                act=acts[k],
                 fly=fly,
                 entry=it.entry,
                 params=dict(it.params),
@@ -122,6 +178,17 @@ def build_activities(
         )
         for eid, ss in steps.items()
     }
+
+
+def total_seconds(space: Space, items: Sequence[ActionItem]) -> int:
+    """整份行动做完要多久（各角色里最长的；边走边做的和移动重叠）。"""
+    order = arrange(items)
+    moved = _moves(space, items)
+    acts = _effective_act(items, order, [m for _, m, _ in moved])
+    per: dict[str, int] = {}
+    for k in order:
+        per[items[k].actor] = per.get(items[k].actor, 0) + moved[k][1] + acts[k]
+    return max(per.values(), default=0)
 
 
 def _along(step: Step, frac: float) -> Point:

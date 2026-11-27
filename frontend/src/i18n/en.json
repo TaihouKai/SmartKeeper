@@ -1345,6 +1345,10 @@
     "together": "{who} (with {with})",
     "use": "{who}: {skill}",
     "use_on": "{who}: {skill} → {target}",
+    "when": {
+      "before": "before setting off",
+      "during": "while on the way"
+    },
     "with": "with {who}",
     "with_params": "{action} ({params})"
   },

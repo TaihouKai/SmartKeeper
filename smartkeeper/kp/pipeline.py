@@ -338,6 +338,7 @@ class KP:
                             self.engine.cast_seconds(game_id, actor, it.entry) if it.entry else 0,
                         ),
                         entry=it.entry,
+                        when=it.when,
                     )
                 )
             claims = tuple(

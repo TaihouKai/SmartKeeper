@@ -1270,6 +1270,8 @@ T: dict[str, tuple[str, str]] = {
         "Your action is still under way. You'll be told when it finishes or something affects you; until then it can't be changed.",
     ),
     "kp.estimate": ("预计耗时 {total}", "Estimated time {total}"),
+    "plan.when.before": ("出发前做", "before setting off"),
+    "plan.when.during": ("边走边做", "while on the way"),
     "kp.item_time": ("移动 {move} + 动作 {act}", "travel {move} + action {act}"),
     "kp.confirm_hint": ("确认之后耗时不能再改。", "Once confirmed, the time can't be changed."),
     "kp.insert_mention": ("插入 @……", "Insert @…"),

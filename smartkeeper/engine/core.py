@@ -141,6 +141,7 @@ from smartkeeper.engine.timeline import (
     cut_time,
     location_at,
     plan_items,
+    total_seconds,
     travel_left,
     travel_seconds,
 )
@@ -1499,6 +1500,10 @@ class Engine:
             if loc is not None:
                 out[eid] = loc
         return out
+
+    def intent_seconds(self, game_id: str, intent: Intent) -> int:
+        """整份行动做完要多久（各角色里最长的；出发前做的、边走边做的按执行顺序算）。"""
+        return total_seconds(self._space(game_id), intent.items)
 
     def travel_left(self, game_id: str) -> dict[str, tuple[float, int]]:
         """本轮结束时还在路上的实体：离这次行动最后的目的地还有多少米、还要走多少秒。"""
