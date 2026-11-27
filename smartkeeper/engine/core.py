@@ -58,6 +58,7 @@ from smartkeeper.contracts import (
     Location,
     MapChange,
     MapData,
+    MapFeature,
     MapStore,
     MemoryEntry,
     MemoryStore,
@@ -1547,6 +1548,65 @@ class Engine:
             if loc is not None:
                 out[eid] = loc
         return out
+
+    def scenery(self, game_id: str, player_id: str) -> list[str]:
+        """写反馈用的景物素材，只作氛围：本轮结束时的钟点；这个玩家每个角色本轮沿途经过的、
+        结束时身处或身旁的有名字的地物。全部取自地图（谁都看得到的街道和建筑），不含任何人。"""
+        with self._lock:
+            state = self._state(game_id)
+            space = self._space(game_id)
+            m = self._map(game_id)
+            pack = self.rulepack(game_id)
+            now, end = self.round_window(game_id)
+            start = state.get("clock")
+            secs = (start if isinstance(start, int) else 0) + end
+            day, rest = divmod(secs, 86400)
+            lines = [f"本轮结束时：第 {day + 1} 天 {rest // 3600:02d}:{rest % 3600 // 60:02d}"]
+            acts = self.activities(game_id)
+
+            def named(p: Point) -> list[MapFeature]:
+                hit = self._spatial.within(m, space.changes, [], p, SCENERY_RADIUS)
+                return [f for fid in hit.features if (f := m.feature(fid)) is not None and f.name]
+
+            def pick(feats: list[MapFeature], skip: str = "") -> str:
+                """街道、公园、水边、地标在前（按经过的顺序），建筑只取前几个：写字楼一多就成了噪声。"""
+                names = list(dict.fromkeys(f.name for f in feats if f.name != skip))
+                kinds = {f.name: f.kind for f in feats}
+                open_ = [x for x in names if kinds[x] != "building"][:SCENERY_NAMES]
+                built = [x for x in names if kinds[x] == "building"][:SCENERY_BUILDINGS]
+                return "、".join(open_ + built)
+
+            # 同一段路、同一个地方的几个角色合成一行
+            rows: dict[str, list[str]] = {}
+            for eid in self.controlled(game_id, player_id):
+                ent = _obj(space.entities.get(eid))
+                pos = point_of(ent.get("pos"))
+                if pos is None:
+                    continue
+                inside = ent.get("inside")
+                here = Location(pos=pos, inside=inside if isinstance(inside, str) else None)
+                act = acts.get(eid)
+                passed: list[MapFeature] = []
+                last = here
+                if act is not None:
+                    for t in [*range(now, end, SCENERY_STEP), end]:
+                        loc = location_at(act, t, here)
+                        if loc is None:
+                            continue
+                        last = loc
+                        passed += named(loc.pos)
+                at = m.feature(last.inside) if last.inside else None
+                who = self._entity_name(state, eid, pack)
+                moved = act is not None and any(st.to for st in act.steps)
+                if moved and (route := pick(passed)):
+                    rows.setdefault(f"沿途经过：{route}", []).append(who)
+                where = f"在{at.name or '一栋建筑'}里" if at is not None else "在户外"
+                near = pick(named(last.pos), at.name if at else "")
+                rows.setdefault(
+                    f"本轮结束时{where}" + (f"，身旁有：{near}" if near else ""), []
+                ).append(who)
+            lines += [f"{'、'.join(who)} {text}" for text, who in rows.items()]
+            return lines
 
     def intent_seconds(self, game_id: str, intent: Intent) -> int:
         """整份行动做完要多久（各角色里最长的；出发前做的、边走边做的按执行顺序算）。"""
@@ -4312,13 +4372,21 @@ class Engine:
             raise IllegalState("round.no_draft")
         return r, copy.deepcopy(r.draft)
 
-    def set_feedback_draft(self, game_id: str, player_id: str, text: str) -> None:
+    def set_feedback_draft(self, game_id: str, player_id: str, text: str, facts: str = "") -> None:
+        """text 是给玩家看的反馈（带氛围修饰）；facts 是它依据的事实（裁定结果按这个玩家的叫法写出），
+        发布后 KP 的各种上下文里只看 facts，修饰写错了也不会被当成事实。"""
         with self._lock:
             r, d = self._draft(game_id)
             self._rounds.transition(r.status, "edit")
             fb = _obj(d.get("feedback"))
             fb[player_id] = _text(text)
             d["feedback"] = fb
+            table = _obj(d.get("facts"))
+            if facts:
+                table[player_id] = _text(facts)
+            else:
+                table.pop(player_id, None)
+            d["facts"] = table
             self._repo.update_round(game_id, r.no, draft=d)
 
     def set_feedback_leaks(self, game_id: str, player_id: str, leaks: Sequence[str]) -> None:
@@ -4491,6 +4559,7 @@ class Engine:
             adj = Adjudication.model_validate(raw)
             groups, final = self.plan_adjudication(game_id, adj)
             feedback = _obj(d.get("feedback"))
+            facts = _obj(d.get("facts"))
             missing = [
                 o.player_id for o in adj.outcomes if not isinstance(feedback.get(o.player_id), str)
             ]
@@ -4524,6 +4593,11 @@ class Engine:
                             "text": self._link_places(game_id, str(feedback[o.player_id]), final),
                             "round": r.no,
                             "game_seconds": seconds,
+                            **(
+                                {"facts": facts[o.player_id]}
+                                if isinstance(facts.get(o.player_id), str)
+                                else {}
+                            ),
                         },
                     )
                 )
@@ -6059,6 +6133,12 @@ class Engine:
             self._state_cache[game_id] = (seq, state)
             return state
 
+
+# 写反馈的景物素材：沿路线每隔多少秒取一个点、取点周围多少米内有名字的地物、每个角色最多列几个
+SCENERY_STEP = 20
+SCENERY_RADIUS = 40.0
+SCENERY_NAMES = 8
+SCENERY_BUILDINGS = 3
 
 # 当场出结果的行动最多这么多秒（“几秒以内的小事”）
 INSTANT_SECONDS = 5

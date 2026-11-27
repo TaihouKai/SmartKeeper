@@ -194,6 +194,39 @@ def test_state_patch_values_are_left_as_written() -> None:
     assert out.state_patch[0].value == "a\\nb"
 
 
+def test_feedback_prose_never_reaches_the_kp() -> None:
+    """反馈里的氛围修饰只给玩家看：之后的 KP 调用（裁定、规划、写反馈、聊天……）只看反馈依据的事实。"""
+    g = new_game(2)
+    g.llm.on("feedback", lambda c: "PROSE_MARK 霓虹映在湿漉漉的路面上。")
+    g.play_round()
+    pid = g.players[0]
+    fb = [x for x in g.engine.view_for(g.game_id, pid) if x.type == "feedback"][-1]
+    assert "PROSE_MARK" in str(fb.payload["text"])  # 玩家看到的是带修饰的
+    assert "匆匆走过" in str(fb.payload["facts"])
+    seen = len(g.llm.calls)
+    g.engine.post_kp_chat(pid, "刚才那个人往哪走了？")
+    g.kp.answer_chat(pid)
+    g.play_round()
+    later = [c for c in g.llm.calls[seen:] if c.purpose != "leak_check"]
+    assert {c.purpose for c in later} >= {"adjudicate", "feedback", "chat"}
+    assert all("PROSE_MARK" not in c.prompt for c in later)
+    adjudicate = g.llm.by_purpose("adjudicate")[-1].prompt
+    assert "KP 反馈（事实）" in adjudicate and "匆匆走过" in adjudicate
+
+
+def test_feedback_writer_gets_scenery_own_sheet_texts_and_the_length_setting() -> None:
+    g = new_game(2)
+    g.play_round()
+    call = g.llm.by_purpose("feedback")[-1]
+    assert "景物素材" in call.prompt and "本轮结束时：第 1 天" in call.prompt
+    assert "该玩家自己角色的角色卡文字" in call.prompt
+    assert "氛围描写全文合计最多大约 100 字" in call.system
+    s = g.engine.game(g.game_id).settings
+    g.engine.update_settings(g.game_id, s.model_copy(update={"narration_chars": 0}))
+    g.play_round()
+    assert "不写氛围描写" in g.llm.by_purpose("feedback")[-1].system
+
+
 def test_feedback_writer_sees_the_looks_of_who_it_writes_about() -> None:
     """写反馈的模型拿到本轮提到的人和玩家自己角色的外观，人称、相貌按外观写，不按名字猜。"""
     g = new_game(2)

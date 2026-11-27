@@ -66,6 +66,10 @@ def render_event(e: Event, names: Mapping[str, str]) -> str:
         intent = p.get("intent")
         return f"{head} 行动声明（{who}）: {player_text(text, who)} 结构化: {_compact(intent)}"
     if t == "feedback":
+        # 给玩家的反馈带着氛围修饰；KP 的上下文里只放它依据的事实（修饰写错了也不会被当真）
+        facts = p.get("facts")
+        if isinstance(facts, str):
+            return f"{head} KP 反馈（事实）: {place_tokens(facts)}"
         return f"{head} KP 反馈: {text}"
     if t == "round_opened":
         return f"{head} 第 {p.get('round')} 轮开始，游戏内第 {p.get('game_seconds')} 秒"

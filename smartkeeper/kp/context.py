@@ -33,8 +33,16 @@ from smartkeeper.kp.render import (
 
 UNKNOWN = {"zh": "某人", "en": "someone"}
 STYLE = {
-    "zh": "文风：简洁的第二人称小说体，三到八句。",
-    "en": "Style: concise second-person prose, three to eight sentences.",
+    "zh": "文风：简洁的第二人称小说体。",
+    "en": "Style: concise second-person prose.",
+}
+NARRATION = {
+    "zh": "氛围描写全文合计最多大约 {n} 字，点到为止。",
+    "en": "Keep all atmosphere together to about {n} characters at most.",
+}
+NO_NARRATION = {
+    "zh": "不写氛围描写，只写发生的事。",
+    "en": "No atmosphere; write only what happened.",
 }
 HISTORY_TYPES = (
     "broadcast",
@@ -44,6 +52,18 @@ HISTORY_TYPES = (
     "round_opened",
     "round_closed",
 )
+
+
+@dataclass(frozen=True)
+class _Told:
+    """一份反馈依据的事实，按读者的叫法写好；labels 是用到的叫法（实体 id -> 称呼）。"""
+
+    result: str
+    observations: list[str]
+    seen: list[str]
+    learned: list[tuple[str, str, list[str]]]  # (关于谁, 线索, 另行告诉他的字段)
+    public: list[str]
+    labels: dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -677,8 +697,19 @@ class Contexts:
             out[self.e.entity_for_ref(player_id, ent.ref)] = ent.name
         return out
 
-    def feedback(self, game_id: str, player_id: str, adj: Adjudication) -> Prompt:
-        """只有：p 的 outcome、涉及 p 的 encounters 里 observed_by[p]、public_events、推进时间、p 的历史视图。"""
+    def feedback_facts(self, game_id: str, player_id: str, adj: Adjudication) -> str:
+        """这份反馈依据的事实（按这个玩家的叫法）。发布后 KP 的上下文里只看这个，不看带修饰的反馈文字。"""
+        m = self._feedback_material(game_id, player_id, adj)
+        lines = [f"结果：{m.result}"] if m.result else []
+        lines += [f"察觉：{x}" for x in m.observations]
+        lines += [f"看到：{x}" for x in m.seen]
+        lines += [f"得知（关于{about}）：{clue}" for about, clue, _ in m.learned]
+        lines += [f"公共事件：{x}" for x in m.public]
+        return "\n".join(lines)
+
+    def _feedback_material(self, game_id: str, player_id: str, adj: Adjudication) -> _Told:
+        """p 的 outcome、涉及 p 的 encounters 里 observed_by[p]、得知的情报、public_events，按 p 的叫法写出；
+        以及用到的叫法（实体 id -> 称呼）。"""
         lang = self.language(game_id)
         labels = self._labels(game_id, player_id)
         unknown = UNKNOWN.get(lang, UNKNOWN["en"])
@@ -702,25 +733,39 @@ class Contexts:
         def loc(t: str) -> str:
             return replace_entity_tokens(t, labels, unknown)
 
-        mine = {
-            "result": loc(outcome.result) if outcome else "",
-            "observations": [loc(x) for x in outcome.observations] if outcome else [],
-        }
         seen = [
             loc(enc.observed_by[player_id])
             for enc in adj.encounters
             if player_id in enc.observed_by
         ]
         learned = [
-            {"about": labels.get(x.about, unknown), "clue": loc(x.text), "fields": list(x.fields)}
+            (labels.get(x.about, unknown), loc(x.text), list(x.fields))
             for x in adj.intel
             if x.player == player_id
         ] + [
-            {"about": labels.get(x.about, unknown), "clue": loc(x.text), "fields": list(x.fields)}
+            (labels.get(x.about, unknown), loc(x.text), list(x.fields))
             for x in adj.public_intel
             if x.about not in self.e.controlled(game_id, player_id)
         ]
-        public = [replace_entity_tokens(x, {}, unknown) for x in adj.public_events]
+        return _Told(
+            result=loc(outcome.result) if outcome else "",
+            observations=[loc(x) for x in outcome.observations] if outcome else [],
+            seen=seen,
+            learned=learned,
+            public=[replace_entity_tokens(x, {}, unknown) for x in adj.public_events],
+            labels=labels,
+        )
+
+    def feedback(self, game_id: str, player_id: str, adj: Adjudication) -> Prompt:
+        """写反馈：事实（_feedback_material）、出场人物的外观、他自己角色卡上的文字、景物素材、p 的历史视图。"""
+        lang = self.language(game_id)
+        m = self._feedback_material(game_id, player_id, adj)
+        labels, seen, public = m.labels, m.seen, m.public
+        mine: dict[str, JsonValue] = {"result": m.result, "observations": list(m.observations)}
+        learned: list[JsonValue] = [
+            {"about": about, "clue": clue, "fields": list(fields)}
+            for about, clue, fields in m.learned
+        ]
         # 本轮反馈里提到的人（和他自己的角色）的外观：性别、相貌照这个写，不按名字和传说猜
         told = dumps([mine, seen, learned, public])
         own = set(self.e.controlled(game_id, player_id))
@@ -752,6 +797,15 @@ class Contexts:
                     dumps(learned),
                 ),
                 section("公共事件", dumps(public)),
+                section(
+                    "该玩家自己角色的角色卡文字（转述他们说了什么时只能用这里有的、玩家让说的）",
+                    player_text(dumps(self._own_texts(game_id, player_id)), "sheet"),
+                ),
+                section(
+                    "景物素材（取自地图，只作氛围，不是事件；不要从这里编出人或事）",
+                    "\n".join(self.e.scenery(game_id, player_id)),
+                ),
+                section("剧本公开部分（氛围、世界观参考）", self._scenario(game_id, kp=False)),
                 self._place_names(
                     self._known_names(game_id, player_id) | set(place_names_in(told))
                 ),
@@ -761,10 +815,25 @@ class Contexts:
                 ),
             ]
         )
-        system = templates.render(
-            "feedback", language=templates.language_name(lang), style=STYLE.get(lang, STYLE["en"])
-        )
+        n = self.e.game(game_id).settings.narration_chars
+        table = NARRATION if n > 0 else NO_NARRATION
+        style = STYLE.get(lang, STYLE["en"]) + table.get(lang, table["en"]).format(n=n)
+        system = templates.render("feedback", language=templates.language_name(lang), style=style)
         return Prompt(system, user)
+
+    def _own_texts(self, game_id: str, player_id: str) -> dict[str, dict[str, str]]:
+        """他自己各角色卡上的文字字段（名字、来历、外观之类；不含数值和技能代码）。"""
+        out: dict[str, dict[str, str]] = {}
+        for v in self.e.sheets(game_id, player_id):
+            fields = v.sheet.get("fields")
+            texts = (
+                {k: x for k, x in fields.items() if isinstance(x, str) and x.strip()}
+                if isinstance(fields, dict)
+                else {}
+            )
+            name = v.sheet.get("name")
+            out[v.label or (name if isinstance(name, str) else v.entity_id)] = texts
+        return out
 
     def broadcast(self, game_id: str, adj: Adjudication) -> Prompt:
         lang = self.language(game_id)

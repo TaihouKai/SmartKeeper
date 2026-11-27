@@ -629,7 +629,8 @@ class KP:
                 leaks = self.leak_check(game_id, player_id, adj, text)
                 if not leaks:
                     break
-            self.engine.set_feedback_draft(game_id, player_id, text)
+            facts = self.ctx.feedback_facts(game_id, player_id, adj)
+            self.engine.set_feedback_draft(game_id, player_id, text, facts)
             self.engine.set_feedback_leaks(game_id, player_id, leaks)
             return True
         except (LLMError, SmartKeeperError):

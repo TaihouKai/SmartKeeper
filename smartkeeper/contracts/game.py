@@ -39,6 +39,8 @@ class GameSettings(Frozen):
     min_round_seconds: int = Field(default=0, ge=0)
     # 在首页的房间列表里列出；建角阶段任何人填个名字就能直接加入（不用邀请链接）
     lobby: bool = True
+    # 反馈里氛围描写（景物、声响、空气这类不产生游戏事实的修饰）最多大约多少字；0 是不写
+    narration_chars: int = Field(default=100, ge=0)
 
     @model_validator(mode="before")
     @classmethod

@@ -1581,6 +1581,14 @@ T: dict[str, tuple[str, str]] = {
         "功能已做好，目前设为 0 即不生效。设成大于 0 时，每回合至少推进这么多秒，即使有人的行动更早做完。",
         "Built but off at 0. Above 0, every round advances at least this many seconds even if someone's action finishes sooner.",
     ),
+    "games.narration_chars": (
+        "反馈里氛围描写的字数上限",
+        "Atmosphere length in feedback (characters)",
+    ),
+    "games.narration_chars_hint": (
+        "写反馈时景物、声响这类修饰最多大约多少字；0 是不写。修饰只给玩家看，KP 之后只看反馈依据的事实。",
+        "Roughly how many characters of scenery and mood each feedback may add; 0 turns it off. Only players see it; the KP later sees just the facts behind the feedback.",
+    ),
     "rules.cls.player": ("玩家填写", "Player-defined"),
     "rules.cls.runtime": ("运行值", "Runtime"),
     "rules.add_field": ("添加字段", "Add field"),

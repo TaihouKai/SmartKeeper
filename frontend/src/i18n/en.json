@@ -1015,6 +1015,8 @@
     "min_round": "Minimum round (seconds)",
     "min_round_hint": "Built but off at 0. Above 0, every round advances at least this many seconds even if someone's action finishes sooner.",
     "name": "Name",
+    "narration_chars": "Atmosphere length in feedback (characters)",
+    "narration_chars_hint": "Roughly how many characters of scenery and mood each feedback may add; 0 turns it off. Only players see it; the KP later sees just the facts behind the feedback.",
     "new": "New game",
     "no_search": "The configured model can't search the web; the keeper relies on its own knowledge.",
     "opening_failed": "The last opening attempt failed (reason below); you can press start again.",

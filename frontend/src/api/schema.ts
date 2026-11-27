@@ -2505,6 +2505,11 @@ export interface components {
              * @default 0
              */
             min_round_seconds: number;
+            /**
+             * Narration Chars
+             * @default 100
+             */
+            narration_chars: number;
             /** Player Webhook */
             player_webhook?: string | null;
             /**
@@ -3150,6 +3155,7 @@ export interface components {
              *       "kp_language": "zh",
              *       "lobby": true,
              *       "min_round_seconds": 0,
+             *       "narration_chars": 100,
              *       "web_search": true
              *     } */
             settings: components["schemas"]["GameSettings"];
