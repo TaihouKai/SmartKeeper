@@ -5,10 +5,11 @@ import { ErrorBox, LangSwitch, Tabs } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
 import { GamesPanel, MaterialsPanel } from "./GamesPanel";
 import { LogPanel } from "./LogPanel";
+import { ProfilesPanel } from "./ProfilesPanel";
 import { RulesPanel } from "./RulesPanel";
 import { LlmPanel, StatePanel } from "./StatePanel";
 
-type Panel = "rules" | "materials" | "games" | "log" | "state" | "llm";
+type Panel = "rules" | "materials" | "games" | "log" | "state" | "llm" | "profiles";
 
 function Login({ onDone }: { onDone: () => void }) {
   const { t } = useI18n();
@@ -74,12 +75,14 @@ export function AdminPage() {
           { key: "llm", label: t("admin.panel.llm") },
           { key: "rules", label: t("admin.panel.rules") },
           { key: "materials", label: t("admin.panel.materials") },
+          { key: "profiles", label: t("admin.panel.profiles") },
         ]}
         active={panel}
         onChange={setPanel}
       />
       {panel === "rules" && <RulesPanel />}
       {panel === "materials" && <MaterialsPanel />}
+      {panel === "profiles" && <ProfilesPanel />}
       {panel === "games" && <GamesPanel selected={game} onSelect={setGame} />}
       {(panel === "log" || panel === "state" || panel === "llm") && !game && <p>{t("admin.pick_game")}</p>}
       {panel === "state" && game && <StatePanel gameId={game} />}

@@ -69,12 +69,22 @@ def _problems_text(err: SmartKeeperError) -> str:
     return "\n".join(lines)
 
 
+# 这一局（id）的一类调用（judge：开场、检定规划、回合裁定；否则其余调用）用哪个实现和模型
+type Models = Callable[[str, bool], tuple[LLMClient, str]]
+
+
+def fixed_models(
+    judge: LLMClient, judge_model: str, writer: LLMClient, writer_model: str
+) -> Models:
+    """每局都用同一套（测试和命令行工具用）。"""
+    return lambda _game_id, is_judge: (judge, judge_model) if is_judge else (writer, writer_model)
+
+
 class KP:
     def __init__(
         self,
         engine: Engine,
-        judge: LLMClient,
-        writer: LLMClient,
+        models: Models,
         config: KPConfig,
         *,
         call_log: LLMCallLog | None = None,
@@ -83,12 +93,12 @@ class KP:
         syntax_reference: Callable[[str], str] | None = None,
         schedule: Callable[[float, Callable[[], None]], None] | None = None,
     ) -> None:
-        """syntax_reference：语言 -> 规则书代码的语法手册（审核角色卡时给 KP，好看懂玩家写的代码）。
+        """models：这一局的这一类调用用哪个实现和模型（每局可以选不同的一套）。
+        syntax_reference：语言 -> 规则书代码的语法手册（审核角色卡时给 KP，好看懂玩家写的代码）。
         on_review：回合出错（KP 重试用尽）时通知一声，只是告知，引擎自己会接着重试。
         schedule：过多少秒以后执行一件事（自动重试用；测试里换成立刻执行或记下来）。"""
         self.engine = engine
-        self.judge = judge
-        self.writer = writer
+        self.models = models
         self.cfg = config
         self.ctx = Contexts(engine, config, syntax_reference)
         self._log = call_log
@@ -105,8 +115,8 @@ class KP:
         with self._locks_guard:
             return self._locks.setdefault(game_id, threading.Lock())
 
-    def _client(self, judge: bool) -> tuple[LLMClient, str]:
-        return (self.judge, self.cfg.judge_model) if judge else (self.writer, self.cfg.writer_model)
+    def _client(self, game_id: str, judge: bool) -> tuple[LLMClient, str]:
+        return self.models(game_id, judge)
 
     def _allow_search(self, game_id: str, purpose: str, client: LLMClient) -> bool:
         return (
@@ -118,7 +128,7 @@ class KP:
     def _call(
         self, purpose: str, game_id: str, prompt: Prompt, messages: list[Message], judge: bool
     ) -> LLMResult:
-        client, model = self._client(judge)
+        client, model = self._client(game_id, judge)
         return client.complete(
             purpose=purpose,
             model=model,

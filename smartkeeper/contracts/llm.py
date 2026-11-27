@@ -73,6 +73,18 @@ class LLMCallRecord(Frozen):
     created_at: str
 
 
+class LLMProfile(Frozen):
+    """一套模型选择（管理员在控制台里建，开局时选）。judge 用于开场、检定规划、回合裁定，
+    writer 用于其余调用。provider 是服务器上配好了密钥的实现（anthropic、openai、openai_compat）。"""
+
+    id: str
+    name: str
+    judge_provider: str
+    judge_model: str
+    writer_provider: str
+    writer_model: str
+
+
 class LLMCallLog(Protocol):
     def mark(self, call_id: int, valid: bool) -> None: ...
 

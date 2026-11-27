@@ -4,6 +4,7 @@ import { useI18n } from "../i18n";
 import { MapView, type DisplayMap } from "../map";
 import { ErrorBox, MarkdownView, Section } from "../ui/components";
 import { useAction, usePoll } from "../ui/hooks";
+import { ProfileSelect } from "./ProfilesPanel";
 
 /** “资料”面板：上传、替换、预览剧本和地图文件。 */
 export function MaterialsPanel() {
@@ -81,7 +82,7 @@ function NewGame({ onCreated }: { onCreated: (id: string) => void }) {
   const { t } = useI18n();
   const packs = usePoll(() => call(api.GET("/api/admin/rulepacks")), 600_000);
   const mats = usePoll(() => call(api.GET("/api/admin/materials")), 600_000);
-  const [form, setForm] = useState({ name: "", pack: "", map: "", scenario: "" });
+  const [form, setForm] = useState({ name: "", pack: "", map: "", scenario: "", profile: "" });
   const act = useAction();
   const options = (packs.data ?? []).flatMap((p) => p.versions.map((v) => ({ key: `${p.pack_id}@${v}`, label: `${p.name} v${v}` })));
   return (
@@ -113,13 +114,14 @@ function NewGame({ onCreated }: { onCreated: (id: string) => void }) {
             .map((m) => <option key={m} value={m}>{m}{mats.data?.scenario_rulebooks?.[m] ? `（${mats.data.scenario_rulebooks[m]}）` : ""}</option>)}
         </select>
       </label>
+      <ProfileSelect value={form.profile} onChange={(profile) => setForm({ ...form, profile })} />
       <button
         className="sk-primary"
         disabled={!form.name || !form.pack || !form.scenario || act.busy}
         onClick={() =>
           void act.run(async () => {
             const [rulepack_id = "", v = "1"] = form.pack.split("@");
-            const g = await call(api.POST("/api/admin/games", { body: { name: form.name, rulepack_id, rulepack_version: Number(v), map_id: form.map || null, scenario: form.scenario, settings: { web_search: true, kp_language: "zh", min_round_seconds: 0, lobby: true, narration_chars: 100 } } }));
+            const g = await call(api.POST("/api/admin/games", { body: { name: form.name, rulepack_id, rulepack_version: Number(v), map_id: form.map || null, scenario: form.scenario, settings: { web_search: true, kp_language: "zh", min_round_seconds: 0, lobby: true, narration_chars: 100, llm_profile: form.profile } } }));
             onCreated(g.id);
           })
         }
@@ -141,6 +143,7 @@ function Settings({ game, onSaved }: { game: Schemas["Game"]; onSaved: () => voi
   return (
     <div className="sk-card">
       <h3>{t("games.settings")}</h3>
+      <ProfileSelect value={s.llm_profile ?? ""} onChange={(llm_profile) => setS({ ...s, llm_profile })} />
       <label className="sk-inline"><input type="checkbox" checked={s.lobby ?? true} onChange={(e) => setS({ ...s, lobby: e.target.checked })} /> {t("games.lobby")}</label>
       <label className="sk-inline"><input type="checkbox" checked={s.web_search ?? true} onChange={(e) => setS({ ...s, web_search: e.target.checked })} /> {t("games.web_search")}</label>
       <label>{t("games.kp_language")}

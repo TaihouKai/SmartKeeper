@@ -6,7 +6,7 @@ import re
 
 from smartkeeper.contracts import KP
 from smartkeeper.kp import KP as KPClass
-from smartkeeper.kp import Contexts, KPConfig
+from smartkeeper.kp import Contexts, KPConfig, fixed_models
 from tests.kp.harness import new_game
 
 
@@ -167,7 +167,7 @@ def test_restart_reruns_without_duplicate_feedback() -> None:
     g.engine.declare_action(last, "看看", intent)
     g.engine.close_round(g.game_id)  # 进程在裁定中途“崩溃”：回合停在 adjudicating
     assert g.engine.round(g.game_id).status == "adjudicating"
-    fresh = KPClass(g.engine, g.llm, g.llm, KPConfig(judge_model="j", writer_model="w"))
+    fresh = KPClass(g.engine, fixed_models(g.llm, "j", g.llm, "w"), KPConfig())
     assert fresh.recover() == [g.game_id]
     assert g.engine.round(g.game_id, 1).status == "published"
     for p in g.players:
@@ -175,7 +175,7 @@ def test_restart_reruns_without_duplicate_feedback() -> None:
 
 
 def test_long_memory_brings_back_old_event() -> None:
-    g = new_game(2, config=KPConfig(judge_model="j", writer_model="w", recent_rounds=2))
+    g = new_game(2, config=KPConfig(recent_rounds=2))
     p1, p2 = g.players
     a, b = g.ents(p1)[0], g.ents(p2)[0]
     g.round_hooks[1] = {
@@ -374,7 +374,7 @@ def test_review_shows_what_the_code_does() -> None:
         "ex.s.damage": "对{who}造成 {x} 点伤害",
         "ex.target": "对象",
     }
-    cfg = KPConfig(judge_model="j", writer_model="w", messages={"zh": words})
+    cfg = KPConfig(messages={"zh": words})
     e, packs = make_engine(seed=3)
     pack = load_pack("single")
     pid = packs.create_pack("x")

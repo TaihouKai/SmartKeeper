@@ -533,12 +533,13 @@ KP 可以联网查世界观设定，目标是让它像一个熟悉该作品的�
 | `round` | 回合：序号、状态、游戏内起止时间、结算后的世界状态快照 |
 | `event` | 事件日志（见下） |
 | `llm_call` | 每次 LLM 调用：用途、实现与模型、完整 prompt、响应、搜索记录、token 数、耗时、是否校验通过 |
+| `llm_profile` | 模型配置：名称、裁定用的实现与模型、其余调用用的实现与模型 |
 | `handle` | 代号：玩家、实体 ID、代号、玩家备注 |
 | `memory_entry` | 记事条目：回合号、实体 ID 列表、地物 id 列表、正文、来源事件序号 |
 | `chat_message` | 玩家间的闲聊；与事件日志无关 |
 | `rule_pack`、`rule_pack_version` | 规则包及其不可变的各个版本 |
 
-角色卡不单独建表，它是世界状态里各实体的一部分。模型的选择是全局配置，不按局设置。
+角色卡不单独建表，它是世界状态里各实体的一部分。模型按局选：管理员在控制台建几套模型配置（比如正式版、测试版），开局时选一套（局的设置 `llm_profile`，空的是服务器配置的默认那套），之后也能换；密钥只在服务器配置里。
 
 **`event` 字段**
 
@@ -676,7 +677,8 @@ class LLMClient(Protocol):
 
 
 class KP:
-    def __init__(self, engine: Engine, judge: LLMClient, writer: LLMClient, config: KPConfig): ...
+    # models(局 id, 是否裁定类调用) -> (LLMClient, 模型名)：每局按它选的那套模型
+    def __init__(self, engine: Engine, models: Models, config: KPConfig): ...
     def review_character(self, player_id) -> CharacterReview: ...
     def open_game(self, game_id) -> Opening: ...
     def name_handle(self, player_id, entity_id) -> str: ...  # 外观代号

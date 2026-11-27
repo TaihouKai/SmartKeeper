@@ -7,13 +7,14 @@ from dataclasses import dataclass, field
 import sqlalchemy as sa
 
 from smartkeeper.chat import SqlChatStore
-from smartkeeper.contracts import Dice, LLMClient
+from smartkeeper.contracts import Dice
 from smartkeeper.copilot import Copilot
 from smartkeeper.engine import Engine
 from smartkeeper.kp import KP
 from smartkeeper.llm import SqlLLMCallLog
 from smartkeeper.mapdata import FileMapStore
 from smartkeeper.rules import RulesService, SqlRulePackStore
+from smartkeeper.web.llm_router import LLMRouter
 
 
 @dataclass
@@ -25,8 +26,7 @@ class Services:
     rules: RulesService
     maps: FileMapStore
     llm_log: SqlLLMCallLog
-    judge: LLMClient
-    writer: LLMClient
+    llm: LLMRouter  # 每局用哪套模型
     chat: SqlChatStore
     dice: Dice  # 规则编辑器的试运行用；对局里的随机数只由 engine 产生
     copilot: Copilot

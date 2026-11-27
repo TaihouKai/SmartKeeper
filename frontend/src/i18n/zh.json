@@ -8,6 +8,7 @@
       "llm": "LLM 调用",
       "log": "日志",
       "materials": "资料",
+      "profiles": "模型配置",
       "review": "审核",
       "rules": "规则",
       "state": "世界状态"
@@ -325,6 +326,13 @@
       "bad_password": "密码不对",
       "not_found": "角色库里没有这个角色",
       "too_big": "角色太大了，存不下"
+    },
+    "llm_profile": {
+      "in_use": "还有没结束的局在用这套：{games}",
+      "model_required": "模型名不能为空",
+      "name_required": "名称不能为空",
+      "not_found": "没有这套模型配置",
+      "unknown_provider": "服务器上没有配好 {provider} 的密钥"
     },
     "lobby": {
       "already_in": "你已经在这一局里了，点“继续”",
@@ -1393,6 +1401,21 @@
     "travel_title": "到地图上这一点要多久",
     "travel_walk": "走过去 {time}",
     "use_destination": "设为目的地"
+  },
+  "profiles": {
+    "choose": "模型配置",
+    "default": "服务器默认",
+    "default_hint": "服务器配置文件里的那套，这里不能改",
+    "edit": "编辑",
+    "hint": "几套模型选择（比如正式版、测试版），开局时选一套，局的设置里也能换（下一次调用就换过去）。密钥在服务器上配置，这里只选用哪个实现和模型名。",
+    "judge": "裁定用",
+    "judge_hint": "开场、检定规划、回合裁定、即时结果（还有这一局的建卡助手）。花钱的大头，也最影响 KP 的水平。",
+    "missing": "（已删除的配置，用的是服务器默认）",
+    "model": "模型",
+    "name": "名称",
+    "new": "新建一套",
+    "writer": "其余调用用",
+    "writer_hint": "解析行动、写反馈和广播、泄密检查、审核角色卡、和 KP 聊天、NPC 对话、摘要、起代号。"
   },
   "react": {
     "admin_title": "本轮在等玩家应对",

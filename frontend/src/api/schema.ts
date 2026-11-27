@@ -279,6 +279,47 @@ export interface paths {
         patch: operations["patch_state_api_admin_games__game_id__state_patch"];
         trace?: never;
     };
+    "/api/admin/llm-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Llm Profiles */
+        get: operations["llm_profiles_api_admin_llm_profiles_get"];
+        put?: never;
+        /**
+         * Save Llm Profile
+         * @description id 为空是新建，否则改那一套（用它的局下一次调用就换过去）。
+         */
+        post: operations["save_llm_profile_api_admin_llm_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/llm-profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Llm Profile
+         * @description 还有没结束的局在用就不能删。
+         */
+        delete: operations["delete_llm_profile_api_admin_llm_profiles__profile_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/login": {
         parameters: {
             query?: never;
@@ -2498,6 +2539,11 @@ export interface components {
              */
             kp_language: string;
             /**
+             * Llm Profile
+             * @default
+             */
+            llm_profile: string;
+            /**
              * Lobby
              * @default true
              */
@@ -2953,6 +2999,33 @@ export interface components {
             /** Valid */
             valid: boolean | null;
         };
+        /**
+         * LLMProfile
+         * @description 一套模型选择（管理员在控制台里建，开局时选）。judge 用于开场、检定规划、回合裁定，
+         *     writer 用于其余调用。provider 是服务器上配好了密钥的实现（anthropic、openai、openai_compat）。
+         */
+        LLMProfile: {
+            /** Id */
+            id: string;
+            /** Judge Model */
+            judge_model: string;
+            /** Judge Provider */
+            judge_provider: string;
+            /** Name */
+            name: string;
+            /** Writer Model */
+            writer_model: string;
+            /** Writer Provider */
+            writer_provider: string;
+        };
+        /** LLMProfilesOut */
+        LLMProfilesOut: {
+            default: components["schemas"]["LLMProfile"];
+            /** Profiles */
+            profiles: components["schemas"]["LLMProfile"][];
+            /** Providers */
+            providers: string[];
+        };
         /** LangIn */
         LangIn: {
             /** Lang */
@@ -3155,6 +3228,7 @@ export interface components {
             scenario: string;
             /** @default {
              *       "kp_language": "zh",
+             *       "llm_profile": "",
              *       "lobby": true,
              *       "min_round_seconds": 0,
              *       "narration_chars": 100,
@@ -5024,6 +5098,90 @@ export interface operations {
                     "application/json": {
                         [key: string]: components["schemas"]["JsonValue"];
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    llm_profiles_api_admin_llm_profiles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMProfilesOut"];
+                };
+            };
+        };
+    };
+    save_llm_profile_api_admin_llm_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LLMProfile"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMProfile"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_llm_profile_api_admin_llm_profiles__profile_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkOut"];
                 };
             };
             /** @description Validation Error */

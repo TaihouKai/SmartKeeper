@@ -23,6 +23,7 @@ from smartkeeper.contracts import (
     Forbidden,
     IllegalState,
     LLMClient,
+    LLMProfile,
     NotFound,
     SmartKeeperError,
     ValidationFailed,
@@ -40,6 +41,7 @@ from smartkeeper.llm import (
     OpenAIResponsesLLM,
     RecordingLLM,
     SqlLLMCallLog,
+    SqlLLMProfiles,
 )
 from smartkeeper.mapdata import FileMapStore
 from smartkeeper.memory import SqlMemoryStore
@@ -49,6 +51,7 @@ from smartkeeper.rules import RulesService, SqlRulePackStore
 from smartkeeper.rules import render as render_rules
 from smartkeeper.spatial import ShapelySpatial
 from smartkeeper.web.auth import Auth, enter_seat
+from smartkeeper.web.llm_router import DEFAULT_PROFILE, LLMRouter
 from smartkeeper.web.messages import load_messages
 from smartkeeper.web.routes_admin import build_admin_router
 from smartkeeper.web.routes_books import build_books_router
@@ -150,6 +153,21 @@ def make_llm(provider: str, settings: Settings) -> LLMClient:
     raise RuntimeError(f"unknown provider {provider}")
 
 
+def available_providers(settings: Settings) -> list[str]:
+    """服务器上配好了密钥、可以在 profile 里选的实现；默认那套用的（测试里的 fake）也算。"""
+    out: list[str] = []
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        out.append("anthropic")
+    if settings.official_openai_key or os.environ.get("OPENAI_API_KEY"):
+        out.append("openai")
+    if settings.openai_base_url and settings.openai_api_key:
+        out.append("openai_compat")
+    for p in (settings.judge_provider, settings.writer_provider):
+        if p not in out:
+            out.append(p)
+    return out
+
+
 def build_services(
     settings: Settings,
     *,
@@ -184,6 +202,28 @@ def build_services(
             install_scripted(client, engine)  # 离线演示与端到端测试用的脚本化 KP
     j = RecordingLLM(raw_judge, log)
     w = RecordingLLM(raw_writer, log)
+
+    def make_client(provider: str) -> LLMClient:
+        raw = make_llm(provider, settings)
+        if isinstance(raw, FakeLLM):
+            install_scripted(raw, engine)
+        return RecordingLLM(raw, log)
+
+    router = LLMRouter(
+        engine,
+        SqlLLMProfiles(db),
+        LLMProfile(
+            id=DEFAULT_PROFILE,
+            name="",
+            judge_provider=settings.judge_provider,
+            judge_model=settings.judge_model,
+            writer_provider=settings.writer_provider,
+            writer_model=settings.writer_model,
+        ),
+        (j, w),
+        available_providers(settings),
+        make_client,
+    )
     notifier = notifier or WebhookNotifier()
 
     def on_published(game_id: str, round_no: int) -> None:
@@ -207,21 +247,17 @@ def build_services(
         )
 
     messages = load_messages()
-    # 建卡助手：用 KP 的模型配置，但是单独的调用，不碰对局和 KP 的记事
+    # 建卡助手：用这一局 KP 的裁定模型（不在局里就用默认那套），但是单独的调用，不碰对局和 KP 的记事
     copilot = Copilot(
-        j,
+        lambda game_id: router(game_id, True) if game_id else (j, settings.judge_model),
         rules,
-        settings.judge_model,
         lambda pack: render_rules(pack, include_hidden=False),
         messages,
     )
     kp = KP(
         engine,
-        j,
-        w,
+        router,
         KPConfig(
-            judge_model=settings.judge_model,
-            writer_model=settings.writer_model,
             writer_concurrency=settings.writer_concurrency,
             messages=messages,
         ),
@@ -238,8 +274,7 @@ def build_services(
         rules=rules,
         maps=maps,
         llm_log=log,
-        judge=j,
-        writer=w,
+        llm=router,
         chat=SqlChatStore(db),
         dice=dice,
         copilot=copilot,

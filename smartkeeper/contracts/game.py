@@ -41,6 +41,8 @@ class GameSettings(Frozen):
     lobby: bool = True
     # 反馈里氛围描写（景物、声响、空气这类不产生游戏事实的修饰）最多大约多少字；0 是不写
     narration_chars: int = Field(default=100, ge=0)
+    # 这局 KP 用哪套模型（管理员建的 LLMProfile 的 id）；空的是服务器配置的默认那套
+    llm_profile: str = ""
 
     @model_validator(mode="before")
     @classmethod

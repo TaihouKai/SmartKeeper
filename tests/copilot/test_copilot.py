@@ -25,7 +25,7 @@ MESSAGES = {
 def make() -> tuple[Copilot, FakeLLM]:
     llm = FakeLLM()
     return Copilot(
-        llm, RulesService(), "m", lambda p: f"STRUCTURE OF {p.world.name}", MESSAGES
+        lambda _g: (llm, "m"), RulesService(), lambda p: f"STRUCTURE OF {p.world.name}", MESSAGES
     ), llm
 
 

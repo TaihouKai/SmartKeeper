@@ -6,10 +6,8 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class KPConfig:
-    """KP 管线的配置。模型选择是全局配置，不按局设置。"""
+    """KP 管线的配置。用哪套模型按局选，不在这里（见 KP 的 models）。"""
 
-    judge_model: str = "claude-opus-5-5"  # 开场、检定规划、回合裁定
-    writer_model: str = "claude-opus-5-5"  # 其余调用
     writer_concurrency: int = 4  # 反馈撰写的最大并行数
     max_retries: int = 2  # JSON 解析或校验失败后的重试次数
     recent_rounds: int = 3  # 裁定上下文里放原文的最近轮数

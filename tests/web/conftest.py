@@ -43,7 +43,9 @@ def site(tmp_path: Path) -> Site:
     return Site(services, settings, admin)
 
 
-def setup_game(site: Site, n_players: int = 2) -> tuple[str, list[TestClient]]:
+def setup_game(
+    site: Site, n_players: int = 2, settings: dict[str, object] | None = None
+) -> tuple[str, list[TestClient]]:
     """管理员：导入规则包、建局、发邀请。玩家：打开邀请链接、抽身份、建角。返回局 id 和各玩家的客户端。"""
     a = site.admin
     text = (ROOT / "tests/fixtures/rulepack_single.json").read_text(encoding="utf-8")
@@ -56,6 +58,7 @@ def setup_game(site: Site, n_players: int = 2) -> tuple[str, list[TestClient]]:
             "rulepack_version": v["version"],
             "map_id": "demo_shibuya",
             "scenario": "demo",
+            "settings": settings or {},
         },
     ).json()
     players: list[TestClient] = []

@@ -4,7 +4,7 @@
 
 - **和 KP 分开**：不读对局内容、不读 KP 的记事，只看规则书正文、规则书结构、语法手册和玩家正在写的卡。问答历史只在页面里，不存。
 - **接口**：`Copilot(llm, rules, model, describe, messages).ask(pack, question, game_id=None) -> CopilotAnswer`。
-  - `llm`：`LLMClient`（用 KP 那套模型配置，但是单独的调用，purpose 是 `copilot`）。
+  - `models`：局 id（不在局里是 None）→ `LLMClient` 和模型（用那一局 KP 的裁定模型，但是单独的调用，purpose 是 `copilot`）。
   - `rules`：`Rules` 接口，用来列语法手册（`docs()`）和检查给出的修改（`validate_sheet`）。
   - `describe`：把规则包写成结构说明的函数（web 装配时传 `rules.render`）。
   - `messages`：界面的翻译表（语言 -> 文案键 -> 文字），用来把语法手册和问题代码写成文字。

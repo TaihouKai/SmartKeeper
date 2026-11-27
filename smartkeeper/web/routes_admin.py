@@ -21,6 +21,7 @@ from smartkeeper.contracts import (
     GameSettings,
     IllegalState,
     LLMCallRecord,
+    LLMProfile,
     NotFound,
     PatchOp,
     Problem,
@@ -160,6 +161,12 @@ class GameDetail(BaseModel):
     round: Round | None
     searchable: bool
     opening: OpeningState | None = None
+
+
+class LLMProfilesOut(BaseModel):
+    default: LLMProfile  # 服务器配置的那套（id 为空），不能在这里改
+    profiles: list[LLMProfile]
+    providers: list[str]  # 服务器上配好了密钥、可以选的实现
 
 
 class PatchGameIn(BaseModel):
@@ -440,8 +447,36 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
     def games() -> list[Game]:
         return e.list_games()
 
+    # ---------------- 模型配置（每局选一套） ----------------
+
+    @guarded.get("/llm-profiles")
+    def llm_profiles() -> LLMProfilesOut:
+        return LLMProfilesOut(
+            default=s.llm.default, profiles=s.llm.profiles.list(), providers=s.llm.providers
+        )
+
+    @guarded.post("/llm-profiles")
+    def save_llm_profile(body: LLMProfile) -> LLMProfile:
+        """id 为空是新建，否则改那一套（用它的局下一次调用就换过去）。"""
+        s.llm.check(body)
+        return s.llm.profiles.save(body)
+
+    @guarded.delete("/llm-profiles/{profile_id}")
+    def delete_llm_profile(profile_id: str) -> OkOut:
+        """还有没结束的局在用就不能删。"""
+        using = [
+            g.name
+            for g in e.list_games()
+            if g.status != "ended" and g.settings.llm_profile == profile_id
+        ]
+        if using:
+            raise IllegalState("llm_profile.in_use", games=list[JsonValue](using))
+        s.llm.profiles.delete(profile_id)
+        return OkOut()
+
     @guarded.post("/games")
     def new_game(body: NewGameIn) -> Game:
+        s.llm.check_choice(body.settings.llm_profile)
         sc = get_scenario(body.scenario)
         return e.create_game(
             GameConfig(
@@ -474,13 +509,14 @@ def build_admin_router(s: Services, auth: Auth) -> APIRouter:
             game=g,
             players=rows,
             round=rnd,
-            searchable=s.judge.supports_search,
+            searchable=s.llm(game_id, True)[0].supports_search,
             opening=openings.get(game_id) if g.status == "characters" else None,
         )
 
     @guarded.patch("/games/{game_id}")
     def patch_game(game_id: str, body: PatchGameIn, bg: BackgroundTasks) -> Game:
         if body.settings is not None:
+            s.llm.check_choice(body.settings.llm_profile)
             e.update_settings(game_id, body.settings)
         if body.action == "start":
             g = e.game(game_id)

@@ -39,19 +39,18 @@ type Messages = Mapping[str, Mapping[str, str]]  # 语言 -> 文案键 -> 文字
 
 
 class Copilot:
-    """describe：把规则包写成结构说明（给模型看的文字）；messages：界面的翻译表，用来把语法手册和问题代码写成文字。"""
+    """models：用哪个实现和模型（给了局 id 就用那一局 KP 的裁定模型）；
+    describe：把规则包写成结构说明（给模型看的文字）；messages：界面的翻译表，用来把语法手册和问题代码写成文字。"""
 
     def __init__(
         self,
-        llm: LLMClient,
+        models: Callable[[str | None], tuple[LLMClient, str]],
         rules: Rules,
-        model: str,
         describe: Callable[[RulePack], str],
         messages: Messages,
     ) -> None:
-        self._llm = llm
+        self._models = models
         self._rules = rules
-        self._model = model
         self._describe = describe
         self._messages = messages
 
@@ -105,9 +104,10 @@ class Copilot:
     # ---- 内部 ----
 
     def _call(self, system: str, messages: list[Message], game_id: str | None) -> str:
-        return self._llm.complete(
+        llm, model = self._models(game_id)
+        return llm.complete(
             purpose="copilot",
-            model=self._model,
+            model=model,
             system=system,
             messages=messages,
             json_schema=SCHEMA,

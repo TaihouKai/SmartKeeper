@@ -8,6 +8,7 @@
       "llm": "LLM calls",
       "log": "Log",
       "materials": "Materials",
+      "profiles": "Model profiles",
       "review": "Review",
       "rules": "Rules",
       "state": "World state"
@@ -325,6 +326,13 @@
       "bad_password": "Wrong password",
       "not_found": "No such character in the library",
       "too_big": "This character is too big to save"
+    },
+    "llm_profile": {
+      "in_use": "Games still in progress use this profile: {games}",
+      "model_required": "The model name can't be empty",
+      "name_required": "The name can't be empty",
+      "not_found": "No such model profile",
+      "unknown_provider": "The server has no key configured for {provider}"
     },
     "lobby": {
       "already_in": "You are already in this game; press Continue",
@@ -1393,6 +1401,21 @@
     "travel_title": "Time to reach this point",
     "travel_walk": "walking {time}",
     "use_destination": "Use as destination"
+  },
+  "profiles": {
+    "choose": "Model profile",
+    "default": "Server default",
+    "default_hint": "From the server configuration; not editable here",
+    "edit": "Edit",
+    "hint": "Sets of model choices (say, production and testing). Pick one when creating a game; you can switch in the game's settings (takes effect from the next call). Keys live in the server configuration; here you only pick the provider and the model name.",
+    "judge": "Rulings",
+    "judge_hint": "Opening, check planning, round rulings and instant results (and this game's character-building helper). Most of the cost, and what matters most for the keeper's quality.",
+    "missing": "(deleted profile; using the server default)",
+    "model": "Model",
+    "name": "Name",
+    "new": "New profile",
+    "writer": "Everything else",
+    "writer_hint": "Parsing actions, feedback and broadcasts, leak checks, character review, chat with the keeper, NPC talk, summaries, handles."
   },
   "react": {
     "admin_title": "Waiting for players' reactions",

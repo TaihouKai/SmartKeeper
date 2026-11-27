@@ -8,5 +8,6 @@
 - `OpenAICompatLLM`：OpenAI 兼容接口（Chat Completions），不联网。
 - `FakeLLM`：测试用，按用途交给处理函数或弹出预置响应；记录全部调用。
 - `RecordingLLM` + `SqlLLMCallLog`：把每次调用写进 `llm_call` 表（prompt、响应、搜索记录、token、耗时、是否校验通过）。
+- `SqlLLMProfiles`：`llm_profile` 表，管理员建的几套模型选择（`LLMProfile`：裁定用哪个实现和模型、其余调用用哪个），开局时选一套。
 - 不依赖提供方的结构化输出，JSON 一律由调用方在本地校验。
 - 单独测试：`uv run pytest tests/llm`（不联网）；真模型测试标 `live`。

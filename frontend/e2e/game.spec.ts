@@ -211,6 +211,19 @@ test("admin console login and panels render", async ({ page }) => {
   await shot(page, "admin-rules");
   await page.getByRole("button", { name: "Materials" }).click();
   await expect(page.getByText("demo").first()).toBeVisible();
+  // 模型配置：建一套，开局和局的设置里的下拉菜单能选
+  await page.getByRole("button", { name: "Model profiles" }).click();
+  await page.getByRole("button", { name: "New profile" }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Testing");
+  await page.getByLabel("Rulings").selectOption("fake");
+  await page.getByLabel("Model").first().fill("cheap-judge");
+  await page.getByLabel("Everything else").selectOption("fake");
+  await page.getByLabel("Model").nth(1).fill("cheap-writer");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.locator("td", { hasText: "fake/cheap-judge + fake/cheap-writer" })).toBeVisible();
+  await shot(page, "admin-profiles");
+  await page.getByRole("button", { name: "Games" }).click();
+  await expect(page.locator("option", { hasText: "Testing（fake/cheap-judge + fake/cheap-writer）" }).first()).toBeAttached();
   // 选中上一个测试建的局，看世界状态和 LLM 调用面板
   await page.getByRole("button", { name: "Games" }).click();
   await page.locator(".sk-chip", { hasText: "e2e" }).first().click();

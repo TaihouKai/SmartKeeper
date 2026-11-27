@@ -11,7 +11,7 @@ from typing import Any
 
 from smartkeeper.contracts import Intent, Outcome, RulePack, SheetSubmission
 from smartkeeper.engine import Engine
-from smartkeeper.kp import KP, KPConfig
+from smartkeeper.kp import KP, KPConfig, fixed_models
 from smartkeeper.llm import FakeCall, FakeLLM
 from tests.engine.harness import make_engine, sheets_for
 from tests.fixtures import load_pack
@@ -160,9 +160,8 @@ def new_game(
     scheduled: list[tuple[float, Callable[[], None]]] = []
     kp = KP(
         engine,
-        llm,
-        llm,
-        config or KPConfig(judge_model="fake-judge", writer_model="fake-writer"),
+        fixed_models(llm, "fake-judge", llm, "fake-writer"),
+        config or KPConfig(),
         # 出错后的自动重试：测试里不真的等，记下来由测试自己决定要不要执行
         schedule=lambda delay, fn: scheduled.append((delay, fn)),
     )
