@@ -174,7 +174,8 @@ GROUP_DESC = {
     "master_action": "[[令咒]] [[据点]]",
     "klass_skill": "按职阶自动获得，等级自己填。[[职阶技能]]",
     "personal_skill": "英灵本人的技能，自己设计；写不成规则的只写说明，由 KP 裁定。[[保有技能]]",
-    "servant_magic": "Caster 自动会下面这些魔术。[[英灵魔术]]",
+    "servant_magic": "生前会魔术的英灵（不限职阶：卢恩、投影、咒术……）把自己的魔术写在这里，由 KP 按传说审核；"
+    "这里的伤害都是魔力伤害，会被对魔力减免。Caster 另外自动会下面这些。[[英灵魔术]]",
     "noble_phantasm": "[[宝具]] [[宝具伤害]]",
 }
 
@@ -1509,6 +1510,8 @@ SERVANT = {
             ],
             damage_kind="magic",
             placements=True,
+            # 不只 Caster 会魔术：生前会魔术的英灵（卢恩、投影……）自己把魔术写在这里，由 KP 按传说审核
+            max_count=None,
         ),
         group(
             "noble_phantasm",
