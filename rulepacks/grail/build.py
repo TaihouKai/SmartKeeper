@@ -1891,6 +1891,68 @@ PACK = {
 }
 
 
+# 型月设定集只收 Fate 通用的设定：某一部作品（手游）专属的组织、剧情、职阶、机制和编辑注记一律不收。
+# 构建时检查正文和关键词，出现就报错（2026-11-28 清理过一遍，见 docs/plan-lorebook.md）
+LORE_BANNED = (
+    "迦勒底",
+    "人理",
+    "特异点",
+    "异闻",
+    "灵基再临",
+    "灵子转移",
+    "藤丸",
+    "立香",
+    "玛修",
+    "咕哒",
+    "FGO",
+    "Grand Order",
+    "FATE系统",
+    "白纸化",
+    "空想树",
+    "Crypter",
+    "冠位",
+    "影之边境",
+    "泳装",
+    "圣诞",
+    "灵衣",
+    "魔神柱",
+    "盖提亚",
+    "异星之神",
+    "ORT",
+    "新宿",
+    "活体行星",
+    "剪定",
+    "编纂事象",
+    "泛人类史",
+    "纹理",
+    "Pretender",
+    "伪装者",
+    "Foreigner",
+    "降临者",
+    "Alter Ego",
+    "Shielder",
+    "Moon Cancer",
+    "月癌",
+    "Saver",
+    "职阶卡",
+    "芙芙",
+    "第一部",
+    "第二部",
+    "世界书",
+    "量子时间锁",
+    "仅供参考",
+    "存疑",
+)
+
+
+def lore_problems(lore_src: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    for e in lore_src["entries"].values():
+        text = e["content"] + " " + " ".join(e["key"])
+        out += [f"lore {e['comment']}: {t}" for t in LORE_BANNED if t in text]
+    return out
+
+
 def main() -> int:
     sys.path.insert(0, str(ROOT))
     from smartkeeper.contracts import RulePack
@@ -1902,6 +1964,11 @@ def main() -> int:
     lore_src = json.loads(
         Path(__file__).with_name("lore_worldinfo.json").read_text(encoding="utf-8")
     )
+    banned = lore_problems(lore_src)
+    for x in banned:
+        print(x)
+    if banned:
+        return 1
     PACK["lore"] = [x.model_dump(mode="json") for x in from_world_info(lore_src)]
     pack = RulePack.model_validate(PACK)
     problems = RulesService().validate_pack(pack)
