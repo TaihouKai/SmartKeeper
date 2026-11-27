@@ -42,7 +42,7 @@ npcs:
     template: {npc_template}
     sheet: {npc_sheet}
     location: {{pos: {{x: -50, y: 150, z: 0}}}}
-{extra}---
+{npc_extra}{extra}---
 The baker did it.
 """
 
@@ -174,6 +174,7 @@ def setup_table(
     map_id: str | None = "small",
     pack: RulePack | None = None,
     kp_extra: str = "",
+    npc_extra: str = "",
     broadcast: str = "It begins.",
 ) -> Table:
     engine, packs = make_engine(seed)
@@ -186,7 +187,7 @@ def setup_table(
 
     npc_sheet: JsonValue = dict(npc_sample.sheet)
     scenario_kp = SCENARIO_KP.format(
-        npc_template=npc_tpl, npc_sheet=json.dumps(npc_sheet), extra=kp_extra
+        npc_template=npc_tpl, npc_sheet=json.dumps(npc_sheet), extra=kp_extra, npc_extra=npc_extra
     )
     game = engine.create_game(
         GameConfig(

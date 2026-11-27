@@ -8,7 +8,15 @@ from typing import Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from smartkeeper.contracts import AdHocCheck, PatchOp, Place, PlaceNameIn, Point, SpatialQuery
+from smartkeeper.contracts import (
+    AdHocCheck,
+    PatchOp,
+    Place,
+    PlaceNameIn,
+    Point,
+    PublicIntelIn,
+    SpatialQuery,
+)
 
 
 class _Out(BaseModel):
@@ -24,6 +32,7 @@ class OpeningOut(_Out):
     broadcast: str
     messages: dict[str, str]
     places: list[PlaceNameIn] = []
+    public_intel: list[PublicIntelIn] = []
     positions: dict[str, Place] = {}
 
 

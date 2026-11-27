@@ -12,6 +12,7 @@ from smartkeeper.contracts import (
     IntelIn,
     PackParam,
     PatchOp,
+    PublicIntelIn,
     RulePack,
     UseResult,
     ValidationFailed,
@@ -272,3 +273,43 @@ def test_clues_about_someone_met_only_at_the_end_of_the_round() -> None:
         update={"intel": (IntelIn(player=pid, about="npc_1", text="flour on his sleeves"),)}
     )
     e.apply_adjudication(g, adj)  # 不报 adj.intel_not_met
+
+
+def test_public_intel_reaches_every_player_without_meeting() -> None:
+    """广播里公开说出的名字、身份：每个玩家都知道了（不要求见过），控制那个实体的玩家不另收。"""
+    t, a, b = table()
+    p0, p1 = t.players
+    apart(t)
+    for p in t.players:
+        wait(t, p, 10)
+    adj = t.simple_adjudication().model_copy(
+        update={"public_intel": (PublicIntelIn(about=b, text="announced", fields=("occupation",)),)}
+    )
+    t.play_round(adj)
+    got = known(t, p0, b)
+    assert "occupation" in got and "announced" in got["notes"]
+    assert known(t, p1, b) == {"notes": [], "entries": []}
+    assert not t.engine.player_intel(t.game_id, p1).get(b)
+    del a
+
+
+def test_bad_public_intel_is_rejected() -> None:
+    t, _a, b = table()
+    for p in t.players:
+        wait(t, p, 10)
+    t.engine.close_round(t.game_id)
+    bad = (PublicIntelIn(about="ghost", text="t"), PublicIntelIn(about=b, fields=("wings",)))
+    with pytest.raises(ValidationFailed) as err:
+        t.engine.apply_adjudication(
+            t.game_id, t.simple_adjudication().model_copy(update={"public_intel": bad})
+        )
+    codes = [p.code for p in err.value.problems]
+    assert "adj.intel_unknown_entity" in codes and "adj.intel_unknown_field" in codes
+
+
+def test_scenario_marks_npc_fields_everyone_knows_from_the_start() -> None:
+    """剧本写明公开的 NPC 字段（例如开场通知里说了名字）：开场时引擎告诉每个玩家。"""
+    t = setup_table("single", 2, npc_extra="    public: [name]\n")
+    for p in t.players:
+        facts = t.engine.player_intel(t.game_id, p).get("npc_1", ())
+        assert any(f.kind == "field" and f.field and f.field.name == "name" for f in facts)

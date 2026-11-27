@@ -556,9 +556,14 @@ class Contexts:
 
         chat = [x for x in this_round if x.type == "pm_kp"]
         talk = [x for x in this_round if x.type.startswith("talk_")]
-        ends_at = {
+        ends_at: dict[str, dict[str, JsonValue]] = {
             eid: loc.model_dump(mode="json") for eid, loc in e.positions_at_end(game_id).items()
         }
+        # 还在路上的：离目的地还剩多少路、多少时间（引擎算好的，写进度时照这个写，不要自己估）
+        for eid, (meters, secs) in e.travel_left(game_id).items():
+            if eid in ends_at:
+                ends_at[eid]["left_m"] = round(meters)
+                ends_at[eid]["left_s"] = secs
         claims = [x.payload for x in this_round if x.type == "claim_check"]
         parts = [
             section("规则书", e.rulebook(game_id)),
@@ -589,7 +594,8 @@ class Contexts:
             ),
             section("进行中的行动（按玩家）", "\n\n".join(acting)),
             section(
-                "本轮结束时各实体按行动走到的位置（你没有另行安排移动时就在这里）", dumps(ends_at)
+                "本轮结束时各实体按行动走到的位置（你没有另行安排移动时就在这里；还在路上的，left_m 是离目的地还剩的路程（米）、left_s 是还要走的秒数，写走到哪一步时照这个写，不要自己估）",
+                dumps(ends_at),
             ),
             section(
                 "必须有结果的玩家和原因（引擎按进行中的行动推到本轮结束的位置算好的：action_done 行动做完了"
@@ -681,6 +687,7 @@ class Contexts:
             *([outcome.result, *outcome.observations] if outcome else []),
             *(enc.observed_by[player_id] for enc in adj.encounters if player_id in enc.observed_by),
             *(x.text for x in adj.intel if x.player == player_id),
+            *(x.text for x in adj.public_intel),
         ]
         strangers = sorted(
             {eid for txt in mentioned for eid in entity_tokens(txt)}
@@ -706,6 +713,10 @@ class Contexts:
             {"about": labels.get(x.about, unknown), "clue": loc(x.text), "fields": list(x.fields)}
             for x in adj.intel
             if x.player == player_id
+        ] + [
+            {"about": labels.get(x.about, unknown), "clue": loc(x.text), "fields": list(x.fields)}
+            for x in adj.public_intel
+            if x.about not in self.e.controlled(game_id, player_id)
         ]
         public = [replace_entity_tokens(x, {}, unknown) for x in adj.public_events]
         # 本轮反馈里提到的人（和他自己的角色）的外观：性别、相貌照这个写，不按名字和传说猜

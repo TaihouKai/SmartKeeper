@@ -77,6 +77,7 @@ from smartkeeper.contracts import (
     Point,
     PresenceEntry,
     Problem,
+    PublicIntelIn,
     QueryResult,
     ReactionChoice,
     ReactionParam,
@@ -140,6 +141,7 @@ from smartkeeper.engine.timeline import (
     cut_time,
     location_at,
     plan_items,
+    travel_left,
     travel_seconds,
 )
 
@@ -876,6 +878,19 @@ class Engine:
                 problems += self._check_location(m, eid, loc, f"positions.{eid}")
             if problems:
                 raise ValidationFailed("opening.invalid_positions", problems)
+            after = self._world.apply(state, ops) if ops else state
+            # 公开的情报：剧本里写明公开的 NPC 字段，加上 KP 开场时公开说出的
+            public = [
+                *(PublicIntelIn(about=n.id, fields=n.public) for n in meta.npcs if n.public),
+                *opening.public_intel,
+            ]
+            problems = adjv.check_public_intel(
+                public,
+                entities=set(_obj(after.get("entities"))),
+                fields_of=lambda eid: self._field_names(pack, after, eid),
+            )
+            if problems:
+                raise ValidationFailed("opening.invalid_intel", problems)
             self._validated(game_id, state, ops)
             evs: list[NewEvent] = (
                 [self._patch_event(ops, cause="opening", actor=ENGINE)] if ops else []
@@ -913,6 +928,9 @@ class Engine:
                     visibility=Visibility.kp_only(),
                     payload={"round": 1, "game_seconds": 0},
                 )
+            )
+            evs += self._public_intel_events(
+                game_id, public, self._space_for(m, after, pack), 1, 0, named_state
             )
             self._events.append(game_id, 0, evs)
             self._repo.insert_round(
@@ -1480,6 +1498,16 @@ class Engine:
             loc = location_at(act, end, here)
             if loc is not None:
                 out[eid] = loc
+        return out
+
+    def travel_left(self, game_id: str) -> dict[str, tuple[float, int]]:
+        """本轮结束时还在路上的实体：离这次行动最后的目的地还有多少米、还要走多少秒。"""
+        _, end = self.round_window(game_id)
+        out: dict[str, tuple[float, int]] = {}
+        for eid, act in self.activities(game_id).items():
+            left = travel_left(act, end)
+            if left is not None:
+                out[eid] = left
         return out
 
     def travel_times(
@@ -3841,6 +3869,11 @@ class Engine:
             ),
             fields_of=lambda eid: self._field_names(pack, state, eid),
         )
+        problems += adjv.check_public_intel(
+            adj.public_intel,
+            entities=entities,
+            fields_of=lambda eid: self._field_names(pack, state, eid),
+        )
         if problems:
             raise ValidationFailed("adjudication.invalid", problems)
         if mv_ops:
@@ -4394,6 +4427,7 @@ class Engine:
             evs += self._noticed_events(game_id, r.no, adj, seconds)
             space = self._space_for(self._map(game_id), final, self.rulepack(game_id))
             evs += self._kp_intel_events(game_id, adj, space, r.no, seconds, final)
+            evs += self._public_intel_events(game_id, adj.public_intel, space, r.no, seconds, final)
             if isinstance(bc, str):
                 evs.append(
                     NewEvent(
@@ -5026,6 +5060,34 @@ class Engine:
             if new:
                 have[(x.player, x.about)] = [*have.get((x.player, x.about), []), *new]
                 out.append(intel.event(x.player, x.about, new, round_no, seconds, KP))
+        return out
+
+    def _public_intel_events(
+        self,
+        game_id: str,
+        items: Sequence[PublicIntelIn],
+        space: Space,
+        round_no: int,
+        seconds: int,
+        state: State | None = None,
+    ) -> list[NewEvent]:
+        """公开的情报：告诉每个玩家（控制这个实体的玩家除外），不要求见过。"""
+        out: list[NewEvent] = []
+        have = self._known_intel(game_id)
+        for x in items:
+            for p in self._active_players(game_id):
+                if x.about in self.controlled(game_id, p.id):
+                    continue
+                facts: list[IntelFact] = []
+                if x.text.strip():
+                    facts.append(
+                        intel.note(self._link_places(game_id, x.text.strip(), state), seconds)
+                    )
+                facts += intel.facts_about(space, x.about, x.fields, (), "kp", seconds)
+                new = intel.fresh(have.get((p.id, x.about), []), facts)
+                if new:
+                    have[(p.id, x.about)] = [*have.get((p.id, x.about), []), *new]
+                    out.append(intel.event(p.id, x.about, new, round_no, seconds, KP))
         return out
 
     def _map(self, game_id: str) -> MapData:

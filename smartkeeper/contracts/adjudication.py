@@ -120,6 +120,17 @@ class IntelIn(Frozen):
     fields: tuple[str, ...] = ()
 
 
+class PublicIntelIn(Frozen):
+    """所有玩家都知道的关于某个实体的事：广播里、公开场合说出的名字和身份（例如开场通知里的接待人）。
+
+    引擎告诉每个玩家（控制这个实体的玩家除外），不要求见过。text、fields 同 IntelIn。
+    """
+
+    about: str  # 实体 id
+    text: str = ""
+    fields: tuple[str, ...] = ()
+
+
 class TellIn(Frozen):
     """裁定里的转告：source 这一方（玩家 id，或者 NPC 的实体 id）把 about 在哪告诉了 player（玩家 id）。
 
@@ -146,6 +157,7 @@ class Adjudication(Frozen):
     state_patch: tuple[PatchOp, ...] = ()
     memory_entries: tuple[MemoryEntryIn, ...] = ()
     intel: tuple[IntelIn, ...] = ()  # 玩家得知的关于别人的情报
+    public_intel: tuple[PublicIntelIn, ...] = ()  # 所有玩家都知道了的（广播里说出的名字、身份）
     tells: tuple[TellIn, ...] = ()  # 谁把谁在哪告诉了谁（技能的 seen_within 按它判）
     places: tuple[PlaceNameIn, ...] = ()  # 新起名字的地点（所有玩家共用、永久有效）
     kp_notes: str | None = None
@@ -190,4 +202,5 @@ class Opening(Frozen):
     broadcast: str
     messages: dict[str, str]  # 玩家 id -> 开场私信
     places: tuple[PlaceNameIn, ...] = ()  # 开场时新起名字的地点
+    public_intel: tuple[PublicIntelIn, ...] = ()  # 开场时所有玩家都知道的（广播里说出的名字、身份）
     positions: dict[str, Location] = {}  # 实体 id -> 初始位置；剧本没有指定的

@@ -36,6 +36,8 @@ class NpcSpec(Frozen):
     template: str
     sheet: dict[str, JsonValue]
     location: Place | None = None
+    # 开场时所有玩家就知道的字段（例如公开的接待人的名字）：引擎在开场时告诉每个玩家
+    public: tuple[str, ...] = ()
 
 
 class PublicMeta(Frozen):

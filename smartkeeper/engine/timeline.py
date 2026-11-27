@@ -167,6 +167,29 @@ def location_at(act: Activity, t: int, current: Location | None) -> Location | N
     return loc
 
 
+def travel_left(act: Activity, t: int) -> tuple[float, int] | None:
+    """t 时刻离这次行动最后的目的地还有多少米（沿路线）、还要走多少秒；不在路上了（或没有移动）是 None。"""
+    clock = act.start
+    meters = 0.0
+    seconds = 0
+    for s in act.steps:
+        if s.to is not None and s.start is not None and s.move > 0:
+            done = min(1.0, max(0.0, (t - clock) / s.move))
+            if done < 1.0:
+                meters += _length(s) * (1.0 - done)
+                seconds += clock + s.move - max(t, clock)
+        clock += s.move + s.act
+    return (meters, seconds) if seconds > 0 else None
+
+
+def _length(step: Step) -> float:
+    assert step.start is not None and step.to is not None
+    a, b = step.start, step.to.pos
+    if step.fly:
+        return math.dist((a.x, a.y, a.z), (b.x, b.y, b.z))
+    return abs(b.z - a.z) + math.hypot(b.x - a.x, b.y - a.y)
+
+
 def _vertical_phase(step: Step, frac: float) -> bool:
     assert step.start is not None and step.to is not None
     a, b = step.start, step.to.pos

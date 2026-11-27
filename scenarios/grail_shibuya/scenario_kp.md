@@ -82,6 +82,7 @@ npcs:
     location: {place: セルリアンタワー, floor: 30}
   - id: npc_father
     template: master
+    public: [name]  # 开场通知里就说了监督者的名字
     sheet:
       name: 神父·朝仓
       fields:

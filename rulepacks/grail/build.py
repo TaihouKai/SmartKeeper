@@ -9,7 +9,7 @@
 - 令咒：三划，绝对命令、空间转移、魔力灌注、自害；
 - 情报：陌生人的一切要从蛛丝马迹里拼出来。御主看见英灵就知道它的职阶和参数（“看见就知道”）；
   宝具平时用不暴露名字，解放真名时喊出来，看见的人知道宝具的名字和英灵的真名；其余的线索由 KP 判定、一点一点给；
-- 神秘：普通的攻击伤不到英灵，只有魔术、礼装、英灵和宝具的攻击才行；灵体化时物理上碰不到；
+- 神秘：普通的攻击伤不到英灵，只有魔术、礼装、英灵和宝具的攻击才行；灵体化时人的物理攻击碰不到（英灵的攻击照样打得到）；
 - 宝具是“装备”：一件宝具有等级、类型和常驻效果，下面挂几种用法（平时当武器用、开关、解放真名的光炮、结界、召唤……），
   不能写成规则的效果写成说明，由 KP 裁定；
 - 职阶技能按职阶出现，等级建角时自己填；魔术师有工房，Caster 有阵地，在里面回魔快；
@@ -237,7 +237,9 @@ def common_actions(servant: bool) -> dict[str, Any]:
         preset(
             "聆听",
             "listen",
-            "竖起耳朵听周围的动静：谈话、脚步、远处的打斗。检定等级越高听得越清楚、越远。",
+            "竖起耳朵听一分钟周围的动静（谈话的内容、脚步、远处的打斗、车声），隔着墙也行："
+            "成功听得清听力范围 × 2 米以内的声音，困难成功 × 3，极难成功 × 4；失败只听得到平时的听力范围以内的。"
+            "范围外的只知道“那个方向有动静”。",
             """
             target = "none"
             check = "scout"
@@ -865,11 +867,12 @@ STEALTH = code(
     )
     """
 )
-# 神秘：普通的攻击伤不到英灵；灵体化时只有魔力伤害和带神秘的物理伤害（mystic，例如礼装）碰得到，
-# 宝具本身就是神秘，也碰得到；对魔力只挡魔力伤害（魔术），不挡带神秘的物理伤害和宝具
+# 神秘：普通的攻击伤不到英灵；英灵本身就是灵体，英灵的攻击（servant）不管对方灵体化没有都打得到；
+# 人对灵体化的英灵只有魔力伤害和带神秘的物理伤害（mystic，例如礼装）碰得到；宝具本身就是神秘，也碰得到；
+# 对魔力只挡魔力伤害（魔术），不挡带神秘的物理伤害、英灵的攻击和宝具
 SERVANT_DAMAGE = code(
     """
-    0 if kind == "mundane" or (spirit_form and kind != "magic" and kind != "mystic" and kind != "noble_phantasm") else max(0, amount - 5 * servant.anti_magic.level) if kind == "magic" else amount
+    0 if kind == "mundane" or (spirit_form and kind != "magic" and kind != "mystic" and kind != "noble_phantasm" and kind != "servant") else max(0, amount - 5 * servant.anti_magic.level) if kind == "magic" else amount
     """
 )
 RANGED = """
@@ -1230,7 +1233,7 @@ SERVANT = {
                 preset(
                     "灵体化",
                     "spirit",
-                    "进入或解除灵体化：普通人看不见，普通的物理攻击碰不到你，你也不能攻击，速度提升 30%；英灵和魔术师照样感觉得到你，但看不清你的样子。不消耗魔力。",
+                    "进入或解除灵体化：普通人看不见，人的普通物理攻击碰不到你（英灵的攻击和宝具照样打得到），你也不能攻击，速度提升 30%；英灵和魔术师照样感觉得到你，但看不清你的样子。不消耗魔力。",
                     """
                     target = "self"
                     toggle = self.spirit_form
@@ -1277,6 +1280,7 @@ SERVANT = {
                 *[attr_plus(n, label) for n, label in ATTRS],
             ],
             hidden=True,
+            damage_kind="servant",
         ),
         group(
             "klass_skill",
@@ -1356,6 +1360,7 @@ SERVANT = {
             placements=True,
             # 技能没有名字可喊：别人只看到效果，认不认得出由 KP 给线索
             reveal="False",
+            damage_kind="servant",
         ),
         group(
             "personal_skill",
@@ -1365,6 +1370,7 @@ SERVANT = {
             max_count=None,
             placements=True,
             reveal="False",
+            damage_kind="servant",
         ),
         group(
             "servant_magic",

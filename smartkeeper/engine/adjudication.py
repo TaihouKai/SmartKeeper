@@ -10,6 +10,7 @@ from smartkeeper.contracts import (
     Frozen,
     PatchOp,
     Problem,
+    PublicIntelIn,
 )
 
 ENGINE_ONLY_PATHS = ("/game_seconds", "/map", "/activities", "/placements")
@@ -180,6 +181,33 @@ def check_tells(adj: Adjudication, *, players: set[str], entities: set[str]) -> 
             problems.append(
                 Problem(code="adj.tell_unknown_entity", path=path, params={"id": x.about})
             )
+    return problems
+
+
+def check_public_intel(
+    items: Sequence[PublicIntelIn],
+    *,
+    entities: set[str],
+    fields_of: Callable[[str], set[str]],
+    path: str = "public_intel",
+) -> list[Problem]:
+    """公开的情报：关于存在的实体，要有线索或字段，字段要在对方卡上（不要求谁见过）。"""
+    problems: list[Problem] = []
+    for i, x in enumerate(items):
+        at = f"{path}[{i}]"
+        if x.about not in entities:
+            problems.append(
+                Problem(code="adj.intel_unknown_entity", path=at, params={"id": x.about})
+            )
+            continue
+        if not x.text.strip() and not x.fields:
+            problems.append(Problem(code="adj.intel_empty", path=at))
+        known = fields_of(x.about)
+        problems += [
+            Problem(code="adj.intel_unknown_field", path=at, params={"name": name})
+            for name in x.fields
+            if name not in known
+        ]
     return problems
 
 

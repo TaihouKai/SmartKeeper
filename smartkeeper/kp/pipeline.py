@@ -232,6 +232,7 @@ class KP:
                 broadcast=out.broadcast,
                 messages=out.messages,
                 places=tuple(out.places),
+                public_intel=tuple(out.public_intel),
                 positions=positions,
             )
             return self.engine.start_game(game_id, opening)
@@ -687,5 +688,7 @@ def mentioned_entities(adj: Adjudication, player_id: str) -> set[str]:
             texts += [o.result, *o.observations]
     texts += [enc.observed_by[player_id] for enc in adj.encounters if player_id in enc.observed_by]
     texts += [x.text for x in adj.intel if x.player == player_id]
+    texts += [x.text for x in adj.public_intel]
     about = {x.about for x in adj.intel if x.player == player_id}
+    about |= {x.about for x in adj.public_intel}
     return about | {eid for t in texts for eid in entity_tokens(t)}

@@ -1173,3 +1173,17 @@ def test_reactions_are_chosen_by_the_target() -> None:
         list[dict[str, Any]], cast(Any, e.world_state(g))["entities"][e1]["sheet"]["statuses"]
     )
     assert not any(s["tag"] == "cooldown:parry" for s in statuses)  # parry 没有冷却
+
+
+def test_travel_left_is_worked_out_by_the_engine() -> None:
+    """本轮结束时还在路上的：离目的地还剩多少米、多少秒由引擎算好给 KP，不让 KP 自己估。"""
+    from smartkeeper.contracts import Activity, Location, Point, Step
+    from smartkeeper.engine import timeline
+
+    walk = Step(
+        item="i1", start=Point(x=0, y=0, z=0), to=Location(pos=Point(x=300, y=400, z=0)), move=100
+    )
+    act = Activity(player="p", start=0, end=100, steps=(walk,))
+    meters, secs = timeline.travel_left(act, 40) or (0.0, 0)
+    assert round(meters) == 300 and secs == 60
+    assert timeline.travel_left(act, 100) is None
