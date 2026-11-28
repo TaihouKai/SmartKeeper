@@ -920,7 +920,11 @@ class Contexts:
         return Prompt(system, user)
 
     def _own_texts(self, game_id: str, player_id: str) -> dict[str, dict[str, str]]:
-        """他自己各角色卡上的文字字段（名字、来历、外观之类；不含数值和技能代码）。"""
+        """他自己各角色卡上的名字和文字字段（来历、外观之类；不含数值和技能代码）。
+
+        按代号列出，但卡上的名字（哪怕对别人保密）也给：他自己的角色彼此知道，
+        少了它，写反馈的模型只知道代号，会把“互相介绍”写成没说出名字。
+        """
         out: dict[str, dict[str, str]] = {}
         for v in self.e.sheets(game_id, player_id):
             fields = v.sheet.get("fields")
@@ -930,6 +934,8 @@ class Contexts:
                 else {}
             )
             name = v.sheet.get("name")
+            if isinstance(name, str) and name.strip():
+                texts = {"name": name, **texts}
             out[v.label or (name if isinstance(name, str) else v.entity_id)] = texts
         return out
 

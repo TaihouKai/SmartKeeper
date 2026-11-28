@@ -227,6 +227,20 @@ def test_feedback_writer_gets_scenery_own_sheet_texts_and_the_length_setting() -
     assert "不写氛围描写" in g.llm.by_purpose("feedback")[-1].system
 
 
+def test_feedback_writer_knows_the_names_on_the_players_own_cards() -> None:
+    """自己的角色彼此没有秘密：写反馈的模型拿到他自己每张卡上的名字（哪怕对别人保密、只显示代号），
+    互相介绍时才写得出名字，不会写成“没有透露名字”。"""
+    g = new_game(2)
+    g.play_round()
+    calls = g.llm.by_purpose("feedback")
+    owns = [c.prompt.split("## 该玩家自己角色的角色卡文字")[1].split("## ")[0] for c in calls]
+    for pid in g.players:
+        names = [v.sheet.get("name") for v in g.engine.sheets(g.game_id, pid)]
+        assert names and all(isinstance(n, str) for n in names)
+        assert any(all(f'"name":"{n}"' in own for n in names) for own in owns)
+    assert all("包括对别人保密的名字" in c.system for c in calls)
+
+
 def test_feedback_writer_sees_the_looks_of_who_it_writes_about() -> None:
     """写反馈的模型拿到本轮提到的人和玩家自己角色的外观，人称、相貌按外观写，不按名字猜。"""
     g = new_game(2)
