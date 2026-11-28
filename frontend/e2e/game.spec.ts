@@ -79,6 +79,20 @@ async function createCharacter(page: Page, i: number) {
   await form.getByLabel("per").fill("40");
   await expect(page.locator(".cf-side")).toContainText("perception_radius");
   await expect(page.locator(".cf-footer")).toContainText("All filled in");
+  if (i === 0) {
+    // 导出 JSON，改掉名字，再导入回来：整套卡回到导出时的样子，可以撤销
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export JSON" }).click();
+    const file = await download;
+    expect(file.suggestedFilename()).toBe("Hero 0.json");
+    const path = await file.path();
+    await form.locator(".cf-nav").getByRole("button", { name: /Identity/ }).click();
+    await form.getByLabel("Name", { exact: true }).fill("Someone else");
+    await page.getByTestId("sheet-import").setInputFiles(path);
+    await expect(page.getByText("Imported 1 sheets.")).toBeVisible();
+    await expect(form.getByLabel("Name", { exact: true })).toHaveValue("Hero 0");
+    await expect(page.locator(".cf-footer")).toContainText("All filled in");
+  }
   await page.getByRole("button", { name: "Submit character" }).click();
   await expect(page.getByText("Approved").first()).toBeVisible({ timeout: 20_000 });
 }

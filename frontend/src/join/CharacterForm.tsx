@@ -8,6 +8,7 @@ import { LibraryBox, initialSave, saveToLibrary, type LibrarySave, type Origin }
 import { FormBackendContext, gameBackend, type FormBackend } from "./formBackend";
 import { CopilotContext, CopilotPanel, SheetIndexContext, entryName, type CopilotFocus, type CopilotTurn } from "./Copilot";
 import type { Entry } from "../ui/EntryEditor";
+import { SheetFileError, readSheetFile, sheetFileName, sheetFileText } from "./sheetFile";
 
 export type { SheetDraft } from "./SheetWorkbench";
 
@@ -113,6 +114,10 @@ export function CharacterForm({
   const beforeFix = useRef<Submission[] | null>(null);
   const [libBusy, setLibBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  // 导入了角色卡文件：导入了几张、跳过几张，导入前的卡留着可以撤销
+  const [imported, setImported] = useState<{ count: number; skipped: number; before: Submission[] } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [libSavedAt, setLibSavedAt] = useState<string | null>(null);
   // 正在编辑的角色换了（例如刷新以后才认出来是哪个）：角色库的设置跟着换
   const originId = origin?.id;
@@ -226,6 +231,29 @@ export function CharacterForm({
       setError(e);
     } finally {
       setPdfBusy(false);
+    }
+  };
+  // 导出 JSON：按页面上现在的样子（没填完的也行），可以再导入到别的局、别的浏览器
+  const exportJson = () => {
+    const blob = new Blob([sheetFileText(cleanSubs())], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = sheetFileName(subs.map((s) => s.sheet.name));
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  };
+  // 导入 JSON：换掉现在的整套卡（可以撤销）；内容照常检查，提交前看得到哪里不对
+  const importJson = async (file: File) => {
+    setImportError(null);
+    try {
+      const r = readSheetFile(await file.text(), playerEntities);
+      setImported({ count: r.sheets.length, skipped: r.skipped, before: subs });
+      setSubs(r.sheets.map((x) => normalizeSubmission(x as unknown as Submission)));
+      setMissing({});
+      setTab(0);
+    } catch (e) {
+      setImported(null);
+      setImportError(!(e instanceof SheetFileError) ? String(e) : e.code === "bad" ? t("cf.import_bad") : t("cf.import_none"));
     }
   };
   const submit = async () => {
@@ -352,6 +380,27 @@ export function CharacterForm({
           </button>
         </div>
       )}
+      {imported && (
+        <div className="sk-card cf-fixed" role="status">
+          {t("cf.imported", { n: String(imported.count) })}
+          {imported.skipped > 0 ? t("cf.imported_skipped", { n: String(imported.skipped) }) : ""}{" "}
+          <button type="button" className="sk-link" onClick={() => {
+            setSubs(imported.before);
+            setMissing({});
+            setImported(null);
+          }}>
+            {t("cf.undo_import")}
+          </button>
+          <button type="button" className="sk-link" onClick={() => setImported(null)}>
+            {t("play.close")}
+          </button>
+        </div>
+      )}
+      {importError && (
+        <div className="sk-error" role="alert">
+          {importError}
+        </div>
+      )}
       <div className="cf-tabs" role="tablist">
         {subs.map((s, i) => {
           const tp = templates.find((x) => x.name === s.template);
@@ -421,6 +470,24 @@ export function CharacterForm({
         <button type="button" className="cf-pdf" title={t("cf.export_pdf_hint")} disabled={pdfBusy} onClick={() => void exportPdf()}>
           {t("cf.export_pdf")}
         </button>
+        <button type="button" className="cf-pdf" title={t("cf.export_json_hint")} onClick={exportJson}>
+          {t("cf.export_json")}
+        </button>
+        <button type="button" className="cf-pdf" title={t("cf.import_json_hint")} disabled={stale} onClick={() => fileInput.current?.click()}>
+          {t("cf.import_json")}
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          data-testid="sheet-import"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) void importJson(f);
+          }}
+        />
         <button type="button" className="cp-button" onClick={() => setCopilot({ sheet: current })}>
           ✦ {t("cp.button")}
         </button>

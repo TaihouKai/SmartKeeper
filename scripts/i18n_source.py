@@ -703,6 +703,31 @@ T: dict[str, tuple[str, str]] = {
         "把这套卡（全部角色）导出成方便阅读和打印的 PDF",
         "Export these sheets (every character) as a PDF to read or print",
     ),
+    "cf.export_json": ("导出 JSON", "Export JSON"),
+    "cf.export_json_hint": (
+        "把这套卡（全部角色）存成一个 JSON 文件，之后可以在别的局、别的浏览器里导入",
+        "Save these sheets (every character) as a JSON file you can import in another game or browser",
+    ),
+    "cf.import_json": ("导入 JSON", "Import JSON"),
+    "cf.import_json_hint": (
+        "从导出的 JSON 文件读回一套卡，换掉现在填的（可以撤销）；导入以后照常检查，看过再提交",
+        "Load sheets from an exported JSON file, replacing what is filled in now (can be undone); "
+        "they are checked as usual, so look them over before submitting",
+    ),
+    "cf.imported": ("导入了 {n} 张卡。", "Imported {n} sheets."),
+    "cf.imported_skipped": (
+        "有 {n} 张不是这套规则书要建的卡（或超出了张数），没有导入。",
+        " {n} were not sheets this rulebook asks for (or over the limit) and were left out.",
+    ),
+    "cf.undo_import": ("撤销导入", "Undo import"),
+    "cf.import_bad": (
+        "读不了这个文件：不是导出的角色卡 JSON。",
+        "Cannot read this file: it is not an exported character JSON.",
+    ),
+    "cf.import_none": (
+        "文件里没有这套规则书要建的卡（可能是别的规则书的角色）。",
+        "The file has no sheets this rulebook asks for (it may be a character for another rulebook).",
+    ),
     "ex.self": ("自己", "yourself"),
     "ex.target": ("对象", "the target"),
     "ex.of": ("{who}的{what}", "{who}'s {what}"),
